@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="shortcut icon" href="favicon.png">
+    <title>sb-custom/clocks-widget</title>
+    <!-- locally stored versions of Staffbase frontend assets -->
+    <link href="/css/app.css" rel="stylesheet">
+    <link href="/css/libs.css" rel="stylesheet">
+    <link href="/css/font.css" rel="stylesheet">
+    <style>
+      body {
+        padding: 50px;
+      }
+      .box {
+        border: 2px dashed gray;
+        padding: 40px;
+      }
+    </style>
+  </head>
+  <body>
+    <div style="display: flex; flex-direction: column; justify-content: space-evenly;">
+      <div class="box">
+        <h3>Widget preview:</h3>
+        <br />
+        <br />
+        <section id="preview">
+            <clocks-widget></clocks-widget>
+        </section>
+      </div>
+      <div class="box">
+      <h3>Configuration preview:</h3>
+        <section id="config"></section>
+      </div>
+    </div>
+  </body>
+  <script src="bootstrap.js"></script>
+  <script src="sb-custom.clocks-widget.js"></script>
+  <script src="config.js"></script>
+</html>
