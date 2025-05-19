@@ -24,6 +24,11 @@
  * limitations under the License.
  */
 
+/*!
+ * Copyright 2025, Staffbase
+ * Apache-2.0
+ */
+
 /**
  * @license React
  * react-dom.production.min.js
