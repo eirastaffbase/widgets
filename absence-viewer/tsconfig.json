@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "outDir": "./dist/",
+    "sourceMap": false,
+    "noImplicitAny": true,
+    "module": "commonjs",
+    "target": "esnext",
+    "jsx": "react",
+    "strict": true,
+    "skipDefaultLibCheck": true,
+    "skipLibCheck": true,
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "baseUrl": "src",
+    "rootDir": ".",
+    "paths": {
+      "widget-sdk": ["../node_modules/@staffbase/widget-sdk"]
+    }
+  },
+  "include": ["src/*"],
+  "exclude": ["node_modules", "dist"]
+}
