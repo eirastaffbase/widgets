@@ -17,15 +17,16 @@ import { BlockAttributes } from "widget-sdk";
 /* ——— API TYPES ——— */
 interface ApiEntry {
   id: string;
-  balance: number;
-  policytype: string;
+  balance: number;          // hours
+  policyType: string;       
 }
 interface ApiResponse {
   entries: ApiEntry[];
 }
+
 export interface AbsenceViewerProps extends BlockAttributes {
-  policytype?: string;
-  hoursperday?: number;
+  policytype?: string;      // the name you set in the config dialog (“Paid Time Off”)
+  hoursperday?: number;     // default 8
 }
 
 /* ——— COMPONENT ——— */
@@ -33,12 +34,14 @@ export const AbsenceViewer = ({
   policytype = "Paid Time Off",
   hoursperday = 8,
 }: AbsenceViewerProps): ReactElement => {
-  const [hoursLeft, setHoursLeft] = useState<number>(hoursperday * 5.55);
-  const [loading, setLoading] = useState<boolean>(true);
+  const FALLBACK_HOURS = 44.42;
+
+  const [hoursLeft, setHoursLeft] = useState<number>(FALLBACK_HOURS);
+  const [loading, setLoading]    = useState<boolean>(true);
   const [showHours, setShowHours] = useState<boolean>(false);
 
-  /* hover states */
-  const [pillHover, setPillHover] = useState(false);
+  /* UI hover states */
+  const [pillHover,  setPillHover]  = useState(false);
   const [arrowHover, setArrowHover] = useState(false);
 
   /* fetch once */
@@ -50,23 +53,35 @@ export const AbsenceViewer = ({
           { headers: { "staffbase-app": "staffbase" } }
         );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
         const data: ApiResponse = await res.json();
-        const entry = data.entries.find(e => e.policytype === policytype);
-        if (entry && Number.isFinite(entry.balance)) setHoursLeft(entry.balance);
+        const entry = data.entries.find(
+          e => e.policyType.toLowerCase() === policytype.toLowerCase()
+        );
+
+        if (entry && Number.isFinite(entry.balance)) {
+          setHoursLeft(entry.balance);
+        }
       } catch (e) {
-        console.warn("Absence viewer: using fallback 5.55 days", e);
+        console.warn(
+          `Absence viewer: falling back to ${FALLBACK_HOURS} h (${(
+            FALLBACK_HOURS / hoursperday
+          ).toFixed(2)} d)`,
+          e
+        );
       } finally {
         setLoading(false);
       }
     };
+
     fetchBalance();
   }, [policytype]);
 
-  /* values */
-  const days   = (hoursLeft / hoursperday).toFixed(2);
-  const hours  = hoursLeft.toFixed(2);
-  const value  = showHours ? hours : days;
-  const unit   = showHours ? "hours" : "days";
+  /* values for display */
+  const days  = (hoursLeft / hoursperday).toFixed(2);
+  const hours = hoursLeft.toFixed(2);
+  const value = showHours ? hours : days;
+  const unit  = showHours ? "hours" : "days";
 
   /* ——— JSX ——— */
   return (
@@ -78,7 +93,6 @@ export const AbsenceViewer = ({
         gap: "0.5rem",
       }}
     >
-      {/* pill */}
       <button
         onClick={() => setShowHours(p => !p)}
         disabled={loading}
@@ -88,7 +102,7 @@ export const AbsenceViewer = ({
           all: "unset",
           cursor: "pointer",
           background: pillHover ? "#F4F6F8" : "#EBF4FF",
-          color: "#003366",
+          color: "#212121",
           borderRadius: "9999px",
           padding: "0.4rem 1.1rem",
           fontSize: "1.5rem",
@@ -104,7 +118,6 @@ export const AbsenceViewer = ({
         <span style={{ fontSize: "0.9rem", fontWeight: 400 }}>{unit}</span>
       </button>
 
-      {/* arrow */}
       <a
         href="https://app.staffbase.com/content/page/6827725cbe0b257321169628"
         onMouseEnter={() => setArrowHover(true)}
