@@ -11,26 +11,21 @@
  * limitations under the License.
  */
 
-/*!
- * Copyright 2025, Staffbase
- * Apache-2.0
- */
-
 import React, { useState, useEffect, ReactElement } from "react";
 import { BlockAttributes } from "widget-sdk";
 
-/* ——— TYPES ——— */
+/* ——— API TYPES ——— */
 interface ApiEntry {
   id: string;
-  balance: number;          // returns hours
-  policytype: string;       // e.g. "Paid Time Off"
+  balance: number;
+  policytype: string;
 }
 interface ApiResponse {
   entries: ApiEntry[];
 }
 export interface AbsenceViewerProps extends BlockAttributes {
-  policytype?: string;      // default "Paid Time Off"
-  hoursperday?: number;     // default 8
+  policytype?: string;
+  hoursperday?: number;
 }
 
 /* ——— COMPONENT ——— */
@@ -38,9 +33,13 @@ export const AbsenceViewer = ({
   policytype = "Paid Time Off",
   hoursperday = 8,
 }: AbsenceViewerProps): ReactElement => {
-  /** store hours so we can always re-compute days if config changes */
-  const [hoursLeft, setHoursLeft] = useState<number>(hoursperday * 5.55); // = 5.55 days
+  const [hoursLeft, setHoursLeft] = useState<number>(hoursperday * 5.55);
   const [loading, setLoading] = useState<boolean>(true);
+  const [showHours, setShowHours] = useState<boolean>(false);
+
+  /* hover states */
+  const [pillHover, setPillHover] = useState(false);
+  const [arrowHover, setArrowHover] = useState(false);
 
   /* fetch once */
   useEffect(() => {
@@ -53,11 +52,9 @@ export const AbsenceViewer = ({
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data: ApiResponse = await res.json();
         const entry = data.entries.find(e => e.policytype === policytype);
-        if (entry && Number.isFinite(entry.balance)) {
-          setHoursLeft(entry.balance);
-        }
+        if (entry && Number.isFinite(entry.balance)) setHoursLeft(entry.balance);
       } catch (e) {
-        console.warn("Absence viewer: falling back to 5.55 days", e);
+        console.warn("Absence viewer: using fallback 5.55 days", e);
       } finally {
         setLoading(false);
       }
@@ -65,72 +62,71 @@ export const AbsenceViewer = ({
     fetchBalance();
   }, [policytype]);
 
-  /* helpers */
-  const daysLeft = (hoursLeft / hoursperday).toFixed(2);
+  /* values */
+  const days   = (hoursLeft / hoursperday).toFixed(2);
+  const hours  = hoursLeft.toFixed(2);
+  const value  = showHours ? hours : days;
+  const unit   = showHours ? "hours" : "days";
 
   /* ——— JSX ——— */
   return (
     <div
       style={{
         fontFamily: "inherit",
-        borderRadius: 8,
-        padding: "1rem",
         display: "flex",
-        flexDirection: "column",
-        gap: "0.75rem",
-        alignItems: "flex-start",
+        alignItems: "center",
+        gap: "0.5rem",
       }}
     >
-      {/* heading + palm-tree */}
-      <h2
+      {/* pill */}
+      <button
+        onClick={() => setShowHours(p => !p)}
+        disabled={loading}
+        onMouseEnter={() => setPillHover(true)}
+        onMouseLeave={() => setPillHover(false)}
         style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "0.5rem",
-          fontSize: "1.25rem",
-          fontWeight: 600,
-          margin: 0,
-        }}
-      >
-        Paid time off
-        {/* tiny palm-tree icon (light blue) */}
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 32 32"
-          fill="#5BC0FF"
-          aria-hidden="true"
-        >
-          <path d="M11.177 1.287c-1.75... (rest of path unchanged)"></path>
-        </svg>
-      </h2>
-
-      {/* balance */}
-      <div
-        style={{
-          fontSize: "2rem",
+          all: "unset",
+          cursor: "pointer",
+          background: pillHover ? "#F4F6F8" : "#EBF4FF",
+          color: "#003366",
+          borderRadius: "9999px",
+          padding: "0.4rem 1.1rem",
+          fontSize: "1.5rem",
           fontWeight: 600,
           lineHeight: 1.1,
+          display: "flex",
+          alignItems: "baseline",
+          gap: "0.3rem",
         }}
+        title="Click to toggle hours / days"
       >
-        {loading ? "…" : daysLeft}{" "}
-        <span style={{ fontSize: "1rem", fontWeight: 400 }}>days remaining</span>
-      </div>
+        {loading ? "…" : value}
+        <span style={{ fontSize: "0.9rem", fontWeight: 400 }}>{unit}</span>
+      </button>
 
-      {/* view-more button */}
+      {/* arrow */}
       <a
         href="https://app.staffbase.com/content/page/6827725cbe0b257321169628"
+        onMouseEnter={() => setArrowHover(true)}
+        onMouseLeave={() => setArrowHover(false)}
         style={{
-          padding: "0.45rem 1rem",
-          borderRadius: 4,
-          background: "#00A4FD",
-          color: "#fff",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 34,
+          height: 34,
+          borderRadius: "50%",
+          background: "none",
+          color: arrowHover ? "#0066CC" : "#212121",
           textDecoration: "none",
-          fontSize: "0.9rem",
-          fontWeight: 500,
+          fontSize: "1.15rem",
+          fontWeight: 600,
+          transition: "color 0.15s ease",
+          cursor: "pointer",
         }}
+        aria-label="View more"
       >
-        View more
+        →
       </a>
     </div>
   );
