@@ -83,7 +83,7 @@ const blockDefinition: BlockDefinition = {
     blockLevel: 'block',
     configurationSchema: configurationSchema,
     uiSchema: uiSchema,
-    label: 'Stock Ticker',
+    label: 'Absence Viewer',
     iconUrl: icon
 };
 
