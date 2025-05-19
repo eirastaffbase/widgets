@@ -121,7 +121,7 @@ export const AbsenceViewer = ({
       <a
         href="https://app.staffbase.com/content/page/6827725cbe0b257321169628"
         style={{
-          padding: "0.4rem 1rem",
+          padding: "0.45rem 1rem",
           borderRadius: 4,
           background: "#00A4FD",
           color: "#fff",
