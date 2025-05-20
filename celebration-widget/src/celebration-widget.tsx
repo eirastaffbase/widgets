@@ -342,13 +342,19 @@ export const CelebrationWidget = ({ dateformat, anniversaryprofilefieldid, inclu
               {/* RIGHT – chat button (only if enabled) */}
               {linktochat === 'true' && (
                 <a
-                  href={`https://app.staffbase.com/content/chat/6827796988a422758da72069/direct/${theUser.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                href={`https://app.staffbase.com/content/chat/6827796988a422758da72069/direct/${theUser.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <span
+                  className="we-icon css-1ccn5tk-IconStyled e19il6tt0"
+                  aria-hidden="true"
+                  style={{ fontSize: '20px', paddingRight: '10px' }}
                 >
-                  <span class="we-icon css-1ccn5tk-IconStyled e19il6tt0" aria-hidden="true" style="font-size: 20px; padding-right: 10px">D</span>
-                </a>
-              )}
+                  D
+                </span>
+              </a>
+            )}
             </div>
           );    
         }))
