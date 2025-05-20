@@ -137,6 +137,11 @@ export const configurationSchema: JSONSchema7 = {
       type: "string",
       title: "Value for Opt Out Field"
     },
+    linktochat: {
+      type: "boolean",
+      title: "Link to Chat?",
+      default: false
+    },
 /*
     showwholemonth: {
       type: "boolean",
@@ -281,6 +286,9 @@ export const uiSchema: UiSchema = {
   },
   fieldvalue: {
     "ui:help": "The profile field value that will be used to filter users",
+  },
+  linktochat: {
+    "ui:help": "Select if the link to a chat message should be shown, default is a link to the user's profile",
   },
   /*
   linktochat: {

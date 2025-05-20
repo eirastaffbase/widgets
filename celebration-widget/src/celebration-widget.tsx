@@ -110,6 +110,18 @@ export const CelebrationWidget = ({ dateformat, anniversaryprofilefieldid, inclu
     },
   };
 
+  const chatBtnStyles: React.CSSProperties = {
+    padding: '6px 12px',
+    borderRadius: '6px',
+    fontSize: '14px',
+    lineHeight: '1',
+    border: 'none',
+    cursor: 'pointer',
+    background: '#007AFF',          // ↳ tweak if your brand colour differs
+    color: '#FFFFFF',
+  };
+  
+
   const h2styles: { [key: string]: React.CSSProperties } = {
     container: {
       color: '#' + (headercolor ? headercolor : '000000')
@@ -121,7 +133,8 @@ export const CelebrationWidget = ({ dateformat, anniversaryprofilefieldid, inclu
       borderRadius: '10px',
       border: '1px solid #D3D3D3',
       padding: '8px',
-      margin: '10px 0px'
+      margin: '10px 0px',
+      backgroundColor: '#FFFFFF',
     },
   };
 
@@ -266,14 +279,80 @@ export const CelebrationWidget = ({ dateformat, anniversaryprofilefieldid, inclu
           window.location.origin;      
           const userLink = `${base}/openlink/profile/${theUser.id}`;  
 
-          return <div key={theUser.id + 'divInner'} id={theUser.id} className="cw-entries" style={divstyles.container}>
-                    <a key={theUser.id + 'a'} href={userLink} className="link-internal ally-focus-within">
-                      {hasAvatar ? <img key={theUser.id + 'img'} data-type="thumb" data-size="35" aria-hidden="true" data-user-id={theUser.id} style={imgstyles.container} src={theUser.avatar ? (theUser.avatar.thumb ? theUser.avatar.thumb.url : imageurl) : imageurl} alt={theUser.firstName + " " + theUser.lastName}></img> :
-                        <span key={theUser.id + 'span'} data-type="thumb" data-size="35" aria-hidden="true" data-user-id={theUser.id} style={spanstyles.container}>{theUser.firstName.substr(0,1) + theUser.lastName.substr(0,1)}</span>}
-                      <div style={pstyles.container}><div style={namestyles.container}>{theUser.firstName} {theUser.lastName}</div><hr style={hrstyles.container}></hr><span style={datestyles.container}>{showdate === 'true' ? (theUser.profile ? convertDate(theUser.profile[anniversaryprofilefieldid], dateformat) : '') : ''}</span></div>
-                      </a>
+          return (
+            <div
+              key={theUser.id + 'divInner'}
+              id={theUser.id}
+              className="cw-entries"
+              /* turn the row into a flex-box so we can separate left & right */
+              style={{ ...divstyles.container, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+            >
+              {/* LEFT – avatar + name (unchanged) */}
+              <a
+                key={theUser.id + 'a'}
+                href={userLink}
+                className="link-internal ally-focus-within"
+                style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}
+              >
+                {hasAvatar ? (
+                  <img
+                    key={theUser.id + 'img'}
+                    data-type="thumb"
+                    data-size="35"
+                    aria-hidden="true"
+                    data-user-id={theUser.id}
+                    style={imgstyles.container}
+                    src={
+                      theUser.avatar
+                        ? theUser.avatar.thumb
+                          ? theUser.avatar.thumb.url
+                          : imageurl
+                        : imageurl
+                    }
+                    alt={theUser.firstName + ' ' + theUser.lastName}
+                  />
+                ) : (
+                  <span
+                    key={theUser.id + 'span'}
+                    data-type="thumb"
+                    data-size="35"
+                    aria-hidden="true"
+                    data-user-id={theUser.id}
+                    style={spanstyles.container}
+                  >
+                    {theUser.firstName.substr(0, 1) + theUser.lastName.substr(0, 1)}
+                  </span>
+                )}
+          
+                <div style={pstyles.container}>
+                  <div style={namestyles.container}>
+                    {theUser.firstName} {theUser.lastName}
                   </div>
-    
+                  <hr style={hrstyles.container} />
+                  <span style={datestyles.container}>
+                    {showdate === 'true'
+                      ? theUser.profile
+                        ? convertDate(theUser.profile[anniversaryprofilefieldid], dateformat)
+                        : ''
+                      : ''}
+                  </span>
+                </div>
+              </a>
+          
+              {/* RIGHT – chat button (only if enabled) */}
+              {linktochat === 'true' && (
+                <a
+                  href={`https://app.staffbase.com/content/chat/6827796988a422758da72069/direct/${theUser.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <button type="button" style={chatBtnStyles} aria-label={`Chat with ${theUser.firstName}`}>
+                    💬
+                  </button>
+                </a>
+              )}
+            </div>
+          );    
         }))
       anniversariesCount = anniversariesCount + usersGroup.length;
     }

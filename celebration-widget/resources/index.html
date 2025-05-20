@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="shortcut icon" href="favicon.png">
     <title>sb-custom/celebration-widget</title>
-    <!-- locally stored versions of Staffbase frontend assets -->
     <link href="/css/app.css" rel="stylesheet">
     <link href="/css/libs.css" rel="stylesheet">
     <link href="/css/font.css" rel="stylesheet">
@@ -15,13 +14,28 @@
       }
       .box {
         border: 2px dashed gray;
-        padding: 40px;
+        padding: 20px; /* Reduced padding for a slightly more compact look */
+        margin: 10px; /* Add some margin between the boxes */
+      }
+      .main-container {
+        display: flex;
+        flex-direction: row;
+        justify-content: space-evenly;
+        align-items: flex-start; /* Align items to the top */
+      }
+      .widget-container {
+        flex: 3; /* Take up 3 parts of the available space */
+        max-width: 65%; /* Optional: Set a max-width to prevent it from getting too wide */
+      }
+      .config-container {
+        flex: 1; /* Take up 1 part of the available space (smaller) */
+        max-width: 30%; /* Optional: Set a max-width for the config */
       }
     </style>
   </head>
   <body>
-    <div style="display: flex; flex-direction: row; justify-content: space-evenly;">
-      <div class="box">
+    <div class="main-container">
+      <div class="box widget-container">
         <h3>Widget preview:</h3>
         <br />
         <br />
@@ -29,7 +43,7 @@
             <celebration-widget message="world!"></celebration-widget>
         </section>
       </div>
-      <div class="box">
+      <div class="box config-container">
       <h3>Configuration preview:</h3>
         <section id="config"></section>
       </div>
