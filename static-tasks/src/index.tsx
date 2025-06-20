@@ -82,7 +82,7 @@ const blockDefinition: BlockDefinition = {
     blockLevel: 'block',
     configurationSchema: configurationSchema,
     uiSchema: uiSchema,
-    label: 'Job Postings',
+    label: 'Static Tasks',
     iconUrl: icon
 };
 
