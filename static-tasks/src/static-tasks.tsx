@@ -60,7 +60,6 @@ export interface StaticTasksProps extends BlockAttributes {
 // The main component
 export const StaticTasks = ({ tasksjson }: StaticTasksProps): ReactElement => {
   const [tasks, setTasks] = useState<Task[]>([]);
-  // Removed the isHovered state as we will use a pure CSS approach
 
   // Effect to parse the JSON string from props and initialize state
   useEffect(() => {
@@ -104,7 +103,7 @@ export const StaticTasks = ({ tasksjson }: StaticTasksProps): ReactElement => {
     // Normalize dates to midnight for consistent comparisons
     today.setHours(0, 0, 0, 0);
     tomorrow.setHours(0, 0, 0, 0);
-    
+
     const dueDate = parseDueDate(dueDateStr);
 
     if (dueDate.getTime() === today.getTime()) {
@@ -116,56 +115,84 @@ export const StaticTasks = ({ tasksjson }: StaticTasksProps): ReactElement => {
     return { text: getFormattedDate(dueDate), color: "#A2D5A6", textColor: "#2c512e" };
   };
 
-  // CSS for the hover effect. Injecting a style tag is a common and 
-  // effective way to apply pseudo-classes like :hover in self-contained widgets.
-  const hoverStyles = `
-    .tasks-widget-container {
-        background-color: rgba(230, 230, 230, 0.15);
-        transition: background-color 0.3s ease-in-out;
-    }
-    .tasks-widget-container:hover {
-        background-color: rgba(210, 210, 210, 0.2);
-    }
+  // ======================= CHANGES START HERE =======================
+
+  // 1. CSS for item hover effects and to give the container a background
+  //    The container's background will be the color that shows in the gaps.
+  const dynamicStyles = `
+  .tasks-widget__item {
+    background-color: rgb(225,225,228,0.25);
+  }
+  .tasks-widget__item:hover {
+    background-color: rgb(215,215,228,0.3); /* Slightly darker on hover */
+  }
+
   `;
-  
-  // Base styles for the main container
+
+  // 2. Base styles for the main container
   const containerStyle: React.CSSProperties = {
     maxWidth: 500,
     fontFamily: "'Inter', sans-serif",
     borderRadius: "16px",
-    border: '1px solid rgba(200, 200, 200, 0.2)',
-    padding: '8px 16px',
-    overflow: 'hidden', // Ensures children conform to border-radius
+    padding: '8px',      // Padding creates space around the list
+    overflow: 'hidden',
   };
+
+  // Filter tasks to get only visible ones
+  const visibleTasks = tasks.filter(task => !task.checked);
 
   return (
     <>
-      <style>{hoverStyles}</style>
-      <div 
-          className="tasks-widget tasks-widget-container" 
+      <style>{dynamicStyles}</style>
+      <div
+          className="tasks-widget tasks-widget__container" // Use a class for the background
           style={containerStyle}
       >
         <ul className="tasks-widget__list" style={{ listStyle: "none", padding: 0, margin: 0 }}>
-          {tasks.map((task, index) => {
+          {tasks.map((task, index) => { // Keep mapping all tasks for animation purposes
             const { text, color, textColor } = getDateDisplay(task.dueDate);
 
-            const isLastItem = index === tasks.length - 1;
+            const isFirstVisibleItem = visibleTasks.length > 0 && visibleTasks[0].id === task.id;
+            const isLastVisibleItem = visibleTasks.length > 0 && visibleTasks[visibleTasks.length - 1].id === task.id;
+            const totalVisibleTasks = visibleTasks.length;
+
+            // 3. Conditionally set the border-radius for the single-block illusion
+            const getBorderRadius = () => {
+              const radius = "16px";
+              if (totalVisibleTasks === 0) return "0"; // No visible tasks, no radius needed
+              if (totalVisibleTasks === 1) return radius; // All corners if only one visible item
+              if (isFirstVisibleItem) return `${radius} ${radius} 0 0`; // Top corners only
+              if (isLastVisibleItem) return `0 0 ${radius} ${radius}`; // Bottom corners only
+              return "0"; // No rounding for middle items
+            };
 
             const itemStyle: React.CSSProperties = {
               display: "flex",
               alignItems: "center",
-              padding: "16px 8px",
-              // Remove border from the last item for a cleaner look
-              borderBottom: isLastItem ? "none" : "1px solid #eee", 
+              padding: "16px",
+              borderRadius: getBorderRadius(), // Apply the conditional radius
+              // Use margin to create the gap. It disappears when the task is checked.
+              marginBottom: task.checked ? '0px' : (isLastVisibleItem ? '0px' : '2px'), // Adjust margin for visible last item
               overflow: "hidden",
-              transition: "opacity 0.4s ease-out, max-height 0.5s ease-in-out, transform 0.4s ease-out, padding 0.5s ease-in-out",
+              transition: "all 0.4s ease-in-out",
               opacity: task.checked ? 0 : 1,
-              maxHeight: task.checked ? "0px" : "60px",
+              maxHeight: task.checked ? "0px" : "100px",
               paddingTop: task.checked ? 0 : "16px",
               paddingBottom: task.checked ? 0 : "16px",
-              transform: task.checked ? "translateY(-100%)" : "translateY(0)",
+              transform: task.checked ? "translateY(-25%)" : "translateY(0)",
             };
-            
+
+            // If the task is checked and its animation has completed, we can consider not rendering it
+            // This is a subtle optimization for performance on very long lists,
+            // but the CSS transitions already handle the visual disappearance well.
+            // For simplicity and smoother transitions, we'll keep rendering it until it's effectively hidden.
+            // if (task.checked && itemStyle.maxHeight === "0px") {
+            //   return null; // Don't render if completely hidden
+            // }
+
+
+            // ======================== CHANGES END HERE ========================
+
             return (
                <li
                   key={task.id}
@@ -179,7 +206,6 @@ export const StaticTasks = ({ tasksjson }: StaticTasksProps): ReactElement => {
                     minWidth: "24px",
                     height: "24px",
                     borderRadius: "50%",
-                    // Use a dashed border for the unchecked state to create a more visible "dotted" look
                     border: task.checked ? "2px solid #4CAF50" : "2px dashed #ccc",
                     backgroundColor: task.checked ? "#4CAF50" : "transparent",
                     cursor: "pointer",
@@ -190,14 +216,13 @@ export const StaticTasks = ({ tasksjson }: StaticTasksProps): ReactElement => {
                     transition: "all 0.2s ease-in-out"
                   }}
                 >
-                  {/* Always render the SVG, but change its color based on the checked state */}
                   <svg
                       className="tasks-widget__checkbox-icon"
                       width="14"
                       height="14"
                       viewBox="0 0 24 24"
                       fill="none"
-                      stroke={task.checked ? "white" : "#ccc"} // Conditional stroke color
+                      stroke={task.checked ? "white" : "#ccc"}
                       strokeWidth="3"
                       strokeLinecap="round"
                       strokeLinejoin="round"
