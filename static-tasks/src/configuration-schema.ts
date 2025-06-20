@@ -9,23 +9,23 @@ export const configurationSchema: JSONSchema7 = {
       default: `[
         {
           "title": "Complete Required Safety Training",
-          "dueDate": "${new Date().toISOString().split('T')[0]}"
+          "dueDate": "today"
         },
         {
           "title": "Submit Monthly Expense Report",
-          "dueDate": "${new Date(Date.now() + 86400000).toISOString().split('T')[0]}"
+          "dueDate": "today+1"
         },
         {
           "title": "Schedule Q3 Performance Review",
-          "dueDate": "2025-09-15"
+          "dueDate": "today+7"
         },
         {
             "title": "Finalize Project Proposal",
-            "dueDate": "${new Date().toISOString().split('T')[0]}"
+            "dueDate": "today"
         },
         {
             "title": "Book Flights for Conference",
-            "dueDate": "${new Date(Date.now() + 86400000).toISOString().split('T')[0]}"
+            "dueDate": "today+1"
         },
         {
             "title": "Update Client Contact Information",
@@ -39,7 +39,7 @@ export const configurationSchema: JSONSchema7 = {
 export const uiSchema: UiSchema = {
   tasksjson: {
     "ui:widget": "textarea",
-    "ui:help": "Enter tasks as a JSON array. Each task object must have a 'title' (string) and a 'dueDate' (string in YYYY-MM-DD format).",
+    "ui:help": "Enter tasks as a JSON array. Each task needs a 'title' (string) and 'dueDate' (string: 'YYYY-MM-DD', 'today', or 'today+N').",
     "ui:options": {
       rows: 15,
     }
