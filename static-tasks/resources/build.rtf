@@ -1,0 +1,125 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2821
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fnil\fcharset0 Menlo-Regular;\f1\fnil\fcharset0 Menlo-Italic;}
+{\colortbl;\red255\green255\blue255;\red254\green200\blue237;\red0\green0\blue0;\red70\green137\blue204;
+\red212\green214\blue154;\red140\green211\blue254;\red111\green77\blue101;\red202\green202\blue202;\red194\green126\blue101;
+\red167\green197\blue152;\red66\green179\blue255;\red183\green111\blue179;}
+{\*\expandedcolortbl;;\cssrgb\c100000\c83137\c94510;\cssrgb\c0\c0\c0;\cssrgb\c33725\c61176\c83922;
+\cssrgb\c86275\c86275\c66667;\cssrgb\c61176\c86275\c99608;\cssrgb\c51373\c38039\c47059;\cssrgb\c83137\c83137\c83137;\cssrgb\c80784\c56863\c47059;
+\cssrgb\c70980\c80784\c65882;\cssrgb\c30980\c75686\c100000;\cssrgb\c77255\c52549\c75294;}
+\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\deftab720
+\pard\pardeftab720\partightenfactor0
+
+\f0\fs24 \cf2 \cb3 \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2   \cf4 \strokec4 function\cf2 \strokec2  \cf5 \strokec5 buildPreviewCss\cf2 \strokec2 (\cf6 \strokec6 o\cf2 \strokec2 ) \{\cb1 \
+\cb3     
+\f1\i \cf7 \strokec7 // ---------- helpers ----------
+\f0\i0 \cf2 \cb1 \strokec2 \
+\cb3     \cf4 \strokec4 const\cf2 \strokec2  \cf5 \strokec5 hexToRgba\cf2 \strokec2  \cf8 \strokec8 =\cf2 \strokec2  (\cf6 \strokec6 hex\cf2 \strokec2 , \cf6 \strokec6 op\cf2 \strokec2 ) \cf4 \strokec4 =>\cf2 \cb1 \strokec2 \
+\cb3       \cf9 \strokec9 `rgba(\cf4 \strokec4 $\{\cf5 \strokec5 parseInt\cf8 \strokec8 (\cf6 \strokec6 hex\cf8 \strokec8 .\cf5 \strokec5 slice\cf8 \strokec8 (\cf10 \strokec10 1\cf8 \strokec8 , \cf10 \strokec10 3\cf8 \strokec8 ), \cf10 \strokec10 16\cf8 \strokec8 )\cf4 \strokec4 \}\cf9 \strokec9 ,\cf4 \strokec4 $\{\cf5 \strokec5 parseInt\cf8 \strokec8 (\cf2 \cb1 \strokec2 \
+\pard\pardeftab720\partightenfactor0
+\cf8 \cb3 \strokec8         \cf6 \strokec6 hex\cf8 \strokec8 .\cf5 \strokec5 slice\cf8 \strokec8 (\cf10 \strokec10 3\cf8 \strokec8 , \cf10 \strokec10 5\cf8 \strokec8 ),\cf2 \cb1 \strokec2 \
+\cf8 \cb3 \strokec8         \cf10 \strokec10 16\cf2 \cb1 \strokec2 \
+\cf8 \cb3 \strokec8       )\cf4 \strokec4 \}\cf9 \strokec9 ,\cf4 \strokec4 $\{\cf5 \strokec5 parseInt\cf8 \strokec8 (\cf6 \strokec6 hex\cf8 \strokec8 .\cf5 \strokec5 slice\cf8 \strokec8 (\cf10 \strokec10 5\cf8 \strokec8 , \cf10 \strokec10 7\cf8 \strokec8 ), \cf10 \strokec10 16\cf8 \strokec8 )\cf4 \strokec4 \}\cf9 \strokec9 ,\cf4 \strokec4 $\{\cf6 \strokec6 op\cf4 \strokec4 \}\cf9 \strokec9 )`\cf2 \strokec2 ;\cb1 \
+\pard\pardeftab720\partightenfactor0
+\cf2 \cb3   \cb1 \
+\cb3     \cf4 \strokec4 const\cf2 \strokec2  \cf5 \strokec5 isDarkColor\cf2 \strokec2  \cf8 \strokec8 =\cf2 \strokec2  (\cf6 \strokec6 hex\cf2 \strokec2 ) \cf4 \strokec4 =>\cf2 \strokec2  \{\cb1 \
+\cb3       \cf4 \strokec4 const\cf2 \strokec2  \cf11 \strokec11 r\cf2 \strokec2  \cf8 \strokec8 =\cf2 \strokec2  \cf5 \strokec5 parseInt\cf2 \strokec2 (\cf6 \strokec6 hex\cf2 \strokec2 .\cf5 \strokec5 slice\cf2 \strokec2 (\cf10 \strokec10 1\cf2 \strokec2 , \cf10 \strokec10 3\cf2 \strokec2 ), \cf10 \strokec10 16\cf2 \strokec2 );\cb1 \
+\cb3       \cf4 \strokec4 const\cf2 \strokec2  \cf11 \strokec11 g\cf2 \strokec2  \cf8 \strokec8 =\cf2 \strokec2  \cf5 \strokec5 parseInt\cf2 \strokec2 (\cf6 \strokec6 hex\cf2 \strokec2 .\cf5 \strokec5 slice\cf2 \strokec2 (\cf10 \strokec10 3\cf2 \strokec2 , \cf10 \strokec10 5\cf2 \strokec2 ), \cf10 \strokec10 16\cf2 \strokec2 );\cb1 \
+\cb3       \cf4 \strokec4 const\cf2 \strokec2  \cf11 \strokec11 b\cf2 \strokec2  \cf8 \strokec8 =\cf2 \strokec2  \cf5 \strokec5 parseInt\cf2 \strokec2 (\cf6 \strokec6 hex\cf2 \strokec2 .\cf5 \strokec5 slice\cf2 \strokec2 (\cf10 \strokec10 5\cf2 \strokec2 , \cf10 \strokec10 7\cf2 \strokec2 ), \cf10 \strokec10 16\cf2 \strokec2 );\cb1 \
+\cb3       \cf4 \strokec4 const\cf2 \strokec2  \cf11 \strokec11 luminance\cf2 \strokec2  \cf8 \strokec8 =\cf2 \strokec2  \cf10 \strokec10 0.299\cf2 \strokec2  \cf8 \strokec8 *\cf2 \strokec2  \cf6 \strokec6 r\cf2 \strokec2  \cf8 \strokec8 +\cf2 \strokec2  \cf10 \strokec10 0.587\cf2 \strokec2  \cf8 \strokec8 *\cf2 \strokec2  \cf6 \strokec6 g\cf2 \strokec2  \cf8 \strokec8 +\cf2 \strokec2  \cf10 \strokec10 0.114\cf2 \strokec2  \cf8 \strokec8 *\cf2 \strokec2  \cf6 \strokec6 b\cf2 \strokec2 ;\cb1 \
+\cb3       \cf12 \strokec12 return\cf2 \strokec2  \cf6 \strokec6 luminance\cf2 \strokec2  \cf8 \strokec8 <\cf2 \strokec2  \cf10 \strokec10 128\cf2 \strokec2 ;\cb1 \
+\cb3     \};\cb1 \
+\cb3   \cb1 \
+\cb3     
+\f1\i \cf7 \strokec7 // ---------- derived colours ----------
+\f0\i0 \cf2 \cb1 \strokec2 \
+\cb3     \cf4 \strokec4 const\cf2 \strokec2  \cf11 \strokec11 hoverColor\cf2 \strokec2            \cf8 \strokec8 =\cf2 \strokec2  \cf5 \strokec5 isDarkColor\cf2 \strokec2 (\cf6 \strokec6 o\cf2 \strokec2 .\cf6 \strokec6 background\cf2 \strokec2 ) \cf8 \strokec8 ?\cf2 \strokec2  \cf9 \strokec9 '#fff'\cf2 \strokec2  \cf8 \strokec8 :\cf2 \strokec2  \cf9 \strokec9 'rgba(0,0,0,.7)'\cf2 \strokec2 ;\cb1 \
+\cb3     \cf4 \strokec4 const\cf2 \strokec2  \cf11 \strokec11 widgetTextColor\cf2 \strokec2       \cf8 \strokec8 =\cf2 \strokec2  \cf5 \strokec5 isDarkColor\cf2 \strokec2 (\cf6 \strokec6 o\cf2 \strokec2 .\cf6 \strokec6 background\cf2 \strokec2 ) \cf8 \strokec8 ?\cf2 \strokec2  \cf9 \strokec9 '#fff'\cf2 \strokec2  \cf8 \strokec8 :\cf2 \strokec2  \cf9 \strokec9 '#000'\cf2 \strokec2 ;\cb1 \
+\cb3     \cf4 \strokec4 const\cf2 \strokec2  \cf11 \strokec11 headerBgTranslucent\cf2 \strokec2   \cf8 \strokec8 =\cf2 \strokec2  \cf5 \strokec5 hexToRgba\cf2 \strokec2 (\cf6 \strokec6 o\cf2 \strokec2 .\cf6 \strokec6 primary\cf2 \strokec2 , \cf10 \strokec10 0.7\cf2 \strokec2 );\cb1 \
+\cb3   \cb1 \
+\cb3     
+\f1\i \cf7 \strokec7 // ---------- CSS ----------
+\f0\i0 \cf2 \cb1 \strokec2 \
+\cb3     \cf12 \strokec12 return\cf2 \strokec2  \cf9 \strokec9 `\cf2 \cb1 \strokec2 \
+\pard\pardeftab720\partightenfactor0
+\cf9 \cb3 \strokec9   /* ================= root tokens ================= */\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   :root\{\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9     --color-client-primary       : \cf4 \strokec4 $\{\cf6 \strokec6 o\cf8 \strokec8 .\cf6 \strokec6 primary\cf4 \strokec4 \}\cf9 \strokec9  !important;\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9     --color-client-text          : \cf4 \strokec4 $\{\cf6 \strokec6 o\cf8 \strokec8 .\cf6 \strokec6 text\cf4 \strokec4 \}\cf9 \strokec9    !important;\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9     --sb-text-nav-appintranet    : \cf4 \strokec4 $\{\cf6 \strokec6 o\cf8 \strokec8 .\cf6 \strokec6 text\cf4 \strokec4 \}\cf9 \strokec9    !important;\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9     --color-client-background    : \cf4 \strokec4 $\{\cf6 \strokec6 o\cf8 \strokec8 .\cf6 \strokec6 background\cf4 \strokec4 \}\cf9 \strokec9  !important;\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9     --bg-image                   : url("\cf4 \strokec4 $\{\cf6 \strokec6 o\cf8 \strokec8 .\cf6 \strokec6 bg\cf8 \strokec8    || \cf9 \strokec9 ''\cf4 \strokec4 \}\cf9 \strokec9 ");\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9     --logo-url                   : url("\cf4 \strokec4 $\{\cf6 \strokec6 o\cf8 \strokec8 .\cf6 \strokec6 logo\cf8 \strokec8  || \cf9 \strokec9 ''\cf4 \strokec4 \}\cf9 \strokec9 ");\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9     --padding-logo-size          : \cf4 \strokec4 $\{\cf6 \strokec6 o\cf8 \strokec8 .\cf6 \strokec6 padH\cf8 \strokec8  || \cf10 \strokec10 0\cf4 \strokec4 \}\cf9 \strokec9 px \cf4 \strokec4 $\{\cf6 \strokec6 o\cf8 \strokec8 .\cf6 \strokec6 padW\cf8 \strokec8  || \cf10 \strokec10 0\cf4 \strokec4 \}\cf9 \strokec9 px;\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9     --bg-image-position          : 25% \cf4 \strokec4 $\{\cf6 \strokec6 o\cf8 \strokec8 .\cf6 \strokec6 bgVert\cf8 \strokec8  || \cf10 \strokec10 50\cf4 \strokec4 \}\cf9 \strokec9 %;\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   \}\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   \cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   /* ================= header ================= */\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   \cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   /* hide the built\uc0\u8209 in image and inject yours */\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   .desktop.wow-header-activated .header-left-container \{\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9     position: relative;                                   /* anchor for ::after */\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9     padding: var(--padding-logo-size) !important;\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   \}\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   .desktop.wow-header-activated .header-left-container img.header-logo\{\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9     opacity: 0 !important;                                /* keep layout, hide pixels */\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   \}\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   .desktop.wow-header-activated .header-left-container::after\{\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9     content: "" !important;\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9     position: absolute;\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9     inset: 0;\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9     background-image   : var(--logo-url);\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9     background-repeat  : no-repeat;\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9     background-size    : contain;\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9     background-position: left center;\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9     pointer-events     : none;                            /* logo stays decorative */\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   \}\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   \cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   /* kill the title text and its divider */\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   .desktop.wow-header-activated .header-title,\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   .desktop.wow-header-activated .header-title::before,\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   .desktop.wow-header-activated .header-title::after\{\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9     display:none !important;\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   \}\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   \cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   /* translucent coloured bar behind the header */\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   .desktop.wow-header-activated .app-header\{\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9     --desktop-app-header-bg-color: \cf4 \strokec4 $\{\cf6 \strokec6 headerBgTranslucent\cf4 \strokec4 \}\cf9 \strokec9  !important;\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9     background-color            : \cf4 \strokec4 $\{\cf6 \strokec6 headerBgTranslucent\cf4 \strokec4 \}\cf9 \strokec9  !important;\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   \}\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   \cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   /* ================= menu / icons (your originals kept) ================= */\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   .desktop.wow-header-activated .header-title,\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   .desktop.wow-header-activated .header-title .css-1wac6i9-TitleWrapper\{\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9     color:\cf4 \strokec4 $\{\cf6 \strokec6 o\cf8 \strokec8 .\cf6 \strokec6 text\cf4 \strokec4 \}\cf9 \strokec9 !important;\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   \}\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   .wow-header-activated .css-4557aa-StyledMegaMenuItem>a::before,\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   .desktop.wow-header-activated #mega-menu li>a.item:before\{\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9     background-color:\cf4 \strokec4 $\{\cf5 \strokec5 hexToRgba\cf8 \strokec8 (\cf6 \strokec6 o\cf8 \strokec8 .\cf6 \strokec6 primary\cf8 \strokec8 ,\cf10 \strokec10 0.3\cf8 \strokec8 )\cf4 \strokec4 \}\cf9 \strokec9 !important;\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   \}\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   .wow-header-activated #menu  .we-icon,\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   .desktop.wow-header-activated .wow-app-header .css-dgi6rr-Link::after\{\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9     color:\cf4 \strokec4 $\{\cf6 \strokec6 o\cf8 \strokec8 .\cf6 \strokec6 text\cf4 \strokec4 \}\cf9 \strokec9 !important;\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   \}\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   \cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   /* hover highlight */\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   .wow-header-activated #menu  a:hover .we-icon,\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   .desktop.wow-header-activated .wow-app-header .css-dgi6rr-Link:hover::after\{\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9     color:\cf4 \strokec4 $\{\cf6 \strokec6 hoverColor\cf4 \strokec4 \}\cf9 \strokec9  !important;\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   \}\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   .desktop.wow-header-activated #menu a:hover,\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   .desktop.wow-header-activated #menu > div:hover,\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   .desktop.wow-header-activated #menu > div > div:hover\{\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9     background-color:\cf4 \strokec4 $\{\cf6 \strokec6 o\cf8 \strokec8 .\cf6 \strokec6 background\cf4 \strokec4 \}\cf9 \strokec9  !important;\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   \}\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   \cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   /* ================= card widgets ================= */\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   .content-widget-wrapper.static-content-wrapper.widget-on-card.no-shadow-border\{\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9     background-color:\cf4 \strokec4 $\{\cf6 \strokec6 o\cf8 \strokec8 .\cf6 \strokec6 background\cf4 \strokec4 \}\cf9 \strokec9  !important;\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9     color:\cf4 \strokec4 $\{\cf6 \strokec6 widgetTextColor\cf4 \strokec4 \}\cf9 \strokec9  !important;\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   \}\cf2 \cb1 \strokec2 \
+\cf9 \cb3 \strokec9   `\cf2 \strokec2 ;\cb1 \
+\pard\pardeftab720\partightenfactor0
+\cf2 \cb3   \}\cb1 \
+}
