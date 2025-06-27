@@ -6,7 +6,6 @@
  * http://www.apache.org/licenses/LICENSE-2.0
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
-
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
@@ -15,83 +14,100 @@
 import { UiSchema } from "@rjsf/utils";
 import { JSONSchema7 } from "json-schema";
 
+export const defaultShifts = [
+  {
+    shiftdate: "today+1",
+    shiftduration: 8,
+    shifttimestart: "09:00",
+    shiftlocation: "Apple Fifth Avenue",
+    shiftname: "Genius Bar",
+  },
+  {
+    shiftdate: "today+3",
+    shiftduration: 6,
+    shifttimestart: "12:00",
+    shiftlocation: "Apple Grand Central",
+    shiftname: "Technical Specialist",
+  },
+  {
+    shiftdate: "today+4",
+    shiftduration: 8,
+    shifttimestart: "10:00",
+    shiftlocation: "Apple SoHo",
+    shiftname: "Creative",
+  },
+  {
+    shiftdate: "today+5",
+    shiftduration: 7,
+    shifttimestart: "11:00",
+    shiftlocation: "Apple World Trade Center",
+    shiftname: "Genius Bar",
+  },
+  {
+    shiftdate: "today+6",
+    shiftduration: 8,
+    shifttimestart: "09:30",
+    shiftlocation: "Apple Williamsburg",
+    shiftname: "Specialist",
+  },
+];
+
 /**
  * schema used for generation of the configuration dialog
  * see https://rjsf-team.github.io/react-jsonschema-form/docs/ for documentation
  */
 export const configurationSchema: JSONSchema7 = {
   properties: {
-    detailView: {
+    detailview: {
       type: "boolean",
       title: "Detail View",
+      default: false,
+    },
+    detailpagelink: {
+      type: "string",
+      title: "Detail Page Link",
+      default: "",
+    },
+    edittextmode: {
+      type: "boolean",
+      title: "Edit Shifts as Raw Text",
       default: true,
     },
-    shifts: {
-      type: "array",
-      title: "Shifts",
-      items: {
-        type: "object",
-        properties: {
-          shiftDate: {
-            type: "string",
-            title: "Shift Date",
-            default: "today+1",
-          },
-          shiftDuration: {
-            type: "number",
-            title: "Shift Duration (hours)",
-            default: 8,
-          },
-          shiftTimeStart: {
-            type: "string",
-            title: "Shift Start Time",
-            default: "09:00",
-          },
-          shiftLocation: {
-            type: "string",
-            title: "Shift Location",
-          },
-          shiftName: {
-            type: "string",
-            title: "Shift Name",
+  },
+  dependencies: {
+    edittextmode: {
+      oneOf: [
+        {
+          // This block is now shown when edittextmode is FALSE
+          properties: {
+            edittextmode: { const: false },
+            shifts: {
+              type: "array",
+              title: "Shifts",
+              default: defaultShifts,
+              items: {
+                type: "object",
+                properties: {
+                  shiftdate: { type: "string", title: "Shift Date" },
+                  shiftduration: { type: "number", title: "Shift Duration (hours)" },
+                  shifttimestart: { type: "string", title: "Shift Start Time" },
+                  shiftlocation: { type: "string", title: "Shift Location" },
+                  shiftname: { type: "string", title: "Shift Name" },
+                },
+              },
+            },
           },
         },
-      },
-      default: [
         {
-          shiftDate: "today+1",
-          shiftDuration: 8,
-          shiftTimeStart: "09:00",
-          shiftLocation: "Apple Fifth Avenue",
-          shiftName: "Genius Bar",
-        },
-        {
-          shiftDate: "today+3",
-          shiftDuration: 6,
-          shiftTimeStart: "12:00",
-          shiftLocation: "Apple Grand Central",
-          shiftName: "Technical Specialist",
-        },
-        {
-          shiftDate: "today+4",
-          shiftDuration: 8,
-          shiftTimeStart: "10:00",
-          shiftLocation: "Apple SoHo",
-          shiftName: "Creative",
-        },
-        {
-          shiftDate: "today+5",
-          shiftDuration: 7,
-          shiftTimeStart: "11:00",
-          shiftLocation: "Apple World Trade Center",
-          shiftName: "Genius Bar",
-        },
-        {
-          shiftDate: "today+6",
-          shiftDuration: 8,
-          shiftTimeStart: "09:30",
-          shiftLocation: "Apple Williamsburg",
-          shiftName: "Specialist",
+          // This block is now shown when edittextmode is TRUE
+          properties: {
+            edittextmode: { const: true },
+            shiftsastext: {
+              type: "string",
+              title: "Shifts (JSON Format)",
+              default: JSON.stringify(defaultShifts, null, 2),
+            },
+          },
         },
       ],
     },
@@ -103,20 +119,22 @@ export const configurationSchema: JSONSchema7 = {
  * @see https://rjsf-team.github.io/react-jsonschema-form/docs/api-reference/uiSchema
  */
 export const uiSchema: UiSchema = {
-  detailView: {
-    "ui:help": "Toggle between detail and normal view.",
-  },
+  detailview: { "ui:help": "Toggle between detail and normal view." },
+  edittextmode: { "ui:help": "Switch to a raw text editor for bulk-editing shifts in JSON format." },
   shifts: {
     items: {
-      shiftDate: {
-        "ui:help": "Enter a date reference like 'today', 'today+1', 'today-1'.",
-      },
-      shiftDuration: {
-        "ui:widget": "updown",
-      },
-      shiftTimeStart: {
-        "ui:widget": "time",
-      },
+      shiftduration: { "ui:widget": "updown" },
+      shifttimestart: { "ui:widget": "time" },
+      shiftdate: { "ui:help": "Use 'today+1', 'today-1', or a date like '2025-07-28'." },
     },
   },
+  shiftsastext: {
+    "ui:widget": "textarea",
+    "ui:options": { rows: 20 },
+    "ui:help": "Edit the shifts as a raw JSON array. Ensure the JSON is valid.",
+  },
+  detailpagelink: {
+    "ui:widget": "text",
+    "ui:help": "Link to the detail page.",
+  }
 };
