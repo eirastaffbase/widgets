@@ -16,7 +16,6 @@ import React, {
   useState,
   useEffect,
   useMemo,
-  useRef,
 } from "react";
 import { BlockAttributes } from "widget-sdk";
 import { DateTime } from "luxon";
@@ -24,7 +23,6 @@ import { defaultShifts } from "./configuration-schema";
 import { FaBuilding } from "react-icons/fa";
 
 import Calendar from "react-calendar";
-import { Calendar as CalendarRef } from "react-calendar";
 
 // Interfaces and helper functions remain the same...
 interface Shift {
@@ -117,8 +115,6 @@ export const ShiftViewer = ({
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [activeStartDate, setActiveStartDate] = useState<Date>(new Date());
   
-  const calendarRef = useRef<CalendarRef>(null);
-
   useEffect(() => {
     let dataToProcess: Shift[] = [];
     if (shiftsastext) {
@@ -186,15 +182,18 @@ export const ShiftViewer = ({
         setSelectedDate(today);
     }
 
+    const handlePreviousMonth = () => {
+        setActiveStartDate(prev => DateTime.fromJSDate(prev).minus({ months: 1 }).toJSDate());
+    };
+
+    const handleNextMonth = () => {
+        setActiveStartDate(prev => DateTime.fromJSDate(prev).plus({ months: 1 }).toJSDate());
+    };
+
     return (
       <div
         className="shifts-widget shifts-widget--detail-view"
-        style={{
-          fontFamily: "sans-serif",
-          background: "#D3E6EC",
-          padding: "16px",
-          borderRadius: "16px",
-        }}
+        style={{ fontFamily: "sans-serif" }}
       >
         <style>{`
           .react-calendar { width: 100%; background: transparent; border: none; font-family: sans-serif; }
@@ -203,180 +202,224 @@ export const ShiftViewer = ({
           .react-calendar__navigation { display: none; }
           .react-calendar__month-view__weekdays { text-align: center; font-weight: bold; font-size: 0.9em; }
           .react-calendar__month-view__weekdays__weekday abbr { text-decoration: none; }
-          .react-calendar__month-view__days__day--neighboringMonth { color: #9B9BA0; }
-          .react-calendar__tile { max-width: 100%; padding: 10px 6px; text-align: center; font-size: 0.9em; height: 44px; }
-          .react-calendar__tile:enabled:hover, .react-calendar__tile:enabled:focus { background-color: rgba(0,0,0,0.05); border-radius: 50%; }
-          .react-calendar__tile--active { background: #0071E3; color: white; border-radius: 50%; font-weight: bold; }
-          .react-calendar__tile--active:enabled:hover, .react-calendar__tile--active:enabled:focus { background: #0071E3; }
-          .shifts-widget__calendar .react-calendar__tile { color: black; }
+          .react-calendar__tile { max-width: 100%; padding: 10px 6px; text-align: center; font-size: 0.9em; height: 22px; position: relative; }
+          
+          .shifts-widget__calendar .react-calendar__tile { color: #545459; }
+          .shifts-widget__calendar .react-calendar__month-view__days__day--neighboringMonth { color: #80C2B7; }
+          .shifts-widget__calendar .react-calendar__tile--active { background: #0071E3; color: white; border-radius: 50%; font-weight: bold; }
+          .shifts-widget__calendar .react-calendar__tile--active:enabled:hover, .shifts-widget__calendar .react-calendar__tile--active:enabled:focus { background: #0071E3; }
+
           .shifts-widget__calendar .react-calendar__tile--now { font-weight: bold; }
           .shift-dot { height: 5px; width: 5px; background-color: #0071E3; border-radius: 50%; position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%); }
         `}</style>
 
+        {/* Section 1: Calendar */}
         <div
-          className="shifts-widget__calendar-header"
-          style={{ padding: "0 8px" }}
+          className="shifts-widget__calendar-container"
+          style={{
+            background: "#D3E6EC",
+            padding: "16px",
+            borderRadius: "16px",
+            marginBottom: "16px",
+          }}
         >
-          <h2 style={{ margin: "0 0 16px 0", fontSize: "1.5em" }}>
-            {DateTime.fromJSDate(activeStartDate).toFormat("LLLL yyyy")}
-          </h2>
-          <div
+          <a
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              window.history.back();
+            }}
             style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: "12px",
+              display: 'block',
+              marginBottom: '16px',
+              color: '#0071E3',
+              textDecoration: 'none',
+              fontSize: '1em'
             }}
           >
-            <button
-              onClick={handleTodayClick}
+            &lt; Back
+          </a>
+          <div
+            className="shifts-widget__calendar-header"
+            style={{ padding: "0 8px" }}
+          >
+            <h2 style={{ margin: "0 0 16px 0", fontSize: "1.5em" }}>
+              {DateTime.fromJSDate(activeStartDate).toFormat("LLLL yyyy")}
+            </h2>
+            <div
               style={{
-                  width: '85px',
-                  height: '38px', // Adjusted height
-                  borderRadius: '8.25px',
-                  border: '0px',
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  background: 'white',
-                  color: '#0071E3',
-                  fontSize: '1em'
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "12px",
               }}
             >
-              Today
-            </button>
-            <div style={{ display: "flex", gap: "8px" }}>
               <button
-                onClick={() => calendarRef.current?.navigate(-1)}
+                onClick={handleTodayClick}
                 style={{
-                  width: '38px', // Match height
-                  height: '38px',
-                  fontSize: '1.2em',
-                  color: '#0071E3',
-                  display: 'grid',
-                  placeItems: 'center',
-                  background: 'white',
-                  borderRadius: '8.25px',
-                  border: '0px',
-
+                  width: "85px",
+                  height: "38px",
+                  borderRadius: "8.25px",
+                  marginLeft: "0px",
+                  border: "0px",
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  background: "white",
+                  color: "#0071E3",
+                  fontSize: "1em",
                 }}
               >
-                &lt;
+                Today
               </button>
-              <button
-                onClick={() => calendarRef.current?.navigate(1)}
-                style={{
-                  width: '38px',
-                  height: '38px',
-                  fontSize: '1.2em',
-                  color: '#0071E3',
-                  display: 'grid',
-                  placeItems: 'center',
-                  background: 'white',
-                  borderRadius: '8.25px',
-                  border: '0px',
-                }}
-              >
-                &gt;
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <Calendar
-          ref={calendarRef}
-          onChange={(value) => setSelectedDate(value as Date)}
-          onActiveStartDateChange={({ activeStartDate }) =>
-            setActiveStartDate(activeStartDate as Date)
-          }
-          value={selectedDate}
-          activeStartDate={activeStartDate}
-          className="shifts-widget__calendar"
-          navigationLabel={() => null}
-          prev2Label={null}
-          next2Label={null}
-          tileContent={({ date, view }) => {
-            if (view === "month") {
-              const dateKey = DateTime.fromJSDate(date).toISODate() as string;
-              if (shiftsByDate.has(dateKey)) {
-                return <div className="shift-dot"></div>;
-              }
-            }
-            return null;
-          }}
-        />
-
-        <div
-          className="shifts-widget__day-details"
-          style={{ marginTop: "24px" }}
-        >
-          <div
-            style={{
-              display: "flex",
-              gap: "16px",
-              color: "#555",
-              fontSize: "0.9em",
-              fontWeight: "bold",
-              paddingBottom: "8px",
-            }}
-          >
-            <div style={{ width: "90px", flexShrink: 0 }}>Time</div>
-            <div>Shift</div>
-          </div>
-          {shiftsForSelectedDay.length > 0 ? (
-            shiftsForSelectedDay.map((shift) => (
-              <div
-                key={shift.id}
-                className="shifts-widget__day-shift-item"
-                style={{ display: "flex", gap: "16px", marginTop: "16px" }}
-              >
-                <div
-                  className="shifts-widget__day-time"
-                  style={{ flexShrink: 0, width: "90px", fontSize: "0.9em", lineHeight: '1.5' }}
-                >
-                  <div style={{ fontWeight: "bold" }}>
-                    {shift.startDateTime.toFormat("h:mm a")}
-                  </div>
-                  <div style={{ color: "#9B9BA0" }}>
-                    {shift.endDateTime.toFormat("h:mm a")}
-                  </div>
-                </div>
-                <div
-                  className="shifts-widget__day-shift-card"
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button
+                  onClick={handlePreviousMonth}
                   style={{
-                    flexGrow: 1,
-                    backgroundColor: "#498374",
-                    color: "white",
-                    borderRadius: "8px",
-                    padding: "16px",
+                    width: "38px",
+                    height: "38px",
+                    fontSize: "1.2em",
+                    color: "#0071E3",
+                    display: "grid",
+                    placeItems: "center",
+                    background: "white",
+                    borderRadius: "8.25px",
+                    border: "0px",
                   }}
                 >
+                  &lt;
+                </button>
+                <button
+                  onClick={handleNextMonth}
+                  style={{
+                    width: "38px",
+                    height: "38px",
+                    fontSize: "1.2em",
+                    color: "#0071E3",
+                    display: "grid",
+                    placeItems: "center",
+                    background: "white",
+                    borderRadius: "8.25px",
+                    border: "0px",
+                  }}
+                >
+                  &gt;
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <Calendar
+            onChange={(value) => setSelectedDate(value as Date)}
+            onActiveStartDateChange={({ activeStartDate }) =>
+              setActiveStartDate(activeStartDate as Date)
+            }
+            value={selectedDate}
+            activeStartDate={activeStartDate}
+            className="shifts-widget__calendar"
+            navigationLabel={() => null}
+            prev2Label={null}
+            next2Label={null}
+            tileContent={({ date, view }) => {
+              if (view === "month") {
+                const dateKey =
+                  DateTime.fromJSDate(date).toISODate() as string;
+                if (shiftsByDate.has(dateKey)) {
+                  return <div className="shift-dot"></div>;
+                }
+              }
+              return null;
+            }}
+          />
+        </div>
+
+        {/* Section 2: Time/Shift Details */}
+        <div
+          className="shifts-widget__details-container"
+          style={{
+            background: "white",
+            borderRadius: "16px",
+            padding: "16px",
+          }}
+        >
+          <div className="shifts-widget__day-details" style={{ marginTop: 0 }}>
+            <div
+              style={{
+                display: "flex",
+                gap: "16px",
+                color: "#555",
+                fontSize: "0.9em",
+                fontWeight: "bold",
+                paddingBottom: "8px",
+              }}
+            >
+              <div style={{ width: "90px", flexShrink: 0 }}>Time</div>
+              <div>Shift</div>
+            </div>
+            {shiftsForSelectedDay.length > 0 ? (
+              shiftsForSelectedDay.map((shift) => (
+                <div
+                  key={shift.id}
+                  className="shifts-widget__day-shift-item"
+                  style={{ display: "flex", gap: "16px", marginTop: "16px" }}
+                >
                   <div
+                    className="shifts-widget__day-time"
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      color: "#d0e0dc",
+                      flexShrink: 0,
+                      width: "90px",
                       fontSize: "0.9em",
-                      marginBottom: "4px",
+                      lineHeight: "1.5",
                     }}
                   >
-                    <FaBuilding />
-                    <span>{shift.shiftlocation}</span>
+                    <div style={{ fontWeight: "bold" }}>
+                      {shift.startDateTime.toFormat("h:mm a")}
+                    </div>
+                    <div style={{ color: "#9B9BA0" }}>
+                      {shift.endDateTime.toFormat("h:mm a")}
+                    </div>
                   </div>
-                  <div style={{ fontWeight: "bold", fontSize: "1.2em" }}>
-                    {shift.shiftname}
+                  <div
+                    className="shifts-widget__day-shift-card"
+                    style={{
+                      flexGrow: 1,
+                      backgroundColor: "#498374",
+                      color: "white",
+                      borderRadius: "8px",
+                      padding: "16px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        color: "#d0e0dc",
+                        fontSize: "0.9em",
+                        marginBottom: "4px",
+                      }}
+                    >
+                      <FaBuilding />
+                      <span>{shift.shiftlocation}</span>
+                    </div>
+                    <div style={{ fontWeight: "bold", fontSize: "1.2em" }}>
+                      {shift.shiftname}
+                    </div>
                   </div>
                 </div>
+              ))
+            ) : (
+              <div
+                style={{
+                  marginTop: "16px",
+                  color: "#555",
+                  textAlign: "center",
+                }}
+              >
+                No shifts scheduled on this day
               </div>
-            ))
-          ) : (
-            <div
-              style={{ marginTop: "16px", color: "#555", textAlign: "center" }}
-            >
-              No shifts scheduled on this day
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     );

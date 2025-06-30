@@ -34,7 +34,7 @@ const widgetAttributes: string[] = [
 
 /**
  * This factory creates the class which is registered with the tagname in the `custom element registry`
- * Gets the parental class and a set of helper utilities provided by the hosting application.
+ * Gets the parental class and a set of helper utilities provided by the hosting application. A
  */
 const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
   /**
