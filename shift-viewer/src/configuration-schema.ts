@@ -28,6 +28,10 @@ export const defaultShifts = [
     shifttimestart: "12:00",
     shiftlocation: "Apple Grand Central",
     shiftname: "Technical Specialist",
+    coworkerimages: [
+      "https://www.apple.com/leadership/images/bio/tim-cook_image.png.og.png?1745445487877",
+      "683f391ea8fe9108cb9bacbb", 
+    ],
   },
   {
     shiftdate: "today+4",
@@ -89,10 +93,20 @@ export const configurationSchema: JSONSchema7 = {
                 type: "object",
                 properties: {
                   shiftdate: { type: "string", title: "Shift Date" },
-                  shiftduration: { type: "number", title: "Shift Duration (hours)" },
+                  shiftduration: {
+                    type: "number",
+                    title: "Shift Duration (hours)",
+                  },
                   shifttimestart: { type: "string", title: "Shift Start Time" },
                   shiftlocation: { type: "string", title: "Shift Location" },
                   shiftname: { type: "string", title: "Shift Name" },
+                  coworkerimages: {
+                    type: "array",
+                    title: "Coworker Images (IDs or URLs)",
+                    items: {
+                      type: "string",
+                    },
+                  },
                 },
               },
             },
@@ -120,12 +134,19 @@ export const configurationSchema: JSONSchema7 = {
  */
 export const uiSchema: UiSchema = {
   detailview: { "ui:help": "Toggle between detail and normal view." },
-  edittextmode: { "ui:help": "Switch to a raw text editor for bulk-editing shifts in JSON format." },
+  edittextmode: {
+    "ui:help": "Switch to a raw text editor for bulk-editing shifts in JSON format.",
+  },
   shifts: {
     items: {
       shiftduration: { "ui:widget": "updown" },
       shifttimestart: { "ui:widget": "time" },
-      shiftdate: { "ui:help": "Use 'today+1', 'today-1', or a date like '2025-07-28'." },
+      shiftdate: {
+        "ui:help": "Use 'today+1', 'today-1', or a date like '2025-07-28'.",
+      },
+      coworkerimages: {
+        "ui:help": "Add Staffbase image IDs or full image URLs.",
+      },
     },
   },
   shiftsastext: {
@@ -136,5 +157,5 @@ export const uiSchema: UiSchema = {
   detailpagelink: {
     "ui:widget": "text",
     "ui:help": "Link to the detail page.",
-  }
+  },
 };

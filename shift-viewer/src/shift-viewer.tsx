@@ -31,6 +31,7 @@ interface Shift {
   shifttimestart: string;
   shiftlocation: string;
   shiftname: string;
+  coworkerimages?: string[];
 }
 
 interface ProcessedShift extends Shift {
@@ -52,14 +53,14 @@ const parseShiftDateTime = (
   const { shiftdate, shifttimestart, shiftduration } = shift;
   let baseDate: DateTime;
   const today = DateTime.now().startOf("day");
-  
+
   const relativeMatch = shiftdate.trim().match(/^today\s*([+-])\s*(\d+)/i);
   const todayMatch = shiftdate.trim().match(/^today$/i);
 
   if (relativeMatch) {
     const operator = relativeMatch[1];
     const days = parseInt(relativeMatch[2], 10);
-    if (operator === '+') {
+    if (operator === "+") {
       baseDate = today.plus({ days });
     } else {
       baseDate = today.minus({ days });
@@ -71,8 +72,8 @@ const parseShiftDateTime = (
   }
 
   if (!baseDate.isValid) {
-      console.error("Invalid base date parsed from:", shiftdate);
-      return null;
+    console.error("Invalid base date parsed from:", shiftdate);
+    return null;
   }
 
   const [hour, minute] = shifttimestart.split(":").map(Number);
@@ -114,7 +115,7 @@ export const ShiftViewer = ({
   const [processedShifts, setProcessedShifts] = useState<ProcessedShift[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [activeStartDate, setActiveStartDate] = useState<Date>(new Date());
-  
+
   useEffect(() => {
     let dataToProcess: Shift[] = [];
     if (shiftsastext) {
@@ -139,23 +140,22 @@ export const ShiftViewer = ({
     }
 
     const allShifts = dataToProcess
-        .map((shift, index) => {
-            const parsed = parseShiftDateTime(shift);
-            if (!parsed) return null;
-            return {
-                ...shift,
-                id: `${shift.shiftname}-${index}`,
-                startDateTime: parsed.start,
-                endDateTime: parsed.end,
-            };
-        })
-        .filter((s): s is ProcessedShift => s !== null);
+      .map((shift, index) => {
+        const parsed = parseShiftDateTime(shift);
+        if (!parsed) return null;
+        return {
+          ...shift,
+          id: `${shift.shiftname}-${index}`,
+          startDateTime: parsed.start,
+          endDateTime: parsed.end,
+        };
+      })
+      .filter((s): s is ProcessedShift => s !== null);
 
     const sortedShifts = allShifts.sort(
       (a, b) => a.startDateTime.toMillis() - b.startDateTime.toMillis()
     );
     setProcessedShifts(sortedShifts);
-
   }, [shifts, shiftsastext]);
 
   const shiftsByDate = useMemo(() => {
@@ -175,19 +175,23 @@ export const ShiftViewer = ({
     const shiftsForSelectedDay = selectedDateISO
       ? shiftsByDate.get(selectedDateISO) || []
       : [];
-      
+
     const handleTodayClick = () => {
-        const today = new Date();
-        setActiveStartDate(today);
-        setSelectedDate(today);
-    }
+      const today = new Date();
+      setActiveStartDate(today);
+      setSelectedDate(today);
+    };
 
     const handlePreviousMonth = () => {
-        setActiveStartDate(prev => DateTime.fromJSDate(prev).minus({ months: 1 }).toJSDate());
+      setActiveStartDate((prev) =>
+        DateTime.fromJSDate(prev).minus({ months: 1 }).toJSDate()
+      );
     };
 
     const handleNextMonth = () => {
-        setActiveStartDate(prev => DateTime.fromJSDate(prev).plus({ months: 1 }).toJSDate());
+      setActiveStartDate((prev) =>
+        DateTime.fromJSDate(prev).plus({ months: 1 }).toJSDate()
+      );
     };
 
     return (
@@ -202,8 +206,6 @@ export const ShiftViewer = ({
           .react-calendar__navigation { display: none; }
           .react-calendar__month-view__weekdays { text-align: center; font-weight: bold; font-size: 0.9em; }
           .react-calendar__month-view__weekdays__weekday abbr { text-decoration: none; }
-          
-          /* --- z-index Fix --- */
 
           .react-calendar__tile {
             position: relative;
@@ -217,18 +219,16 @@ export const ShiftViewer = ({
           .shifts-widget__calendar .react-calendar__tile { color: #545459; }
           .shifts-widget__calendar .react-calendar__month-view__days__day--neighboringMonth { color: #80C2B7; }
 
-          /* 1. Create a new stacking context on the active tile */
           .shifts-widget__calendar .react-calendar__tile--active {
             font-weight: bold;
             color: white;
             background: transparent !important;
-            isolation: isolate; /* This is the key change */
+            isolation: isolate;
           }
           .shifts-widget__calendar .react-calendar__tile--active:enabled:hover {
             background: transparent !important;
           }
 
-          /* 2. Position the circle behind the text within the new context */
           .shifts-widget__calendar .react-calendar__tile--active::before {
             content: '';
             position: absolute;
@@ -239,11 +239,13 @@ export const ShiftViewer = ({
             width: 38px;
             height: 38px;
             border-radius: 50%;
-            z-index: -1; /* This now works as expected */
+            z-index: -1;
           }
           
           .shifts-widget__calendar .react-calendar__tile--now { font-weight: bold; }
-          .shift-dot { height: 5px; width: 5px; background-color: #0071E3; border-radius: 50%; position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%); }
+          .shift-dot { height: 5px; width: 5px; background-color: #198374; border-radius: 50%; position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%); }
+
+
         `}</style>
 
         {/* Section 1: Calendar */}
@@ -343,7 +345,8 @@ export const ShiftViewer = ({
                   DateTime.fromJSDate(date).toISODate() as string;
                 if (shiftsByDate.has(dateKey)) {
                   // Don't show dot if the tile is active
-                  const isActive = DateTime.fromJSDate(selectedDate).toISODate() === dateKey;
+                  const isActive =
+                    DateTime.fromJSDate(selectedDate).toISODate() === dateKey;
                   if (!isActive) {
                     return <div className="shift-dot"></div>;
                   }
@@ -426,6 +429,53 @@ export const ShiftViewer = ({
                     <div style={{ fontWeight: "bold", fontSize: "1.2em" }}>
                       {shift.shiftname}
                     </div>
+
+                    {/* ✨ Co-worker images section ✨ */}
+                    {shift.coworkerimages &&
+                      shift.coworkerimages.length > 0 && (
+                        <div style={{ marginTop: "16px" }}>
+                          <h4
+                            style={{
+                              margin: "0 0 8px 0",
+                              fontSize: "0.8em",
+                              color: "#d0e0dc",
+                              letterSpacing: "0.5px",
+                              textTransform: "uppercase",
+                            }}
+                          >
+                            Co-workers
+                          </h4>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                            }}
+                          >
+                            {shift.coworkerimages.map((img, index) => {
+                              const isFullUrl = img.startsWith("http");
+                              const imageUrl = isFullUrl
+                                ? img
+                                : `https://apple.staffbase.rocks/api/media/secure/external/v2/image/upload/${img}.png`;
+
+                              return (
+                                <img
+                                  key={index}
+                                  src={imageUrl}
+                                  alt={`Coworker ${index + 1}`}
+                                  style={{
+                                    width: "30px",
+                                    height: "30px",
+                                    borderRadius: "50%",
+                                    border: "2px solid #198374",
+                                    objectFit: "cover",
+                                    marginLeft: index > 0 ? "-8px" : 0,
+                                  }}
+                                />
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                   </div>
                 </div>
               ))
@@ -475,10 +525,17 @@ export const ShiftViewer = ({
         fontFamily: "sans-serif",
         display: "flex",
         flexDirection: "column",
-        gap: "8px", /* Adjusted gap */
+        gap: "8px" /* Adjusted gap */,
       }}
     >
-      <div style={{ fontSize: '1em', color: 'white', fontWeight:'bold', marginBottom: '10px' }}>
+      <div
+        style={{
+          fontSize: "1em",
+          color: "white",
+          fontWeight: "bold",
+          marginBottom: "10px",
+        }}
+      >
         Your next shift
       </div>
 
@@ -545,28 +602,30 @@ export const ShiftViewer = ({
         <div className="shifts-widget__date-info">
           <div
             className="shifts-widget__label"
-            style={{ fontSize: "0.8em", color: "#d0e0dc", marginBottom: "4px" }}
+            style={{
+              fontSize: "0.8em",
+              color: "#d0e0dc",
+              marginBottom: "4px",
+            }}
           >
             DATE
           </div>
-          <div
-            className="shifts-widget__date-value"
-            style={{ fontSize: "1.1em",  }}
-          >
+          <div className="shifts-widget__date-value" style={{ fontSize: "1.1em" }}>
             {getDateLabel(nextShift.startDateTime)}
           </div>
         </div>
         <div className="shifts-widget__time-info">
           <div
             className="shifts-widget__label"
-            style={{ fontSize: "0.8em", color: "#d0e0dc", marginBottom: "4px" }}
+            style={{
+              fontSize: "0.8em",
+              color: "#d0e0dc",
+              marginBottom: "4px",
+            }}
           >
             TIME
           </div>
-          <div
-            className="shifts-widget__time-value"
-            style={{ fontSize: "1.1em" }}
-          >
+          <div className="shifts-widget__time-value" style={{ fontSize: "1.1em" }}>
             {nextShift.startDateTime.toFormat("h:mm a")} -{" "}
             {nextShift.endDateTime.toFormat("h:mm a")}
           </div>
