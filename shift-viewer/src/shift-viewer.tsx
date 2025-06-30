@@ -243,7 +243,7 @@ export const ShiftViewer = ({
           }
           
           .shifts-widget__calendar .react-calendar__tile--now { font-weight: bold; }
-          .shift-dot { height: 5px; width: 5px; background-color: #198374; border-radius: 50%; position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%); }
+          .shift-dot { height: 4px; width: 4px; background-color: #198374; border-radius: 50%; position: absolute; left: 50%; transform: translateX(-50%); }
 
 
         `}</style>
