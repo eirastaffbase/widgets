@@ -20,11 +20,17 @@ import { JSONSchema7 } from "json-schema";
  */
 export const configurationSchema: JSONSchema7 = {
   properties: {
-    message: {
+    linkedinurl: {
       type: "string",
-      title: "message",
+      title: "LinkedIn Company URL",
+    },
+    numberofposts: {
+      type: "integer",
+      title: "Number of Posts to Show",
+      default: 5,
     },
   },
+  required: ["linkedinurl"],
 };
 
 /**
@@ -32,7 +38,12 @@ export const configurationSchema: JSONSchema7 = {
  * @see https://rjsf-team.github.io/react-jsonschema-form/docs/api-reference/uiSchema
  */
 export const uiSchema: UiSchema = {
-  message: {
-    "ui:help": "Please enter a message to show",
+  linkedinurl: {
+    "ui:help": "Please enter the full URL of the company's LinkedIn page.",
+    "ui:placeholder": "https://www.linkedin.com/company/your-company-name",
+  },
+  numberofposts: {
+    "ui:help": "Enter the number of recent posts you want to display.",
+    "ui:widget": "updown",
   },
 };

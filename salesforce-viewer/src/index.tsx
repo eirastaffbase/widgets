@@ -15,17 +15,20 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 
 import { BlockFactory, BlockDefinition, ExternalBlockDefinition, BaseBlock } from "widget-sdk";
-import { LinkedinViewerProps, LinkedinViewer } from "./linkedin-viewer";
+import { SalesforceViewerProps, SalesforceViewer } from "./salesforce-viewer";
 import { configurationSchema, uiSchema } from "./configuration-schema";
-import icon from "../resources/linkedin-viewer.svg";
+import icon from "../resources/salesforce-viewer.svg";
 import pkg from '../package.json'
 
 /**
  * Define which attributes are handled by the widget. This should be also reflected in configuration schema
  */
 const widgetAttributes: string[] = [
-  'linkedinurl',
-  'numberofposts',
+  'salesforceloginurl',
+  'salesforceusername', 
+  'salesforcepassword',
+  'salesforceconsumerkey',
+  'salesforceconsumersecret',
 ];
 
 /**
@@ -34,17 +37,17 @@ const widgetAttributes: string[] = [
  */
 const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
   /**
-   *  <linkedin-viewer message="world!"></linkedin-viewer>
+   *  <salesforce-viewer message="world!"></salesforce-viewer>
    */
-  return class LinkedinViewerBlock extends BaseBlockClass implements BaseBlock {
+  return class SalesforceViewerBlock extends BaseBlockClass implements BaseBlock {
     private _root: ReactDOM.Root | null = null;
 
     public constructor() {
       super();
     }
 
-    private get props(): LinkedinViewerProps {
-      const attrs = this.parseAttributes<LinkedinViewerProps>();
+    private get props(): SalesforceViewerProps {
+      const attrs = this.parseAttributes<SalesforceViewerProps>();
       return {
         ...attrs,
         contentLanguage: this.contentLanguage,
@@ -53,7 +56,7 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
 
     public renderBlock(container: HTMLElement): void {
       this._root ??= ReactDOM.createRoot(container);
-      this._root.render(<LinkedinViewer {...this.props} />);
+      this._root.render(<SalesforceViewer {...this.props} />);
     }
 
     /**
@@ -77,13 +80,13 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
  * The definition of the block, to let it successful register to the hosting application
  */
 const blockDefinition: BlockDefinition = {
-    name: "linkedin-viewer",
+    name: "salesforce-viewer",
     factory: factory,
     attributes: widgetAttributes,
     blockLevel: 'block',
     configurationSchema: configurationSchema,
     uiSchema: uiSchema,
-    label: 'Linkedin Viewer',
+    label: 'Salesforce Viewer',
     iconUrl: icon
 };
 
