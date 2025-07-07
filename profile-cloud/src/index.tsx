@@ -15,21 +15,18 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 
 import { BlockFactory, BlockDefinition, ExternalBlockDefinition, BaseBlock } from "widget-sdk";
-import { SalesforceViewerProps, SalesforceViewer } from "./salesforce-viewer";
+import { ProfileCloudProps, ProfileCloud } from "./profile-cloud";
 import { configurationSchema, uiSchema } from "./configuration-schema";
-import icon from "../resources/salesforce-viewer.svg";
+import icon from "../resources/profile-cloud.svg";
 import pkg from '../package.json'
 
 /**
  * Define which attributes are handled by the widget. This should be also reflected in configuration schema
  */
 const widgetAttributes: string[] = [
-  'salesforceloginurl',
-  'salesforceusername', 
-  'salesforcepassword',
-  'salesforceconsumerkey',
-  'salesforceconsumersecret',
-  'soqlquery',
+  'profilefieldmappings',
+  'defaultprofilefield',
+  'coloroptions'
 ];
 
 /**
@@ -38,17 +35,17 @@ const widgetAttributes: string[] = [
  */
 const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
   /**
-   *  <salesforce-viewer message="world!"></salesforce-viewer>
+   *  <profile-cloud message="world!"></profile-cloud>
    */
-  return class SalesforceViewerBlock extends BaseBlockClass implements BaseBlock {
+  return class ProfileCloudBlock extends BaseBlockClass implements BaseBlock {
     private _root: ReactDOM.Root | null = null;
 
     public constructor() {
       super();
     }
 
-    private get props(): SalesforceViewerProps {
-      const attrs = this.parseAttributes<SalesforceViewerProps>();
+    private get props(): ProfileCloudProps {
+      const attrs = this.parseAttributes<ProfileCloudProps>();
       return {
         ...attrs,
         contentLanguage: this.contentLanguage,
@@ -57,7 +54,7 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
 
     public renderBlock(container: HTMLElement): void {
       this._root ??= ReactDOM.createRoot(container);
-      this._root.render(<SalesforceViewer {...this.props} />);
+      this._root.render(<ProfileCloud {...this.props} />);
     }
 
     /**
@@ -81,13 +78,13 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
  * The definition of the block, to let it successful register to the hosting application
  */
 const blockDefinition: BlockDefinition = {
-    name: "salesforce-viewer",
+    name: "profile-cloud",
     factory: factory,
     attributes: widgetAttributes,
     blockLevel: 'block',
     configurationSchema: configurationSchema,
     uiSchema: uiSchema,
-    label: 'Salesforce Viewer',
+    label: 'Profile Cloud',
     iconUrl: icon
 };
 

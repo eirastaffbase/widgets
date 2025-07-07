@@ -19,45 +19,34 @@ export const configurationSchema: JSONSchema7 = {
   properties: {
     salesforceloginurl: {
       type: "string",
-      title: "salesforce login url",
-      default: "https://test.salesforce.com",
-    },
-    salesforceusername: {
-      type: "string",
-      title: "salesforce username",
-    },
-    salesforcepassword: {
-      type: "string",
-      title: "salesforce password and security token",
+      title: "Salesforce Login URL",
+      default: "https://orgfarm-fa85c3dbc8-dev-ed.develop.my.salesforce.com",
     },
     salesforceconsumerkey: {
       type: "string",
-      title: "salesforce consumer key",
+      title: "Salesforce Consumer Key",
     },
     salesforceconsumersecret: {
+      type: "string",
+      title: "Salesforce Consumer Secret",
+    },
+    soqlquery: {
         type: "string",
-        title: "salesforce consumer secret",
-    }
+        title: "Salesforce SOQL Query",
+        default: "SELECT Name, StageName, Amount, CloseDate, Owner.Name FROM Opportunity WHERE IsClosed = false ORDER BY Amount DESC LIMIT 50",
+    },
   },
   required: [
     "salesforceloginurl",
-    "salesforceusername",
-    "salesforcepassword",
     "salesforceconsumerkey",
-    "salesforceconsumersecret"
+    "salesforceconsumersecret",
+    "soqlquery",
   ]
 };
 
 export const uiSchema: UiSchema = {
   salesforceloginurl: {
-    "ui:help": "Your sandbox login URL (e.g., https://test.salesforce.com).",
-  },
-  salesforceusername: {
-    "ui:help": "The username for your sandbox account.",
-  },
-  salesforcepassword: {
-    "ui:widget": "password",
-    "ui:help": "Your sandbox password with your security token appended to the end.",
+    "ui:help": "Your sandbox or production login URL (e.g., https://test.salesforce.com).",
   },
   salesforceconsumerkey: {
     "ui:widget": "password",
@@ -67,4 +56,11 @@ export const uiSchema: UiSchema = {
     "ui:widget": "password",
     "ui:help": "The Consumer Secret from your Salesforce Connected App.",
   },
+  soqlquery: {
+    "ui:widget": "textarea",
+    "ui:help": "Enter the SOQL query to fetch data. Example: SELECT Name, AnnualRevenue, Industry FROM Account LIMIT 15",
+    "ui:options": {
+        rows: 5,
+    }
+  }
 };
