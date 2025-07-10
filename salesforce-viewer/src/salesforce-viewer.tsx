@@ -261,7 +261,7 @@ export const SalesforceViewer = (props: SalesforceViewerProps): ReactElement => 
         {instanceUrl && sObjectName && (
             <a href={`${instanceUrl}/lightning/o/${sObjectName}/list`} target="_blank" rel="noopener noreferrer" className="sfdc-view-button">
                 <SalesforceCloudIcon />
-                <span style={{ color: "#fff", fontWeight: "bold" }}> View in Salesforce</span>
+                <span style={{ color: "#fff", fontWeight: "bold", paddingLeft: "5px" }}> View in Salesforce</span>
             </a>
         )}
       </div>
