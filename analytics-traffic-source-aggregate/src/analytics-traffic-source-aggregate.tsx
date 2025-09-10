@@ -121,23 +121,31 @@ export const AnalyticsTrafficSourceAggregate = ({ postid }: AnalyticsTrafficSour
           font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
           position: fixed;
           top: 0;
-          right: -500px; /* Start off-screen */
+          right: 0; /* Anchor to the right edge */
           width: 450px;
           height: 100%;
           background-color: #f9f9fb;
           box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1);
-          transition: right 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
           z-index: 1000;
           overflow-y: auto;
           padding: 20px;
           box-sizing: border-box;
           color: #333;
+          
+          /* --- MODIFICATION START --- */
+          visibility: hidden; /* Hide and make non-interactive */
+          transform: translateX(100%); /* Move it 100% of its own width to the right */
+          transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), visibility 0.4s;
+          /* --- MODIFICATION END --- */
         }
 
         .analytics-panel.open {
-          right: 0; /* Slide in */
+          /* --- MODIFICATION START --- */
+          visibility: visible; /* Show and make interactive */
+          transform: translateX(0); /* Move it back to its original position */
+          /* --- MODIFICATION END --- */
         }
-
+        
         .close-button {
           position: absolute;
           top: 10px;
@@ -285,7 +293,7 @@ export const AnalyticsTrafficSourceAggregate = ({ postid }: AnalyticsTrafficSour
             <h2 className="panel-title">Analytics for: <em>{data.post.title}</em></h2>
 
             <div className="section campaign-section">
-              <h3>🎯 Campaign Details</h3>
+              <h3>🎯 Campaign Deets</h3>
               <p><strong>Campaign:</strong> <a href={data.campaign.url} target="_blank" rel="noopener noreferrer">{data.campaign.title}</a></p>
               <p><strong>Goal:</strong> {data.campaign.goal}</p>
               <div className="alignment-score">
