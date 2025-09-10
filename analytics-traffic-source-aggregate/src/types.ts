@@ -11,67 +11,45 @@
  * limitations under the License.
  */
 
-// Simplified types based on API responses
 export interface Post {
-    id: string;
-    campaignId: string;
-    contents: {
-        en_US: {
-            title: string;
-        };
-    };
+  contents: { en_US: { title: string } };
+  campaignId?: string;
 }
 
 export interface PostStats {
-    registeredVisits: number;
-    likes: number;
-    comments: number;
-    shares: number;
-}
-
-export interface Campaign {
-    id: string;
-    title: string;
-    goal: string;
-    stats: {
-        totalVisitsCount: number;
-        totalLikesCount: number;
-        totalCommentsCount: number;
-    };
-}
-
-export interface CampaignAlignment {
-    averageScore: number;
-    participantCount: number;
-    answers: Record<string, number>;
+  registeredVisits: number;
+  likes: number;
+  comments: number;
+  shares: number;
 }
 
 export interface TrafficSource {
-    name: string;
-    visits: number;
+  platform: string;
+  utmSource: string | null;
+  utmMedium: string | null;
+  visits: number;
 }
 
-// Final structured data for the component
+export interface Campaign {
+  id: string;
+  title: string;
+  goal: string;
+}
+
+export interface CampaignResult {
+  averageScore: number;
+  participantCount: number;
+}
+
+export interface Like { userID: string; }
+export interface User { groupIDs: string[]; }
+export interface Group { id: string; name: string; }
+export interface ReactionsByGroup { name: string; count: number; }
+
 export interface AnalyticsData {
-    post: {
-        title: string;
-    };
-    stats: {
-        totalVisits: number;
-        totalLikes: number;
-        totalComments: number;
-        totalShares: number;
-    };
-    trafficSources: TrafficSource[];
-    likesBySource: {
-        name: string;
-        likes: number;
-    }[];
-    campaign: {
-        title: string;
-        goal: string;
-        alignmentScore: number;
-        participants: number;
-        url: string;
-    };
+  post: { title: string };
+  stats: { totalVisits: number; totalLikes: number; totalComments: number; totalShares: number };
+  trafficSources: { name: string; visits: number }[];
+  reactionsByGroup: ReactionsByGroup[];
+  campaign: { title: string; goal: string; alignmentScore: number; participants: number; url: string };
 }
