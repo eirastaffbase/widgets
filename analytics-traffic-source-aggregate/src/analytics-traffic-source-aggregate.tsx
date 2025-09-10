@@ -15,7 +15,7 @@ import React, { ReactElement, useState, useEffect } from "react";
 import { BlockAttributes } from "widget-sdk";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, Title } from "chart.js";
 import { Doughnut } from "react-chartjs-2";
-import { getAnalyticsData, getDummyData } from "./api"; // Mock API and dummy data
+import { getAnalyticsData, getDummyData } from "./api";
 import { AnalyticsData } from "./types"; // Type definitions
 
 // Register Chart.js components
@@ -120,10 +120,12 @@ export const AnalyticsTrafficSourceAggregate = ({ postid }: AnalyticsTrafficSour
         .analytics-panel {
           font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
           position: fixed;
-          top: 0;
+          top: 20px;
           right: 0; /* Anchor to the right edge */
           width: 450px;
-          height: 100%;
+          max-height: calc(100vh - 40px);
+          border-radius: 10px 0 0 10px;
+          height: auto;
           background-color: #f9f9fb;
           box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1);
           z-index: 1000;
@@ -131,19 +133,16 @@ export const AnalyticsTrafficSourceAggregate = ({ postid }: AnalyticsTrafficSour
           padding: 20px;
           box-sizing: border-box;
           color: #333;
-          
-          /* --- MODIFICATION START --- */
-          visibility: hidden; /* Hide and make non-interactive */
-          transform: translateX(100%); /* Move it 100% of its own width to the right */
-          transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), visibility 0.4s;
-          /* --- MODIFICATION END --- */
+          visibility: hidden;
+          opacity: 0;
+          transform: translateX(20px);
+          transition: transform 0.3s ease-out, opacity 0.3s ease-out, visibility 0.3s;
         }
 
         .analytics-panel.open {
-          /* --- MODIFICATION START --- */
-          visibility: visible; /* Show and make interactive */
-          transform: translateX(0); /* Move it back to its original position */
-          /* --- MODIFICATION END --- */
+          visibility: visible;
+          opacity: 1;
+          transform: translateX(0);
         }
         
         .close-button {
@@ -246,21 +245,21 @@ export const AnalyticsTrafficSourceAggregate = ({ postid }: AnalyticsTrafficSour
             align-items: center;
         }
 
-        .likes-section ul {
+        .reactions-section ul {
           list-style-type: none;
           padding: 0;
           margin: 0;
         }
-        .likes-section li {
+        .reactions-section li {
           display: flex;
           justify-content: space-between;
           padding: 10px 5px;
           border-bottom: 1px solid #eef0f2;
         }
-        .likes-section li:last-child {
+        .reactions-section li:last-child {
           border-bottom: none;
         }
-        .like-count {
+        .reaction-count {
           font-weight: bold;
           color: #DE1320;
         }
@@ -293,7 +292,7 @@ export const AnalyticsTrafficSourceAggregate = ({ postid }: AnalyticsTrafficSour
             <h2 className="panel-title">Analytics for: <em>{data.post.title}</em></h2>
 
             <div className="section campaign-section">
-              <h3>🎯 Campaign Deets</h3>
+              <h3>🎯 Campaign Details</h3>
               <p><strong>Campaign:</strong> <a href={data.campaign.url} target="_blank" rel="noopener noreferrer">{data.campaign.title}</a></p>
               <p><strong>Goal:</strong> {data.campaign.goal}</p>
               <div className="alignment-score">
@@ -331,13 +330,13 @@ export const AnalyticsTrafficSourceAggregate = ({ postid }: AnalyticsTrafficSour
               </div>
             </div>
 
-            <div className="section likes-section">
-              <h3>❤️ Likes by Source (Simulated)</h3>
+            <div className="section reactions-section">
+              <h3>❤️ Reactions by Group</h3>
               <ul>
-                {data.likesBySource.map((source, index) => (
+                {data.reactionsByGroup.map((group, index) => (
                   <li key={index}>
-                    <span>{source.name}</span>
-                    <span className="like-count">{source.likes.toLocaleString()} Likes</span>
+                    <span>{group.name}</span>
+                    <span className="reaction-count">{group.count.toLocaleString()} Reactions</span>
                   </li>
                 ))}
               </ul>
