@@ -2,6 +2,7 @@
  * Copyright 2024, Staffbase GmbH and contributors.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
+ * You may not-use this file except in compliance with the License.
  * You may obtain a copy of the License at
  * http://www.apache.org/licenses/LICENSE-2.0
  * Unless required by applicable law or agreed to in writing, software
@@ -13,27 +14,47 @@
 
 import { AnalyticsData, Post, PostStats, TrafficSource, Campaign, CampaignAlignment } from "./types";
 
-// --- MOCK API RESPONSES (based on the provided cURL outputs) ---
+// --- LIVE API FETCH FUNCTIONS ---
 
-const mockPostResponse: Post = { "id": "68bc9ad88f5c3e2b97a16845", "campaignId": "68bedd79b22cdf3ba913e654", "contents": { "en_US": { "title": "Zero Hunger | Zero Waste" } } };
-const mockStatsResponse: PostStats = { "registeredVisitors": 37, "registeredVisits": 152, "comments": 2, "likes": 10, "shares": 1 };
-const mockVisitsResponse: any[] = [{ "platform": "web", "utmSource": "in-app", "utmMedium": "studiolastpublished", "visits": 2 }, { "platform": "web", "utmSource": "", "utmMedium": "", "visits": 91 }, { "platform": "ios", "utmSource": "in-app", "utmMedium": "direct-link", "visits": 1 }, { "platform": "ios", "utmSource": "in-app", "utmMedium": "stagewidget", "visits": 23 }, { "platform": "web", "utmSource": "in-app", "utmMedium": "stagewidget", "visits": 35 }];
-const mockCampaignResponse: Campaign = { "id": "66a3499d0f2f537068a966f3", "title": "Heroes of healthcare", "goal": "Connect Carbon 0 is an initiative to lower our carbon footprint.", "stats": { "totalVisitsCount": 888, "totalLikesCount": 165, "totalCommentsCount": 31 } };
-const mockAlignmentResponse: CampaignAlignment = { "answers": { "1": 0, "2": 0, "3": 0, "4": 1, "5": 5 }, "averageScore": 4.8333335, "participantCount": 6 };
+// This helper function makes a real API call and handles errors.
+// It relies on the browser automatically sending the necessary authentication cookies.
+const authenticatedFetch = async (url: string) => {
+  const response = await fetch(url);
+  if (!response.ok) {
+    // This error will be caught by our main function, triggering the fallback to dummy data.
+    throw new Error(`API request failed: ${response.status} ${response.statusText} for ${url}`);
+  }
+  return response.json();
+};
 
-// --- MOCK API FETCH FUNCTIONS ---
+// Get the base URL dynamically from the browser's current location.
+const baseUrl = window.location.origin;
 
-const mockFetch = (data: any, delay: number = 500) => new Promise(resolve => setTimeout(() => resolve(data), delay));
+const fetchPost = (postId: string): Promise<Post> => {
+  return authenticatedFetch(`${baseUrl}/api/posts/${postId}`);
+};
 
-const fetchPost = (postId: string) => mockFetch(mockPostResponse);
-const fetchStats = (postId: string) => mockFetch(mockStatsResponse);
-const fetchVisits = (postId: string) => mockFetch(mockVisitsResponse);
-const fetchCampaign = (campaignId: string) => mockFetch(mockCampaignResponse);
-const fetchAlignment = (campaignId: string) => mockFetch(mockAlignmentResponse);
+const fetchStats = (postId: string): Promise<PostStats> => {
+  const encodedFilter = encodeURIComponent(`post.id eq "${postId}"`);
+  return authenticatedFetch(`${baseUrl}/api/branch/analytics/posts/stats?filter=${encodedFilter}`);
+};
 
-// --- HELPER & TRANSFORMATION FUNCTIONS ---
+const fetchVisits = (postId:string): Promise<any[]> => {
+    return authenticatedFetch(`${baseUrl}/api/branch/analytics/post/${postId}/visits?groupBy=platform,utmSource,utmMedium`);
+};
+
+const fetchCampaign = (campaignId: string): Promise<Campaign> => {
+    return authenticatedFetch(`${baseUrl}/api/campaigns/${campaignId}`);
+};
+
+const fetchAlignment = (campaignId: string): Promise<CampaignAlignment> => {
+    return authenticatedFetch(`${baseUrl}/api/alignment-survey/results/overall?campaignId=${campaignId}`);
+};
+
+// --- HELPER & TRANSFORMATION FUNCTIONS (Unchanged) ---
 
 const formatTrafficSources = (visits: any[]): TrafficSource[] => {
+    if (!Array.isArray(visits)) return [];
     return visits.map(v => {
         let name = 'Direct';
         if (v.utmSource && v.utmMedium) {
@@ -59,9 +80,8 @@ const simulateLikesBySource = (totalLikes: number, sources: TrafficSource[]): {n
         return { name: source.name, likes: proportionalLikes };
     });
 
-    // Distribute any rounding leftovers to the largest source
     if (remainingLikes !== 0 && likesDistribution.length > 0) {
-        likesDistribution[0].likes += remainingLikes;
+        likesDistribution.sort((a, b) => b.likes - a.likes)[0].likes += remainingLikes;
     }
     
     return likesDistribution;
@@ -71,7 +91,7 @@ const simulateLikesBySource = (totalLikes: number, sources: TrafficSource[]): {n
 // --- PUBLIC API FUNCTIONS ---
 
 export const getDummyData = (): AnalyticsData => {
-    const trafficSources = formatTrafficSources(mockVisitsResponse);
+    console.warn("Using dummy data for analytics widget.");
     return {
         post: { title: "Dummy Post: Our Company's Vision" },
         stats: { totalVisits: 450, totalLikes: 82, totalComments: 15, totalShares: 7 },
@@ -88,7 +108,7 @@ export const getDummyData = (): AnalyticsData => {
             { name: "Mobile Push", likes: 9 },
         ],
         campaign: {
-            title: "Q4 All-Hands Initiative",
+            title: "Q4 All-Hands Initiative (Dummy)",
             goal: "To align all employees on our strategic goals for the upcoming year.",
             alignmentScore: 4.2,
             participants: 152,
@@ -98,40 +118,50 @@ export const getDummyData = (): AnalyticsData => {
 };
 
 export const getAnalyticsData = async (postId?: string): Promise<AnalyticsData> => {
-    if (!postId) {
+    // Use dummy data if the post ID is missing or contains the word "dummy"
+    if (!postId || postId.toLowerCase().includes("dummy")) {
         return getDummyData();
     }
     
-    // Fetch all data in parallel where possible
-    const postData = await fetchPost(postId) as Post;
-    const [stats, visits, campaign, alignment] = await Promise.all([
-        fetchStats(postId) as Promise<PostStats>,
-        fetchVisits(postId) as Promise<any[]>,
-        fetchCampaign(postData.campaignId) as Promise<Campaign>,
-        fetchAlignment(postData.campaignId) as Promise<CampaignAlignment>
-    ]);
+    try {
+        // Fetch all data, allowing some requests to run in parallel
+        const postData = await fetchPost(postId);
+        
+        const [stats, visits, campaign, alignment] = await Promise.all([
+            fetchStats(postId),
+            fetchVisits(postId),
+            // Only fetch campaign data if an ID exists
+            postData.campaignId ? fetchCampaign(postData.campaignId) : Promise.resolve(null),
+            postData.campaignId ? fetchAlignment(postData.campaignId) : Promise.resolve(null),
+        ]);
 
-    const trafficSources = formatTrafficSources(visits);
-    const likesBySource = simulateLikesBySource(stats.likes, trafficSources);
+        const trafficSources = formatTrafficSources(visits);
+        const likesBySource = simulateLikesBySource(stats.likes, trafficSources);
 
-    return {
-        post: {
-            title: postData.contents.en_US.title,
-        },
-        stats: {
-            totalVisits: stats.registeredVisits,
-            totalLikes: stats.likes,
-            totalComments: stats.comments,
-            totalShares: stats.shares,
-        },
-        trafficSources,
-        likesBySource,
-        campaign: {
-            title: campaign.title,
-            goal: campaign.goal,
-            alignmentScore: alignment.averageScore,
-            participants: alignment.participantCount,
-            url: `https://connect.staffbase.com/studio/analytics/campaigns/${campaign.id}`,
-        },
-    };
+        return {
+            post: {
+                title: postData.contents.en_US.title,
+            },
+            stats: {
+                totalVisits: stats.registeredVisits,
+                totalLikes: stats.likes,
+                totalComments: stats.comments,
+                totalShares: stats.shares,
+            },
+            trafficSources,
+            likesBySource,
+            campaign: {
+                // Handle cases where there is no campaign
+                title: campaign?.title ?? "No Campaign",
+                goal: campaign?.goal ?? "This post is not part of a campaign.",
+                alignmentScore: alignment?.averageScore ?? 0,
+                participants: alignment?.participantCount ?? 0,
+                url: campaign ? `${baseUrl}/studio/analytics/campaigns/${campaign.id}`: '#',
+            },
+        };
+    } catch (error) {
+        console.error("❗️ Failed to fetch live analytics data. Falling back to dummy data.", error);
+        // If any API call fails, we catch the error here and return the dummy data set.
+        return getDummyData();
+    }
 };
