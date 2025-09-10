@@ -293,7 +293,7 @@ export const AnalyticsTrafficSourceAggregate = ({ postid }: AnalyticsTrafficSour
             <h2 className="panel-title">Analytics for: <em>{data.post.title}</em></h2>
 
             <div className="section campaign-section">
-              <h3>🎯 Campaign Deets</h3>
+              <h3>🎯 Campaign Details</h3>
               <p><strong>Campaign:</strong> <a href={data.campaign.url} target="_blank" rel="noopener noreferrer">{data.campaign.title}</a></p>
               <p><strong>Goal:</strong> {data.campaign.goal}</p>
               <div className="alignment-score">
