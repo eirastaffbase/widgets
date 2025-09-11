@@ -79,6 +79,7 @@ export const AnalyticsTrafficSourceAggregate = ({ postid }: AnalyticsTrafficSour
 
     const doughnutChartOptions = {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: {
             legend: {
                 position: 'right' as const,
@@ -93,7 +94,6 @@ export const AnalyticsTrafficSourceAggregate = ({ postid }: AnalyticsTrafficSour
         },
     };
 
-    // --- MODIFICATION START ---
     const groupBarChartData = {
         labels: data?.topGroups.map(group => group.name) || [],
         datasets: [
@@ -108,7 +108,7 @@ export const AnalyticsTrafficSourceAggregate = ({ postid }: AnalyticsTrafficSour
     };
 
     const groupBarChartOptions = {
-        indexAxis: 'y' as const, // Creates horizontal bars
+        indexAxis: 'y' as const,
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
@@ -131,7 +131,6 @@ export const AnalyticsTrafficSourceAggregate = ({ postid }: AnalyticsTrafficSour
             },
         },
     };
-    // --- MODIFICATION END ---
 
     if (loading) {
         return <div className="widget-container loading">Loading Analytics...</div>;
@@ -139,7 +138,7 @@ export const AnalyticsTrafficSourceAggregate = ({ postid }: AnalyticsTrafficSour
     
     return (
         <>
-            {/* --- EMBEDDED STYLES --- */}
+            {/* --- REFACTORED STYLES --- */}
             <style>{`
                 .sb-button {
                   background-color: #0d51a1;
@@ -157,229 +156,214 @@ export const AnalyticsTrafficSourceAggregate = ({ postid }: AnalyticsTrafficSour
                   background-color: #0a4183;
                 }
 
-                .analytics-panel {
-                  font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+                /* -- Modal Overlay & Container -- */
+                .analytics-modal-overlay {
                   position: fixed;
                   top: 0;
-                  right: 0;
-                  width: 450px;
-                  height: 100%;
-                  background-color: #f9f9fb;
-                  box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1);
-                  z-index: 1000;
-                  overflow-y: auto;
-                  padding: 20px;
-                  box-sizing: border-box;
-                  color: #333;
+                  left: 0;
+                  width: 100vw;
+                  height: 100vh;
+                  background-color: rgba(0, 0, 0, 0.6);
+                  z-index: 999;
+                  opacity: 0;
                   visibility: hidden;
-                  transform: translateX(100%);
-                  transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), visibility 0.4s;
+                  transition: opacity 0.3s ease, visibility 0.3s ease;
+                }
+                
+                .analytics-modal-overlay.open {
+                  opacity: 1;
+                  visibility: visible;
                 }
 
-                .analytics-panel.open {
+                .analytics-modal {
+                  font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+                  position: fixed;
+                  top: 10vh; /* Position towards the top */
+                  left: 50%;
+                  transform: translateX(-50%) scale(0.95);
+                  width: 90vw;
+                  max-width: 950px; /* Rectangular shape */
+                  height: auto; /* No scrolling */
+                  background-color: #f9f9fb;
+                  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+                  border-radius: 12px;
+                  z-index: 1000;
+                  padding: 25px 30px 30px;
+                  box-sizing: border-box;
+                  color: #333;
+                  opacity: 0;
+                  visibility: hidden;
+                  transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease;
+                }
+
+                .analytics-modal.open {
+                  opacity: 1;
                   visibility: visible;
-                  transform: translateX(0);
+                  transform: translateX(-50%) scale(1);
                 }
                 
                 .close-button {
                   position: absolute;
-                  top: 10px;
-                  right: 15px;
-                  background: none;
+                  top: 12px;
+                  left: 12px; /* Positioned top left */
+                  background: #eef0f2;
                   border: none;
-                  font-size: 28px;
+                  font-size: 16px; /* Tiny */
+                  font-weight: bold;
                   cursor: pointer;
-                  color: #888;
+                  color: #555;
+                  width: 28px;
+                  height: 28px;
+                  border-radius: 50%; /* Circular shape */
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  line-height: 1;
+                  transition: background-color 0.2s, color 0.2s;
+                }
+                
+                .close-button:hover {
+                    background-color: #dfe3e6;
+                    color: #111;
                 }
 
-                .panel-title {
-                  margin-top: 20px;
-                  font-size: 1.4em;
+                /* -- Modal Content & Layout -- */
+                .modal-title {
+                  text-align: center;
+                  font-size: 1.5em;
                   font-weight: 600;
                   color: #0d51a1;
-                  border-bottom: 2px solid #eef0f2;
                   padding-bottom: 10px;
-                  margin-bottom: 20px;
+                  margin-bottom: 25px;
+                  margin-top: 10px;
+                  border-bottom: 2px solid #eef0f2;
                 }
 
-                .panel-title em {
+                .modal-title em {
                   font-style: normal;
                   font-weight: 400;
                   color: #555;
+                }
+                
+                .modal-content-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+                    gap: 25px;
+                    align-items: stretch;
+                }
+                
+                .grid-column {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 25px;
                 }
 
                 .section {
                   background-color: #ffffff;
                   border-radius: 8px;
-                  padding: 15px;
-                  margin-bottom: 20px;
+                  padding: 20px;
                   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                  flex-grow: 1; /* Helps sections in a column be of similar height */
                 }
 
                 .section h3 {
-                  font-size: 1.1em;
+                  font-size: 1.2em;
                   margin-top: 0;
                   margin-bottom: 15px;
                   color: #333;
                 }
 
-                .campaign-section p {
-                  margin: 5px 0;
-                  line-height: 1.5;
-                }
-
-                .alignment-score {
-                  margin-top: 15px;
-                }
-                .alignment-score > span {
-                  font-weight: bold;
-                  color: #2F793D;
-                  font-size: 1.2em;
-                  margin-left: 10px;
-                }
-                .score-bar-container {
-                    background: #e0e0e0;
-                    border-radius: 10px;
-                    height: 10px;
-                    margin: 8px 0;
-                    overflow: hidden;
-                }
-                .score-bar {
-                    background: #2F793D;
-                    height: 100%;
-                    border-radius: 10px;
-                }
-                .alignment-score small {
-                    color: #777;
-                }
+                /* -- Specific Section Styles -- */
+                .campaign-section p { margin: 5px 0; line-height: 1.5; }
+                .alignment-score { margin-top: 15px; }
+                .alignment-score > span { font-weight: bold; color: #2F793D; font-size: 1.2em; margin-left: 10px; }
+                .score-bar-container { background: #e0e0e0; border-radius: 10px; height: 10px; margin: 8px 0; overflow: hidden; }
+                .score-bar { background: #2F793D; height: 100%; border-radius: 10px; }
+                .alignment-score small { color: #777; }
 
                 .stats-grid {
                     display: grid;
                     grid-template-columns: 1fr 1fr;
                     gap: 15px;
+                    padding: 20px;
                 }
-                .stat-item {
-                    text-align: center;
-                    background-color: #f9f9fb;
-                    padding: 15px;
-                    border-radius: 5px;
-                }
-                .stat-value {
-                    font-size: 2em;
-                    font-weight: 600;
-                    color: #0d51a1;
-                }
-                .stat-label {
-                    font-size: 0.9em;
-                    color: #666;
-                }
+                .stat-item { text-align: center; background-color: #f9f9fb; padding: 15px; border-radius: 5px; }
+                .stat-value { font-size: 2em; font-weight: 600; color: #0d51a1; }
+                .stat-label { font-size: 0.9em; color: #666; }
 
-                .chart-container {
-                    height: 250px; /* Adjusted height */
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                }
-
-                /* MODIFICATION: Style for horizontal bar chart container */
-                .bar-chart-container {
-                    height: 300px;
+                .chart-container, .bar-chart-container {
+                    height: 280px; /* Standardized height for grid alignment */
                     position: relative;
                 }
 
-                .likes-section ul {
-                  list-style-type: none;
-                  padding: 0;
-                  margin: 0;
-                }
-                .likes-section li {
-                  display: flex;
-                  justify-content: space-between;
-                  padding: 10px 5px;
-                  border-bottom: 1px solid #eef0f2;
-                }
-                .likes-section li:last-child {
-                  border-bottom: none;
-                }
-                .like-count {
-                  font-weight: bold;
-                  color: #DE1320;
-                }
-
-                .widget-container.loading {
-                  padding: 20px;
-                  text-align: center;
-                  color: #555;
-                  font-style: italic;
-                }
-                .error-message {
-                  background-color: #f8d7da;
-                  color: #721c24;
-                  padding: 10px;
-                  border: 1px solid #f5c6cb;
-                  border-radius: 5px;
-                  margin-bottom: 20px;
-                }
+                .widget-container.loading { padding: 20px; text-align: center; color: #555; font-style: italic; }
+                .error-message { background-color: #f8d7da; color: #721c24; padding: 15px; border: 1px solid #f5c6cb; border-radius: 8px; margin-bottom: 20px; text-align: center; }
             `}</style>
             
             <button onClick={togglePanel} className="sb-button">
                 {isOpen ? "Hide" : "Show"} Post Analytics
             </button>
+            
+            {/* -- REFACTORED LAYOUT -- */}
+            <div className={`analytics-modal-overlay ${isOpen ? "open" : ""}`} onClick={togglePanel}>
+                <div className={`analytics-modal ${isOpen ? "open" : ""}`} onClick={(e) => e.stopPropagation()}>
+                    <button onClick={togglePanel} className="close-button">&times;</button>
+                    {error && <div className="error-message">{error}</div>}
+                    {data && (
+                        <>
+                            <h2 className="modal-title">Analytics for: <em>{data.post.title}</em></h2>
 
-            <div className={`analytics-panel ${isOpen ? "open" : ""}`}>
-                <button onClick={togglePanel} className="close-button">&times;</button>
-                {error && <div className="error-message">{error}</div>}
-                {data && (
-                    <>
-                        <h2 className="panel-title">Analytics for: <em>{data.post.title}</em></h2>
-
-                        <div className="section campaign-section">
-                            <h3>🎯 Campaign Details</h3>
-                            <p><strong>Campaign:</strong> <a href={data.campaign.url} target="_blank" rel="noopener noreferrer">{data.campaign.title}</a></p>
-                            <p><strong>Goal:</strong> {data.campaign.goal}</p>
-                            <div className="alignment-score">
-                                <strong>Alignment Score:</strong>
-                                <span>{data.campaign.alignmentScore.toFixed(2)} / 5</span>
-                                <div className="score-bar-container">
-                                    <div className="score-bar" style={{ width: `${(data.campaign.alignmentScore / 5) * 100}%` }}></div>
+                            <div className="modal-content-grid">
+                                <div className="grid-column">
+                                    <div className="section campaign-section">
+                                        <h3>🎯 Campaign Details</h3>
+                                        <p><strong>Campaign:</strong> <a href={data.campaign.url} target="_blank" rel="noopener noreferrer">{data.campaign.title}</a></p>
+                                        <p><strong>Goal:</strong> {data.campaign.goal}</p>
+                                        <div className="alignment-score">
+                                            <strong>Alignment Score:</strong>
+                                            <span>{data.campaign.alignmentScore.toFixed(2)} / 5</span>
+                                            <div className="score-bar-container">
+                                                <div className="score-bar" style={{ width: `${(data.campaign.alignmentScore / 5) * 100}%` }}></div>
+                                            </div>
+                                            <small>({data.campaign.participants} participants)</small>
+                                        </div>
+                                    </div>
+                                    <div className="section stats-grid">
+                                            <div className="stat-item">
+                                                <div className="stat-value">{data.stats.totalVisits.toLocaleString()}</div>
+                                                <div className="stat-label">Total Visits</div>
+                                            </div>
+                                            <div className="stat-item">
+                                                <div className="stat-value">{data.stats.totalLikes.toLocaleString()}</div>
+                                                <div className="stat-label">Total Likes</div>
+                                            </div>
+                                            <div className="stat-item">
+                                                <div className="stat-value">{data.stats.totalComments.toLocaleString()}</div>
+                                                <div className="stat-label">Comments</div>
+                                            </div>
+                                            <div className="stat-item">
+                                                <div className="stat-value">{data.stats.totalShares.toLocaleString()}</div>
+                                                <div className="stat-label">Shares</div>
+                                            </div>
+                                    </div>
                                 </div>
-                                <small>({data.campaign.participants} participants)</small>
+
+                                <div className="grid-column">
+                                    <div className="section chart-section">
+                                        <div className="bar-chart-container">
+                                            <Bar data={groupBarChartData} options={groupBarChartOptions} />
+                                        </div>
+                                    </div>
+                                    <div className="section chart-section">
+                                        <div className="chart-container">
+                                            <Doughnut data={doughnutChartData} options={doughnutChartOptions} />
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-
-                        <div className="section stats-grid">
-                                <div className="stat-item">
-                                    <div className="stat-value">{data.stats.totalVisits.toLocaleString()}</div>
-                                    <div className="stat-label">Total Visits</div>
-                                </div>
-                                <div className="stat-item">
-                                    <div className="stat-value">{data.stats.totalLikes.toLocaleString()}</div>
-                                    <div className="stat-label">Total Likes</div>
-                                </div>
-                                <div className="stat-item">
-                                    <div className="stat-value">{data.stats.totalComments.toLocaleString()}</div>
-                                    <div className="stat-label">Comments</div>
-                                </div>
-                                <div className="stat-item">
-                                    <div className="stat-value">{data.stats.totalShares.toLocaleString()}</div>
-                                    <div className="stat-label">Shares</div>
-                                </div>
-                        </div>
-
-                        <div className="section chart-section">
-                            <div className="bar-chart-container">
-                                <Bar data={groupBarChartData} options={groupBarChartOptions} />
-                            </div>
-                        </div>
-
-                        <div className="section chart-section">
-                            <div className="chart-container">
-                                <Doughnut data={doughnutChartData} options={doughnutChartOptions} />
-                            </div>
-                        </div>
-
-                    </>
-                )}
+                        </>
+                    )}
+                </div>
             </div>
         </>
     );
