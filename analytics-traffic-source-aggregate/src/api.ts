@@ -46,16 +46,13 @@ const fetchAlignment = (campaignId: string): Promise<CampaignAlignment> => {
     return authenticatedFetch(`${baseUrl}/api/alignment-survey/results/overall?campaignId=${campaignId}`);
 };
 
-// --- MODIFIED: Using /api/spaces to get the branchId ---
 const fetchBranchId = async (): Promise<string> => {
     const spacesResponse = await authenticatedFetch(`${baseUrl}/api/spaces`);
     
-    // Check for a valid response structure
     if (!spacesResponse?.data || spacesResponse.data.length === 0) {
         throw new Error("Could not determine branchId from /api/spaces: no spaces found in response.");
     }
     
-    // Extract branchID from the first space object
     const branchId = spacesResponse.data[0].branchID;
 
     if (!branchId) {
@@ -70,9 +67,12 @@ const fetchAllGroups = async (): Promise<{ id: string, name: string }[]> => {
     return groupsResponse.data.map((group: any) => ({ id: group.id, name: group.name }));
 };
 
+// --- MODIFIED: Reverted to the old, working endpoint for stats and adjusted the filter ---
 const fetchGroupStatsForPost = (branchId: string, postId: string, groupId: string): Promise<PostStats> => {
-    const encodedFilter = encodeURIComponent(`postId eq "${postId}" and groupId eq "${groupId}"`);
-    return authenticatedFetch(`${baseUrl}/api/posts/stats?branchId=${branchId}&filter=${encodedFilter}`);
+    // This filter format is compatible with the older, reliable stats endpoint.
+    const encodedFilter = encodeURIComponent(`post.id eq "${postId}" and group.id eq "${groupId}"`);
+    // Note: The `branchId` parameter is not used in this endpoint URL.
+    return authenticatedFetch(`${baseUrl}/api/branch/analytics/posts/stats?filter=${encodedFilter}`);
 };
 
 
