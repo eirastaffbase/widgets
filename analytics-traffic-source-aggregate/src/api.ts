@@ -13,7 +13,7 @@
 
 import { AnalyticsData, Post, PostStats, TrafficSource, Campaign, CampaignAlignment } from "./types";
 
-// --- LIVE API FETCH FUNCTIONS --- (No changes here)
+// --- LIVE API FETCH FUNCTIONS ---
 
 const authenticatedFetch = async (url: string) => {
     const response = await fetch(url);
@@ -29,13 +29,15 @@ const fetchPost = (postId: string): Promise<Post> => {
     return authenticatedFetch(`${baseUrl}/api/posts/${postId}`);
 };
 
+// --- MODIFIED: Reverted to the old, working endpoint for stats ---
 const fetchStats = (postId: string): Promise<PostStats> => {
-    const encodedFilter = encodeURIComponent(`postId eq "${postId}"`);
-    return authenticatedFetch(`${baseUrl}/api/posts/stats?filter=${encodedFilter}`);
+    const encodedFilter = encodeURIComponent(`post.id eq "${postId}"`);
+    return authenticatedFetch(`${baseUrl}/api/branch/analytics/posts/stats?filter=${encodedFilter}`);
 };
 
+// --- MODIFIED: Reverted to the old, working endpoint for visits ---
 const fetchVisits = (postId: string): Promise<any[]> => {
-    return authenticatedFetch(`${baseUrl}/api/posts/rankings?filter=postId eq "${postId}"&groupBy=platform,utmSource,utmMedium`);
+    return authenticatedFetch(`${baseUrl}/api/branch/analytics/post/${postId}/visits?groupBy=platform,utmSource,utmMedium`);
 };
 
 const fetchCampaign = (campaignId: string): Promise<Campaign> => {
@@ -46,6 +48,7 @@ const fetchAlignment = (campaignId: string): Promise<CampaignAlignment> => {
     return authenticatedFetch(`${baseUrl}/api/alignment-survey/results/overall?campaignId=${campaignId}`);
 };
 
+// --- UNCHANGED: New functions for Top Groups feature ---
 const fetchBranchId = async (): Promise<string> => {
     const branchInfo = await authenticatedFetch(`${baseUrl}/api/branch/discover`);
     if (!branchInfo || !branchInfo.id) {
@@ -65,22 +68,23 @@ const fetchGroupStatsForPost = (branchId: string, postId: string, groupId: strin
 };
 
 
-// --- HELPER & TRANSFORMATION FUNCTIONS --- (No changes here)
+// --- HELPER & TRANSFORMATION FUNCTIONS ---
 
+// --- MODIFIED: Reverted to the old helper that processes the old visits API response ---
 const formatTrafficSources = (visits: any[]): TrafficSource[] => {
     if (!Array.isArray(visits)) return [];
     return visits.map(v => {
-        const source = v.group;
         let name = 'Direct';
-        if (source.utmSource && source.utmMedium) {
-            name = `${source.utmSource} (${source.utmMedium})`;
-        } else if (source.utmSource) {
-            name = source.utmSource;
-        } else if (source.utmMedium) {
-            name = source.utmMedium;
+        if (v.utmSource && v.utmMedium) {
+            name = `${v.utmSource} (${v.utmMedium})`;
+        } else if (v.utmSource) {
+            name = v.utmSource;
+        } else if (v.utmMedium) {
+            name = v.utmMedium;
         }
         name = name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-        return { name: `${name} - ${source.platform.toUpperCase()}`, visits: v.registeredVisits };
+        // Note: The property is `v.visits`, not `v.registeredVisits`
+        return { name: `${name} - ${v.platform.toUpperCase()}`, visits: v.visits };
     });
 };
 
@@ -138,11 +142,7 @@ export const getDummyData = (): AnalyticsData => {
     };
 };
 
-/**
- * NEW: Asynchronously fetches and calculates top groups data.
- * This logic is wrapped in its own function to be used as a single promise,
- * making it easier to handle its success or failure state.
- */
+// --- UNCHANGED: New function for Top Groups feature ---
 const getTopGroupsData = async (postId: string): Promise<{ name: string; visits: number }[]> => {
     const branchId = await fetchBranchId();
     const allGroups = await fetchAllGroups();
@@ -152,7 +152,6 @@ const getTopGroupsData = async (postId: string): Promise<{ name: string; visits:
                 name: group.name,
                 visits: stats.registeredVisits || 0
             }))
-            // If stats for one group fail, we assume 0 visits and continue
             .catch(() => ({ name: group.name, visits: 0 }))
     );
     const groupStats = await Promise.all(groupStatPromises);
@@ -166,9 +165,7 @@ export const getAnalyticsData = async (postId?: string): Promise<AnalyticsData> 
     if (!postId || postId.toLowerCase().includes("dummy")) {
         return getDummyData();
     }
-
-    // --- Define Default States ---
-    // These will be used as fallbacks if a specific API call fails.
+    
     const defaultCampaign = {
         title: "No Campaign",
         goal: "This post is not part of a campaign.",
@@ -177,16 +174,12 @@ export const getAnalyticsData = async (postId?: string): Promise<AnalyticsData> 
         url: '#',
     };
 
-    // --- Step 1: Fetch the core post data ---
-    // This is fetched first as it determines if we need to fetch campaign data.
     const postData = await fetchPost(postId).catch(err => {
         console.error("❗️ Failed to fetch core post data. Post title will be unavailable.", err);
         return null;
     });
     const campaignId = postData?.campaignId;
 
-    // --- Step 2: Concurrently fetch all other data segments ---
-    // Promise.allSettled is used to ensure all promises complete, regardless of individual failures.
     const [
         statsResult,
         visitsResult,
@@ -198,13 +191,12 @@ export const getAnalyticsData = async (postId?: string): Promise<AnalyticsData> 
         fetchVisits(postId),
         campaignId ? fetchCampaign(campaignId) : Promise.resolve(null),
         campaignId ? fetchAlignment(campaignId) : Promise.resolve(null),
-        getTopGroupsData(postId) // The complex group logic is now a single promise
+        getTopGroupsData(postId)
     ]);
-
-    // --- Step 3: Process results, applying fallbacks for any failed requests ---
 
     // Process Stats
     const stats = statsResult.status === 'fulfilled' ? statsResult.value : (console.error("❗️ Failed to fetch stats.", statsResult.reason), null);
+    // The property names like `registeredVisits` are correct for the old endpoint
     const finalStats = {
         totalVisits: stats?.registeredVisits ?? 0,
         totalLikes: stats?.likes ?? 0,
@@ -236,8 +228,6 @@ export const getAnalyticsData = async (postId?: string): Promise<AnalyticsData> 
           }
         : defaultCampaign;
         
-    // --- Step 4: Assemble and return the final data object ---
-    // It will contain a mix of real and default data depending on API success.
     return {
         post: {
             title: postData?.contents.en_US.title ?? "Post Title Unavailable",
