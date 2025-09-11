@@ -13,7 +13,7 @@
 
 import { AnalyticsData, Post, PostStats, TrafficSource, Campaign, CampaignAlignment } from "./types";
 
-// --- LIVE API FETCH FUNCTIONS ---
+// --- LIVE API FETCH FUNCTIONS --- (No changes here)
 
 const authenticatedFetch = async (url: string) => {
     const response = await fetch(url);
@@ -30,15 +30,11 @@ const fetchPost = (postId: string): Promise<Post> => {
 };
 
 const fetchStats = (postId: string): Promise<PostStats> => {
-    // Note: The /api/posts/stats endpoint is more suitable for this filter.
     const encodedFilter = encodeURIComponent(`postId eq "${postId}"`);
     return authenticatedFetch(`${baseUrl}/api/posts/stats?filter=${encodedFilter}`);
 };
 
 const fetchVisits = (postId: string): Promise<any[]> => {
-    // This endpoint seems to be incorrect in the documentation provided.
-    // A more likely endpoint would be part of the rankings or a dedicated visits endpoint.
-    // Using a placeholder based on the provided info, but this may need adjustment.
     return authenticatedFetch(`${baseUrl}/api/posts/rankings?filter=postId eq "${postId}"&groupBy=platform,utmSource,utmMedium`);
 };
 
@@ -59,7 +55,6 @@ const fetchBranchId = async (): Promise<string> => {
 };
 
 const fetchAllGroups = async (): Promise<{ id: string, name: string }[]> => {
-    // Fetch a large number to get all groups, adjust limit if necessary
     const groupsResponse = await authenticatedFetch(`${baseUrl}/api/branch/groups?limit=200`);
     return groupsResponse.data.map((group: any) => ({ id: group.id, name: group.name }));
 };
@@ -69,11 +64,11 @@ const fetchGroupStatsForPost = (branchId: string, postId: string, groupId: strin
     return authenticatedFetch(`${baseUrl}/api/posts/stats?branchId=${branchId}&filter=${encodedFilter}`);
 };
 
-// --- HELPER & TRANSFORMATION FUNCTIONS ---
+
+// --- HELPER & TRANSFORMATION FUNCTIONS --- (No changes here)
 
 const formatTrafficSources = (visits: any[]): TrafficSource[] => {
     if (!Array.isArray(visits)) return [];
-    // This assumes the ranking endpoint provides a `group` object and visit counts.
     return visits.map(v => {
         const source = v.group;
         let name = 'Direct';
@@ -84,7 +79,7 @@ const formatTrafficSources = (visits: any[]): TrafficSource[] => {
         } else if (source.utmMedium) {
             name = source.utmMedium;
         }
-        name = name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()); // Capitalize
+        name = name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
         return { name: `${name} - ${source.platform.toUpperCase()}`, visits: v.registeredVisits };
     });
 };
@@ -106,7 +101,6 @@ const simulateLikesBySource = (totalLikes: number, sources: TrafficSource[]): { 
     
     return likesDistribution;
 };
-
 
 // --- PUBLIC API FUNCTIONS ---
 
@@ -144,64 +138,114 @@ export const getDummyData = (): AnalyticsData => {
     };
 };
 
+/**
+ * NEW: Asynchronously fetches and calculates top groups data.
+ * This logic is wrapped in its own function to be used as a single promise,
+ * making it easier to handle its success or failure state.
+ */
+const getTopGroupsData = async (postId: string): Promise<{ name: string; visits: number }[]> => {
+    const branchId = await fetchBranchId();
+    const allGroups = await fetchAllGroups();
+    const groupStatPromises = allGroups.map(group =>
+        fetchGroupStatsForPost(branchId, postId, group.id)
+            .then(stats => ({
+                name: group.name,
+                visits: stats.registeredVisits || 0
+            }))
+            // If stats for one group fail, we assume 0 visits and continue
+            .catch(() => ({ name: group.name, visits: 0 }))
+    );
+    const groupStats = await Promise.all(groupStatPromises);
+    return groupStats
+        .filter(group => group.visits > 0)
+        .sort((a, b) => b.visits - a.visits)
+        .slice(0, 5);
+};
+
 export const getAnalyticsData = async (postId?: string): Promise<AnalyticsData> => {
     if (!postId || postId.toLowerCase().includes("dummy")) {
         return getDummyData();
     }
+
+    // --- Define Default States ---
+    // These will be used as fallbacks if a specific API call fails.
+    const defaultCampaign = {
+        title: "No Campaign",
+        goal: "This post is not part of a campaign.",
+        alignmentScore: 0,
+        participants: 0,
+        url: '#',
+    };
+
+    // --- Step 1: Fetch the core post data ---
+    // This is fetched first as it determines if we need to fetch campaign data.
+    const postData = await fetchPost(postId).catch(err => {
+        console.error("❗️ Failed to fetch core post data. Post title will be unavailable.", err);
+        return null;
+    });
+    const campaignId = postData?.campaignId;
+
+    // --- Step 2: Concurrently fetch all other data segments ---
+    // Promise.allSettled is used to ensure all promises complete, regardless of individual failures.
+    const [
+        statsResult,
+        visitsResult,
+        campaignResult,
+        alignmentResult,
+        topGroupsResult
+    ] = await Promise.allSettled([
+        fetchStats(postId),
+        fetchVisits(postId),
+        campaignId ? fetchCampaign(campaignId) : Promise.resolve(null),
+        campaignId ? fetchAlignment(campaignId) : Promise.resolve(null),
+        getTopGroupsData(postId) // The complex group logic is now a single promise
+    ]);
+
+    // --- Step 3: Process results, applying fallbacks for any failed requests ---
+
+    // Process Stats
+    const stats = statsResult.status === 'fulfilled' ? statsResult.value : (console.error("❗️ Failed to fetch stats.", statsResult.reason), null);
+    const finalStats = {
+        totalVisits: stats?.registeredVisits ?? 0,
+        totalLikes: stats?.likes ?? 0,
+        totalComments: stats?.comments ?? 0,
+        totalShares: stats?.shares ?? 0,
+    };
+
+    // Process Traffic Sources & derived Likes by Source
+    const visits = visitsResult.status === 'fulfilled' ? visitsResult.value : (console.error("❗️ Failed to fetch visits.", visitsResult.reason), []);
+    const trafficSources = formatTrafficSources(visits);
+    const likesBySource = simulateLikesBySource(finalStats.totalLikes, trafficSources);
     
-    try {
-        const branchId = await fetchBranchId();
-        const allGroups = await fetchAllGroups();
-        const postData = await fetchPost(postId);
+    // Process Top Groups
+    const topGroups = topGroupsResult.status === 'fulfilled' ? topGroupsResult.value : (console.error("❗️ Failed to fetch top groups.", topGroupsResult.reason), []);
+    
+    // Process Campaign Data
+    const campaign = campaignResult.status === 'fulfilled' ? campaignResult.value : null;
+    const alignment = alignmentResult.status === 'fulfilled' ? alignmentResult.value : null;
+    if (campaignResult.status === 'rejected') console.error("❗️ Failed to fetch campaign details.", campaignResult.reason);
+    if (alignmentResult.status === 'rejected') console.error("❗️ Failed to fetch campaign alignment.", alignmentResult.reason);
 
-        const groupStatPromises = allGroups.map(group => 
-            fetchGroupStatsForPost(branchId, postId, group.id)
-                .then(stats => ({
-                    name: group.name,
-                    visits: stats.registeredVisits || 0
-                }))
-                .catch(() => ({ name: group.name, visits: 0 }))
-        );
+    const finalCampaign = campaignId && campaign
+        ? {
+            title: campaign.title,
+            goal: campaign.goal,
+            alignmentScore: alignment?.averageScore ?? 0,
+            participants: alignment?.participantCount ?? 0,
+            url: `${baseUrl}/studio/analytics/campaigns/${campaign.id}`,
+          }
+        : defaultCampaign;
         
-        const [stats, visits, campaign, alignment, groupStats] = await Promise.all([
-            fetchStats(postId),
-            fetchVisits(postId),
-            postData.campaignId ? fetchCampaign(postData.campaignId) : Promise.resolve(null),
-            postData.campaignId ? fetchAlignment(postData.campaignId) : Promise.resolve(null),
-            Promise.all(groupStatPromises),
-        ]);
-
-        const trafficSources = formatTrafficSources(visits);
-        const likesBySource = simulateLikesBySource(stats.likes, trafficSources);
-        
-        const topGroups = groupStats
-            .filter(group => group.visits > 0)
-            .sort((a, b) => b.visits - a.visits)
-            .slice(0, 5);
-
-        return {
-            post: {
-                title: postData.contents.en_US.title,
-            },
-            stats: {
-                totalVisits: stats.registeredVisits,
-                totalLikes: stats.likes,
-                totalComments: stats.comments,
-                totalShares: stats.shares,
-            },
-            trafficSources,
-            likesBySource,
-            campaign: {
-                title: campaign?.title ?? "No Campaign",
-                goal: campaign?.goal ?? "This post is not part of a campaign.",
-                alignmentScore: alignment?.averageScore ?? 0,
-                participants: alignment?.participantCount ?? 0,
-                url: campaign ? `${baseUrl}/studio/analytics/campaigns/${campaign.id}`: '#',
-            },
-            topGroups,
-        };
-    } catch (error) {
-        console.error("❗️ Failed to fetch live analytics data. Falling back to dummy data.", error);
-        return getDummyData();
-    }
+    // --- Step 4: Assemble and return the final data object ---
+    // It will contain a mix of real and default data depending on API success.
+    return {
+        post: {
+            title: postData?.contents.en_US.title ?? "Post Title Unavailable",
+        },
+        stats: finalStats,
+        trafficSources,
+        likesBySource,
+        campaign: finalCampaign,
+        topGroups,
+    };
 };
