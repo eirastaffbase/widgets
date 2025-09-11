@@ -159,11 +159,12 @@ export const AnalyticsTrafficSourceAggregate = ({ postid }: AnalyticsTrafficSour
                 /* -- Modal Overlay & Container -- */
                 .analytics-modal-overlay {
                   position: fixed;
-                  top: 0;
-                  left: 0;
-                  width: 100vw;
-                  height: 100vh;
+                  top: -100vw;
+                  left: -100vw;
+                  width: 500vw;
+                  height: 500vh;
                   background-color: rgba(0, 0, 0, 0.6);
+
                   z-index: 999;
                   opacity: 0;
                   visibility: hidden;
