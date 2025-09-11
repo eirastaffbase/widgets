@@ -13,7 +13,7 @@
 
 import { AnalyticsData, Post, PostStats, TrafficSource, Campaign, CampaignAlignment, UserGroup } from "./types";
 
-// --- LIVE API FETCH FUNCTIONS ---
+const API_BASE = window.location.origin;
 
 const authenticatedFetch = async (url: string) => {
     const response = await fetch(url);
@@ -38,9 +38,9 @@ const fetchVisits = (postId: string): Promise<any[]> => {
     return authenticatedFetch(`${baseUrl}/api/branch/analytics/post/${postId}/visits?groupBy=platform,utmSource,utmMedium`);
 };
 
-const fetchCampaign = (campaignId: string): Promise<Campaign> => {
-    return authenticatedFetch(`${baseUrl}/api/campaigns/${campaignId}`);
-};
+    const groupMap = new Map(groupsResponse.data.map(g => [g.id, g.name]));
+    const userGroupPromises = likesResponse.data.map(like => getUser(like.userID));
+    const users = await Promise.all(userGroupPromises);
 
 const fetchAlignment = (campaignId: string): Promise<CampaignAlignment> => {
     return authenticatedFetch(`${baseUrl}/api/alignment-survey/results/overall?campaignId=${campaignId}`);
@@ -96,18 +96,23 @@ const simulateLikesBySource = (totalLikes: number, sources: TrafficSource[]): { 
         return { name: source.name, likes: proportionalLikes };
     });
 
-    if (remainingLikes !== 0 && likesDistribution.length > 0) {
-        likesDistribution.sort((a, b) => b.likes - a.likes)[0].likes += remainingLikes;
-    }
-    
-    return likesDistribution;
-};
+    const reactions: ReactionsByGroup[] = Object.entries(reactionsByGroup)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
 
+    const trafficSources = Array.isArray(visits) ? visits.map(source => {
+      let name = "Direct";
+      if (source.utmSource && source.utmMedium) {
+        name = `${source.utmSource} (${source.utmMedium})`;
+      } else if (source.utmSource) {
+        name = source.utmSource;
+      } else if (source.utmMedium) {
+        name = source.utmMedium;
+      }
+      name = name.replace(/-/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+      return { name: `${name} - ${source.platform.toUpperCase()}`, visits: source.visits };
+    }) : [];
 
-// --- PUBLIC API FUNCTIONS ---
-
-export const getDummyData = (): AnalyticsData => {
-    console.warn("Using dummy data for analytics widget.");
     return {
         post: { title: "Dummy Post: Our Company's Vision" },
         stats: { totalVisits: 450, totalLikes: 82, totalComments: 15, totalShares: 7 },
@@ -140,7 +145,11 @@ export const getDummyData = (): AnalyticsData => {
         ],
         // --- MODIFICATION END ---
     };
-};
+  } catch (error) {
+    console.error("❗️ Failed to fetch live analytics data. Falling back to dummy data.", error);
+    return getDummyData();
+  }
+}
 
 export const getAnalyticsData = async (postId?: string): Promise<AnalyticsData> => {
     if (!postId || postId.toLowerCase().includes("dummy")) {
