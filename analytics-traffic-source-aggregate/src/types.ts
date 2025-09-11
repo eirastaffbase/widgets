@@ -51,6 +51,12 @@ export interface TrafficSource {
     visits: number;
 }
 
+export interface UserGroup {
+    name: string;
+    visits: number;
+}
+
+
 // Final structured data for the component
 export interface AnalyticsData {
     post: {
@@ -74,4 +80,5 @@ export interface AnalyticsData {
         participants: number;
         url: string;
     };
+    topGroups: UserGroup[];
 }

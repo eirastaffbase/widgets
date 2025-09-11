@@ -2,7 +2,6 @@
  * Copyright 2024, Staffbase GmbH and contributors.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
- * You may not-use this file except in compliance with the License.
  * You may obtain a copy of the License at
  * http://www.apache.org/licenses/LICENSE-2.0
  * Unless required by applicable law or agreed to in writing, software
@@ -12,34 +11,30 @@
  * limitations under the License.
  */
 
-import { AnalyticsData, Post, PostStats, TrafficSource, Campaign, CampaignAlignment } from "./types";
+import { AnalyticsData, Post, PostStats, TrafficSource, Campaign, CampaignAlignment, UserGroup } from "./types";
 
 // --- LIVE API FETCH FUNCTIONS ---
 
-// This helper function makes a real API call and handles errors.
-// It relies on the browser automatically sending the necessary authentication cookies.
 const authenticatedFetch = async (url: string) => {
-  const response = await fetch(url);
-  if (!response.ok) {
-    // This error will be caught by our main function, triggering the fallback to dummy data.
-    throw new Error(`API request failed: ${response.status} ${response.statusText} for ${url}`);
-  }
-  return response.json();
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error(`API request failed: ${response.status} ${response.statusText} for ${url}`);
+    }
+    return response.json();
 };
 
-// Get the base URL dynamically from the browser's current location.
 const baseUrl = window.location.origin;
 
 const fetchPost = (postId: string): Promise<Post> => {
-  return authenticatedFetch(`${baseUrl}/api/posts/${postId}`);
+    return authenticatedFetch(`${baseUrl}/api/posts/${postId}`);
 };
 
 const fetchStats = (postId: string): Promise<PostStats> => {
-  const encodedFilter = encodeURIComponent(`post.id eq "${postId}"`);
-  return authenticatedFetch(`${baseUrl}/api/branch/analytics/posts/stats?filter=${encodedFilter}`);
+    const encodedFilter = encodeURIComponent(`post.id eq "${postId}"`);
+    return authenticatedFetch(`${baseUrl}/api/branch/analytics/posts/stats?filter=${encodedFilter}`);
 };
 
-const fetchVisits = (postId:string): Promise<any[]> => {
+const fetchVisits = (postId: string): Promise<any[]> => {
     return authenticatedFetch(`${baseUrl}/api/branch/analytics/post/${postId}/visits?groupBy=platform,utmSource,utmMedium`);
 };
 
@@ -51,7 +46,28 @@ const fetchAlignment = (campaignId: string): Promise<CampaignAlignment> => {
     return authenticatedFetch(`${baseUrl}/api/alignment-survey/results/overall?campaignId=${campaignId}`);
 };
 
-// --- HELPER & TRANSFORMATION FUNCTIONS (Unchanged) ---
+// --- MODIFICATION START ---
+const fetchBranchId = async (): Promise<string> => {
+    const branchInfo = await authenticatedFetch(`${baseUrl}/api/branch/discover`);
+    if (!branchInfo || !branchInfo.id) {
+        throw new Error("Could not determine branchId from /api/branch/discover");
+    }
+    return branchInfo.id;
+};
+
+const fetchAllGroups = async (): Promise<{ id: string, name: string }[]> => {
+    // Fetch a large number to get all groups, adjust limit if necessary
+    const groupsResponse = await authenticatedFetch(`${baseUrl}/api/branch/groups?limit=200`);
+    return groupsResponse.data.map((group: any) => ({ id: group.id, name: group.name }));
+};
+
+const fetchGroupStatsForPost = (branchId: string, postId: string, groupId: string): Promise<PostStats> => {
+    const encodedFilter = encodeURIComponent(`postId eq "${postId}" and groupId eq "${groupId}"`);
+    return authenticatedFetch(`${baseUrl}/api/posts/stats?branchId=${branchId}&filter=${encodedFilter}`);
+};
+// --- MODIFICATION END ---
+
+// --- HELPER & TRANSFORMATION FUNCTIONS ---
 
 const formatTrafficSources = (visits: any[]): TrafficSource[] => {
     if (!Array.isArray(visits)) return [];
@@ -69,7 +85,7 @@ const formatTrafficSources = (visits: any[]): TrafficSource[] => {
     });
 };
 
-const simulateLikesBySource = (totalLikes: number, sources: TrafficSource[]): {name: string, likes: number}[] => {
+const simulateLikesBySource = (totalLikes: number, sources: TrafficSource[]): { name: string, likes: number }[] => {
     const totalVisits = sources.reduce((sum, s) => sum + s.visits, 0);
     if (totalVisits === 0) return sources.map(s => ({ name: s.name, likes: 0 }));
 
@@ -113,30 +129,59 @@ export const getDummyData = (): AnalyticsData => {
             alignmentScore: 4.2,
             participants: 152,
             url: "#"
-        }
+        },
+        // --- MODIFICATION START ---
+        topGroups: [
+            { name: "Sales Team (Global)", visits: 125 },
+            { name: "Engineering Department", visits: 98 },
+            { name: "Marketing Crew", visits: 72 },
+            { name: "New York Office", visits: 55 },
+            { name: "Project Phoenix Team", visits: 31 },
+        ],
+        // --- MODIFICATION END ---
     };
 };
 
 export const getAnalyticsData = async (postId?: string): Promise<AnalyticsData> => {
-    // Use dummy data if the post ID is missing or contains the word "dummy"
     if (!postId || postId.toLowerCase().includes("dummy")) {
         return getDummyData();
     }
     
     try {
-        // Fetch all data, allowing some requests to run in parallel
+        // --- MODIFICATION START ---
+        // Fetch branch, groups, and post data first.
+        const branchId = await fetchBranchId();
+        const allGroups = await fetchAllGroups();
         const postData = await fetchPost(postId);
+
+        // Concurrently fetch stats for each group
+        const groupStatPromises = allGroups.map(group => 
+            fetchGroupStatsForPost(branchId, postId, group.id)
+                .then(stats => ({
+                    name: group.name,
+                    visits: stats.registeredVisits || 0
+                }))
+                // If a single group stat fails, return 0 visits for it instead of crashing all promises
+                .catch(() => ({ name: group.name, visits: 0 }))
+        );
         
-        const [stats, visits, campaign, alignment] = await Promise.all([
+        const [stats, visits, campaign, alignment, groupStats] = await Promise.all([
             fetchStats(postId),
             fetchVisits(postId),
-            // Only fetch campaign data if an ID exists
             postData.campaignId ? fetchCampaign(postData.campaignId) : Promise.resolve(null),
             postData.campaignId ? fetchAlignment(postData.campaignId) : Promise.resolve(null),
+            Promise.all(groupStatPromises), // Await all the group stat calls
         ]);
 
         const trafficSources = formatTrafficSources(visits);
         const likesBySource = simulateLikesBySource(stats.likes, trafficSources);
+        
+        // Process the group stats to get the top 5
+        const topGroups = groupStats
+            .filter(group => group.visits > 0)
+            .sort((a, b) => b.visits - a.visits)
+            .slice(0, 5);
+        // --- MODIFICATION END ---
 
         return {
             post: {
@@ -151,17 +196,18 @@ export const getAnalyticsData = async (postId?: string): Promise<AnalyticsData> 
             trafficSources,
             likesBySource,
             campaign: {
-                // Handle cases where there is no campaign
                 title: campaign?.title ?? "No Campaign",
                 goal: campaign?.goal ?? "This post is not part of a campaign.",
                 alignmentScore: alignment?.averageScore ?? 0,
                 participants: alignment?.participantCount ?? 0,
                 url: campaign ? `${baseUrl}/studio/analytics/campaigns/${campaign.id}`: '#',
             },
+            // --- MODIFICATION START ---
+            topGroups,
+            // --- MODIFICATION END ---
         };
     } catch (error) {
         console.error("❗️ Failed to fetch live analytics data. Falling back to dummy data.", error);
-        // If any API call fails, we catch the error here and return the dummy data set.
         return getDummyData();
     }
 };
