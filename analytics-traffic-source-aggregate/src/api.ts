@@ -11,9 +11,9 @@
  * limitations under the License.
  */
 
-import { AnalyticsData, Post, PostStats, TrafficSource, Campaign, CampaignAlignment, UserGroup } from "./types";
+import { AnalyticsData, Post, PostStats, TrafficSource, Campaign, CampaignAlignment } from "./types";
 
-const API_BASE = window.location.origin;
+// --- LIVE API FETCH FUNCTIONS ---
 
 const authenticatedFetch = async (url: string) => {
     const response = await fetch(url);
@@ -30,23 +30,26 @@ const fetchPost = (postId: string): Promise<Post> => {
 };
 
 const fetchStats = (postId: string): Promise<PostStats> => {
-    const encodedFilter = encodeURIComponent(`post.id eq "${postId}"`);
-    return authenticatedFetch(`${baseUrl}/api/branch/analytics/posts/stats?filter=${encodedFilter}`);
+    // Note: The /api/posts/stats endpoint is more suitable for this filter.
+    const encodedFilter = encodeURIComponent(`postId eq "${postId}"`);
+    return authenticatedFetch(`${baseUrl}/api/posts/stats?filter=${encodedFilter}`);
 };
 
 const fetchVisits = (postId: string): Promise<any[]> => {
-    return authenticatedFetch(`${baseUrl}/api/branch/analytics/post/${postId}/visits?groupBy=platform,utmSource,utmMedium`);
+    // This endpoint seems to be incorrect in the documentation provided.
+    // A more likely endpoint would be part of the rankings or a dedicated visits endpoint.
+    // Using a placeholder based on the provided info, but this may need adjustment.
+    return authenticatedFetch(`${baseUrl}/api/posts/rankings?filter=postId eq "${postId}"&groupBy=platform,utmSource,utmMedium`);
 };
 
-    const groupMap = new Map(groupsResponse.data.map(g => [g.id, g.name]));
-    const userGroupPromises = likesResponse.data.map(like => getUser(like.userID));
-    const users = await Promise.all(userGroupPromises);
+const fetchCampaign = (campaignId: string): Promise<Campaign> => {
+    return authenticatedFetch(`${baseUrl}/api/campaigns/${campaignId}`);
+};
 
 const fetchAlignment = (campaignId: string): Promise<CampaignAlignment> => {
     return authenticatedFetch(`${baseUrl}/api/alignment-survey/results/overall?campaignId=${campaignId}`);
 };
 
-// --- MODIFICATION START ---
 const fetchBranchId = async (): Promise<string> => {
     const branchInfo = await authenticatedFetch(`${baseUrl}/api/branch/discover`);
     if (!branchInfo || !branchInfo.id) {
@@ -65,23 +68,24 @@ const fetchGroupStatsForPost = (branchId: string, postId: string, groupId: strin
     const encodedFilter = encodeURIComponent(`postId eq "${postId}" and groupId eq "${groupId}"`);
     return authenticatedFetch(`${baseUrl}/api/posts/stats?branchId=${branchId}&filter=${encodedFilter}`);
 };
-// --- MODIFICATION END ---
 
 // --- HELPER & TRANSFORMATION FUNCTIONS ---
 
 const formatTrafficSources = (visits: any[]): TrafficSource[] => {
     if (!Array.isArray(visits)) return [];
+    // This assumes the ranking endpoint provides a `group` object and visit counts.
     return visits.map(v => {
+        const source = v.group;
         let name = 'Direct';
-        if (v.utmSource && v.utmMedium) {
-            name = `${v.utmSource} (${v.utmMedium})`;
-        } else if (v.utmSource) {
-            name = v.utmSource;
-        } else if (v.utmMedium) {
-            name = v.utmMedium;
+        if (source.utmSource && source.utmMedium) {
+            name = `${source.utmSource} (${source.utmMedium})`;
+        } else if (source.utmSource) {
+            name = source.utmSource;
+        } else if (source.utmMedium) {
+            name = source.utmMedium;
         }
         name = name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()); // Capitalize
-        return { name: `${name} - ${v.platform.toUpperCase()}`, visits: v.visits };
+        return { name: `${name} - ${source.platform.toUpperCase()}`, visits: v.registeredVisits };
     });
 };
 
@@ -96,23 +100,18 @@ const simulateLikesBySource = (totalLikes: number, sources: TrafficSource[]): { 
         return { name: source.name, likes: proportionalLikes };
     });
 
-    const reactions: ReactionsByGroup[] = Object.entries(reactionsByGroup)
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count);
+    if (remainingLikes !== 0 && likesDistribution.length > 0) {
+        likesDistribution.sort((a, b) => b.likes - a.likes)[0].likes += remainingLikes;
+    }
+    
+    return likesDistribution;
+};
 
-    const trafficSources = Array.isArray(visits) ? visits.map(source => {
-      let name = "Direct";
-      if (source.utmSource && source.utmMedium) {
-        name = `${source.utmSource} (${source.utmMedium})`;
-      } else if (source.utmSource) {
-        name = source.utmSource;
-      } else if (source.utmMedium) {
-        name = source.utmMedium;
-      }
-      name = name.replace(/-/g, " ").replace(/\b\w/g, l => l.toUpperCase());
-      return { name: `${name} - ${source.platform.toUpperCase()}`, visits: source.visits };
-    }) : [];
 
+// --- PUBLIC API FUNCTIONS ---
+
+export const getDummyData = (): AnalyticsData => {
+    console.warn("Using dummy data for analytics widget.");
     return {
         post: { title: "Dummy Post: Our Company's Vision" },
         stats: { totalVisits: 450, totalLikes: 82, totalComments: 15, totalShares: 7 },
@@ -135,7 +134,6 @@ const simulateLikesBySource = (totalLikes: number, sources: TrafficSource[]): { 
             participants: 152,
             url: "#"
         },
-        // --- MODIFICATION START ---
         topGroups: [
             { name: "Sales Team (Global)", visits: 125 },
             { name: "Engineering Department", visits: 98 },
@@ -143,13 +141,8 @@ const simulateLikesBySource = (totalLikes: number, sources: TrafficSource[]): { 
             { name: "New York Office", visits: 55 },
             { name: "Project Phoenix Team", visits: 31 },
         ],
-        // --- MODIFICATION END ---
     };
-  } catch (error) {
-    console.error("❗️ Failed to fetch live analytics data. Falling back to dummy data.", error);
-    return getDummyData();
-  }
-}
+};
 
 export const getAnalyticsData = async (postId?: string): Promise<AnalyticsData> => {
     if (!postId || postId.toLowerCase().includes("dummy")) {
@@ -157,20 +150,16 @@ export const getAnalyticsData = async (postId?: string): Promise<AnalyticsData> 
     }
     
     try {
-        // --- MODIFICATION START ---
-        // Fetch branch, groups, and post data first.
         const branchId = await fetchBranchId();
         const allGroups = await fetchAllGroups();
         const postData = await fetchPost(postId);
 
-        // Concurrently fetch stats for each group
         const groupStatPromises = allGroups.map(group => 
             fetchGroupStatsForPost(branchId, postId, group.id)
                 .then(stats => ({
                     name: group.name,
                     visits: stats.registeredVisits || 0
                 }))
-                // If a single group stat fails, return 0 visits for it instead of crashing all promises
                 .catch(() => ({ name: group.name, visits: 0 }))
         );
         
@@ -179,18 +168,16 @@ export const getAnalyticsData = async (postId?: string): Promise<AnalyticsData> 
             fetchVisits(postId),
             postData.campaignId ? fetchCampaign(postData.campaignId) : Promise.resolve(null),
             postData.campaignId ? fetchAlignment(postData.campaignId) : Promise.resolve(null),
-            Promise.all(groupStatPromises), // Await all the group stat calls
+            Promise.all(groupStatPromises),
         ]);
 
         const trafficSources = formatTrafficSources(visits);
         const likesBySource = simulateLikesBySource(stats.likes, trafficSources);
         
-        // Process the group stats to get the top 5
         const topGroups = groupStats
             .filter(group => group.visits > 0)
             .sort((a, b) => b.visits - a.visits)
             .slice(0, 5);
-        // --- MODIFICATION END ---
 
         return {
             post: {
@@ -211,9 +198,7 @@ export const getAnalyticsData = async (postId?: string): Promise<AnalyticsData> 
                 participants: alignment?.participantCount ?? 0,
                 url: campaign ? `${baseUrl}/studio/analytics/campaigns/${campaign.id}`: '#',
             },
-            // --- MODIFICATION START ---
             topGroups,
-            // --- MODIFICATION END ---
         };
     } catch (error) {
         console.error("❗️ Failed to fetch live analytics data. Falling back to dummy data.", error);
