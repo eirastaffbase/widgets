@@ -29,13 +29,11 @@ const fetchPost = (postId: string): Promise<Post> => {
     return authenticatedFetch(`${baseUrl}/api/posts/${postId}`);
 };
 
-// --- MODIFIED: Reverted to the old, working endpoint for stats ---
 const fetchStats = (postId: string): Promise<PostStats> => {
     const encodedFilter = encodeURIComponent(`post.id eq "${postId}"`);
     return authenticatedFetch(`${baseUrl}/api/branch/analytics/posts/stats?filter=${encodedFilter}`);
 };
 
-// --- MODIFIED: Reverted to the old, working endpoint for visits ---
 const fetchVisits = (postId: string): Promise<any[]> => {
     return authenticatedFetch(`${baseUrl}/api/branch/analytics/post/${postId}/visits?groupBy=platform,utmSource,utmMedium`);
 };
@@ -48,13 +46,23 @@ const fetchAlignment = (campaignId: string): Promise<CampaignAlignment> => {
     return authenticatedFetch(`${baseUrl}/api/alignment-survey/results/overall?campaignId=${campaignId}`);
 };
 
-// --- UNCHANGED: New functions for Top Groups feature ---
+// --- MODIFIED: Using /api/spaces to get the branchId ---
 const fetchBranchId = async (): Promise<string> => {
-    const branchInfo = await authenticatedFetch(`${baseUrl}/api/branch/discover`);
-    if (!branchInfo || !branchInfo.id) {
-        throw new Error("Could not determine branchId from /api/branch/discover");
+    const spacesResponse = await authenticatedFetch(`${baseUrl}/api/spaces`);
+    
+    // Check for a valid response structure
+    if (!spacesResponse?.data || spacesResponse.data.length === 0) {
+        throw new Error("Could not determine branchId from /api/spaces: no spaces found in response.");
     }
-    return branchInfo.id;
+    
+    // Extract branchID from the first space object
+    const branchId = spacesResponse.data[0].branchID;
+
+    if (!branchId) {
+         throw new Error("Could not determine branchId from /api/spaces: branchID field is missing.");
+    }
+
+    return branchId;
 };
 
 const fetchAllGroups = async (): Promise<{ id: string, name: string }[]> => {
@@ -70,7 +78,6 @@ const fetchGroupStatsForPost = (branchId: string, postId: string, groupId: strin
 
 // --- HELPER & TRANSFORMATION FUNCTIONS ---
 
-// --- MODIFIED: Reverted to the old helper that processes the old visits API response ---
 const formatTrafficSources = (visits: any[]): TrafficSource[] => {
     if (!Array.isArray(visits)) return [];
     return visits.map(v => {
@@ -83,7 +90,6 @@ const formatTrafficSources = (visits: any[]): TrafficSource[] => {
             name = v.utmMedium;
         }
         name = name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-        // Note: The property is `v.visits`, not `v.registeredVisits`
         return { name: `${name} - ${v.platform.toUpperCase()}`, visits: v.visits };
     });
 };
@@ -142,7 +148,6 @@ export const getDummyData = (): AnalyticsData => {
     };
 };
 
-// --- UNCHANGED: New function for Top Groups feature ---
 const getTopGroupsData = async (postId: string): Promise<{ name: string; visits: number }[]> => {
     const branchId = await fetchBranchId();
     const allGroups = await fetchAllGroups();
@@ -196,7 +201,6 @@ export const getAnalyticsData = async (postId?: string): Promise<AnalyticsData> 
 
     // Process Stats
     const stats = statsResult.status === 'fulfilled' ? statsResult.value : (console.error("❗️ Failed to fetch stats.", statsResult.reason), null);
-    // The property names like `registeredVisits` are correct for the old endpoint
     const finalStats = {
         totalVisits: stats?.registeredVisits ?? 0,
         totalLikes: stats?.likes ?? 0,
