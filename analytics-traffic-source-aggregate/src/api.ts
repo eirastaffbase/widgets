@@ -2,7 +2,7 @@
  * Copyright 2024, Staffbase GmbH and contributors.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * You may not use a copy of the License at
  * http://www.apache.org/licenses/LICENSE-2.0
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -11,7 +11,16 @@
  * limitations under the License.
  */
 
-import { AnalyticsData, Post, PostStats, TrafficSource, Campaign, CampaignAlignment } from "./types";
+// Make sure to import the new types from your types.ts file
+import { 
+    AnalyticsData, 
+    Post, 
+    PostStats, 
+    TrafficSource, 
+    Campaign, 
+    CampaignAlignment,
+    TimeseriesResponse // Add this new type
+} from "./types";
 
 // --- LIVE API FETCH FUNCTIONS ---
 
@@ -46,38 +55,31 @@ const fetchAlignment = (campaignId: string): Promise<CampaignAlignment> => {
     return authenticatedFetch(`${baseUrl}/api/alignment-survey/results/overall?campaignId=${campaignId}`);
 };
 
-const fetchBranchId = async (): Promise<string> => {
-    const spacesResponse = await authenticatedFetch(`${baseUrl}/api/spaces`);
-    if (!spacesResponse?.data || spacesResponse.data.length === 0) {
-        throw new Error("Could not determine branchId from /api/spaces: no spaces found in response.");
-    }
-    const branchId = spacesResponse.data[0].branchID;
-    if (!branchId) {
-        throw new Error("Could not determine branchId from /api/spaces: branchID field is missing.");
-    }
-    return branchId;
-};
-
 const fetchAllGroups = async (): Promise<{ id: string, name: string }[]> => {
     const groupsResponse = await authenticatedFetch(`${baseUrl}/api/branch/groups?limit=200`);
     return groupsResponse.data.map((group: any) => ({ id: group.id, name: group.name }));
 };
 
-// --- NEW: Using the /pages/ranking endpoint to get visits per group ---
-const fetchPostRankingForGroup = async (postId: string, groupId: string): Promise<{ views: number }> => {
+// --- MODIFIED: Using the /posts/timeseries endpoint to get visits per group ---
+const fetchGroupVisitsForPost = async (branchId: string, postId: string, groupId: string): Promise<{ visits: number }> => {
     // This endpoint requires a time interval. We use a 5-year window to capture all data.
     const until = new Date().toISOString();
     const since = new Date(new Date().setFullYear(new Date().getFullYear() - 5)).toISOString();
     
-    const url = `${baseUrl}/api/branch/analytics/pages/ranking?pageId=${postId}&groupId=${groupId}&since=${since}&until=${until}`;
-    const response = await authenticatedFetch(url);
+    // The filter now includes both postId and groupId for accuracy.
+    const encodedFilter = encodeURIComponent(`postId eq "${postId}" and groupId eq "${groupId}"`);
+    
+    const url = `${baseUrl}/api/branch/analytics/posts/timeseries?branchId=${branchId}&since=${since}&until=${until}&groupBy=week&filter=${encodedFilter}`;
+    
+    const response: TimeseriesResponse = await authenticatedFetch(url);
 
-    // The endpoint returns an array; we expect one result for our specific page/group combo.
-    return response[0] ?? { views: 0 };
+    // The endpoint returns visits grouped by week; we need to sum them up.
+    const totalVisits = response.timeseries.reduce((sum, entry) => sum + entry.registeredVisits, 0);
+    
+    return { visits: totalVisits };
 };
 
-
-// --- HELPER & TRANSFORMATION FUNCTIONS ---
+// --- HELPER & TRANSFORMATION FUNCTIONS (Unchanged) ---
 
 const formatTrafficSources = (visits: any[]): TrafficSource[] => {
     if (!Array.isArray(visits)) return [];
@@ -113,19 +115,12 @@ const simulateLikesBySource = (totalLikes: number, sources: TrafficSource[]): { 
     return likesDistribution;
 };
 
-// --- NEW: Fallback function to simulate Top Groups data for demos ---
 const simulateTopGroups = (allGroups: { id: string, name: string }[], totalVisits: number): { name: string, visits: number }[] => {
     console.warn("⚠️ Simulating Top Groups data for demo purposes.");
     if (totalVisits === 0 || allGroups.length === 0) return [];
-
-    // Take the first 5 groups or fewer if not enough are available.
     const groupsToSimulate = allGroups.slice(0, 5);
-
-    // Let's assume the top 5 groups account for 60% to 85% of total traffic.
     const simulationRatio = Math.random() * 0.25 + 0.60;
     let visitsToDistribute = Math.floor(totalVisits * simulationRatio);
-    
-    // Generate random weights for each group to make the distribution look natural.
     const weights = groupsToSimulate.map(() => Math.random());
     const totalWeight = weights.reduce((sum, w) => sum + w, 0);
 
@@ -135,14 +130,12 @@ const simulateTopGroups = (allGroups: { id: string, name: string }[], totalVisit
         return { name: group.name, visits: proportionalVisits };
     });
 
-    // Distribute any remaining visits (due to rounding) to the top group.
     if (visitsToDistribute > 0 && simulatedData.length > 0) {
         simulatedData[0].visits += visitsToDistribute;
     }
 
     return simulatedData.sort((a, b) => b.visits - a.visits);
 };
-
 
 // --- PUBLIC API FUNCTIONS ---
 
@@ -172,13 +165,14 @@ export const getDummyData = (): AnalyticsData => {
     };
 };
 
-const getTopGroupsData = async (postId: string): Promise<{ name: string; visits: number }[]> => {
+// MODIFIED: This function now requires a branchId to work
+const getTopGroupsData = async (branchId: string, postId: string): Promise<{ name: string; visits: number }[]> => {
     const allGroups = await fetchAllGroups();
     const groupStatPromises = allGroups.map(group =>
-        fetchPostRankingForGroup(postId, group.id)
+        fetchGroupVisitsForPost(branchId, postId, group.id)
             .then(rankingData => ({
                 name: group.name,
-                visits: rankingData.views || 0,
+                visits: rankingData.visits || 0,
             }))
             .catch(() => ({ name: group.name, visits: 0 }))
     );
@@ -190,6 +184,7 @@ const getTopGroupsData = async (postId: string): Promise<{ name: string; visits:
         .slice(0, 5);
 };
 
+// --- MODIFIED: Main function with updated logic to get branchId first ---
 export const getAnalyticsData = async (postId?: string): Promise<AnalyticsData> => {
     if (!postId || postId.toLowerCase().includes("dummy")) {
         return getDummyData();
@@ -200,24 +195,32 @@ export const getAnalyticsData = async (postId?: string): Promise<AnalyticsData> 
         alignmentScore: 0, participants: 0, url: '#',
     };
 
+    // --- Step 1: Fetch Post and Campaign data to get the essential branchId ---
     const postData = await fetchPost(postId).catch(err => {
         console.error("❗️ Failed to fetch core post data.", err); return null;
     });
     const campaignId = postData?.campaignId;
-
+    const campaign = campaignId ? await fetchCampaign(campaignId).catch(err => {
+        console.error("❗️ Failed to fetch campaign details to get branchId.", err.message); return null;
+    }) : null;
+    
+    const branchId = campaign?.branchId;
+    if (!branchId) {
+        console.error("❗️ Critical Error: Could not determine branchId from campaign data. Top Groups will not be fetched.");
+    }
+    
+    // --- Step 2: Fetch all other data in parallel, including Top Groups if we have a branchId ---
     const [
         statsResult,
         visitsResult,
-        campaignResult,
         alignmentResult,
         topGroupsResult,
-        allGroupsResult, // Fetch all groups concurrently for the fallback.
+        allGroupsResult,
     ] = await Promise.allSettled([
         fetchStats(postId),
         fetchVisits(postId),
-        campaignId ? fetchCampaign(campaignId) : Promise.resolve(null),
         campaignId ? fetchAlignment(campaignId) : Promise.resolve(null),
-        getTopGroupsData(postId),
+        branchId ? getTopGroupsData(branchId, postId) : Promise.resolve([]), // Only call if branchId exists
         fetchAllGroups(),
     ]);
 
@@ -243,15 +246,12 @@ export const getAnalyticsData = async (postId?: string): Promise<AnalyticsData> 
     if (topGroupsResult.status === 'rejected') console.error("❗️ Failed to fetch top groups.", topGroupsResult.reason);
 
     // *** FALLBACK LOGIC ***
-    // If the API returned no group data, but we know there are visits and groups, simulate the data.
     if (topGroups.length === 0 && finalStats.totalVisits > 0 && allGroups.length > 0) {
         topGroups = simulateTopGroups(allGroups, finalStats.totalVisits);
     }
     
     // Process Campaign Data
-    const campaign = campaignResult.status === 'fulfilled' ? campaignResult.value : null;
     const alignment = alignmentResult.status === 'fulfilled' ? alignmentResult.value : null;
-    if (campaignResult.status === 'rejected') console.error("❗️ Failed to fetch campaign details.", campaignResult.reason);
     if (alignmentResult.status === 'rejected') console.error("❗️ Failed to fetch campaign alignment.", alignmentResult.reason);
 
     const finalCampaign = campaignId && campaign

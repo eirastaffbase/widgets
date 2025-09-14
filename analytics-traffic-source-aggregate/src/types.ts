@@ -11,9 +11,37 @@
  * limitations under the License.
  */
 
+// --- NEW TYPES FOR TIMESERIES ENDPOINT ---
+export interface TimeseriesEntry {
+  group: {
+    week: number;
+    year: number;
+  };
+  registeredVisits: number;
+  // ... other properties like likes, comments etc. can be added here if needed
+}
+
+export interface TimeseriesResponse {
+  timeseries: TimeseriesEntry[];
+}
+// ------------------------------------------
+
 export interface Post {
   contents: { en_US: { title: string } };
   campaignId?: string;
+}
+
+// MODIFIED: Added branchId to Campaign type
+export interface Campaign {
+  id: string;
+  branchId: string;
+  title: string;
+  goal: string;
+}
+
+export interface CampaignAlignment {
+    averageScore: number;
+    participantCount: number;
 }
 
 export interface PostStats {
@@ -23,10 +51,9 @@ export interface PostStats {
   shares: number;
 }
 
+// MODIFIED: Simplified TrafficSource to match its usage
 export interface TrafficSource {
-  platform: string;
-  utmSource: string | null;
-  utmMedium: string | null;
+  name: string;
   visits: number;
 }
 
@@ -34,7 +61,6 @@ export interface UserGroup {
     name: string;
     visits: number;
 }
-
 
 // Final structured data for the component
 export interface AnalyticsData {
