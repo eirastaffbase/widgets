@@ -11,79 +11,37 @@
  * limitations under the License.
  */
 
-// --- NEW TYPES FOR TIMESERIES ENDPOINT ---
-export interface TimeseriesEntry {
-  group: {
-    week: number;
-    year: number;
-  };
-  registeredVisits: number;
-  // ... other properties like likes, comments etc. can be added here if needed
-}
+// --- TYPES FOR EMAIL PERFORMANCE ---
 
-export interface TimeseriesResponse {
-  timeseries: TimeseriesEntry[];
-}
-// ------------------------------------------
-
-export interface Post {
-  contents: { en_US: { title: string } };
-  campaignId?: string;
-}
-
-// MODIFIED: Added branchId to Campaign type
-export interface Campaign {
+export interface EmailEvent {
   id: string;
-  branchId: string;
-  title: string;
-  goal: string;
+  emailId: string;
+  eventSubject: string; // "user/USER_ID"
+  eventTime: string;
+  eventType: "sent" | "open" | "click";
+  eventTarget?: string; // URL for click events
 }
 
-export interface CampaignAlignment {
-    averageScore: number;
-    participantCount: number;
+export interface UserProfile {
+  id: string;
+  firstName: string;
+  lastName: string;
+  avatarUrl: string;
 }
 
-export interface PostStats {
-  registeredVisits: number;
-  likes: number;
-  comments: number;
-  shares: number;
+export interface ClickDetail {
+  clickTime: string;
+  targetUrl: string;
 }
 
-// MODIFIED: Simplified TrafficSource to match its usage
-export interface TrafficSource {
-  name: string;
-  visits: number;
+export interface OpenDetail {
+  openTime: string;
+  clicks: ClickDetail[];
 }
 
-export interface UserGroup {
-    name: string;
-    visits: number;
-}
-
-// Final structured data for the component
-export interface AnalyticsData {
-    post: {
-        title: string;
-    };
-    stats: {
-        totalVisits: number;
-        totalLikes: number;
-        totalComments: number;
-        totalShares: number;
-    };
-    trafficSources: TrafficSource[];
-    likesBySource: {
-        name: string;
-        likes: number;
-    }[];
-    campaign: {
-        title: string;
-        goal: string;
-        alignmentScore: number;
-        participants: number;
-        url: string;
-    };
-    topGroups: UserGroup[];
+export interface RecipientInteraction {
+  user: UserProfile;
+  wasSent: boolean;
+  wasOpened: boolean;
+  opens: OpenDetail[];
 }

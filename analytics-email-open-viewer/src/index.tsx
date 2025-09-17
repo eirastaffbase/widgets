@@ -3,7 +3,7 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -14,28 +14,18 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 
-import { BlockFactory, BlockDefinition, ExternalBlockDefinition, BaseBlock } from "widget-sdk";
+import { BlockFactory, BlockDefinition, ExternalBlockDefinition } from "widget-sdk";
 import { AnalyticsEmailOpenViewerProps, AnalyticsEmailOpenViewer } from "./analytics-email-open-viewer";
 import { configurationSchema, uiSchema } from "./configuration-schema";
 import icon from "../resources/analytics-email-open-viewer.svg";
 import pkg from '../package.json'
 
-/**
- * Define which attributes are handled by the widget. This should be also reflected in configuration schema
- */
 const widgetAttributes: string[] = [
-  'postid',
+  'emailid',
 ];
 
-/**
- * This factory creates the class which is registered with the tagname in the `custom element registry`
- * Gets the parental class and a set of helper utilities provided by the hosting application.
- */
 const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
-  /**
-   *  <analytics-email-open-viewer message="world!"></analytics-email-open-viewer>
-   */
-  return class AnalyticsEmailOpenViewerBlock extends BaseBlockClass implements BaseBlock {
+  return class AnalyticsEmailOpenViewerBlock extends BaseBlockClass {
     private _root: ReactDOM.Root | null = null;
 
     public constructor() {
@@ -55,26 +45,16 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
       this._root.render(<AnalyticsEmailOpenViewer {...this.props} />);
     }
 
-    /**
-     * The observed attributes, where the widgets reacts on.
-     */
     public static get observedAttributes(): string[] {
       return widgetAttributes;
     }
 
-    /**
-     * Callback invoked on every change of an observed attribute. Call the parental method before
-     * applying own logic.
-     */
     public attributeChangedCallback(...args: [string, string | undefined, string | undefined]): void {
       super.attributeChangedCallback.apply(this, args);
     }
   };
 };
 
-/**
- * The definition of the block, to let it successful register to the hosting application
- */
 const blockDefinition: BlockDefinition = {
     name: "analytics-email-open-viewer",
     factory: factory,
@@ -82,20 +62,14 @@ const blockDefinition: BlockDefinition = {
     blockLevel: 'block',
     configurationSchema: configurationSchema,
     uiSchema: uiSchema,
-    label: 'Analytics Traffic Source Aggregate',
+    label: 'Email Performance Tracker',
     iconUrl: icon
 };
 
-/**
- * Wrapping definition, which defines meta informations about the block.
- */
 const externalBlockDefinition: ExternalBlockDefinition = {
   blockDefinition,
   author: pkg.author,
   version: pkg.version
 };
 
-/**
- * This call is mandatory to register the block in the hosting application.
- */
 window.defineBlock(externalBlockDefinition);
