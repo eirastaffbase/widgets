@@ -30,7 +30,6 @@ export interface AnalyticsEmailOpenViewerProps extends BlockAttributes {
   emailid?: string;
 }
 
-// --- NEW: Fallback SVG component for users without an avatar ---
 const DefaultAvatarIcon = ({ className }: { className?: string }) => (
     <div className={`${className} user-avatar-placeholder`}>
         <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 18 18">
@@ -41,13 +40,14 @@ const DefaultAvatarIcon = ({ className }: { className?: string }) => (
 
 const RecipientRow = ({ interaction }: { interaction: RecipientInteraction }) => {
     const [isExpanded, setIsExpanded] = useState(false);
+    // --- MODIFIED: A row is expandable if it was sent OR opened ---
+    const isExpandable = interaction.sentTime || interaction.opens.length > 0;
 
     return (
         <>
-            <tr className="recipient-row" onClick={() => setIsExpanded(!isExpanded)}>
+            <tr className={`recipient-row ${isExpandable ? 'expandable' : ''}`} onClick={() => isExpandable && setIsExpanded(!isExpanded)}>
                 <td>
                     <div className="user-info">
-                        {/* --- MODIFIED: Conditional rendering for the avatar --- */}
                         {interaction.user.avatarUrl ? (
                             <img src={interaction.user.avatarUrl} alt={`${interaction.user.firstName} ${interaction.user.lastName}`} className="user-avatar" />
                         ) : (
@@ -59,25 +59,34 @@ const RecipientRow = ({ interaction }: { interaction: RecipientInteraction }) =>
                 <td>
                     <div className="status-cell">
                         {interaction.wasOpened ? (
-                            <span className="status-badge opened">Opened</span>
-                        ) : interaction.wasSent ? (
+                            // --- MODIFIED: Show open count ---
+                            <span className="status-badge opened">
+                                Opened <span className="open-count">({interaction.opens.length}x)</span>
+                            </span>
+                        ) : interaction.sentTime ? (
                             <span className="status-badge sent">Sent</span>
                         ) : (
                             <span className="status-badge unknown">Unknown</span>
                         )}
-                        {interaction.opens.length > 0 && (
+                        {isExpandable && (
                              <span className={`chevron ${isExpanded ? 'expanded' : ''}`}>&#9654;</span>
                         )}
                     </div>
                 </td>
             </tr>
-            {isExpanded && interaction.opens.length > 0 && (
+            {isExpanded && isExpandable && (
                 <tr className="details-row">
                     <td colSpan={2}>
                         <div className="details-container">
                             <h4>Interaction Details</h4>
+                            {/* --- MODIFIED: Display the Send Time --- */}
+                            {interaction.sentTime && (
+                                <div className="detail-block">
+                                    <p><strong>Sent at:</strong> {formatDisplayDateTime(interaction.sentTime)}</p>
+                                </div>
+                            )}
                             {interaction.opens.map((open, index) => (
-                                <div key={index} className="open-block">
+                                <div key={index} className="detail-block">
                                     <p><strong>Opened at:</strong> {formatDisplayDateTime(open.openTime)}</p>
                                     {open.clicks.length > 0 && (
                                         <ul>
@@ -106,7 +115,6 @@ export const AnalyticsEmailOpenViewer = ({ emailid }: AnalyticsEmailOpenViewerPr
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
 
-    // State for date range
     const [untilDate, setUntilDate] = useState(new Date());
     const [sinceDate, setSinceDate] = useState(() => {
         const date = new Date();
@@ -148,15 +156,15 @@ export const AnalyticsEmailOpenViewer = ({ emailid }: AnalyticsEmailOpenViewerPr
                 .date-controls input { border: 1px solid #ccc; border-radius: 4px; padding: 5px 8px; font-family: inherit; }
                 .performance-table { width: 100%; border-collapse: collapse; }
                 .performance-table th { background-color: #f9f9fb; text-align: left; padding: 12px 15px; font-weight: 600; border-bottom: 2px solid #eef0f2; }
-                .recipient-row { cursor: pointer; transition: background-color 0.2s ease; }
-                .recipient-row:hover { background-color: #f9f9fb; }
+                .recipient-row.expandable { cursor: pointer; }
+                .recipient-row.expandable:hover { background-color: #f9f9fb; }
                 .performance-table td { padding: 12px 15px; border-bottom: 1px solid #eef0f2; vertical-align: middle; }
                 .user-info { display: flex; align-items: center; gap: 12px; }
                 .user-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
-                /* --- NEW: Style for the SVG placeholder --- */
                 .user-avatar-placeholder { display: flex; align-items: center; justify-content: center; background-color: #eef0f2; padding: 5px; box-sizing: border-box; }
                 .status-cell { display: flex; justify-content: space-between; align-items: center; }
                 .status-badge { padding: 4px 10px; border-radius: 12px; font-size: 0.8em; font-weight: 600; }
+                .status-badge .open-count { font-weight: 500; opacity: 0.8; margin-left: 3px; }
                 .status-badge.opened { background-color: #dff0d8; color: #2F793D; }
                 .status-badge.sent { background-color: #d9edf7; color: #31708f; }
                 .status-badge.unknown { background-color: #f2f2f2; color: #777; }
@@ -165,18 +173,18 @@ export const AnalyticsEmailOpenViewer = ({ emailid }: AnalyticsEmailOpenViewerPr
                 .details-row td { background-color: #fdfdfd; padding: 0; }
                 .details-container { padding: 15px 25px; border-left: 3px solid #4594E0; }
                 .details-container h4 { margin-top: 0; margin-bottom: 10px; color: #0d51a1; }
-                .open-block { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px dashed #e0e0e0; }
-                .open-block:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
-                .open-block p { margin: 0 0 5px 0; }
-                .open-block ul { list-style-type: none; padding-left: 20px; margin: 5px 0 0; }
-                .open-block li { background-color: #f4f8fd; padding: 8px; border-radius: 4px; margin-bottom: 5px; font-size: 0.9em; }
-                .open-block a { color: #0d51a1; text-decoration: none; word-break: break-all; }
-                .open-block a:hover { text-decoration: underline; }
+                .detail-block { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px dashed #e0e0e0; }
+                .detail-block:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+                .detail-block p { margin: 0 0 5px 0; }
+                .detail-block ul { list-style-type: none; padding-left: 20px; margin: 5px 0 0; }
+                .detail-block li { background-color: #f4f8fd; padding: 8px; border-radius: 4px; margin-bottom: 5px; font-size: 0.9em; }
+                .detail-block a { color: #0d51a1; text-decoration: none; word-break: break-all; }
+                .detail-block a:hover { text-decoration: underline; }
                 .message-container { text-align: center; padding: 40px 20px; color: #777; }
             `}</style>
             
             <div className="widget-header">
-                <h3 className="widget-title">Email Performance (Last 30 Days)</h3>
+                <h3 className="widget-title">Email Performance</h3>
                 <div className="date-controls">
                     <label htmlFor="sinceDate">From:</label>
                     <input type="date" id="sinceDate" value={toInputDateString(sinceDate)} onChange={e => setSinceDate(new Date(e.target.value))} />

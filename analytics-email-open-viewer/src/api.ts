@@ -15,7 +15,7 @@ import { EmailEvent, UserProfile, RecipientInteraction, OpenDetail } from "./typ
 
 const baseUrl = window.location.origin;
 
-// --- API FETCH FUNCTIONS ---
+// --- API FETCH FUNCTIONS (Unchanged) ---
 
 const authenticatedFetch = async (url: string) => {
     const response = await fetch(url);
@@ -81,9 +81,10 @@ const processEvents = async (events: EmailEvent[]): Promise<RecipientInteraction
 
         userEvents.sort((a, b) => new Date(a.eventTime).getTime() - new Date(b.eventTime).getTime());
 
+        // --- MODIFIED: Initialize with sentTime: null ---
         const interaction: RecipientInteraction = {
             user: userProfile,
-            wasSent: false,
+            sentTime: null,
             wasOpened: false,
             opens: [],
         };
@@ -93,7 +94,8 @@ const processEvents = async (events: EmailEvent[]): Promise<RecipientInteraction
         for (const event of userEvents) {
             switch (event.eventType) {
                 case "sent":
-                    interaction.wasSent = true;
+                    // --- MODIFIED: Capture the send timestamp ---
+                    interaction.sentTime = event.eventTime;
                     break;
                 case "open":
                     interaction.wasOpened = true;
@@ -120,10 +122,11 @@ const processEvents = async (events: EmailEvent[]): Promise<RecipientInteraction
 
 export const getDummyData = (): RecipientInteraction[] => {
     console.warn("Using dummy data for email performance widget.");
+    // --- MODIFIED: Updated to include `sentTime` ---
     return [
         {
             user: { id: "dummy1", firstName: "Nicole", lastName: "Adams", avatarUrl: "https://cdn.prod.website-files.com/65b3b9f9bfb500445a7573e5/65dda761c0fad5c4f2e3b9ae_OGS%20Female%20Student.png" },
-            wasSent: true,
+            sentTime: "2025-09-16T10:05:01Z",
             wasOpened: true,
             opens: [
                 {
@@ -141,7 +144,7 @@ export const getDummyData = (): RecipientInteraction[] => {
         },
         {
             user: { id: "dummy2", firstName: "Eira", lastName: "Topé", avatarUrl: "https://media.licdn.com/dms/image/v2/D4E03AQFzOrVUvcipug/profile-displayphoto-shrink_200_200/profile-displayphoto-shrink_200_200/0/1679787786926?e=2147483647&v=beta&t=Z9nIwWi1aQ3hdCDfdIwPL4PnHbiFvKNcZO_qxBbgRbU" },
-            wasSent: true,
+            sentTime: "2025-09-15T14:29:55Z",
             wasOpened: true,
             opens: [
                 { openTime: "2025-09-15T14:30:00Z", clicks: [] }
@@ -149,14 +152,14 @@ export const getDummyData = (): RecipientInteraction[] => {
         },
         {
             user: { id: "dummy3", firstName: "Jean", lastName: "Kirstein", avatarUrl: "" },
-            wasSent: true,
+            sentTime: "2025-09-14T09:00:10Z",
             wasOpened: false,
             opens: []
         }
     ];
 };
 
-// --- PUBLIC API FUNCTION FOR THE COMPONENT ---
+// --- PUBLIC API FUNCTION FOR THE COMPONENT (Unchanged) ---
 
 export const getEmailPerformanceData = async (emailId: string | undefined, since: string, until: string): Promise<RecipientInteraction[]> => {
     if (!emailId || emailId.toLowerCase().includes("dummy")) {

@@ -11,15 +11,13 @@
  * limitations under the License.
  */
 
-// --- TYPES FOR EMAIL PERFORMANCE ---
-
 export interface EmailEvent {
   id: string;
   emailId: string;
-  eventSubject: string; // "user/USER_ID"
+  eventSubject: string; 
   eventTime: string;
   eventType: "sent" | "open" | "click";
-  eventTarget?: string; // URL for click events
+  eventTarget?: string; 
 }
 
 export interface UserProfile {
@@ -41,7 +39,7 @@ export interface OpenDetail {
 
 export interface RecipientInteraction {
   user: UserProfile;
-  wasSent: boolean;
+  sentTime: string | null; // Changed from wasSent: boolean
   wasOpened: boolean;
   opens: OpenDetail[];
 }
