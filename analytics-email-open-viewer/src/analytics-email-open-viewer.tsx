@@ -16,18 +16,17 @@ import { BlockAttributes } from "widget-sdk";
 import { getEmailPerformanceData } from "./api";
 import { RecipientInteraction } from "./types";
 
-// Helper function to format ISO date string to YYYY-MM-DD for input fields
 const toInputDateString = (date: Date): string => {
     return date.toISOString().split('T')[0];
 };
 
-// Helper function to format date-time for display
 const formatDisplayDateTime = (isoString: string): string => {
     return new Date(isoString).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
 };
 
 export interface AnalyticsEmailOpenViewerProps extends BlockAttributes {
   emailid?: string;
+  domain?: string;
 }
 
 const DefaultAvatarIcon = ({ className }: { className?: string }) => (
@@ -40,7 +39,6 @@ const DefaultAvatarIcon = ({ className }: { className?: string }) => (
 
 const RecipientRow = ({ interaction }: { interaction: RecipientInteraction }) => {
     const [isExpanded, setIsExpanded] = useState(false);
-    // --- MODIFIED: A row is expandable if it was sent OR opened ---
     const isExpandable = interaction.sentTime || interaction.opens.length > 0;
 
     return (
@@ -59,7 +57,6 @@ const RecipientRow = ({ interaction }: { interaction: RecipientInteraction }) =>
                 <td>
                     <div className="status-cell">
                         {interaction.wasOpened ? (
-                            // --- MODIFIED: Show open count ---
                             <span className="status-badge opened">
                                 Opened <span className="open-count">({interaction.opens.length}x)</span>
                             </span>
@@ -79,7 +76,6 @@ const RecipientRow = ({ interaction }: { interaction: RecipientInteraction }) =>
                     <td colSpan={2}>
                         <div className="details-container">
                             <h4>Interaction Details</h4>
-                            {/* --- MODIFIED: Display the Send Time --- */}
                             {interaction.sentTime && (
                                 <div className="detail-block">
                                     <p><strong>Sent at:</strong> {formatDisplayDateTime(interaction.sentTime)}</p>
@@ -109,8 +105,7 @@ const RecipientRow = ({ interaction }: { interaction: RecipientInteraction }) =>
     );
 };
 
-
-export const AnalyticsEmailOpenViewer = ({ emailid }: AnalyticsEmailOpenViewerProps): ReactElement => {
+export const AnalyticsEmailOpenViewer = ({ emailid, domain = "app.staffbase.com" }: AnalyticsEmailOpenViewerProps): ReactElement => {
     const [data, setData] = useState<RecipientInteraction[] | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
@@ -131,7 +126,8 @@ export const AnalyticsEmailOpenViewer = ({ emailid }: AnalyticsEmailOpenViewerPr
             const until = untilDate.toISOString();
             
             try {
-                const result = await getEmailPerformanceData(emailid, since, until);
+                // --- MODIFIED: Arguments are now in the correct order ---
+                const result = await getEmailPerformanceData(emailid, domain, since, until);
                 setData(result);
             } catch (err) {
                 setError("Failed to fetch analytics data. Please check the Email ID and your connection.");
@@ -143,7 +139,7 @@ export const AnalyticsEmailOpenViewer = ({ emailid }: AnalyticsEmailOpenViewerPr
         };
 
         fetchData();
-    }, [emailid, sinceDate, untilDate]);
+    }, [emailid, domain, sinceDate, untilDate]);
     
     return (
         <div className="email-performance-widget">

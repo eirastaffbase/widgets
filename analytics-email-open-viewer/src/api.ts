@@ -13,9 +13,9 @@
 
 import { EmailEvent, UserProfile, RecipientInteraction, OpenDetail } from "./types";
 
-const baseUrl = window.location.origin;
+// --- REMOVED: `const baseUrl = window.location.origin;` ---
 
-// --- API FETCH FUNCTIONS (Unchanged) ---
+// --- API FETCH FUNCTIONS ---
 
 const authenticatedFetch = async (url: string) => {
     const response = await fetch(url);
@@ -25,7 +25,9 @@ const authenticatedFetch = async (url: string) => {
     return response;
 };
 
-const streamEmailEvents = async (emailId: string, since: string, until: string): Promise<EmailEvent[]> => {
+// --- MODIFIED: Now accepts a domain parameter ---
+const streamEmailEvents = async (domain: string, emailId: string, since: string, until: string): Promise<EmailEvent[]> => {
+    const baseUrl = `https://${domain}`;
     const url = `${baseUrl}/api/email-performance/${emailId}/events?since=${since}&until=${until}`;
     const response = await authenticatedFetch(url);
     const textData = await response.text();
@@ -37,10 +39,12 @@ const streamEmailEvents = async (emailId: string, since: string, until: string):
 };
 
 const userProfileCache = new Map<string, UserProfile>();
-const fetchUserProfile = async (userId: string): Promise<UserProfile> => {
+// --- MODIFIED: Now accepts a domain parameter ---
+const fetchUserProfile = async (domain: string, userId: string): Promise<UserProfile> => {
     if (userProfileCache.has(userId)) {
         return userProfileCache.get(userId)!;
     }
+    const baseUrl = `https://${domain}`;
     const url = `${baseUrl}/api/profiles/public/${userId}`;
     const response = await authenticatedFetch(url);
     const user = await response.json();
@@ -50,7 +54,8 @@ const fetchUserProfile = async (userId: string): Promise<UserProfile> => {
 
 // --- DATA PROCESSING & AGGREGATION ---
 
-const processEvents = async (events: EmailEvent[]): Promise<RecipientInteraction[]> => {
+// --- MODIFIED: Now accepts a domain parameter to pass it down ---
+const processEvents = async (domain: string, events: EmailEvent[]): Promise<RecipientInteraction[]> => {
     if (!events || events.length === 0) {
         return [];
     }
@@ -69,7 +74,8 @@ const processEvents = async (events: EmailEvent[]): Promise<RecipientInteraction
 
     const uniqueUserIds = Array.from(eventsByUser.keys());
     const userProfiles = await Promise.all(
-      uniqueUserIds.map(id => fetchUserProfile(id).catch(() => null))
+      // --- MODIFIED: Pass domain to fetchUserProfile ---
+      uniqueUserIds.map(id => fetchUserProfile(domain, id).catch(() => null))
     );
     const userProfileMap = new Map(userProfiles.filter(p => p).map(p => [p!.id, p!]));
 
@@ -81,7 +87,6 @@ const processEvents = async (events: EmailEvent[]): Promise<RecipientInteraction
 
         userEvents.sort((a, b) => new Date(a.eventTime).getTime() - new Date(b.eventTime).getTime());
 
-        // --- MODIFIED: Initialize with sentTime: null ---
         const interaction: RecipientInteraction = {
             user: userProfile,
             sentTime: null,
@@ -94,7 +99,6 @@ const processEvents = async (events: EmailEvent[]): Promise<RecipientInteraction
         for (const event of userEvents) {
             switch (event.eventType) {
                 case "sent":
-                    // --- MODIFIED: Capture the send timestamp ---
                     interaction.sentTime = event.eventTime;
                     break;
                 case "open":
@@ -118,37 +122,24 @@ const processEvents = async (events: EmailEvent[]): Promise<RecipientInteraction
     return recipientInteractions.sort((a, b) => a.user.lastName.localeCompare(b.user.lastName));
 };
 
-// --- DUMMY DATA FOR DEMO/FALLBACK ---
-
+// --- DUMMY DATA (Unchanged) ---
 export const getDummyData = (): RecipientInteraction[] => {
     console.warn("Using dummy data for email performance widget.");
-    // --- MODIFIED: Updated to include `sentTime` ---
     return [
         {
             user: { id: "dummy1", firstName: "Nicole", lastName: "Adams", avatarUrl: "https://cdn.prod.website-files.com/65b3b9f9bfb500445a7573e5/65dda761c0fad5c4f2e3b9ae_OGS%20Female%20Student.png" },
             sentTime: "2025-09-16T10:05:01Z",
             wasOpened: true,
             opens: [
-                {
-                    openTime: "2025-09-16T10:05:11Z",
-                    clicks: [
-                        { clickTime: "2025-09-16T10:05:15Z", targetUrl: "https://www.staffbase.com/blog/" },
-                        { clickTime: "2025-09-16T10:05:20Z", targetUrl: "https://www.staffbase.com/about-us/" }
-                    ]
-                },
-                {
-                    openTime: "2025-09-17T11:00:00Z",
-                    clicks: []
-                }
+                { openTime: "2025-09-16T10:05:11Z", clicks: [{ clickTime: "2025-09-16T10:05:15Z", targetUrl: "https://www.staffbase.com/blog/" }, { clickTime: "2025-09-16T10:05:20Z", targetUrl: "https://www.staffbase.com/about-us/" }] },
+                { openTime: "2025-09-17T11:00:00Z", clicks: [] }
             ]
         },
         {
             user: { id: "dummy2", firstName: "Eira", lastName: "Topé", avatarUrl: "https://media.licdn.com/dms/image/v2/D4E03AQFzOrVUvcipug/profile-displayphoto-shrink_200_200/profile-displayphoto-shrink_200_200/0/1679787786926?e=2147483647&v=beta&t=Z9nIwWi1aQ3hdCDfdIwPL4PnHbiFvKNcZO_qxBbgRbU" },
             sentTime: "2025-09-15T14:29:55Z",
             wasOpened: true,
-            opens: [
-                { openTime: "2025-09-15T14:30:00Z", clicks: [] }
-            ]
+            opens: [{ openTime: "2025-09-15T14:30:00Z", clicks: [] }]
         },
         {
             user: { id: "dummy3", firstName: "Jean", lastName: "Kirstein", avatarUrl: "" },
@@ -159,20 +150,23 @@ export const getDummyData = (): RecipientInteraction[] => {
     ];
 };
 
-// --- PUBLIC API FUNCTION FOR THE COMPONENT (Unchanged) ---
+// --- PUBLIC API FUNCTION FOR THE COMPONENT ---
 
-export const getEmailPerformanceData = async (emailId: string | undefined, since: string, until: string): Promise<RecipientInteraction[]> => {
+// --- MODIFIED: Signature changed to accept domain first ---
+export const getEmailPerformanceData = async (emailId: string | undefined, domain: string, since: string, until: string): Promise<RecipientInteraction[]> => {
     if (!emailId || emailId.toLowerCase().includes("dummy")) {
         return getDummyData();
     }
     
     try {
-        const events = await streamEmailEvents(emailId, since, until);
+        // --- MODIFIED: Pass domain in correct order ---
+        const events = await streamEmailEvents(domain, emailId, since, until);
         if (events.length === 0) {
             console.log("No events found for this email in the selected time range.");
             return [];
         }
-        return processEvents(events);
+        // --- MODIFIED: Pass domain to processEvents ---
+        return processEvents(domain, events);
     } catch (error) {
         console.error("❗️ Failed to get email performance data, returning dummy data as fallback.", error);
         return getDummyData();

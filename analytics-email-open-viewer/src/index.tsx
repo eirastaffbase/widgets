@@ -22,6 +22,7 @@ import pkg from '../package.json'
 
 const widgetAttributes: string[] = [
   'emailid',
+  'domain',
 ];
 
 const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
