@@ -30,6 +30,15 @@ export interface AnalyticsEmailOpenViewerProps extends BlockAttributes {
   emailid?: string;
 }
 
+// --- NEW: Fallback SVG component for users without an avatar ---
+const DefaultAvatarIcon = ({ className }: { className?: string }) => (
+    <div className={`${className} user-avatar-placeholder`}>
+        <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 18 18">
+            <path fill="#B0B0B0" d="M9 0a9 9 0 0 0-9 9 8.654 8.654 0 0 0 .05.92 9 9 0 0 0 17.9 0A8.654 8.654 0 0 0 18 9a9 9 0 0 0-9-9zm5.42 13.42c-.01 0-.06.08-.07.08a6.975 6.975 0 0 1-10.7 0c-.01 0-.06-.08-.07-.08a.512.512 0 0 1-.09-.27.522.522 0 0 1 .34-.48c.74-.25 1.45-.49 1.65-.54a.16.16 0 0 1 .03-.13.49.49 0 0 1 .43-.36l1.27-.1a2.077 2.077 0 0 0-.19-.79v-.01a2.814 2.814 0 0 0-.45-.78 3.83 3.83 0 0 1-.79-2.38A3.38 3.38 0 0 1 8.88 4h.24a3.38 3.38 0 0 1 3.1 3.58 3.83 3.83 0 0 1-.79 2.38 2.814 2.814 0 0 0-.45.78v.01a2.077 2.077 0 0 0-.19.79l1.27.1a.49.49 0 0 1 .43.36.16.16 0 0 1 .03.13c.2.05.91.29 1.65.54a.49.49 0 0 1 .25.75z"/>
+        </svg>
+    </div>
+);
+
 const RecipientRow = ({ interaction }: { interaction: RecipientInteraction }) => {
     const [isExpanded, setIsExpanded] = useState(false);
 
@@ -38,7 +47,12 @@ const RecipientRow = ({ interaction }: { interaction: RecipientInteraction }) =>
             <tr className="recipient-row" onClick={() => setIsExpanded(!isExpanded)}>
                 <td>
                     <div className="user-info">
-                        <img src={interaction.user.avatarUrl} alt={`${interaction.user.firstName} ${interaction.user.lastName}`} className="user-avatar" />
+                        {/* --- MODIFIED: Conditional rendering for the avatar --- */}
+                        {interaction.user.avatarUrl ? (
+                            <img src={interaction.user.avatarUrl} alt={`${interaction.user.firstName} ${interaction.user.lastName}`} className="user-avatar" />
+                        ) : (
+                            <DefaultAvatarIcon className="user-avatar" />
+                        )}
                         <span>{interaction.user.firstName} {interaction.user.lastName}</span>
                     </div>
                 </td>
@@ -105,7 +119,6 @@ export const AnalyticsEmailOpenViewer = ({ emailid }: AnalyticsEmailOpenViewerPr
             setLoading(true);
             setError(null);
             
-            // Format dates to ISO strings with Z timezone for the API
             const since = sinceDate.toISOString();
             const until = untilDate.toISOString();
             
@@ -140,6 +153,8 @@ export const AnalyticsEmailOpenViewer = ({ emailid }: AnalyticsEmailOpenViewerPr
                 .performance-table td { padding: 12px 15px; border-bottom: 1px solid #eef0f2; vertical-align: middle; }
                 .user-info { display: flex; align-items: center; gap: 12px; }
                 .user-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
+                /* --- NEW: Style for the SVG placeholder --- */
+                .user-avatar-placeholder { display: flex; align-items: center; justify-content: center; background-color: #eef0f2; padding: 5px; box-sizing: border-box; }
                 .status-cell { display: flex; justify-content: space-between; align-items: center; }
                 .status-badge { padding: 4px 10px; border-radius: 12px; font-size: 0.8em; font-weight: 600; }
                 .status-badge.opened { background-color: #dff0d8; color: #2F793D; }
