@@ -51,6 +51,13 @@ const toInputDateTimeString = (date: Date): string => {
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 };
 
+// Helper function to create a "now" date safely in the past.
+const createSafeNow = (): Date => {
+    const now = new Date();
+    now.setSeconds(now.getSeconds() - 10); // Subtract 5 seconds for a buffer
+    return now;
+};
+
 const formatDisplayDateTime = (isoString: string): string => {
     return new Date(isoString).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
 };
@@ -113,9 +120,11 @@ export const AnalyticsEmailOpenViewer = ({ emailid, domain = "app.staffbase.com"
     const [recipientPage, setRecipientPage] = useState(0);
     const [emailsPerPage, setEmailsPerPage] = useState(defaultemailpagesize);
     const [recipientsPerPage, setRecipientsPerPage] = useState(defaultrecipientpagesize);
-    const [untilDate, setUntilDate] = useState(new Date());
+    // ✨ FIX: Initialize dates using the safe function.
+    const [untilDate, setUntilDate] = useState(createSafeNow);
     const [sinceDate, setSinceDate] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 30); return d; });
-    const [detailUntilDate, setDetailUntilDate] = useState(new Date());
+    // ✨ FIX: Initialize dates using the safe function.
+    const [detailUntilDate, setDetailUntilDate] = useState(createSafeNow);
     const [detailSinceDate, setDetailSinceDate] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 30); return d; });
     const [emailStats, setEmailStats] = useState<{ totalRecipients: number; totalOpens: number; uniqueOpens: number } | null>(null);
     const [sortConfig, setSortConfig] = useState<{key: 'recipient' | 'status' | null, direction: 'ascending' | 'descending' | 'original'}>({ key: null, direction: 'original' });
@@ -174,7 +183,8 @@ export const AnalyticsEmailOpenViewer = ({ emailid, domain = "app.staffbase.com"
         if (!selectedEmail) return;
 
         const sentAtDate = new Date(selectedEmail.sentAt);
-        const now = new Date();
+        // ✨ FIX: Use the safe "now" to avoid future timestamp issues.
+        const now = createSafeNow();
         const thirtyDaysInMillis = 30 * 24 * 60 * 60 * 1000;
 
         const newSince = new Date(sentAtDate.getTime() - 60 * 1000); // 1 minute before sent time
