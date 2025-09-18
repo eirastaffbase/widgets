@@ -16,26 +16,62 @@ import { JSONSchema7 } from "json-schema";
 
 export const configurationSchema: JSONSchema7 = {
   properties: {
-    emailid: {
-      type: "string",
-      title: "Email ID",
+    allemailsview: {
+      type: "boolean",
+      title: "All Emails View",
+      default: true,
     },
     domain: {
       type: "string",
       title: "Staffbase Domain",
       default: "app.staffbase.com",
     },
+    emaillistlimit: {
+      type: "number",
+      title: "Email List Item Limit",
+      default: 100,
+    }
+  },
+  dependencies: {
+    allemailsview: {
+      oneOf: [
+        {
+          properties: {
+            allemailsview: {
+              const: true,
+            },
+          },
+        },
+        {
+          properties: {
+            allemailsview: {
+              const: false,
+            },
+            emailid: {
+              type: "string",
+              title: "Email ID",
+            },
+          },
+          required: ["emailid"],
+        },
+      ],
+    },
   },
 };
 
 export const uiSchema: UiSchema = {
+  allemailsview: {
+    "ui:help": "If checked, displays a list of all sent emails. If unchecked, tracks a single email by its ID.",
+  },
   emailid: {
-    "ui:help": "Enter the ID of the email to analyze. Leave blank for dummy data.",
+    "ui:help": "Enter the ID of the specific email to analyze.",
     "ui:placeholder": "e.g., 68caf97a86ba5b5d9deec780",
   },
-  // --- NEW: Added UI schema for domain ---
   domain: {
     "ui:help": "The domain of your Staffbase instance where the API is located.",
     "ui:placeholder": "e.g., app.staffbase.com",
   },
+  emaillistlimit: {
+    "ui:help": "The maximum number of recent emails to fetch and display in the 'All Emails View'.",
+  }
 };

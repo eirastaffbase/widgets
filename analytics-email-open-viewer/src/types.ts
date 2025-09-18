@@ -14,10 +14,10 @@
 export interface EmailEvent {
   id: string;
   emailId: string;
-  eventSubject: string; 
+  eventSubject: string;
   eventTime: string;
   eventType: "sent" | "open" | "click";
-  eventTarget?: string; 
+  eventTarget?: string;
 }
 
 export interface UserProfile {
@@ -39,7 +39,21 @@ export interface OpenDetail {
 
 export interface RecipientInteraction {
   user: UserProfile;
-  sentTime: string | null; // Changed from wasSent: boolean
+  sentTime: string | null;
   wasOpened: boolean;
   opens: OpenDetail[];
+}
+
+export interface SentEmail {
+  id: string;
+  title: string;
+  thumbnailUrl: string | null;
+  sentAt: string;
+  sender: {
+    name: string;
+  };
+}
+
+export interface SentEmailsApiResponse {
+    data: SentEmail[];
 }
