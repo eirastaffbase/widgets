@@ -116,6 +116,8 @@ export const AnalyticsEmailOpenViewer = ({ emailid, domain = "app.staffbase.com"
     const [emailStats, setEmailStats] = useState<{ totalRecipients: number; totalOpens: number; uniqueOpens: number } | null>(null);
     const [sortConfig, setSortConfig] = useState<{key: 'recipient' | 'status' | null, direction: 'ascending' | 'descending' | 'original'}>({ key: null, direction: 'original' });
 
+    const nowString = toInputDateTimeString(new Date());
+
     useEffect(() => {
         setCurrentView(allemailsview ? 'list' : 'detail');
         setSelectedEmailId(allemailsview ? undefined : emailid);
@@ -163,7 +165,26 @@ export const AnalyticsEmailOpenViewer = ({ emailid, domain = "app.staffbase.com"
         }
     }, [recipientData, selectedEmailId, allEmails]);
 
-    const handleEmailSelect = (id: string) => { setSelectedEmailId(id); setCurrentView('detail'); };
+    const handleEmailSelect = (id: string) => {
+        const selectedEmail = allEmails.find(email => email.id === id);
+        if (!selectedEmail) return;
+
+        const sentAtDate = new Date(selectedEmail.sentAt);
+        const now = new Date();
+        const thirtyDaysInMillis = 30 * 24 * 60 * 60 * 1000;
+
+        const newSince = new Date(sentAtDate.getTime() - 60 * 1000); // 1 minute before sent time
+        const sentAtPlus30Days = new Date(sentAtDate.getTime() + thirtyDaysInMillis);
+
+        const newUntil = sentAtPlus30Days < now ? sentAtPlus30Days : now;
+
+        setDetailSinceDate(newSince);
+        setDetailUntilDate(newUntil);
+        
+        setSelectedEmailId(id);
+        setCurrentView('detail');
+    };
+
     const handleBackToList = () => { setSelectedEmailId(undefined); setCurrentView('list'); setRecipientData(null); setSortConfig({ key: null, direction: 'original' }); };
 
     const handleDetailDateChange = (value: string, type: 'since' | 'until') => {
@@ -319,9 +340,9 @@ export const AnalyticsEmailOpenViewer = ({ emailid, domain = "app.staffbase.com"
                         <h3 className="widget-title">Sent Email Overview</h3>
                         <div className="date-controls">
                             <label htmlFor="sinceDate">From:</label>
-                            <input type="datetime-local" id="sinceDate" value={toInputDateTimeString(sinceDate)} onChange={e => { setEmailListPage(0); setSinceDate(new Date(e.target.value)) }} />
+                            <input type="datetime-local" id="sinceDate" value={toInputDateTimeString(sinceDate)} onChange={e => { setEmailListPage(0); setSinceDate(new Date(e.target.value)) }} max={nowString} />
                             <label htmlFor="untilDate">To:</label>
-                            <input type="datetime-local" id="untilDate" value={toInputDateTimeString(untilDate)} onChange={e => { setEmailListPage(0); setUntilDate(new Date(e.target.value)) }} />
+                            <input type="datetime-local" id="untilDate" value={toInputDateTimeString(untilDate)} onChange={e => { setEmailListPage(0); setUntilDate(new Date(e.target.value)) }} max={nowString} />
                         </div>
                     </div>
                     {paginatedEmails.length > 0 ? (
@@ -363,9 +384,9 @@ export const AnalyticsEmailOpenViewer = ({ emailid, domain = "app.staffbase.com"
                                 </div>
                                 <div className="date-picker-group">
                                     <label htmlFor="detailSinceDate">From:</label>
-                                    <input type="datetime-local" id="detailSinceDate" value={toInputDateTimeString(detailSinceDate)} onChange={e => handleDetailDateChange(e.target.value, 'since')} />
+                                    <input type="datetime-local" id="detailSinceDate" value={toInputDateTimeString(detailSinceDate)} onChange={e => handleDetailDateChange(e.target.value, 'since')} max={nowString} />
                                     <label htmlFor="detailUntilDate">To:</label>
-                                    <input type="datetime-local" id="detailUntilDate" value={toInputDateTimeString(detailUntilDate)} onChange={e => handleDetailDateChange(e.target.value, 'until')} />
+                                    <input type="datetime-local" id="detailUntilDate" value={toInputDateTimeString(detailUntilDate)} onChange={e => handleDetailDateChange(e.target.value, 'until')} max={nowString} />
                                 </div>
                             </div>
                              {emailStats && (
