@@ -30,6 +30,18 @@ export const configurationSchema: JSONSchema7 = {
       type: "number",
       title: "Email List Item Limit",
       default: 100,
+    },
+    defaultEmailPageSize: {
+      type: "number",
+      title: "Default Page Size (Email List)",
+      enum: [5, 10, 20, 50],
+      default: 5,
+    },
+    defaultRecipientPageSize: {
+        type: "number",
+        title: "Default Page Size (Recipients)",
+        enum: [5, 10, 20, 50],
+        default: 5,
     }
   },
   dependencies: {
@@ -72,6 +84,12 @@ export const uiSchema: UiSchema = {
     "ui:placeholder": "e.g., app.staffbase.com",
   },
   emaillistlimit: {
-    "ui:help": "The maximum number of recent emails to fetch and display in the 'All Emails View'.",
-  }
+    "ui:help": "The maximum number of recent emails to fetch from the API for the 'All Emails View'.",
+  },
+  defaultEmailPageSize: {
+    "ui:help": "The default number of emails to show per page on the overview list.",
+  },
+  defaultRecipientPageSize: {
+    "ui:help": "The default number of recipients to show per page on the individual tracking page.",
+  },
 };

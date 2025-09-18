@@ -60,12 +60,14 @@ export interface AnalyticsEmailOpenViewerProps extends BlockAttributes {
     domain?: string;
     allemailsview?: boolean;
     emaillistlimit?: number;
+    defaultemailpagesize?: number;
+    defaultrecipientpagesize?: number;
 }
 
 const DefaultAvatarIcon = ({ className }: { className?: string }) => (
     <div className={`${className} user-avatar-placeholder`}>
         <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 18 18">
-            <path fill="#E0E0E0" d="M9 0a9 9 0 0 0-9 9 8.654 8.654 0 0 0 .05.92 9 9 0 0 0 17.9 0A8.654 8.654 0 0 0 18 9a9 9 0 0 0-9-9zm5.42 13.42c-.01 0-.06.08-.07.08a6.975 6.975 0 0 1-10.7 0c-.01 0-.06-.08-.07-.08a.512.512 0 0 1-.09-.27.522.522 0 0 1 .34-.48c.74-.25 1.45-.49 1.65-.54a.16.16 0 0 1 .03-.13.49.49 0 0 1 .43-.36l1.27-.1a2.077 2.077 0 0 0-.19-.79v-.01a2.814 2.814 0 0 0-.45-.78 3.83 3.83 0 0 1-.79-2.38A3.38 3.38 0 0 1 8.88 4h.24a3.38 3.38 0 0 1 3.1 3.58 3.83 3.83 0 0 1-.79 2.38 2.814 2.814 0 0 0-.45.78v.01a2.077 2.077 0 0 0-.19.79l1.27.1a.49.49 0 0 1 .43.36.16.16 0 0 1 .03.13c.2.05.91.29 1.65.54a.49.49 0 0 1 .25.75z"/>
+            <path fill="#E0E0E0" d="M9 0a9 9 0 0 0-9 9 8.654 8.654 0 0 0 .05.92 9 9 0 0 0 17.9 0A8.654 8.654 0 0 0 18 9a9 9 0 0 0-9-9zm5.42 13.42c-.01 0-.06.08-.07.08a6.975 6.975 0 0 1-10.7 0c-.01 0-.06-.08-.07-.08a.512.512 0 0 1-.09-.27.522.522 0 0 1 .34-.48c.74-.25 1.45-.49 1.65-.54a.16.16 0 0 1 .03-.13.49.49 0 0 1 .43-.36l1.27-.1a2.077 2.077 0 0 0-.19-.79v-.01a2.814 2.814 0 0 0-.45-.78 3.83 3.83 0 0 1-.79-2.38A3.38 3.38 0 0 1 8.88 4h.24a3.38 3.38 0 0 1 3.1 3.58 3.83 3.83 0 0 1-.79 2.38 2.814 2.814 0 0 0-.45.78v.01a2.077 2.077 0 0 0-.19.79l1.27.1a.49.49 0 0 1 .43-.36.16.16 0 0 1 .03.13c.2.05.91.29 1.65.54a.49.49 0 0 1 .25.75z"/>
         </svg>
     </div>
 );
@@ -99,7 +101,7 @@ const RecipientRow = ({ interaction }: { interaction: RecipientInteraction }) =>
     );
 };
 
-export const AnalyticsEmailOpenViewer = ({ emailid, domain = "app.staffbase.com", allemailsview = true, emaillistlimit = 20 }: AnalyticsEmailOpenViewerProps): ReactElement => {
+export const AnalyticsEmailOpenViewer = ({ emailid, domain = "app.staffbase.com", allemailsview = true, emaillistlimit = 100, defaultemailpagesize = 5, defaultrecipientpagesize = 5 }: AnalyticsEmailOpenViewerProps): ReactElement => {
     const [currentView, setCurrentView] = useState<'list' | 'detail'>(allemailsview ? 'list' : 'detail');
     const [selectedEmailId, setSelectedEmailId] = useState<string | undefined>(allemailsview ? undefined : emailid);
     const [allEmails, setAllEmails] = useState<SentEmail[]>([]);
@@ -109,6 +111,8 @@ export const AnalyticsEmailOpenViewer = ({ emailid, domain = "app.staffbase.com"
     const [recipientSearchTerm, setRecipientSearchTerm] = useState("");
     const [emailListPage, setEmailListPage] = useState(0);
     const [recipientPage, setRecipientPage] = useState(0);
+    const [emailsPerPage, setEmailsPerPage] = useState(defaultemailpagesize);
+    const [recipientsPerPage, setRecipientsPerPage] = useState(defaultrecipientpagesize);
     const [untilDate, setUntilDate] = useState(new Date());
     const [sinceDate, setSinceDate] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 30); return d; });
     const [detailUntilDate, setDetailUntilDate] = useState(new Date());
@@ -250,20 +254,17 @@ export const AnalyticsEmailOpenViewer = ({ emailid, domain = "app.staffbase.com"
         return sortableData;
     }, [recipientData, sortConfig]);
 
-
-    const RECIPIENTS_PER_PAGE = 5;
-    const EMAILS_PER_PAGE = 5;
-
     const filteredEmails = useMemo(() => allEmails.filter(email => {
         const sent = new Date(email.sentAt);
         return sent >= sinceDate && sent <= untilDate;
     }), [allEmails, sinceDate, untilDate]);
 
     const filteredRecipients = sortedRecipients.filter(r => `${r.user.firstName} ${r.user.lastName}`.toLowerCase().includes(recipientSearchTerm.toLowerCase()));
-    const recipientPageCount = Math.ceil(filteredRecipients.length / RECIPIENTS_PER_PAGE);
-    const paginatedRecipients = filteredRecipients.slice(recipientPage * RECIPIENTS_PER_PAGE, (recipientPage + 1) * RECIPIENTS_PER_PAGE);
-    const emailPageCount = Math.ceil(filteredEmails.length / EMAILS_PER_PAGE);
-    const paginatedEmails = filteredEmails.slice(emailListPage * EMAILS_PER_PAGE, (emailListPage + 1) * EMAILS_PER_PAGE);
+    
+    const recipientPageCount = Math.ceil(filteredRecipients.length / recipientsPerPage);
+    const paginatedRecipients = filteredRecipients.slice(recipientPage * recipientsPerPage, (recipientPage + 1) * recipientsPerPage);
+    const emailPageCount = Math.ceil(filteredEmails.length / emailsPerPage);
+    const paginatedEmails = filteredEmails.slice(emailListPage * emailsPerPage, (emailListPage + 1) * emailsPerPage);
 
     const selectedEmailTitle = allEmails.find(e => e.id === selectedEmailId)?.title || "Email";
     
@@ -290,13 +291,16 @@ export const AnalyticsEmailOpenViewer = ({ emailid, domain = "app.staffbase.com"
             .stat-item { text-align: center; }
             .stat-value { display: block; font-size: 1.6em; font-weight: 600; color: ${staffbaseColors.blue}; }
             .stat-label { font-size: 0.8em; color: ${staffbaseColors.mediumText}; text-transform: uppercase; letter-spacing: 0.5px; }
-            .email-list-item { display: flex; align-items: center; gap: 15px; padding: 15px; border-bottom: 1px solid ${staffbaseColors.borderColor}; cursor: pointer; transition: background-color 0.2s; border-radius: 4px; }
+            .email-list-item { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 15px; border-bottom: 1px solid ${staffbaseColors.borderColor}; cursor: pointer; transition: background-color 0.2s; border-radius: 4px; }
             .email-list-item:hover { background-color: ${staffbaseColors.tableHeaderBg}; }
+            .email-list-item-left { display: flex; align-items: center; gap: 15px; flex-grow: 1; }
+            .email-list-item-right { display: flex; align-items: center; gap: 15px; color: ${staffbaseColors.lightText}; }
+            .recipient-count-pill { background-color: ${staffbaseColors.lighterGray}; color: ${staffbaseColors.gray}; padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: 500; white-space: nowrap; }
             .email-thumbnail { width: 80px; height: 60px; object-fit: cover; border-radius: 4px; flex-shrink: 0; border: 1px solid #eee; }
             .email-info { flex-grow: 1; }
             .email-title { font-size: 1.05em; font-weight: 600; margin: 0 0 4px 0; color: ${staffbaseColors.darkerText}; }
             .email-meta { font-size: 0.85em; color: ${staffbaseColors.mediumText}; margin: 0; }
-            .email-chevron { font-size: 1em; color: ${staffbaseColors.lightText}; transform: translateX(0); transition: transform 0.2s; }
+            .email-chevron { font-size: 1em; transform: translateX(0); transition: transform 0.2s; }
             .email-list-item:hover .email-chevron { transform: translateX(5px); }
             .performance-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
             .performance-table th { background-color: ${staffbaseColors.tableHeaderBg}; text-align: left; padding: 12px 15px; font-weight: 600; border-bottom: 2px solid ${staffbaseColors.borderColor}; }
@@ -325,7 +329,11 @@ export const AnalyticsEmailOpenViewer = ({ emailid, domain = "app.staffbase.com"
             .detail-block li strong { display: block; margin-bottom: 4px; color: ${staffbaseColors.gray}; font-size: 0.9em; }
             .detail-block a { color: ${staffbaseColors.blue}; text-decoration: none; word-break: break-all; }
             .detail-block a:hover { text-decoration: underline; }
-            .pagination-controls { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 20px; }
+            .pagination-controls { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 20px; }
+            .page-size-control { display: flex; align-items: center; gap: 8px; }
+            .page-size-control label { font-size: 0.9em; color: ${staffbaseColors.mediumText}; }
+            .page-size-control select { border: 1px solid #ccc; border-radius: 4px; padding: 4px 8px; font-size: 0.9em; background-color: #fff; }
+            .page-buttons { display: flex; align-items: center; gap: 8px; }
             .pagination-controls button { background-color: ${staffbaseColors.blue}; border: none; color: white; border-radius: 50%; width: 32px; height: 32px; font-size: 1.2em; display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer; transition: background-color 0.2s; }
             .pagination-controls button:hover:not(:disabled) { background-color: ${staffbaseColors.lightBlue}; }
             .pagination-controls button:disabled { background-color: ${staffbaseColors.disabledBg}; color: ${staffbaseColors.disabledColor}; cursor: not-allowed; }
@@ -350,21 +358,39 @@ export const AnalyticsEmailOpenViewer = ({ emailid, domain = "app.staffbase.com"
                             <div className="email-list-container">
                                 {paginatedEmails.map(email => (
                                     <div key={email.id} className="email-list-item" onClick={() => handleEmailSelect(email.id)}>
-                                        {email.thumbnailUrl ? <img src={email.thumbnailUrl} alt="" className="email-thumbnail" /> : <PlaceholderThumbnailIcon className="email-thumbnail" />}
-                                        <div className="email-info">
-                                            <h4 className="email-title">{email.title}</h4>
-                                            <p className="email-meta">Sent by {email.sender.name} on {formatDisplayDateTime(email.sentAt)}</p>
+                                        <div className="email-list-item-left">
+                                            {email.thumbnailUrl ? <img src={email.thumbnailUrl} alt="" className="email-thumbnail" /> : <PlaceholderThumbnailIcon className="email-thumbnail" />}
+                                            <div className="email-info">
+                                                <h4 className="email-title">{email.title}</h4>
+                                                <p className="email-meta">Sent by {email.sender.name} on {formatDisplayDateTime(email.sentAt)}</p>
+                                            </div>
                                         </div>
-                                        <span className="email-chevron">&#8250;</span>
+                                        <div className="email-list-item-right">
+                                            {email.targetAudience?.totalRecipients !== undefined && (
+                                                <span className="recipient-count-pill">
+                                                    {email.targetAudience.totalRecipients} Recipients
+                                                </span>
+                                            )}
+                                            <span className="email-chevron">&#8250;</span>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
-                            {emailPageCount > 1 && (
                                 <div className="pagination-controls">
-                                    <button onClick={() => setEmailListPage(p => Math.max(0, p - 1))} disabled={emailListPage === 0}><FaCaretLeft /></button>
-                                    <button onClick={() => setEmailListPage(p => Math.min(emailPageCount - 1, p + 1))} disabled={emailListPage >= emailPageCount - 1}><FaCaretRight /></button>
+                                    <div className="page-size-control">
+                                        <label htmlFor="email-page-size">Show:</label>
+                                        <select id="email-page-size" value={emailsPerPage} onChange={e => { setEmailsPerPage(Number(e.target.value)); setEmailListPage(0); }}>
+                                            <option value={5}>5</option>
+                                            <option value={10}>10</option>
+                                            <option value={20}>20</option>
+                                            <option value={50}>50</option>
+                                        </select>
+                                    </div>
+                                    <div className="page-buttons">
+                                        <button onClick={() => setEmailListPage(p => Math.max(0, p - 1))} disabled={emailListPage === 0}><FaCaretLeft /></button>
+                                        <button onClick={() => setEmailListPage(p => Math.min(emailPageCount - 1, p + 1))} disabled={emailListPage >= emailPageCount - 1}><FaCaretRight /></button>
+                                    </div>
                                 </div>
-                            )}
                         </>
                     ) : <div className="message-container">No emails found for the selected period.</div>}
                 </>
@@ -415,12 +441,21 @@ export const AnalyticsEmailOpenViewer = ({ emailid, domain = "app.staffbase.com"
                                     </tr></thead>
                                     <tbody>{paginatedRecipients.map(i => <RecipientRow key={i.user.id} interaction={i} />)}</tbody>
                                 </table>
-                                {recipientPageCount > 1 && (
                                     <div className="pagination-controls">
-                                        <button onClick={() => setRecipientPage(p => Math.max(0, p - 1))} disabled={recipientPage === 0}><FaCaretLeft /></button>
-                                        <button onClick={() => setRecipientPage(p => Math.min(recipientPageCount - 1, p + 1))} disabled={recipientPage >= recipientPageCount - 1}><FaCaretRight /></button>
+                                        <div className="page-size-control">
+                                            <label htmlFor="recipient-page-size">Show:</label>
+                                            <select id="recipient-page-size" value={recipientsPerPage} onChange={e => { setRecipientsPerPage(Number(e.target.value)); setRecipientPage(0); }}>
+                                                <option value={5}>5</option>
+                                                <option value={10}>10</option>
+                                                <option value={20}>20</option>
+                                                <option value={50}>50</option>
+                                            </select>
+                                        </div>
+                                        <div className="page-buttons">
+                                            <button onClick={() => setRecipientPage(p => Math.max(0, p - 1))} disabled={recipientPage === 0}><FaCaretLeft /></button>
+                                            <button onClick={() => setRecipientPage(p => Math.min(recipientPageCount - 1, p + 1))} disabled={recipientPage >= recipientPageCount - 1}><FaCaretRight /></button>
+                                        </div>
                                     </div>
-                                )}
                             </>
                         ) : <div className="message-container">{recipientData ? 'No matching recipients found.' : 'No recipient data available for this email in the selected date range.'}</div>}
                     </>
