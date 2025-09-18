@@ -15,7 +15,7 @@ import React, { ReactElement, useState, useEffect, useMemo } from "react";
 import { BlockAttributes } from "widget-sdk";
 import { getEmailPerformanceData, getSentEmailsData } from "./api";
 import { RecipientInteraction, SentEmail } from "./types";
-import { FaCaretRight, FaCaretLeft } from "react-icons/fa";
+import { FaCaretRight, FaCaretLeft, FaFileCsv } from "react-icons/fa";
 
 // Centralized color palette
 const staffbaseColors = {
@@ -69,6 +69,7 @@ export interface AnalyticsEmailOpenViewerProps extends BlockAttributes {
     emaillistlimit?: number;
     defaultemailpagesize?: number;
     defaultrecipientpagesize?: number;
+    enablecsvdownload?: boolean;
 }
 
 const DefaultAvatarIcon = ({ className }: { className?: string }) => (
@@ -108,7 +109,7 @@ const RecipientRow = ({ interaction }: { interaction: RecipientInteraction }) =>
     );
 };
 
-export const AnalyticsEmailOpenViewer = ({ emailid, domain = "app.staffbase.com", allemailsview = true, emaillistlimit = 100, defaultemailpagesize = 5, defaultrecipientpagesize = 5 }: AnalyticsEmailOpenViewerProps): ReactElement => {
+export const AnalyticsEmailOpenViewer = ({ emailid, domain = "app.staffbase.com", allemailsview = true, emaillistlimit = 100, defaultemailpagesize = 5, defaultrecipientpagesize = 5, enablecsvdownload = false }: AnalyticsEmailOpenViewerProps): ReactElement => {
     const [currentView, setCurrentView] = useState<'list' | 'detail'>(allemailsview ? 'list' : 'detail');
     const [selectedEmailId, setSelectedEmailId] = useState<string | undefined>(allemailsview ? undefined : emailid);
     const [allEmails, setAllEmails] = useState<SentEmail[]>([]);
@@ -120,10 +121,8 @@ export const AnalyticsEmailOpenViewer = ({ emailid, domain = "app.staffbase.com"
     const [recipientPage, setRecipientPage] = useState(0);
     const [emailsPerPage, setEmailsPerPage] = useState(defaultemailpagesize);
     const [recipientsPerPage, setRecipientsPerPage] = useState(defaultrecipientpagesize);
-    // ✨ FIX: Initialize dates using the safe function.
     const [untilDate, setUntilDate] = useState(createSafeNow);
     const [sinceDate, setSinceDate] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 30); return d; });
-    // ✨ FIX: Initialize dates using the safe function.
     const [detailUntilDate, setDetailUntilDate] = useState(createSafeNow);
     const [detailSinceDate, setDetailSinceDate] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 30); return d; });
     const [emailStats, setEmailStats] = useState<{ totalRecipients: number; totalOpens: number; uniqueOpens: number } | null>(null);
@@ -183,7 +182,6 @@ export const AnalyticsEmailOpenViewer = ({ emailid, domain = "app.staffbase.com"
         if (!selectedEmail) return;
 
         const sentAtDate = new Date(selectedEmail.sentAt);
-        // ✨ FIX: Use the safe "now" to avoid future timestamp issues.
         const now = createSafeNow();
         const thirtyDaysInMillis = 30 * 24 * 60 * 60 * 1000;
 
@@ -277,6 +275,53 @@ export const AnalyticsEmailOpenViewer = ({ emailid, domain = "app.staffbase.com"
     const paginatedEmails = filteredEmails.slice(emailListPage * emailsPerPage, (emailListPage + 1) * emailsPerPage);
 
     const selectedEmailTitle = allEmails.find(e => e.id === selectedEmailId)?.title || "Email";
+
+    const handleCsvExport = () => {
+        if (!filteredRecipients || filteredRecipients.length === 0) {
+            alert("No data available to export.");
+            return;
+        }
+
+        const escapeCsvField = (field: any): string => {
+            if (field === null || field === undefined) return '""';
+            const stringField = String(field);
+            if (stringField.includes(',') || stringField.includes('"') || stringField.includes('\n')) {
+                return `"${stringField.replace(/"/g, '""')}"`;
+            }
+            return `"${stringField}"`;
+        };
+
+        const headers = ["First Name", "Last Name", "User ID", "Interaction Type", "Interaction Time", "Clicked URL"];
+        const csvRows = [headers.join(',')];
+
+        for (const interaction of filteredRecipients) {
+            const { user, sentTime, opens } = interaction;
+            const baseRow = [escapeCsvField(user.firstName), escapeCsvField(user.lastName), escapeCsvField(user.id)];
+
+            if (sentTime) {
+                csvRows.push([...baseRow, escapeCsvField("Sent"), escapeCsvField(formatDisplayDateTime(sentTime)), escapeCsvField("")].join(','));
+            }
+            for (const open of opens) {
+                csvRows.push([...baseRow, escapeCsvField("Open"), escapeCsvField(formatDisplayDateTime(open.openTime)), escapeCsvField("")].join(','));
+                for (const click of open.clicks) {
+                    csvRows.push([...baseRow, escapeCsvField("Click"), escapeCsvField(formatDisplayDateTime(click.clickTime)), escapeCsvField(click.targetUrl)].join(','));
+                }
+            }
+        }
+
+        const csvString = csvRows.join('\n');
+        const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        const emailTitle = selectedEmailTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        link.setAttribute("href", url);
+        link.setAttribute("download", `email_performance_${emailTitle}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
     
     return (
         <div className="email-performance-widget">
@@ -297,6 +342,10 @@ export const AnalyticsEmailOpenViewer = ({ emailid, domain = "app.staffbase.com"
             .date-picker-group { display: flex; align-items: center; gap: 8px; }
             .date-picker-group label { font-size: 0.9em; color: ${staffbaseColors.mediumText}; }
             .date-picker-group input { border: 1px solid #ccc; border-radius: 4px; padding: 5px 8px; font-family: inherit; }
+            .stats-and-export-container { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; }
+            .export-csv-button { display: flex; align-items: center; justify-content: center; background-color: ${staffbaseColors.green}; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: 500; cursor: pointer; transition: background-color 0.2s; font-size: 0.9em; }
+            .export-csv-button:hover:not(:disabled) { background-color: #256430; }
+            .export-csv-button:disabled { background-color: ${staffbaseColors.disabledBg}; color: ${staffbaseColors.disabledColor}; cursor: not-allowed; }
             .email-stats-container { display: flex; gap: 25px; background-color: ${staffbaseColors.tableHeaderBg}; padding: 10px 20px; border-radius: 8px; border: 1px solid ${staffbaseColors.borderColor}; }
             .stat-item { text-align: center; }
             .stat-value { display: block; font-size: 1.6em; font-weight: 600; color: ${staffbaseColors.blue}; }
@@ -425,22 +474,30 @@ export const AnalyticsEmailOpenViewer = ({ emailid, domain = "app.staffbase.com"
                                     <input type="datetime-local" id="detailUntilDate" value={toInputDateTimeString(detailUntilDate)} onChange={e => handleDetailDateChange(e.target.value, 'until')} max={nowString} />
                                 </div>
                             </div>
-                             {emailStats && (
-                                <div className="email-stats-container">
-                                    <div className="stat-item">
-                                        <span className="stat-value">{emailStats.totalRecipients}</span>
-                                        <span className="stat-label">Recipients</span>
+                            <div className="stats-and-export-container">
+                                {emailStats && (
+                                    <div className="email-stats-container">
+                                        <div className="stat-item">
+                                            <span className="stat-value">{emailStats.totalRecipients}</span>
+                                            <span className="stat-label">Recipients</span>
+                                        </div>
+                                        <div className="stat-item">
+                                            <span className="stat-value">{emailStats.uniqueOpens}</span>
+                                            <span className="stat-label">Unique Opens</span>
+                                        </div>
+                                        <div className="stat-item">
+                                            <span className="stat-value">{emailStats.totalOpens}</span>
+                                            <span className="stat-label">Total Opens</span>
+                                        </div>
                                     </div>
-                                    <div className="stat-item">
-                                        <span className="stat-value">{emailStats.uniqueOpens}</span>
-                                        <span className="stat-label">Unique Opens</span>
-                                    </div>
-                                    <div className="stat-item">
-                                        <span className="stat-value">{emailStats.totalOpens}</span>
-                                        <span className="stat-label">Total Opens</span>
-                                    </div>
-                                </div>
-                            )}
+                                )}
+                                {enablecsvdownload && (
+                                    <button className="export-csv-button" onClick={handleCsvExport} disabled={!recipientData || filteredRecipients.length === 0}>
+                                        <FaFileCsv style={{ marginRight: '8px' }} />
+                                        Generate CSV
+                                    </button>
+                                )}
+                            </div>
                         </div>
                         {paginatedRecipients.length > 0 ? (
                             <>

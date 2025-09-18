@@ -42,7 +42,12 @@ export const configurationSchema: JSONSchema7 = {
         title: "Default Page Size (Recipients)",
         enum: [5, 10, 20, 50],
         default: 5,
-    }
+    },
+    enablecsvdownload: {
+      type: "boolean",
+      title: "Enable CSV Download",
+      default: true,
+    },
   },
   dependencies: {
     allemailsview: {
@@ -91,5 +96,8 @@ export const uiSchema: UiSchema = {
   },
   defaultRecipientPageSize: {
     "ui:help": "The default number of recipients to show per page on the individual tracking page.",
+  },
+  enablecsvdownload: {
+    "ui:help": "If checked, adds a button to the detail view to download recipient interaction data as a CSV file.",
   },
 };
