@@ -111,6 +111,9 @@ export const AnalyticsEmailOpenViewer = ({ emailid, domain = "app.staffbase.com"
     const [recipientPage, setRecipientPage] = useState(0);
     const [untilDate, setUntilDate] = useState(new Date());
     const [sinceDate, setSinceDate] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 30); return d; });
+    const [detailUntilDate, setDetailUntilDate] = useState(new Date());
+    const [detailSinceDate, setDetailSinceDate] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 30); return d; });
+    const [emailStats, setEmailStats] = useState<{ totalRecipients: number; totalOpens: number; uniqueOpens: number } | null>(null);
     const [sortConfig, setSortConfig] = useState<{key: 'recipient' | 'status' | null, direction: 'ascending' | 'descending' | 'original'}>({ key: null, direction: 'original' });
 
     useEffect(() => {
@@ -129,25 +132,57 @@ export const AnalyticsEmailOpenViewer = ({ emailid, domain = "app.staffbase.com"
             } finally { setLoading(false); }
         };
 
-        const fetchRecipientData = async (id: string) => {
+        const fetchRecipientData = async (id: string, since: string, until: string) => {
             setLoading(true); setError(null); setRecipientData(null); setRecipientSearchTerm(""); setRecipientPage(0);
             try {
-                const farPast = '2000-01-01T00:00:00.000Z';
-                const farFuture = new Date().toISOString();
-                const result = await getEmailPerformanceData(id, domain, farPast, farFuture);
+                const result = await getEmailPerformanceData(id, domain, since, until);
                 setRecipientData(result);
             } catch (err) {
                 setError("Failed to fetch analytics data.");
             } finally { setLoading(false); }
         };
 
-        if (currentView === 'list' && allemailsview) { fetchAllEmails(); } 
-        else if (currentView === 'detail' && selectedEmailId) { fetchRecipientData(selectedEmailId); } 
+        if (currentView === 'list' && allemailsview) { fetchAllEmails(); }
+        else if (currentView === 'detail' && selectedEmailId) { fetchRecipientData(selectedEmailId, detailSinceDate.toISOString(), detailUntilDate.toISOString()); }
         else { setLoading(false); }
-    }, [domain, currentView, selectedEmailId, emaillistlimit, allemailsview]);
+    }, [domain, currentView, selectedEmailId, emaillistlimit, allemailsview, detailSinceDate, detailUntilDate]);
+
+    useEffect(() => {
+        if (recipientData && selectedEmailId && allEmails.length > 0) {
+            const selectedEmail = allEmails.find(e => e.id === selectedEmailId);
+            const totalRecipients = selectedEmail?.targetAudience?.totalRecipients ?? 0;
+            const totalOpens = recipientData.reduce((sum, interaction) => sum + interaction.opens.length, 0);
+            const uniqueOpens = recipientData.filter(interaction => interaction.wasOpened).length;
+            setEmailStats({ totalRecipients, totalOpens, uniqueOpens });
+        } else if (selectedEmailId && allEmails.length > 0) {
+            const selectedEmail = allEmails.find(e => e.id === selectedEmailId);
+            const totalRecipients = selectedEmail?.targetAudience?.totalRecipients ?? 0;
+            setEmailStats({ totalRecipients, totalOpens: 0, uniqueOpens: 0 });
+        } else {
+            setEmailStats(null);
+        }
+    }, [recipientData, selectedEmailId, allEmails]);
 
     const handleEmailSelect = (id: string) => { setSelectedEmailId(id); setCurrentView('detail'); };
     const handleBackToList = () => { setSelectedEmailId(undefined); setCurrentView('list'); setRecipientData(null); setSortConfig({ key: null, direction: 'original' }); };
+
+    const handleDetailDateChange = (value: string, type: 'since' | 'until') => {
+        const newDate = new Date(value);
+        let since = type === 'since' ? newDate : detailSinceDate;
+        let until = type === 'until' ? newDate : detailUntilDate;
+        const thirtyDaysInMillis = 30 * 24 * 60 * 60 * 1000;
+        const diff = until.getTime() - since.getTime();
+        if (diff > thirtyDaysInMillis) {
+            if (type === 'since') {
+                until = new Date(since.getTime() + thirtyDaysInMillis);
+            } else {
+                since = new Date(until.getTime() - thirtyDaysInMillis);
+            }
+        }
+        setDetailSinceDate(since);
+        setDetailUntilDate(until);
+        setRecipientPage(0);
+    };
 
     const handleSort = (key: 'recipient' | 'status') => {
         setSortConfig(prev => {
@@ -210,8 +245,7 @@ export const AnalyticsEmailOpenViewer = ({ emailid, domain = "app.staffbase.com"
     const paginatedEmails = filteredEmails.slice(emailListPage * EMAILS_PER_PAGE, (emailListPage + 1) * EMAILS_PER_PAGE);
 
     const selectedEmailTitle = allEmails.find(e => e.id === selectedEmailId)?.title || "Email";
-    const dateRangeDays = (untilDate.getTime() - sinceDate.getTime()) / (1000 * 3600 * 24);
-
+    
     return (
         <div className="email-performance-widget">
             <style>{`
@@ -225,9 +259,16 @@ export const AnalyticsEmailOpenViewer = ({ emailid, domain = "app.staffbase.com"
             .date-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
             .date-controls label { font-size: 0.9em; font-weight: 500; }
             .date-controls input { border: 1px solid #ccc; border-radius: 4px; padding: 5px 8px; font-family: inherit; width: auto; }
-            .date-warning-pill { background-color: ${staffbaseColors.yellowBg}; color: ${staffbaseColors.yellowText}; padding: 3px 8px; font-size: 0.8em; border-radius: 10px; font-weight: 500; margin-left: 10px; }
-            .recipient-controls { margin-bottom: 15px; }
-            .recipient-controls input { border: 1px solid #ccc; border-radius: 4px; padding: 8px; width: 100%; max-width: 300px; box-sizing: border-box; }
+            .detail-view-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 20px; }
+            .filter-and-date-container { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; }
+            .recipient-filter input { background-color: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 8px; width: 100%; max-width: 250px; box-sizing: border-box; }
+            .date-picker-group { display: flex; align-items: center; gap: 8px; }
+            .date-picker-group label { font-size: 0.9em; color: ${staffbaseColors.mediumText}; }
+            .date-picker-group input { border: 1px solid #ccc; border-radius: 4px; padding: 5px 8px; font-family: inherit; }
+            .email-stats-container { display: flex; gap: 25px; background-color: ${staffbaseColors.tableHeaderBg}; padding: 10px 20px; border-radius: 8px; border: 1px solid ${staffbaseColors.borderColor}; }
+            .stat-item { text-align: center; }
+            .stat-value { display: block; font-size: 1.6em; font-weight: 600; color: ${staffbaseColors.blue}; }
+            .stat-label { font-size: 0.8em; color: ${staffbaseColors.mediumText}; text-transform: uppercase; letter-spacing: 0.5px; }
             .email-list-item { display: flex; align-items: center; gap: 15px; padding: 15px; border-bottom: 1px solid ${staffbaseColors.borderColor}; cursor: pointer; transition: background-color 0.2s; border-radius: 4px; }
             .email-list-item:hover { background-color: ${staffbaseColors.tableHeaderBg}; }
             .email-thumbnail { width: 80px; height: 60px; object-fit: cover; border-radius: 4px; flex-shrink: 0; border: 1px solid #eee; }
@@ -281,7 +322,6 @@ export const AnalyticsEmailOpenViewer = ({ emailid, domain = "app.staffbase.com"
                             <input type="datetime-local" id="sinceDate" value={toInputDateTimeString(sinceDate)} onChange={e => { setEmailListPage(0); setSinceDate(new Date(e.target.value)) }} />
                             <label htmlFor="untilDate">To:</label>
                             <input type="datetime-local" id="untilDate" value={toInputDateTimeString(untilDate)} onChange={e => { setEmailListPage(0); setUntilDate(new Date(e.target.value)) }} />
-                            {dateRangeDays > 31 && <span className="date-warning-pill">Note: Individual tracking data is limited to the past 31 days</span>}
                         </div>
                     </div>
                     {paginatedEmails.length > 0 ? (
@@ -315,30 +355,54 @@ export const AnalyticsEmailOpenViewer = ({ emailid, domain = "app.staffbase.com"
                         {allemailsview && <button className="back-button" onClick={handleBackToList}><FaCaretLeft /></button>}
                         <h3 className="widget-title">"{selectedEmailTitle}" Performance</h3>
                     </div>
-                    {!recipientData ? <div className="message-container">No recipient data available for this email.</div> : (
-                        <>
-                            <div className="recipient-controls">
-                                <input type="text" placeholder="Filter recipients by name..." value={recipientSearchTerm} onChange={e => { setRecipientSearchTerm(e.target.value); setRecipientPage(0); }} />
+                    <>
+                        <div className="detail-view-controls">
+                            <div className="filter-and-date-container">
+                                <div className="recipient-filter">
+                                    <input type="text" placeholder="Filter recipients by name..." value={recipientSearchTerm} onChange={e => { setRecipientSearchTerm(e.target.value); setRecipientPage(0); }} />
+                                </div>
+                                <div className="date-picker-group">
+                                    <label htmlFor="detailSinceDate">From:</label>
+                                    <input type="datetime-local" id="detailSinceDate" value={toInputDateTimeString(detailSinceDate)} onChange={e => handleDetailDateChange(e.target.value, 'since')} />
+                                    <label htmlFor="detailUntilDate">To:</label>
+                                    <input type="datetime-local" id="detailUntilDate" value={toInputDateTimeString(detailUntilDate)} onChange={e => handleDetailDateChange(e.target.value, 'until')} />
+                                </div>
                             </div>
-                            {paginatedRecipients.length > 0 ? (
-                                <>
-                                    <table className="performance-table">
-                                        <thead><tr>
-                                            <th role="button" onClick={() => handleSort('recipient')}>Recipient</th>
-                                            <th role="button" style={{ width: '120px' }} onClick={() => handleSort('status')}>Status</th>
-                                        </tr></thead>
-                                        <tbody>{paginatedRecipients.map(i => <RecipientRow key={i.user.id} interaction={i} />)}</tbody>
-                                    </table>
-                                    {recipientPageCount > 1 && (
-                                        <div className="pagination-controls">
-                                            <button onClick={() => setRecipientPage(p => Math.max(0, p - 1))} disabled={recipientPage === 0}><FaCaretLeft /></button>
-                                            <button onClick={() => setRecipientPage(p => Math.min(recipientPageCount - 1, p + 1))} disabled={recipientPage >= recipientPageCount - 1}><FaCaretRight /></button>
-                                        </div>
-                                    )}
-                                </>
-                            ) : <div className="message-container">No matching recipients found.</div>}
-                        </>
-                    )}
+                             {emailStats && (
+                                <div className="email-stats-container">
+                                    <div className="stat-item">
+                                        <span className="stat-value">{emailStats.totalRecipients}</span>
+                                        <span className="stat-label">Recipients</span>
+                                    </div>
+                                    <div className="stat-item">
+                                        <span className="stat-value">{emailStats.uniqueOpens}</span>
+                                        <span className="stat-label">Unique Opens</span>
+                                    </div>
+                                    <div className="stat-item">
+                                        <span className="stat-value">{emailStats.totalOpens}</span>
+                                        <span className="stat-label">Total Opens</span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        {paginatedRecipients.length > 0 ? (
+                            <>
+                                <table className="performance-table">
+                                    <thead><tr>
+                                        <th role="button" onClick={() => handleSort('recipient')}>Recipient</th>
+                                        <th role="button" style={{ width: '120px' }} onClick={() => handleSort('status')}>Status</th>
+                                    </tr></thead>
+                                    <tbody>{paginatedRecipients.map(i => <RecipientRow key={i.user.id} interaction={i} />)}</tbody>
+                                </table>
+                                {recipientPageCount > 1 && (
+                                    <div className="pagination-controls">
+                                        <button onClick={() => setRecipientPage(p => Math.max(0, p - 1))} disabled={recipientPage === 0}><FaCaretLeft /></button>
+                                        <button onClick={() => setRecipientPage(p => Math.min(recipientPageCount - 1, p + 1))} disabled={recipientPage >= recipientPageCount - 1}><FaCaretRight /></button>
+                                    </div>
+                                )}
+                            </>
+                        ) : <div className="message-container">{recipientData ? 'No matching recipients found.' : 'No recipient data available for this email in the selected date range.'}</div>}
+                    </>
                 </>
             )}
         </div>

@@ -17,6 +17,7 @@ import {
   RecipientInteraction,
   SentEmail,
   SentEmailsApiResponse,
+  OpenDetail,
 } from "./types";
 
 const authenticatedFetch = async (url: string) => {

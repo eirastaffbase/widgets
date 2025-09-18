@@ -52,6 +52,9 @@ export interface SentEmail {
   sender: {
     name: string;
   };
+  targetAudience?: {
+    totalRecipients: number;
+  };
 }
 
 export interface SentEmailsApiResponse {
