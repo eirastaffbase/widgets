@@ -81,8 +81,7 @@ const formatDate = (dateString: string): string => {
 
 const ChatAvatar = ({ conversation }: { conversation: Conversation }) => {
   const image = conversation.type === 'direct' ? conversation.partner?.avatar : conversation.meta.image;
-  const initials = conversation.meta.title.split(' ').map(n => n[0]).slice(0, 2).join('');
-
+  const initials = (conversation.meta.title || '').split(' ').map(n => n[0]).slice(0, 2).join('');
   if (image?.icon.url) {
     return <img src={image.icon.url} alt={conversation.meta.title} style={styles.avatarImage} />;
   }
