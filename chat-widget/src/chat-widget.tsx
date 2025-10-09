@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import React, { ReactElement, useState, useEffect, CSSProperties } from "react";
+import React, { ReactElement, useState, useEffect, CSSProperties, useRef } from "react";
 import { BlockAttributes, WidgetApi } from "widget-sdk";
 
 // **********************************
@@ -63,7 +63,7 @@ interface MessagesResponse {
 export interface ChatWidgetProps extends BlockAttributes {
   title: string;
   conversationlimit: number;
-  widgetApi: WidgetApi; // Kept for type consistency, but not used for fetching
+  widgetApi: WidgetApi;
 }
 
 // **********************************
@@ -105,6 +105,8 @@ export const ChatWidget = ({ title, conversationlimit }: ChatWidgetProps): React
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [useDummyData, setUseDummyData] = useState<boolean>(false);
+  const fetchDataAttempted = useRef(false);
 
   useEffect(() => {
     const loadDummyData = () => {
@@ -116,45 +118,51 @@ export const ChatWidget = ({ title, conversationlimit }: ChatWidgetProps): React
         { id: 'convo-3', type: 'group', meta: { title: 'Project Phoenix' }, lastMessage: { id: 'msg-3-1', senderID: 'user-sam', parts: [{ body: 'Can someone approve my PR?' }], sender: { id: 'user-sam', firstName: 'Sam', lastName: 'Jones', avatar: null }, created: new Date(Date.now() - 60000 * 120).toISOString(), } },
         { id: 'convo-4', type: 'direct', meta: { title: 'IT Support' }, partner: { id: 'user-it', firstName: 'IT', lastName: 'Support', avatar: { icon: { url: 'https://i.pravatar.cc/150?u=itsupport' } } }, lastMessage: { id: 'msg-4-1', senderID: 'user-it', parts: [{ body: 'Your ticket has been resolved.' }], sender: { id: 'user-it', firstName: 'IT', lastName: 'Support', avatar: null }, created: new Date(Date.now() - 60000 * 180).toISOString(), } },
       ]);
-      setError("Could not load live data. Displaying sample content.");
+      setError("Displaying sample content.");
+      setUseDummyData(true);
     };
 
     const fetchData = async () => {
+      if (fetchDataAttempted.current) return;
+      fetchDataAttempted.current = true;
+
       try {
         setLoading('Loading...');
         setError(null);
         
-        // 1. Find the Chat Installation ID
         const installResponse = await fetch('/api/plugins/chat/installations');
         if (!installResponse.ok) throw new Error(`Failed to fetch installations: ${installResponse.statusText}`);
         const installData: InstallationsResponse = await installResponse.json();
         const chatInstallationId = installData.data[0]?.id;
         if (!chatInstallationId) throw new Error("Chat plugin installation not found.");
 
-        // 2. Fetch conversations using the found ID
         const convoResponse = await fetch(`/api/installations/${chatInstallationId}/conversations?archived=false&limit=${conversationlimit || 10}`);
         if (!convoResponse.ok) throw new Error(`Failed to fetch conversations: ${convoResponse.statusText}`);
         const convoData: ConversationsResponse = await convoResponse.json();
         
-        // 3. Deduce the current user's ID
+        if (!convoData.data || convoData.data.length === 0) {
+          throw new Error("No conversations returned from API.");
+        }
+
         const participantCounts: { [id: string]: number } = {};
         convoData.data
-          .filter(c => c.type === 'direct' && c.participantIDs)
+          .filter(c => c.type === 'direct' && c.participantIDs && c.participantIDs.length > 0)
           .forEach(c => {
             c.participantIDs!.forEach(id => {
               participantCounts[id] = (participantCounts[id] || 0) + 1;
             });
           });
         
-        const currentUserId = Object.keys(participantCounts).reduce((a, b) => participantCounts[a] > participantCounts[b] ? a : b, '');
+        const currentUserId = Object.keys(participantCounts).length > 0
+          ? Object.keys(participantCounts).reduce((a, b) => participantCounts[a] > participantCounts[b] ? a : b)
+          : null;
         
         if (!currentUserId) {
-            // Fallback if we can't figure out the user
-            setCurrentUser({ id: 'unknown-user', firstName: 'You', lastName: '', avatar: null });
+            console.warn("Could not reliably determine current user ID. Styling may be incorrect.");
+            setCurrentUser({ id: 'unknown-user-id', firstName: 'You', lastName: '', avatar: null });
         } else {
             setCurrentUser({ id: currentUserId, firstName: 'You', lastName: '', avatar: null });
         }
-
         setConversations(convoData.data);
 
       } catch (e: any) {
@@ -172,8 +180,7 @@ export const ChatWidget = ({ title, conversationlimit }: ChatWidgetProps): React
   useEffect(() => {
     if (!selectedConversation) return;
 
-    // --- FALLBACK for dummy messages ---
-    if (selectedConversation.id.startsWith('convo-')) {
+    if (useDummyData) {
         const dummyMessages = {
           'convo-1': [{ id: 'msg-1-1', senderID: 'user-me', parts: [{ body: 'Hey Alex, can you send me the Q3 report?' }], sender: currentUser!, created: new Date(Date.now() - 60000 * 5).toISOString() }, { id: 'msg-1-2', senderID: 'user-alex', parts: [{ body: 'Sure, I will send it over shortly.' }], sender: selectedConversation.partner!, created: new Date().toISOString() }],
           'convo-2': [{ id: 'msg-2-1', senderID: 'user-me', parts: [{ body: 'Thanks for the presentation today!' }], sender: currentUser!, created: new Date(Date.now() - 60000 * 60).toISOString() }],
@@ -193,44 +200,51 @@ export const ChatWidget = ({ title, conversationlimit }: ChatWidgetProps): React
         setMessages(messagesData.data.reverse());
       } catch (e: any) {
         setError(`Failed to load messages: ${e.message}`);
+        setMessages([]);
       } finally {
         setLoading(null);
       }
     };
 
     fetchMessages();
-  }, [selectedConversation, currentUser]);
+  }, [selectedConversation, currentUser, useDummyData]);
 
-  const renderConversationList = () => (
-    <section>
-      <header style={styles.header}>
-        <h1 style={styles.headerTitle}>{title}</h1>
-      </header>
-      <div>
-        {conversations.map((convo) => {
-            const isFromCurrentUser = convo.lastMessage.senderID === currentUser?.id;
-            return (
-                <div key={convo.id} style={styles.convoItem} tabIndex={0} onClick={() => setSelectedConversation(convo)}>
-                    <ChatAvatar conversation={convo} />
-                    <div style={styles.convoDetails}>
-                        <div style={styles.convoTopRow}>
-                            <div style={styles.convoTitle}>{convo.meta.title}</div>
-                            <div style={styles.convoTimestamp}>{formatDate(convo.lastMessage.created)}</div>
-                        </div>
-                        <div style={styles.convoBottomRow}>
-                            <p style={styles.convoLastMessage}>
-                                {isFromCurrentUser && <b>You: </b>}
-                                {convo.lastMessage.parts[0]?.body}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            );
-        })}
-      </div>
-    </section>
-  );
+  const renderConversationList = () => {
+    if (conversations.length === 0) {
+      return <div style={styles.centeredMessage}>No conversations to display.</div>;
+    }
 
+    return (
+      <section>
+        <header style={styles.header}>
+          <h1 style={styles.headerTitle}>{title}</h1>
+        </header>
+        <div>
+          {conversations.map((convo) => {
+              const isFromCurrentUser = convo.lastMessage.senderID === currentUser?.id;
+              return (
+                  <div key={convo.id} style={styles.convoItem} tabIndex={0} onClick={() => setSelectedConversation(convo)}>
+                      <ChatAvatar conversation={convo} />
+                      <div style={styles.convoDetails}>
+                          <div style={styles.convoTopRow}>
+                              <div style={styles.convoTitle}>{convo.meta.title}</div>
+                              <div style={styles.convoTimestamp}>{formatDate(convo.lastMessage.created)}</div>
+                          </div>
+                          <div style={styles.convoBottomRow}>
+                              <p style={styles.convoLastMessage}>
+                                  {isFromCurrentUser && <b>You: </b>}
+                                  {convo.lastMessage.parts[0]?.body}
+                              </p>
+                          </div>
+                      </div>
+                  </div>
+              );
+          })}
+        </div>
+      </section>
+    );
+  };
+  
   const renderMessageView = () => {
     if (!selectedConversation) return null;
     return (
@@ -244,7 +258,7 @@ export const ChatWidget = ({ title, conversationlimit }: ChatWidgetProps): React
                     const isCurrentUser = msg.senderID === currentUser?.id;
                     return (
                         <div key={msg.id} style={{ ...styles.messageWrapper, alignSelf: isCurrentUser ? 'flex-end' : 'flex-start' }}>
-                            {!isCurrentUser && msg.sender.avatar?.icon.url && <img src={msg.sender.avatar.icon.url} style={styles.messageAvatar} alt={msg.sender.firstName}/>}
+                            {!isCurrentUser && msg.sender?.avatar?.icon?.url && <img src={msg.sender.avatar.icon.url} style={styles.messageAvatar} alt={msg.sender.firstName}/>}
                             <div style={{ ...styles.messageBubble, ...(isCurrentUser ? styles.currentUserBubble : styles.otherUserBubble) }}>
                                 {!isCurrentUser && <b style={styles.senderName}>{msg.sender.firstName}</b>}
                                 <p style={{margin: 0}}>{msg.parts[0]?.body}</p>
@@ -265,8 +279,9 @@ export const ChatWidget = ({ title, conversationlimit }: ChatWidgetProps): React
   return (
     <div style={styles.container}>
       {loading && <div style={styles.centeredMessage}>{loading}</div>}
-      {error && <div style={{...styles.centeredMessage, color: '#e53935', padding: '10px'}}>{error}</div>}
-      {!loading && !error && (
+      {error && !useDummyData && <div style={{...styles.centeredMessage, color: '#e53935', padding: '10px'}}>{error}</div>}
+      
+      {!loading && (
         selectedConversation ? renderMessageView() : renderConversationList()
       )}
     </div>
@@ -279,18 +294,18 @@ export const ChatWidget = ({ title, conversationlimit }: ChatWidgetProps): React
 const styles: { [key: string]: CSSProperties } = {
   container: { fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', border: '1px solid #e0e0e0', borderRadius: '8px', height: '500px', display: 'flex', flexDirection: 'column', overflow: 'hidden', backgroundColor: '#f9f9f9' },
   header: { display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid #e0e0e0', backgroundColor: 'white' },
-  headerTitle: { margin: '0 0 0 8px', fontSize: '18px', fontWeight: '600' },
+  headerTitle: { margin: '0 0 0 8px', fontSize: '18px', fontWeight: '600', color: '#191919' },
   centeredMessage: { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: '#666', textAlign: 'center' },
   convoItem: { display: 'flex', alignItems: 'center', padding: '12px 16px', cursor: 'pointer', borderBottom: '1px solid #f0f0f0', backgroundColor: 'white' },
   avatarImage: { width: '48px', height: '48px', borderRadius: '50%', marginRight: '12px', objectFit: 'cover' },
   avatarInitials: { width: '48px', height: '48px', borderRadius: '50%', marginRight: '12px', backgroundColor: '#e0e0e0', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', color: '#555' },
   convoDetails: { flex: 1, overflow: 'hidden' },
   convoTopRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  convoTitle: { fontWeight: '600', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' },
+  convoTitle: { fontWeight: '600', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden', color: '#191919' },
   convoTimestamp: { fontSize: '12px', color: '#888', flexShrink: 0, marginLeft: '8px' },
   convoBottomRow: { marginTop: '4px' },
   convoLastMessage: { margin: 0, fontSize: '14px', color: '#555', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' },
-  backButton: { background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', padding: '0 8px 0 0', color: '#007aff' }, // <-- FIXED COLOR
+  backButton: { background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', padding: '0 8px 0 0', color: '#007aff' },
   messagesLog: { flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column-reverse' },
   messageWrapper: { display: 'flex', alignItems: 'flex-end', marginBottom: '12px', maxWidth: '80%' },
   messageAvatar: { width: '32px', height: '32px', borderRadius: '50%', marginRight: '8px', objectFit: 'cover' },
