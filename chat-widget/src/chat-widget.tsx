@@ -2,7 +2,7 @@
  * Copyright 2024, Staffbase GmbH and contributors.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * You may not use this file except in compliance with the License.
  * http://www.apache.org/licenses/LICENSE-2.0
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -210,8 +210,10 @@ export const ChatWidget = ({ title, conversationlimit }: ChatWidgetProps): React
   }, [selectedConversation, currentUser, useDummyData]);
 
   const renderConversationList = () => {
-    if (conversations.length === 0) {
-      return <div style={styles.centeredMessage}>No conversations to display.</div>;
+    // FIX: Don't render anything if conversations are loaded but there's no data to show.
+    // This handles the blank screen state. The `loading || !currentUser` check in the main return handles the initial load.
+    if (!useDummyData && conversations.length === 0) {
+      return <div style={styles.centeredMessage}>No conversations found.</div>;
     }
 
     return (
@@ -276,14 +278,18 @@ export const ChatWidget = ({ title, conversationlimit }: ChatWidgetProps): React
     );
   }
 
+  // Main return logic
+  if (loading || !currentUser) {
+    return <div style={styles.centeredMessage}>{loading || 'Initializing...'}</div>;
+  }
+  
+  if (error && !useDummyData) {
+    return <div style={{...styles.centeredMessage, color: '#e53935', padding: '10px'}}>{error}</div>;
+  }
+
   return (
     <div style={styles.container}>
-      {loading && <div style={styles.centeredMessage}>{loading}</div>}
-      {error && !useDummyData && <div style={{...styles.centeredMessage, color: '#e53935', padding: '10px'}}>{error}</div>}
-      
-      {!loading && (
-        selectedConversation ? renderMessageView() : renderConversationList()
-      )}
+      {selectedConversation ? renderMessageView() : renderConversationList()}
     </div>
   );
 };
