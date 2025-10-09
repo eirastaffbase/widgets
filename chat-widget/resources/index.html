@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="shortcut icon" href="favicon.png">
+    <title>staffbase/chat-widget</title>
+    <!-- locally stored versions of Staffbase frontend assets -->
+    <link href="/css/app.css" rel="stylesheet">
+    <link href="/css/libs.css" rel="stylesheet">
+    <link href="/css/font.css" rel="stylesheet">
+    <style>
+      body {
+        padding: 50px;
+      }
+      .box {
+        border: 2px dashed gray;
+        padding: 40px;
+      }
+    </style>
+  </head>
+  <body style="display: flex">
+    <div class="box" style="flex: 2">
+      <h3>Widget preview:</h3>
+      <br />
+      <br />
+      <section id="preview">
+            <chat-widget message="world!"></chat-widget>
+        </section>
+    </div>
+    <div id="config" style="flex: 1"></div>
+  </body>
+  <script src="bootstrap.js"></script>
+  <script src="staffbase.chat-widget.js"></script>
+</html>
