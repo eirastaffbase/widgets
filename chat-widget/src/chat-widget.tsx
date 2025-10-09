@@ -61,14 +61,10 @@ export interface ChatWidgetProps extends BlockAttributes {
   widgetApi: WidgetApi;
 }
 
-
 // **********************************
 // * Helper Functions & Components
 // **********************************
 
-/**
- * Formats a date string into a user-friendly format (e.g., "10:30 AM" or "Jul 29").
- */
 const formatDate = (dateString: string): string => {
   const date = new Date(dateString);
   const today = new Date();
@@ -78,9 +74,6 @@ const formatDate = (dateString: string): string => {
   return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
 };
 
-/**
- * A component to display a user or group avatar.
- */
 const ChatAvatar = ({ conversation }: { conversation: Conversation }) => {
   const image = conversation.type === 'direct' ? conversation.partner?.avatar : conversation.meta.image;
   const initials = conversation.meta.title.split(' ').map(n => n[0]).slice(0, 2).join('');
@@ -89,7 +82,6 @@ const ChatAvatar = ({ conversation }: { conversation: Conversation }) => {
     return <img src={image.icon.url} alt={conversation.meta.title} style={styles.avatarImage} />;
   }
   
-  // Group chat icon as a fallback for groups without an image
   if (conversation.type === 'group') {
       return <div style={styles.avatarInitials}>👥</div>
   }
@@ -101,7 +93,7 @@ const ChatAvatar = ({ conversation }: { conversation: Conversation }) => {
 // **********************************
 // * Main ChatWidget Component
 // **********************************
-export const ChatWidget = ({ title, conversationlimit, widgetApi, contentLanguage }: ChatWidgetProps): ReactElement => {
+export const ChatWidget = ({ title, conversationlimit, widgetApi }: ChatWidgetProps): ReactElement => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -109,20 +101,48 @@ export const ChatWidget = ({ title, conversationlimit, widgetApi, contentLanguag
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Effect to fetch initial data: current user and all conversations
   useEffect(() => {
+    // --- FALLBACK: Function to load dummy data on error ---
+    const loadDummyData = () => {
+      const dummyUser = { id: 'user-me', firstName: 'You', lastName: '', avatar: null };
+      const dummyPartner = { id: 'user-partner', firstName: 'Alex', lastName: 'Weber', avatar: { icon: { url: 'https://i.pravatar.cc/150?u=alexweber' } } };
+      
+      setCurrentUser(dummyUser);
+      setConversations([{
+        id: 'convo-1',
+        type: 'direct',
+        meta: { title: 'Alex Weber' },
+        partner: dummyPartner,
+        lastMessage: {
+          id: 'msg-2',
+          senderID: 'user-partner',
+          parts: [{ body: 'Sure, I will send it over shortly.' }],
+          sender: dummyPartner,
+          created: new Date().toISOString(),
+        }
+      }]);
+      setError("Could not load live data. Displaying sample content.");
+    };
+
     const fetchData = async () => {
+      // Check if widgetApi and expected methods exist before trying to use them
+      if (!widgetApi || typeof widgetApi.getContext !== 'function' || typeof widgetApi.get !== 'function') {
+        loadDummyData();
+        return;
+      }
+        
       try {
         setLoading('Loading...');
         setError(null);
         
-        const [sessionInfo, installationId] = await Promise.all([
-           widgetApi.getAuthAPI().getSessionInfo(),
-           widgetApi.getAppAPI().getInstallationId(),
-        ]);
+        // --- FIX: Use widgetApi.getContext() to get IDs ---
+        const { userId, branchId: installationId } = await widgetApi.getContext();
+        if (!userId || !installationId) {
+            throw new Error("Could not retrieve user or installation ID.");
+        }
 
         const [userResponse, conversationsResponse] = await Promise.all([
-          widgetApi.get<User>(`/api/users/${sessionInfo.userId}`),
+          widgetApi.get<User>(`/api/users/${userId}`),
           widgetApi.get<ConversationsResponse>(`/api/installations/${installationId}/conversations?archived=false&limit=${conversationlimit || 10}`)
         ]);
         
@@ -130,7 +150,9 @@ export const ChatWidget = ({ title, conversationlimit, widgetApi, contentLanguag
         setConversations(conversationsResponse.data);
 
       } catch (e: any) {
-        setError(`Failed to load chat data: ${e.message}`);
+        // --- FALLBACK: Call dummy data function on any error ---
+        console.error("Failed to load live chat data:", e.message);
+        loadDummyData();
       } finally {
         setLoading(null);
       }
@@ -139,9 +161,18 @@ export const ChatWidget = ({ title, conversationlimit, widgetApi, contentLanguag
     fetchData();
   }, [widgetApi, conversationlimit]);
 
-  // Effect to fetch messages when a conversation is selected
+  // Effect to fetch messages (or dummy messages) when a conversation is selected
   useEffect(() => {
     if (!selectedConversation) return;
+
+    // --- FALLBACK: Load dummy messages if the selected conversation is a dummy one ---
+    if (selectedConversation.id === 'convo-1') {
+        setMessages([
+            { id: 'msg-1', senderID: 'user-me', parts: [{ body: 'Hey Alex, can you send me the Q3 report?' }], sender: currentUser!, created: new Date(Date.now() - 60000 * 5).toISOString() },
+            { id: 'msg-2', senderID: 'user-partner', parts: [{ body: 'Sure, I will send it over shortly.' }], sender: selectedConversation.partner!, created: new Date().toISOString() },
+        ].reverse());
+        return;
+    }
 
     const fetchMessages = async () => {
       try {
@@ -156,7 +187,7 @@ export const ChatWidget = ({ title, conversationlimit, widgetApi, contentLanguag
       }
     };
     fetchMessages();
-  }, [selectedConversation, widgetApi]);
+  }, [selectedConversation, widgetApi, currentUser]);
 
   const renderConversationList = () => (
     <section>
@@ -200,7 +231,7 @@ export const ChatWidget = ({ title, conversationlimit, widgetApi, contentLanguag
                 {messages.map((msg) => {
                     const isCurrentUser = msg.senderID === currentUser?.id;
                     return (
-                        <div key={msg.id} style={{ ...styles.messageWrapper, justifyContent: isCurrentUser ? 'flex-end' : 'flex-start' }}>
+                        <div key={msg.id} style={{ ...styles.messageWrapper, alignSelf: isCurrentUser ? 'flex-end' : 'flex-start' }}>
                             {!isCurrentUser && msg.sender.avatar?.icon.url && <img src={msg.sender.avatar.icon.url} style={styles.messageAvatar} alt={msg.sender.firstName}/>}
                             <div style={{ ...styles.messageBubble, ...(isCurrentUser ? styles.currentUserBubble : styles.otherUserBubble) }}>
                                 {!isCurrentUser && <b style={styles.senderName}>{msg.sender.firstName}</b>}
@@ -222,8 +253,8 @@ export const ChatWidget = ({ title, conversationlimit, widgetApi, contentLanguag
   return (
     <div style={styles.container}>
       {loading && <div style={styles.centeredMessage}>{loading}</div>}
-      {error && <div style={{...styles.centeredMessage, color: '#e53935'}}>{error}</div>}
-      {!loading && !error && (
+      {error && <div style={{...styles.centeredMessage, color: '#e53935', padding: '10px'}}>{error}</div>}
+      {!loading && (
         selectedConversation ? renderMessageView() : renderConversationList()
       )}
     </div>
@@ -237,9 +268,9 @@ const styles: { [key: string]: CSSProperties } = {
   container: { fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', border: '1px solid #e0e0e0', borderRadius: '8px', height: '500px', display: 'flex', flexDirection: 'column', overflow: 'hidden', backgroundColor: '#f9f9f9' },
   header: { display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid #e0e0e0', backgroundColor: 'white' },
   headerTitle: { margin: '0 0 0 8px', fontSize: '18px', fontWeight: '600' },
-  centeredMessage: { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: '#666' },
+  centeredMessage: { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: '#666', textAlign: 'center' },
   convoItem: { display: 'flex', alignItems: 'center', padding: '12px 16px', cursor: 'pointer', borderBottom: '1px solid #f0f0f0', backgroundColor: 'white' },
-  avatarImage: { width: '48px', height: '48px', borderRadius: '50%', marginRight: '12px' },
+  avatarImage: { width: '48px', height: '48px', borderRadius: '50%', marginRight: '12px', objectFit: 'cover' },
   avatarInitials: { width: '48px', height: '48px', borderRadius: '50%', marginRight: '12px', backgroundColor: '#e0e0e0', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', color: '#555' },
   convoDetails: { flex: 1, overflow: 'hidden' },
   convoTopRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
@@ -250,13 +281,13 @@ const styles: { [key: string]: CSSProperties } = {
   backButton: { background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', padding: '0 8px 0 0' },
   messagesLog: { flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column-reverse' },
   messageWrapper: { display: 'flex', alignItems: 'flex-end', marginBottom: '12px', maxWidth: '80%' },
-  messageAvatar: { width: '32px', height: '32px', borderRadius: '50%', marginRight: '8px' },
+  messageAvatar: { width: '32px', height: '32px', borderRadius: '50%', marginRight: '8px', objectFit: 'cover' },
   senderName: { fontWeight: 'bold', fontSize: '13px', color: '#333', marginBottom: '4px' },
-  messageBubble: { padding: '8px 12px', borderRadius: '18px', fontSize: '15px' },
+  messageBubble: { padding: '8px 12px', borderRadius: '18px' },
   currentUserBubble: { backgroundColor: '#007aff', color: 'white', borderBottomRightRadius: '4px' },
   otherUserBubble: { backgroundColor: '#e5e5ea', color: 'black', borderBottomLeftRadius: '4px' },
   messageTimestamp: { fontSize: '11px', opacity: 0.7, display: 'block', textAlign: 'right', marginTop: '4px' },
-  footer: { display: 'flex', padding: '8px', borderTop: '1px solid #e0e0e0', backgroundColor: 'white' },
+  footer: { display: 'flex', padding: '8px', borderTop: '1px solid #e0e0e0', backgroundColor: 'white', flexShrink: 0 },
   messageInput: { flex: 1, border: '1px solid #ccc', borderRadius: '18px', padding: '8px 12px', fontSize: '15px', marginRight: '8px' },
   sendButton: { background: '#007aff', color: 'white', border: 'none', borderRadius: '50%', width: '36px', height: '36px', fontSize: '18px', cursor: 'pointer' },
 };
