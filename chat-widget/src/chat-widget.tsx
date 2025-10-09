@@ -39,12 +39,17 @@ interface Message {
 interface Conversation {
   id: string;
   type: 'direct' | 'group';
+  participantIDs?: string[];
   meta: {
     title: string;
     image?: Avatar;
   };
   lastMessage: Message;
   partner?: User;
+}
+
+interface InstallationsResponse {
+    data: { id: string }[];
 }
 
 interface ConversationsResponse {
@@ -58,7 +63,7 @@ interface MessagesResponse {
 export interface ChatWidgetProps extends BlockAttributes {
   title: string;
   conversationlimit: number;
-  widgetApi: WidgetApi;
+  widgetApi: WidgetApi; // Kept for type consistency, but not used for fetching
 }
 
 // **********************************
@@ -93,7 +98,7 @@ const ChatAvatar = ({ conversation }: { conversation: Conversation }) => {
 // **********************************
 // * Main ChatWidget Component
 // **********************************
-export const ChatWidget = ({ title, conversationlimit, widgetApi }: ChatWidgetProps): ReactElement => {
+export const ChatWidget = ({ title, conversationlimit }: ChatWidgetProps): ReactElement => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -102,55 +107,57 @@ export const ChatWidget = ({ title, conversationlimit, widgetApi }: ChatWidgetPr
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // --- FALLBACK: Function to load dummy data on error ---
     const loadDummyData = () => {
       const dummyUser = { id: 'user-me', firstName: 'You', lastName: '', avatar: null };
-      const dummyPartner = { id: 'user-partner', firstName: 'Alex', lastName: 'Weber', avatar: { icon: { url: 'https://i.pravatar.cc/150?u=alexweber' } } };
-      
       setCurrentUser(dummyUser);
-      setConversations([{
-        id: 'convo-1',
-        type: 'direct',
-        meta: { title: 'Alex Weber' },
-        partner: dummyPartner,
-        lastMessage: {
-          id: 'msg-2',
-          senderID: 'user-partner',
-          parts: [{ body: 'Sure, I will send it over shortly.' }],
-          sender: dummyPartner,
-          created: new Date().toISOString(),
-        }
-      }]);
+      setConversations([
+        { id: 'convo-1', type: 'direct', meta: { title: 'Alex Weber' }, partner: { id: 'user-alex', firstName: 'Alex', lastName: 'Weber', avatar: { icon: { url: 'https://i.pravatar.cc/150?u=alexweber' } } }, lastMessage: { id: 'msg-1-2', senderID: 'user-alex', parts: [{ body: 'Sure, I will send it over shortly.' }], sender: { id: 'user-alex', firstName: 'Alex', lastName: 'Weber', avatar: null }, created: new Date().toISOString(), } },
+        { id: 'convo-2', type: 'direct', meta: { title: 'Maria Garcia' }, partner: { id: 'user-maria', firstName: 'Maria', lastName: 'Garcia', avatar: { icon: { url: 'https://i.pravatar.cc/150?u=mariagarcia' } } }, lastMessage: { id: 'msg-2-1', senderID: 'user-me', parts: [{ body: 'Thanks for the presentation today!' }], sender: dummyUser, created: new Date(Date.now() - 60000 * 60).toISOString(), } },
+        { id: 'convo-3', type: 'group', meta: { title: 'Project Phoenix' }, lastMessage: { id: 'msg-3-1', senderID: 'user-sam', parts: [{ body: 'Can someone approve my PR?' }], sender: { id: 'user-sam', firstName: 'Sam', lastName: 'Jones', avatar: null }, created: new Date(Date.now() - 60000 * 120).toISOString(), } },
+        { id: 'convo-4', type: 'direct', meta: { title: 'IT Support' }, partner: { id: 'user-it', firstName: 'IT', lastName: 'Support', avatar: { icon: { url: 'https://i.pravatar.cc/150?u=itsupport' } } }, lastMessage: { id: 'msg-4-1', senderID: 'user-it', parts: [{ body: 'Your ticket has been resolved.' }], sender: { id: 'user-it', firstName: 'IT', lastName: 'Support', avatar: null }, created: new Date(Date.now() - 60000 * 180).toISOString(), } },
+      ]);
       setError("Could not load live data. Displaying sample content.");
     };
 
     const fetchData = async () => {
-      // Check if widgetApi and expected methods exist before trying to use them
-      if (!widgetApi || typeof widgetApi.getContext !== 'function' || typeof widgetApi.get !== 'function') {
-        loadDummyData();
-        return;
-      }
-        
       try {
         setLoading('Loading...');
         setError(null);
         
-        // --- FIX: Use widgetApi.getContext() to get IDs ---
-        const { userId, branchId: installationId } = await widgetApi.getContext();
-        if (!userId || !installationId) {
-            throw new Error("Could not retrieve user or installation ID.");
+        // 1. Find the Chat Installation ID
+        const installResponse = await fetch('/api/plugins/chat/installations');
+        if (!installResponse.ok) throw new Error(`Failed to fetch installations: ${installResponse.statusText}`);
+        const installData: InstallationsResponse = await installResponse.json();
+        const chatInstallationId = installData.data[0]?.id;
+        if (!chatInstallationId) throw new Error("Chat plugin installation not found.");
+
+        // 2. Fetch conversations using the found ID
+        const convoResponse = await fetch(`/api/installations/${chatInstallationId}/conversations?archived=false&limit=${conversationlimit || 10}`);
+        if (!convoResponse.ok) throw new Error(`Failed to fetch conversations: ${convoResponse.statusText}`);
+        const convoData: ConversationsResponse = await convoResponse.json();
+        
+        // 3. Deduce the current user's ID
+        const participantCounts: { [id: string]: number } = {};
+        convoData.data
+          .filter(c => c.type === 'direct' && c.participantIDs)
+          .forEach(c => {
+            c.participantIDs!.forEach(id => {
+              participantCounts[id] = (participantCounts[id] || 0) + 1;
+            });
+          });
+        
+        const currentUserId = Object.keys(participantCounts).reduce((a, b) => participantCounts[a] > participantCounts[b] ? a : b, '');
+        
+        if (!currentUserId) {
+            // Fallback if we can't figure out the user
+            setCurrentUser({ id: 'unknown-user', firstName: 'You', lastName: '', avatar: null });
+        } else {
+            setCurrentUser({ id: currentUserId, firstName: 'You', lastName: '', avatar: null });
         }
 
-        const [userResponse, conversationsResponse] = await Promise.all([
-          widgetApi.get<User>(`/api/users/${userId}`),
-          widgetApi.get<ConversationsResponse>(`/api/installations/${installationId}/conversations?archived=false&limit=${conversationlimit || 10}`)
-        ]);
-        
-        setCurrentUser(userResponse);
-        setConversations(conversationsResponse.data);
+        setConversations(convoData.data);
 
       } catch (e: any) {
-        // --- FALLBACK: Call dummy data function on any error ---
         console.error("Failed to load live chat data:", e.message);
         loadDummyData();
       } finally {
@@ -159,18 +166,20 @@ export const ChatWidget = ({ title, conversationlimit, widgetApi }: ChatWidgetPr
     };
 
     fetchData();
-  }, [widgetApi, conversationlimit]);
+  }, [conversationlimit]);
 
-  // Effect to fetch messages (or dummy messages) when a conversation is selected
+  // Effect to fetch messages when a conversation is selected
   useEffect(() => {
     if (!selectedConversation) return;
 
-    // --- FALLBACK: Load dummy messages if the selected conversation is a dummy one ---
-    if (selectedConversation.id === 'convo-1') {
-        setMessages([
-            { id: 'msg-1', senderID: 'user-me', parts: [{ body: 'Hey Alex, can you send me the Q3 report?' }], sender: currentUser!, created: new Date(Date.now() - 60000 * 5).toISOString() },
-            { id: 'msg-2', senderID: 'user-partner', parts: [{ body: 'Sure, I will send it over shortly.' }], sender: selectedConversation.partner!, created: new Date().toISOString() },
-        ].reverse());
+    // --- FALLBACK for dummy messages ---
+    if (selectedConversation.id.startsWith('convo-')) {
+        const dummyMessages = {
+          'convo-1': [{ id: 'msg-1-1', senderID: 'user-me', parts: [{ body: 'Hey Alex, can you send me the Q3 report?' }], sender: currentUser!, created: new Date(Date.now() - 60000 * 5).toISOString() }, { id: 'msg-1-2', senderID: 'user-alex', parts: [{ body: 'Sure, I will send it over shortly.' }], sender: selectedConversation.partner!, created: new Date().toISOString() }],
+          'convo-2': [{ id: 'msg-2-1', senderID: 'user-me', parts: [{ body: 'Thanks for the presentation today!' }], sender: currentUser!, created: new Date(Date.now() - 60000 * 60).toISOString() }],
+        };
+        // @ts-ignore
+        setMessages((dummyMessages[selectedConversation.id] || []).reverse());
         return;
     }
 
@@ -178,16 +187,19 @@ export const ChatWidget = ({ title, conversationlimit, widgetApi }: ChatWidgetPr
       try {
         setLoading(`Loading messages...`);
         setError(null);
-        const response = await widgetApi.get<MessagesResponse>(`/api/conversations/${selectedConversation.id}/messages?limit=50`);
-        setMessages(response.data.reverse());
+        const response = await fetch(`/api/conversations/${selectedConversation.id}/messages?limit=50`);
+        if (!response.ok) throw new Error(`Failed to fetch messages: ${response.statusText}`);
+        const messagesData: MessagesResponse = await response.json();
+        setMessages(messagesData.data.reverse());
       } catch (e: any) {
         setError(`Failed to load messages: ${e.message}`);
       } finally {
         setLoading(null);
       }
     };
+
     fetchMessages();
-  }, [selectedConversation, widgetApi, currentUser]);
+  }, [selectedConversation, currentUser]);
 
   const renderConversationList = () => (
     <section>
@@ -254,7 +266,7 @@ export const ChatWidget = ({ title, conversationlimit, widgetApi }: ChatWidgetPr
     <div style={styles.container}>
       {loading && <div style={styles.centeredMessage}>{loading}</div>}
       {error && <div style={{...styles.centeredMessage, color: '#e53935', padding: '10px'}}>{error}</div>}
-      {!loading && (
+      {!loading && !error && (
         selectedConversation ? renderMessageView() : renderConversationList()
       )}
     </div>
@@ -278,7 +290,7 @@ const styles: { [key: string]: CSSProperties } = {
   convoTimestamp: { fontSize: '12px', color: '#888', flexShrink: 0, marginLeft: '8px' },
   convoBottomRow: { marginTop: '4px' },
   convoLastMessage: { margin: 0, fontSize: '14px', color: '#555', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' },
-  backButton: { background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', padding: '0 8px 0 0' },
+  backButton: { background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', padding: '0 8px 0 0', color: '#007aff' }, // <-- FIXED COLOR
   messagesLog: { flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column-reverse' },
   messageWrapper: { display: 'flex', alignItems: 'flex-end', marginBottom: '12px', maxWidth: '80%' },
   messageAvatar: { width: '32px', height: '32px', borderRadius: '50%', marginRight: '8px', objectFit: 'cover' },
