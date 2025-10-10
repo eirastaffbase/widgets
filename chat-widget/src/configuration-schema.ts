@@ -32,10 +32,9 @@ export const configurationSchema: JSONSchema7 = {
     },
     apitoken: {
       type: "string",
-      title: "API Token",
+      title: "API Token (for sending messages)",
     },
   },
-  required: ["apitoken"],
 };
 
 /**
@@ -50,7 +49,6 @@ export const uiSchema: UiSchema = {
     "ui:help": "The maximum number of recent conversations to display.",
   },
   apitoken: {
-    "ui:widget": "password",
-    "ui:help": "Enter the API token for sending messages. This is required for the widget to function.",
+    "ui:help": "Optional: Enter an API token to enable sending messages. Viewing messages works without a token.",
   },
 };

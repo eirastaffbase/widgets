@@ -111,10 +111,6 @@ export const ChatWidget = ({ title, conversationlimit, apitoken }: ChatWidgetPro
   const fetchDataAttempted = useRef(false);
 
   useEffect(() => {
-    if (!apitoken) {
-      setError("API Token is missing. Please configure the widget.");
-    }
-
     const loadDummyData = () => {
       const dummyUser = { id: 'user-me', firstName: 'You', lastName: '', avatar: null };
       setCurrentUser(dummyUser);
@@ -135,7 +131,6 @@ export const ChatWidget = ({ title, conversationlimit, apitoken }: ChatWidgetPro
       try {
         setLoading('Loading...');
         setError(null);
-        if (!apitoken) throw new Error("API Token is missing. Please configure the widget.");
         
         const installResponse = await fetch('/api/plugins/chat/installations');
         if (!installResponse.ok) throw new Error(`Failed to fetch installations: ${installResponse.statusText}`);
@@ -149,7 +144,6 @@ export const ChatWidget = ({ title, conversationlimit, apitoken }: ChatWidgetPro
         const convoData: ConversationsResponse = await convoResponse.json();
         
         if (!convoData.data || convoData.data.length === 0) {
-          // It's not an error to have no conversations, so just show a message.
           setConversations([]);
           return;
         }
@@ -177,7 +171,7 @@ export const ChatWidget = ({ title, conversationlimit, apitoken }: ChatWidgetPro
 
       } catch (e: any) {
         console.error("Failed to load live chat data:", e.message);
-        setError(`Failed to load data: ${e.message}`);
+        loadDummyData();
       } finally {
         setLoading(null);
       }
@@ -188,7 +182,6 @@ export const ChatWidget = ({ title, conversationlimit, apitoken }: ChatWidgetPro
 
   // Effect to fetch messages when a conversation is selected
   useEffect(() => {
-    // This effect remains unchanged.
     if (!selectedConversation) return;
 
     if (useDummyData) {
@@ -238,7 +231,6 @@ export const ChatWidget = ({ title, conversationlimit, apitoken }: ChatWidgetPro
     const messageToSend = newMessage;
     setNewMessage("");
 
-    // Determine participant IDs for the API call
     const participantIDs = selectedConversation.type === 'direct' && selectedConversation.partner?.id
       ? [selectedConversation.partner.id]
       : selectedConversation.participantIDs?.filter(id => id !== currentUser.id) || [];
@@ -262,13 +254,9 @@ export const ChatWidget = ({ title, conversationlimit, apitoken }: ChatWidgetPro
         throw new Error(errorData.message || 'Failed to send message');
       }
       
-      // Since the API doesn't return the new message object directly,
-      // we can re-fetch messages to get the real one. For now, the optimistic one will show.
-      // To improve, you could replace this with a re-fetch of messages.
       const newConvoState = await response.json();
       console.log('Message sent, new conversation state:', newConvoState);
       
-      // Replace optimistic message with a pseudo-real one for now
       setMessages(prev => prev.map(m => m.id === optimisticMessage.id ? { ...optimisticMessage, id: newConvoState.lastMessage.id || optimisticMessage.id } : m));
 
     } catch (e: any) {
@@ -347,7 +335,7 @@ export const ChatWidget = ({ title, conversationlimit, apitoken }: ChatWidgetPro
             <div style={styles.footer}>
                 <input 
                     type="text" 
-                    placeholder={isMessagingDisabled ? "API token missing in config" : "Type a message..."}
+                    placeholder={isMessagingDisabled ? "API token needed to send messages" : "Type a message..."}
                     style={styles.messageInput} 
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
