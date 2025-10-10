@@ -26,6 +26,7 @@ import pkg from '../package.json'
 const widgetAttributes: string[] = [
   'title',
   'conversationlimit',
+  'apitoken'
 ];
 
 /**
