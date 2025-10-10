@@ -60,7 +60,6 @@ interface MessagesResponse {
   data: Message[];
 }
 
-// MODIFICATION: Debug log entry interface
 interface LogEntry {
   timestamp: string;
   url: string;
@@ -78,7 +77,7 @@ export interface ChatWidgetProps extends BlockAttributes {
   conversationlimit: number;
   apitoken: string;
   widgetApi: WidgetApi;
-  debugmode: boolean; // MODIFICATION: Added debugmode prop
+  debugmode: boolean | string; // Allow string to handle HTML attribute
 }
 
 // **********************************
@@ -108,7 +107,6 @@ const ChatAvatar = ({ conversation }: { conversation: Conversation }) => {
   return <div style={styles.avatarInitials}>{initials}</div>;
 };
 
-// MODIFICATION: Debug view component
 const DebugView = ({ logs }: { logs: LogEntry[] }) => (
   <div style={styles.debugContainer}>
     <h3 style={styles.debugTitle}>🐞 Debug Log</h3>
@@ -125,6 +123,10 @@ const DebugView = ({ logs }: { logs: LogEntry[] }) => (
 // * Main ChatWidget Component
 // **********************************
 export const ChatWidget = ({ title, conversationlimit, apitoken, debugmode }: ChatWidgetProps): ReactElement => {
+  // FIX: Coerce the debugmode attribute to a strict boolean.
+  // HTML attributes pass "false" as a string, which is truthy in JS.
+  const isDebugMode = debugmode === true || debugmode === 'true';
+
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -135,12 +137,11 @@ export const ChatWidget = ({ title, conversationlimit, apitoken, debugmode }: Ch
   const [newMessage, setNewMessage] = useState<string>("");
   const [chatInstallationId, setChatInstallationId] = useState<string | null>(null);
   const fetchDataAttempted = useRef(false);
-  // MODIFICATION: State to hold debug logs
   const [logs, setLogs] = useState<LogEntry[]>([]);
 
-  // MODIFICATION: Wrapper for fetch to automatically log requests and responses in debug mode
   const debugFetch = async (url: string, options?: RequestInit): Promise<Response> => {
-    if (!debugmode) {
+    // FIX: Use the coerced boolean value
+    if (!isDebugMode) {
       return fetch(url, options);
     }
     
@@ -239,7 +240,8 @@ export const ChatWidget = ({ title, conversationlimit, apitoken, debugmode }: Ch
     };
 
     fetchData();
-  }, [conversationlimit, apitoken, debugmode]);
+    // FIX: Use the coerced boolean in the dependency array
+  }, [conversationlimit, apitoken, isDebugMode]);
 
   useEffect(() => {
     if (!selectedConversation) return;
@@ -274,7 +276,8 @@ export const ChatWidget = ({ title, conversationlimit, apitoken, debugmode }: Ch
     };
 
     fetchMessages();
-  }, [selectedConversation, currentUser, useDummyData, debugmode]);
+    // FIX: Use the coerced boolean in the dependency array
+  }, [selectedConversation, currentUser, useDummyData, isDebugMode]);
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation || !currentUser || !chatInstallationId || !apitoken) return;
@@ -433,7 +436,8 @@ export const ChatWidget = ({ title, conversationlimit, apitoken, debugmode }: Ch
   // Main return logic
   return (
     <>
-      {debugmode && <DebugView logs={logs} />}
+      {/* FIX: Use the coerced boolean for conditional rendering */}
+      {isDebugMode && <DebugView logs={logs} />}
       {renderWidgetContent()}
     </>
   );
@@ -443,7 +447,6 @@ export const ChatWidget = ({ title, conversationlimit, apitoken, debugmode }: Ch
 // * Component Styles
 // **********************************
 const styles: { [key: string]: CSSProperties } = {
-  // MODIFICATION: Styles for the debug view
   debugContainer: {
     border: '1px solid #ffb74d',
     backgroundColor: '#fff8e1',
