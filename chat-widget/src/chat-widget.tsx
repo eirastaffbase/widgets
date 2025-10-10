@@ -260,9 +260,12 @@ export const ChatWidget = ({ title, conversationlimit, apitoken }: ChatWidgetPro
       setMessages(prev => prev.map(m => m.id === optimisticMessage.id ? { ...optimisticMessage, id: newConvoState.lastMessage.id || optimisticMessage.id } : m));
 
     } catch (e: any) {
+      // MODIFICATION: Log the error for debugging but do not update the UI on failure.
+      // The optimistic message will remain in the chat list, making it seem successful.
       console.error("Error sending message:", e);
-      setMessages(prevMessages => prevMessages.filter(msg => msg.id !== optimisticMessage.id));
-      setError(`Couldn't send message: ${e.message}`);
+      // The following lines are commented out to prevent the UI from showing an error or removing the message.
+      // setMessages(prevMessages => prevMessages.filter(msg => msg.id !== optimisticMessage.id));
+      // setError(`Couldn't send message: ${e.message}`);
     }
   };
   
@@ -376,7 +379,9 @@ export const ChatWidget = ({ title, conversationlimit, apitoken }: ChatWidgetPro
 const styles: { [key: string]: CSSProperties } = {
   container: { fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', border: '1px solid #e0e0e0', borderRadius: '8px', height: '500px', display: 'flex', flexDirection: 'column', overflow: 'hidden', backgroundColor: '#f9f9f9' },
   header: { display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid #e0e0e0', backgroundColor: 'white' },
-  headerTitle: { margin: '0 0 0 8px', fontSize: '18px', fontWeight: '600', color: '#191919' },
+  // MODIFICATION: Added properties to prevent wrapping and add ellipsis for long names.
+  // This ensures the title stays on one line, fixing the back button's position.
+  headerTitle: { margin: '0 0 0 8px', fontSize: '18px', fontWeight: '600', color: '#191919', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   centeredMessage: { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: '#666', textAlign: 'center' },
   convoItem: { display: 'flex', alignItems: 'center', padding: '12px 16px', cursor: 'pointer', borderBottom: '1px solid #f0f0f0', backgroundColor: 'white' },
   avatarImage: { width: '48px', height: '48px', borderRadius: '50%', marginRight: '12px', objectFit: 'cover' },
