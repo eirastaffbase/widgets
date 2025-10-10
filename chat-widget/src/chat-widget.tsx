@@ -60,7 +60,17 @@ interface MessagesResponse {
   data: Message[];
 }
 
-// MODIFICATION: Hardcoded base URL for API calls for demo purposes.
+// MODIFICATION: Debug log entry interface
+interface LogEntry {
+  timestamp: string;
+  url: string;
+  method: string;
+  payload?: any;
+  response: any;
+  status: number;
+  ok: boolean;
+}
+
 const API_BASE_URL = 'https://app.staffbase.com';
 
 export interface ChatWidgetProps extends BlockAttributes {
@@ -68,6 +78,7 @@ export interface ChatWidgetProps extends BlockAttributes {
   conversationlimit: number;
   apitoken: string;
   widgetApi: WidgetApi;
+  debugmode: boolean; // MODIFICATION: Added debugmode prop
 }
 
 // **********************************
@@ -97,11 +108,23 @@ const ChatAvatar = ({ conversation }: { conversation: Conversation }) => {
   return <div style={styles.avatarInitials}>{initials}</div>;
 };
 
+// MODIFICATION: Debug view component
+const DebugView = ({ logs }: { logs: LogEntry[] }) => (
+  <div style={styles.debugContainer}>
+    <h3 style={styles.debugTitle}>🐞 Debug Log</h3>
+    <pre style={styles.debugPre}>
+      {logs.length > 0
+        ? JSON.stringify(logs, null, 2)
+        : "No requests logged yet. API calls will appear here."}
+    </pre>
+  </div>
+);
+
 
 // **********************************
 // * Main ChatWidget Component
 // **********************************
-export const ChatWidget = ({ title, conversationlimit, apitoken }: ChatWidgetProps): ReactElement => {
+export const ChatWidget = ({ title, conversationlimit, apitoken, debugmode }: ChatWidgetProps): ReactElement => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -112,6 +135,41 @@ export const ChatWidget = ({ title, conversationlimit, apitoken }: ChatWidgetPro
   const [newMessage, setNewMessage] = useState<string>("");
   const [chatInstallationId, setChatInstallationId] = useState<string | null>(null);
   const fetchDataAttempted = useRef(false);
+  // MODIFICATION: State to hold debug logs
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+
+  // MODIFICATION: Wrapper for fetch to automatically log requests and responses in debug mode
+  const debugFetch = async (url: string, options?: RequestInit): Promise<Response> => {
+    if (!debugmode) {
+      return fetch(url, options);
+    }
+    
+    const addLog = (logData: Omit<LogEntry, 'timestamp'>) => {
+        setLogs(prev => [{ ...logData, timestamp: new Date().toISOString() }, ...prev]);
+    };
+
+    let payload;
+    try {
+      if (options?.body) {
+        payload = JSON.parse(options.body as string);
+      }
+    } catch (e) {
+      payload = "Could not parse request body";
+    }
+
+    try {
+      const response = await fetch(url, options);
+      const responseClone = response.clone();
+      const responseData = await responseClone.json().catch(() => 'Could not parse JSON response');
+
+      addLog({ url, method: options?.method || 'GET', payload, response: responseData, status: response.status, ok: response.ok });
+      return response;
+    } catch (error: any) {
+      addLog({ url, method: options?.method || 'GET', payload, response: { error: error.message }, status: 0, ok: false });
+      throw error;
+    }
+  };
+
 
   useEffect(() => {
     const loadDummyData = () => {
@@ -135,16 +193,14 @@ export const ChatWidget = ({ title, conversationlimit, apitoken }: ChatWidgetPro
         setLoading('Loading...');
         setError(null);
         
-        // MODIFICATION: Using the hardcoded base URL
-        const installResponse = await fetch(`${API_BASE_URL}/api/plugins/chat/installations`);
+        const installResponse = await debugFetch(`${API_BASE_URL}/api/plugins/chat/installations`);
         if (!installResponse.ok) throw new Error(`Failed to fetch installations: ${installResponse.statusText}`);
         const installData: InstallationsResponse = await installResponse.json();
         const foundChatId = installData.data[0]?.id;
         if (!foundChatId) throw new Error("Chat plugin installation not found.");
         setChatInstallationId(foundChatId);
 
-        // MODIFICATION: Using the hardcoded base URL
-        const convoResponse = await fetch(`${API_BASE_URL}/api/installations/${foundChatId}/conversations?archived=false&limit=${conversationlimit || 10}`);
+        const convoResponse = await debugFetch(`${API_BASE_URL}/api/installations/${foundChatId}/conversations?archived=false&limit=${conversationlimit || 10}`);
         if (!convoResponse.ok) throw new Error(`Failed to fetch conversations: ${convoResponse.statusText}`);
         const convoData: ConversationsResponse = await convoResponse.json();
         
@@ -183,9 +239,8 @@ export const ChatWidget = ({ title, conversationlimit, apitoken }: ChatWidgetPro
     };
 
     fetchData();
-  }, [conversationlimit, apitoken]);
+  }, [conversationlimit, apitoken, debugmode]);
 
-  // Effect to fetch messages when a conversation is selected
   useEffect(() => {
     if (!selectedConversation) return;
 
@@ -206,8 +261,7 @@ export const ChatWidget = ({ title, conversationlimit, apitoken }: ChatWidgetPro
       try {
         setLoading(`Loading messages...`);
         setError(null);
-        // MODIFICATION: Using the hardcoded base URL
-        const response = await fetch(`${API_BASE_URL}/api/conversations/${selectedConversation.id}/messages?limit=50`);
+        const response = await debugFetch(`${API_BASE_URL}/api/conversations/${selectedConversation.id}/messages?limit=50`);
         if (!response.ok) throw new Error(`Failed to fetch messages: ${response.statusText}`);
         const messagesData: MessagesResponse = await response.json();
         setMessages(messagesData.data);
@@ -220,7 +274,7 @@ export const ChatWidget = ({ title, conversationlimit, apitoken }: ChatWidgetPro
     };
 
     fetchMessages();
-  }, [selectedConversation, currentUser, useDummyData]);
+  }, [selectedConversation, currentUser, useDummyData, debugmode]);
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation || !currentUser || !chatInstallationId || !apitoken) return;
@@ -241,19 +295,20 @@ export const ChatWidget = ({ title, conversationlimit, apitoken }: ChatWidgetPro
       ? [selectedConversation.partner.id]
       : selectedConversation.participantIDs?.filter(id => id !== currentUser.id) || [];
 
+    const payload = {
+      message: messageToSend.trim(),
+      participantIDs: participantIDs,
+      type: selectedConversation.type,
+    };
+
     try {
-      // MODIFICATION: Using the hardcoded base URL
-      const response = await fetch(`${API_BASE_URL}/api/installations/${chatInstallationId}/conversations`, {
+      const response = await debugFetch(`${API_BASE_URL}/api/installations/${chatInstallationId}/conversations`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Basic ${apitoken}`,
         },
-        body: JSON.stringify({
-          message: messageToSend.trim(),
-          participantIDs: participantIDs,
-          type: selectedConversation.type,
-        }),
+        body: JSON.stringify(payload),
       });
   
       if (!response.ok) {
@@ -359,21 +414,28 @@ export const ChatWidget = ({ title, conversationlimit, apitoken }: ChatWidgetPro
     );
   }
 
-  // Main return logic
-  if (loading) {
-    return <div style={styles.centeredMessage}>{loading}</div>;
-  }
-  
-  // MODIFICATION: Only show a full-screen error if we are NOT falling back to dummy data.
-  // This allows the dummy data to be displayed when the API call fails.
-  if (error && !useDummyData) {
-    return <div style={{...styles.centeredMessage, color: '#e53935', padding: '10px'}}>{error}</div>;
+  const renderWidgetContent = () => {
+      if (loading) {
+        return <div style={styles.centeredMessage}>{loading}</div>;
+      }
+      
+      if (error && !useDummyData) {
+        return <div style={{...styles.centeredMessage, color: '#e53935', padding: '10px'}}>{error}</div>;
+      }
+
+      return (
+        <div style={styles.container}>
+          {selectedConversation ? renderMessageView() : renderConversationList()}
+        </div>
+      );
   }
 
+  // Main return logic
   return (
-    <div style={styles.container}>
-      {selectedConversation ? renderMessageView() : renderConversationList()}
-    </div>
+    <>
+      {debugmode && <DebugView logs={logs} />}
+      {renderWidgetContent()}
+    </>
   );
 };
 
@@ -381,6 +443,30 @@ export const ChatWidget = ({ title, conversationlimit, apitoken }: ChatWidgetPro
 // * Component Styles
 // **********************************
 const styles: { [key: string]: CSSProperties } = {
+  // MODIFICATION: Styles for the debug view
+  debugContainer: {
+    border: '1px solid #ffb74d',
+    backgroundColor: '#fff8e1',
+    borderRadius: '8px',
+    margin: '0 0 16px 0',
+    padding: '8px 16px',
+    maxHeight: '200px',
+    overflowY: 'auto',
+  },
+  debugTitle: {
+    marginTop: '0',
+    marginBottom: '8px',
+    color: '#bf360c',
+    fontSize: '16px',
+  },
+  debugPre: {
+    margin: 0,
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-all',
+    fontSize: '12px',
+    color: '#424242',
+  },
+  
   container: { fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', border: '1px solid #e0e0e0', borderRadius: '8px', height: '500px', display: 'flex', flexDirection: 'column', overflow: 'hidden', backgroundColor: '#f9f9f9' },
   header: { display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid #e0e0e0', backgroundColor: 'white' },
   headerTitle: { margin: '0 0 0 8px', fontSize: '18px', fontWeight: '600', color: '#191919', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },

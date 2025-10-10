@@ -34,6 +34,12 @@ export const configurationSchema: JSONSchema7 = {
       type: "string",
       title: "API Token (for sending messages)",
     },
+    // MODIFICATION: Added debug mode switch
+    debugmode: {
+      type: "boolean",
+      title: "Enable Debug Mode",
+      default: false,
+    },
   },
 };
 
@@ -50,5 +56,9 @@ export const uiSchema: UiSchema = {
   },
   apitoken: {
     "ui:help": "Optional: Enter an API token to enable sending messages. Viewing messages works without a token.",
+  },
+  // MODIFICATION: Added help text for the debug mode switch
+  debugmode: {
+    "ui:help": "If enabled, shows API request and response information above the widget for troubleshooting.",
   },
 };
