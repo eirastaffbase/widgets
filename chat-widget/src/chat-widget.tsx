@@ -105,6 +105,7 @@ export const ChatWidget = ({ title, conversationlimit }: ChatWidgetProps): React
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [useDummyData, setUseDummyData] = useState<boolean>(false);
+  const [newMessage, setNewMessage] = useState<string>("");
   const fetchDataAttempted = useRef(false);
 
   useEffect(() => {
@@ -181,11 +182,14 @@ export const ChatWidget = ({ title, conversationlimit }: ChatWidgetProps): React
 
     if (useDummyData) {
         const dummyMessages = {
-          'convo-1': [{ id: 'msg-1-1', senderID: 'user-me', parts: [{ body: 'Hey Alex, can you send me the Q3 report?' }], sender: currentUser!, created: new Date(Date.now() - 60000 * 5).toISOString() }, { id: 'msg-1-2', senderID: 'user-alex', parts: [{ body: 'Sure, I will send it over shortly.' }], sender: selectedConversation.partner!, created: new Date().toISOString() }],
+          'convo-1': [
+            { id: 'msg-1-2', senderID: 'user-alex', parts: [{ body: 'Sure, I will send it over shortly.' }], sender: selectedConversation.partner!, created: new Date().toISOString() }, 
+            { id: 'msg-1-1', senderID: 'user-me', parts: [{ body: 'Hey Alex, can you send me the Q3 report?' }], sender: currentUser!, created: new Date(Date.now() - 60000 * 5).toISOString() }
+          ],
           'convo-2': [{ id: 'msg-2-1', senderID: 'user-me', parts: [{ body: 'Thanks for the presentation today!' }], sender: currentUser!, created: new Date(Date.now() - 60000 * 60).toISOString() }],
         };
         // @ts-ignore
-        setMessages((dummyMessages[selectedConversation.id] || []).reverse());
+        setMessages(dummyMessages[selectedConversation.id] || []);
         return;
     }
 
@@ -196,7 +200,7 @@ export const ChatWidget = ({ title, conversationlimit }: ChatWidgetProps): React
         const response = await fetch(`/api/conversations/${selectedConversation.id}/messages?limit=50`);
         if (!response.ok) throw new Error(`Failed to fetch messages: ${response.statusText}`);
         const messagesData: MessagesResponse = await response.json();
-        setMessages(messagesData.data.reverse());
+        setMessages(messagesData.data);
       } catch (e: any) {
         setError(`Failed to load messages: ${e.message}`);
         setMessages([]);
@@ -208,9 +212,52 @@ export const ChatWidget = ({ title, conversationlimit }: ChatWidgetProps): React
     fetchMessages();
   }, [selectedConversation, currentUser, useDummyData]);
 
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedConversation || !currentUser) return;
+  
+    const optimisticMessage: Message = {
+      id: `temp-${Date.now()}`,
+      senderID: currentUser.id,
+      parts: [{ body: newMessage.trim() }],
+      sender: currentUser,
+      created: new Date().toISOString(),
+    };
+  
+    setMessages(prevMessages => [optimisticMessage, ...prevMessages]);
+    const messageToSend = newMessage;
+    setNewMessage("");
+  
+    try {
+      const response = await fetch(`/api/conversations/${selectedConversation.id}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: messageToSend.trim() }),
+      });
+  
+      const sentMessage: Message = await response.json();
+  
+      if (!response.ok) {
+        throw new Error('Failed to send message');
+      }
+  
+      setMessages(prevMessages =>
+        prevMessages.map(msg => (msg.id === optimisticMessage.id ? sentMessage : msg))
+      );
+    } catch (e) {
+      console.error("Error sending message:", e);
+      setMessages(prevMessages => prevMessages.filter(msg => msg.id !== optimisticMessage.id));
+      setError("Couldn't send message. Please try again.");
+    }
+  };
+  
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      handleSendMessage();
+    }
+  };
+
   const renderConversationList = () => {
-    // FIX: Don't render anything if conversations are loaded but there's no data to show.
-    // This handles the blank screen state. The `loading || !currentUser` check in the main return handles the initial load.
     if (!useDummyData && conversations.length === 0) {
       return <div style={styles.centeredMessage}>No conversations found.</div>;
     }
@@ -262,7 +309,7 @@ export const ChatWidget = ({ title, conversationlimit }: ChatWidgetProps): React
                             {!isCurrentUser && msg.sender?.avatar?.icon?.url && <img src={msg.sender.avatar.icon.url} style={styles.messageAvatar} alt={msg.sender.firstName}/>}
                             <div style={{ ...styles.messageBubble, ...(isCurrentUser ? styles.currentUserBubble : styles.otherUserBubble) }}>
                                 {!isCurrentUser && <b style={styles.senderName}>{msg.sender.firstName}</b>}
-                                <p style={{margin: 0}}>{msg.parts[0]?.body}</p>
+                                <p style={{margin: 0, color: 'inherit', whiteSpace: 'pre-wrap', wordBreak: 'break-word'}}>{msg.parts[0]?.body}</p>
                                 <span style={styles.messageTimestamp}>{formatDate(msg.created)}</span>
                             </div>
                         </div>
@@ -270,8 +317,21 @@ export const ChatWidget = ({ title, conversationlimit }: ChatWidgetProps): React
                 })}
             </div>
             <div style={styles.footer}>
-                <input type="text" placeholder="Messaging not available in widget" style={styles.messageInput} disabled />
-                <button style={styles.sendButton} disabled>➤</button>
+                <input 
+                    type="text" 
+                    placeholder="Type a message..." 
+                    style={styles.messageInput} 
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                />
+                <button 
+                    style={styles.sendButton}
+                    onClick={handleSendMessage}
+                    disabled={!newMessage.trim()}
+                >
+                    ➤
+                </button>
             </div>
         </section>
     );
