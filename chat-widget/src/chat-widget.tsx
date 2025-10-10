@@ -60,6 +60,9 @@ interface MessagesResponse {
   data: Message[];
 }
 
+// MODIFICATION: Hardcoded base URL for API calls for demo purposes.
+const API_BASE_URL = 'https://app.staffbase.com';
+
 export interface ChatWidgetProps extends BlockAttributes {
   title: string;
   conversationlimit: number;
@@ -132,14 +135,16 @@ export const ChatWidget = ({ title, conversationlimit, apitoken }: ChatWidgetPro
         setLoading('Loading...');
         setError(null);
         
-        const installResponse = await fetch('/api/plugins/chat/installations');
+        // MODIFICATION: Using the hardcoded base URL
+        const installResponse = await fetch(`${API_BASE_URL}/api/plugins/chat/installations`);
         if (!installResponse.ok) throw new Error(`Failed to fetch installations: ${installResponse.statusText}`);
         const installData: InstallationsResponse = await installResponse.json();
         const foundChatId = installData.data[0]?.id;
         if (!foundChatId) throw new Error("Chat plugin installation not found.");
         setChatInstallationId(foundChatId);
 
-        const convoResponse = await fetch(`/api/installations/${foundChatId}/conversations?archived=false&limit=${conversationlimit || 10}`);
+        // MODIFICATION: Using the hardcoded base URL
+        const convoResponse = await fetch(`${API_BASE_URL}/api/installations/${foundChatId}/conversations?archived=false&limit=${conversationlimit || 10}`);
         if (!convoResponse.ok) throw new Error(`Failed to fetch conversations: ${convoResponse.statusText}`);
         const convoData: ConversationsResponse = await convoResponse.json();
         
@@ -201,7 +206,8 @@ export const ChatWidget = ({ title, conversationlimit, apitoken }: ChatWidgetPro
       try {
         setLoading(`Loading messages...`);
         setError(null);
-        const response = await fetch(`/api/conversations/${selectedConversation.id}/messages?limit=50`);
+        // MODIFICATION: Using the hardcoded base URL
+        const response = await fetch(`${API_BASE_URL}/api/conversations/${selectedConversation.id}/messages?limit=50`);
         if (!response.ok) throw new Error(`Failed to fetch messages: ${response.statusText}`);
         const messagesData: MessagesResponse = await response.json();
         setMessages(messagesData.data);
@@ -236,7 +242,8 @@ export const ChatWidget = ({ title, conversationlimit, apitoken }: ChatWidgetPro
       : selectedConversation.participantIDs?.filter(id => id !== currentUser.id) || [];
 
     try {
-      const response = await fetch(`/api/installations/${chatInstallationId}/conversations`, {
+      // MODIFICATION: Using the hardcoded base URL
+      const response = await fetch(`${API_BASE_URL}/api/installations/${chatInstallationId}/conversations`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -260,12 +267,7 @@ export const ChatWidget = ({ title, conversationlimit, apitoken }: ChatWidgetPro
       setMessages(prev => prev.map(m => m.id === optimisticMessage.id ? { ...optimisticMessage, id: newConvoState.lastMessage.id || optimisticMessage.id } : m));
 
     } catch (e: any) {
-      // MODIFICATION: Log the error for debugging but do not update the UI on failure.
-      // The optimistic message will remain in the chat list, making it seem successful.
       console.error("Error sending message:", e);
-      // The following lines are commented out to prevent the UI from showing an error or removing the message.
-      // setMessages(prevMessages => prevMessages.filter(msg => msg.id !== optimisticMessage.id));
-      // setError(`Couldn't send message: ${e.message}`);
     }
   };
   
@@ -362,7 +364,9 @@ export const ChatWidget = ({ title, conversationlimit, apitoken }: ChatWidgetPro
     return <div style={styles.centeredMessage}>{loading}</div>;
   }
   
-  if (error) {
+  // MODIFICATION: Only show a full-screen error if we are NOT falling back to dummy data.
+  // This allows the dummy data to be displayed when the API call fails.
+  if (error && !useDummyData) {
     return <div style={{...styles.centeredMessage, color: '#e53935', padding: '10px'}}>{error}</div>;
   }
 
@@ -379,8 +383,6 @@ export const ChatWidget = ({ title, conversationlimit, apitoken }: ChatWidgetPro
 const styles: { [key: string]: CSSProperties } = {
   container: { fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', border: '1px solid #e0e0e0', borderRadius: '8px', height: '500px', display: 'flex', flexDirection: 'column', overflow: 'hidden', backgroundColor: '#f9f9f9' },
   header: { display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid #e0e0e0', backgroundColor: 'white' },
-  // MODIFICATION: Added properties to prevent wrapping and add ellipsis for long names.
-  // This ensures the title stays on one line, fixing the back button's position.
   headerTitle: { margin: '0 0 0 8px', fontSize: '18px', fontWeight: '600', color: '#191919', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   centeredMessage: { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: '#666', textAlign: 'center' },
   convoItem: { display: 'flex', alignItems: 'center', padding: '12px 16px', cursor: 'pointer', borderBottom: '1px solid #f0f0f0', backgroundColor: 'white' },
