@@ -102,18 +102,17 @@ const ChatAvatar = ({ conversation }: { conversation: Conversation }) => {
   
   if (conversation.type === 'group') {
       return (
-        <span
-          // @ts-ignore - size is a non-standard attribute required by the icon system
-          size="48"
-          data-testid="avatar-group"
-          className="we-icon et74wq91 css-1phgycb-IconStyled-IconBase-baseAvatarStyles-IconWrap e19il6tt0"
-          aria-hidden={true}
-          // The marginRight is preserved from the original styles to ensure layout consistency.
-          // The icon's classes should handle the rest of the styling (size, color, etc.).
-          style={{ marginRight: '12px' }}
-        >
-          g
-        </span>
+        <div style={styles.groupAvatarContainer}>
+          <span
+            // @ts-ignore - size is a non-standard attribute required by the icon system
+            size="48"
+            data-testid="avatar-group"
+            className="we-icon et74wq91 css-1phgycb-IconStyled-IconBase-baseAvatarStyles-IconWrap e19il6tt0"
+            aria-hidden={true}
+          >
+            g
+          </span>
+        </div>
       );
   }
   
@@ -586,6 +585,17 @@ const styles: { [key: string]: CSSProperties } = {
   convoItem: { display: 'flex', alignItems: 'center', padding: '12px 16px', cursor: 'pointer', borderBottom: '1px solid #f0f0f0', backgroundColor: 'white' },
   avatarImage: { width: '48px', height: '48px', borderRadius: '50%', marginRight: '12px', objectFit: 'cover' },
   avatarInitials: { width: '48px', height: '48px', borderRadius: '50%', marginRight: '12px', backgroundColor: '#e0e0e0', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', color: '#555' },
+  groupAvatarContainer: {
+    width: '48px',
+    height: '48px',
+    borderRadius: '50%',
+    marginRight: '12px',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'var(--sb-background-header-appintranet, lightgrey)',
+    color: 'var(--sb-text-header-appintranet, black)',
+  },
   convoDetails: { flex: 1, overflow: 'hidden' },
   convoTopRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   convoTitle: { fontWeight: '600', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden', color: '#191919' },
