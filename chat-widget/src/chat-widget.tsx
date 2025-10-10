@@ -101,7 +101,20 @@ const ChatAvatar = ({ conversation }: { conversation: Conversation }) => {
   }
   
   if (conversation.type === 'group') {
-      return <div style={styles.avatarInitials}>👥</div>
+      return (
+        <span
+          // @ts-ignore - size is a non-standard attribute required by the icon system
+          size="48"
+          data-testid="avatar-group"
+          className="we-icon et74wq91 css-1phgycb-IconStyled-IconBase-baseAvatarStyles-IconWrap e19il6tt0"
+          aria-hidden={true}
+          // The marginRight is preserved from the original styles to ensure layout consistency.
+          // The icon's classes should handle the rest of the styling (size, color, etc.).
+          style={{ marginRight: '12px' }}
+        >
+          g
+        </span>
+      );
   }
   
   return <div style={styles.avatarInitials}>{initials}</div>;
@@ -174,15 +187,82 @@ export const ChatWidget = ({ title, conversationlimit, apitoken, debugmode }: Ch
 
   useEffect(() => {
     const loadDummyData = () => {
-      const dummyUser = { id: 'user-me', firstName: 'You', lastName: '', avatar: null };
+      // This data is modeled after the API response provided.
+      // The user viewing the widget is Nicole Adams (ID 67db0d546f71c1262a47fe07).
+      const dummyUser: User = {
+        id: '67db0d546f71c1262a47fe07',
+        firstName: 'You',
+        lastName: '',
+        avatar: { icon: { url: "https://app.staffbase.com/api/media/secure/external/v2/image/upload/c_crop,w_355,h_355,x_35/c_fill,w_48,h_48/67db0d556f71c1262a47fe18.png" } }
+      };
+      
+      const nicoleAdamsSender = {
+          id: "67db0d546f71c1262a47fe07",
+          firstName: "Nicole",
+          lastName: "Adams",
+          avatar: { icon: { url: "https://app.staffbase.com/api/media/secure/external/v2/image/upload/c_crop,w_355,h_355,x_35/c_fill,w_48,h_48/67db0d556f71c1262a47fe18.png" } }
+      };
+      
+      const patrickAnderson: User = {
+          id: "67db0d54cf14a943ab2300fd",
+          firstName: "Patrick",
+          lastName: "Anderson",
+          avatar: { icon: { url: "https://app.staffbase.com/api/media/secure/external/v2/image/upload/c_crop,w_416,h_416,x_50/c_fill,w_48,h_48/67db0d56c8328b7c73d37c48.png" } }
+      };
+
+      const henryFitz: User = {
+          id: "67db0d568422de3bf0be6a0e",
+          firstName: "Henry",
+          lastName: "Fitz",
+          avatar: { icon: { url: "https://app.staffbase.com/api/media/secure/external/v2/image/upload/c_thumb,g_face,h_48,w_48/67db0d5819a0bc7adab4c6ee.jpg" } }
+      };
+
       setCurrentUser(dummyUser);
       setConversations([
-        { id: 'convo-1', type: 'direct', meta: { title: 'Alex Weber' }, partner: { id: 'user-alex', firstName: 'Alex', lastName: 'Weber', avatar: { icon: { url: 'https://i.pravatar.cc/150?u=alexweber' } } }, lastMessage: { id: 'msg-1-2', senderID: 'user-alex', parts: [{ body: 'Sure, I will send it over shortly.' }], sender: { id: 'user-alex', firstName: 'Alex', lastName: 'Weber', avatar: null }, created: new Date().toISOString(), } },
-        { id: 'convo-2', type: 'direct', meta: { title: 'Maria Garcia' }, partner: { id: 'user-maria', firstName: 'Maria', lastName: 'Garcia', avatar: { icon: { url: 'https://i.pravatar.cc/150?u=mariagarcia' } } }, lastMessage: { id: 'msg-2-1', senderID: 'user-me', parts: [{ body: 'Thanks for the presentation today!' }], sender: dummyUser, created: new Date(Date.now() - 60000 * 60).toISOString(), } },
-        { id: 'convo-3', type: 'group', meta: { title: 'Project Phoenix' }, lastMessage: { id: 'msg-3-1', senderID: 'user-sam', parts: [{ body: 'Can someone approve my PR?' }], sender: { id: 'user-sam', firstName: 'Sam', lastName: 'Jones', avatar: null }, created: new Date(Date.now() - 60000 * 120).toISOString(), } },
-        { id: 'convo-4', type: 'direct', meta: { title: 'IT Support' }, partner: { id: 'user-it', firstName: 'IT', lastName: 'Support', avatar: { icon: { url: 'https://i.pravatar.cc/150?u=itsupport' } } }, lastMessage: { id: 'msg-4-1', senderID: 'user-it', parts: [{ body: 'Your ticket has been resolved.' }], sender: { id: 'user-it', firstName: 'IT', lastName: 'Support', avatar: null }, created: new Date(Date.now() - 60000 * 180).toISOString(), } },
+        {
+          id: "68d17acea93dbb47bb2faa40", // Mohammed, Maria
+          type: 'group',
+          meta: { title: "Mohammed, Maria" },
+          lastMessage: {
+            id: "68d17ad333439d03f7c68753", senderID: nicoleAdamsSender.id, parts: [{ body: "Hello!" }], sender: nicoleAdamsSender, created: "2025-09-22T16:35:31.065Z"
+          }
+        },
+        {
+          id: "68d17a58d47b5b43a83ae926", // Operations #574
+          type: 'group',
+          meta: { title: "Operations #574" },
+          lastMessage: {
+            id: "68d17aa8d47b5b43a83aecee", senderID: nicoleAdamsSender.id, parts: [{ body: "Hi everyone! Welcome to Flight A243 :)" }], sender: nicoleAdamsSender, created: "2025-09-22T16:34:48.775Z"
+          }
+        },
+        {
+          id: "681cff0808817a06dcab4e7c", // Patrick Anderson
+          type: 'direct',
+          meta: { title: "Patrick Anderson", image: { icon: { url: patrickAnderson.avatar!.icon.url } } },
+          partner: patrickAnderson,
+          lastMessage: {
+            id: "681cff0808817a06dcab4e7d", senderID: nicoleAdamsSender.id, parts: [{ body: "I need hardhats!" }], sender: nicoleAdamsSender, created: "2025-05-08T18:59:20.400Z"
+          }
+        },
+        {
+          id: "67fe89ffe6ffb4345ba56fe1", // Patrick, Maria
+          type: 'group',
+          meta: { title: "Patrick, Maria" },
+          lastMessage: {
+            id: "67fe8a062aa1c40cd2a828e9", senderID: nicoleAdamsSender.id, parts: [{ body: "Looking forward to the team meeting!" }], sender: nicoleAdamsSender, created: "2025-04-15T16:32:06.347Z"
+          }
+        },
+        {
+          id: "67f97347cf03e26581dc97de", // Henry Fitz
+          type: 'direct',
+          meta: { title: "Henry Fitz", image: { icon: { url: henryFitz.avatar!.icon.url } } },
+          partner: henryFitz,
+          lastMessage: {
+            id: "67f97347cf03e26581dc97df", senderID: nicoleAdamsSender.id, parts: [{ body: "Hey Henry, great to connect!" }], sender: nicoleAdamsSender, created: "2025-04-11T19:53:43.394Z"
+          }
+        }
       ]);
-      setError("Displaying sample content.");
+      setError("Displaying sample content based on API.");
       setUseDummyData(true);
     };
 
@@ -247,14 +327,43 @@ export const ChatWidget = ({ title, conversationlimit, apitoken, debugmode }: Ch
     if (!selectedConversation) return;
 
     if (useDummyData) {
-        const dummyMessages = {
-          'convo-1': [
-            { id: 'msg-1-2', senderID: 'user-alex', parts: [{ body: 'Sure, I will send it over shortly.' }], sender: selectedConversation.partner!, created: new Date().toISOString() }, 
-            { id: 'msg-1-1', senderID: 'user-me', parts: [{ body: 'Hey Alex, can you send me the Q3 report?' }], sender: currentUser!, created: new Date(Date.now() - 60000 * 5).toISOString() }
-          ],
-          'convo-2': [{ id: 'msg-2-1', senderID: 'user-me', parts: [{ body: 'Thanks for the presentation today!' }], sender: currentUser!, created: new Date(Date.now() - 60000 * 60).toISOString() }],
+        // Dummy messages based on the provided API responses
+        const nicoleAdamsSender: User = {
+          id: "67db0d546f71c1262a47fe07",
+          firstName: "Nicole",
+          lastName: "Adams",
+          avatar: { icon: { url: "https://app.staffbase.com/api/media/secure/external/v2/image/upload/c_crop,w_355,h_355,x_35/c_fill,w_48,h_48/67db0d556f71c1262a47fe18.png" } }
         };
-        // @ts-ignore
+
+        const patrickAnderson: User = {
+          id: "67db0d54cf14a943ab2300fd",
+          firstName: "Patrick",
+          lastName: "Anderson",
+          avatar: { icon: { url: "https://app.staffbase.com/api/media/secure/external/v2/image/upload/c_crop,w_416,h_416,x_50/c_fill,w_48,h_48/67db0d56c8328b7c73d37c48.png" } }
+        };
+        
+        // A hypothetical user for replies in group chats
+        const mariaGarcia: User = {
+            id: 'user-maria-hypothetical',
+            firstName: 'Maria',
+            lastName: 'Garcia',
+            avatar: { icon: { url: 'https://i.pravatar.cc/150?u=mariagarcia' } }
+        };
+
+        const dummyMessages: { [key: string]: Message[] } = {
+          '68d17a58d47b5b43a83ae926': [ // Operations #574
+            { id: 'msg-ops-2', senderID: mariaGarcia.id, parts: [{ body: 'Thanks, Nicole! Glad to be here.' }], sender: mariaGarcia, created: new Date(Date.parse("2025-09-22T16:35:10.000Z")).toISOString() },
+            { id: '68d17aa8d47b5b43a83aecee', senderID: nicoleAdamsSender.id, parts: [{ body: 'Hi everyone! Welcome to Flight A243 :)' }], sender: nicoleAdamsSender, created: "2025-09-22T16:34:48.775Z" }
+          ],
+          '681cff0808817a06dcab4e7c': [ // Patrick Anderson
+            { id: 'msg-pa-2', senderID: patrickAnderson.id, parts: [{ body: 'On it. Which site needs them?' }], sender: patrickAnderson, created: new Date(Date.parse("2025-05-08T19:00:00.000Z")).toISOString() },
+            { id: '681cff0808817a06dcab4e7d', senderID: nicoleAdamsSender.id, parts: [{ body: 'I need hardhats!' }], sender: nicoleAdamsSender, created: "2025-05-08T18:59:20.400Z" }
+          ],
+          '68d17acea93dbb47bb2faa40': [ // Mohammed, Maria
+            { id: '68d17ad333439d03f7c68753', senderID: nicoleAdamsSender.id, parts: [{ body: 'Hello!' }], sender: nicoleAdamsSender, created: "2025-09-22T16:35:31.065Z" }
+          ],
+        };
+
         setMessages(dummyMessages[selectedConversation.id] || []);
         return;
     }
