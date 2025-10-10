@@ -30,7 +30,12 @@ export const configurationSchema: JSONSchema7 = {
       title: "Conversation Limit",
       default: 10,
     },
+    apitoken: {
+      type: "string",
+      title: "API Token",
+    },
   },
+  required: ["apitoken"],
 };
 
 /**
@@ -43,5 +48,9 @@ export const uiSchema: UiSchema = {
   },
   conversationlimit: {
     "ui:help": "The maximum number of recent conversations to display.",
+  },
+  apitoken: {
+    "ui:widget": "password",
+    "ui:help": "Enter the API token for sending messages. This is required for the widget to function.",
   },
 };

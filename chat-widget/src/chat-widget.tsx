@@ -2,7 +2,7 @@
  * Copyright 2024, Staffbase GmbH and contributors.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
- * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  * http://www.apache.org/licenses/LICENSE-2.0
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -63,6 +63,7 @@ interface MessagesResponse {
 export interface ChatWidgetProps extends BlockAttributes {
   title: string;
   conversationlimit: number;
+  apitoken: string;
   widgetApi: WidgetApi;
 }
 
@@ -97,7 +98,7 @@ const ChatAvatar = ({ conversation }: { conversation: Conversation }) => {
 // **********************************
 // * Main ChatWidget Component
 // **********************************
-export const ChatWidget = ({ title, conversationlimit }: ChatWidgetProps): ReactElement => {
+export const ChatWidget = ({ title, conversationlimit, apitoken }: ChatWidgetProps): ReactElement => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -106,9 +107,14 @@ export const ChatWidget = ({ title, conversationlimit }: ChatWidgetProps): React
   const [error, setError] = useState<string | null>(null);
   const [useDummyData, setUseDummyData] = useState<boolean>(false);
   const [newMessage, setNewMessage] = useState<string>("");
+  const [chatInstallationId, setChatInstallationId] = useState<string | null>(null);
   const fetchDataAttempted = useRef(false);
 
   useEffect(() => {
+    if (!apitoken) {
+      setError("API Token is missing. Please configure the widget.");
+    }
+
     const loadDummyData = () => {
       const dummyUser = { id: 'user-me', firstName: 'You', lastName: '', avatar: null };
       setCurrentUser(dummyUser);
@@ -129,19 +135,23 @@ export const ChatWidget = ({ title, conversationlimit }: ChatWidgetProps): React
       try {
         setLoading('Loading...');
         setError(null);
+        if (!apitoken) throw new Error("API Token is missing. Please configure the widget.");
         
         const installResponse = await fetch('/api/plugins/chat/installations');
         if (!installResponse.ok) throw new Error(`Failed to fetch installations: ${installResponse.statusText}`);
         const installData: InstallationsResponse = await installResponse.json();
-        const chatInstallationId = installData.data[0]?.id;
-        if (!chatInstallationId) throw new Error("Chat plugin installation not found.");
+        const foundChatId = installData.data[0]?.id;
+        if (!foundChatId) throw new Error("Chat plugin installation not found.");
+        setChatInstallationId(foundChatId);
 
-        const convoResponse = await fetch(`/api/installations/${chatInstallationId}/conversations?archived=false&limit=${conversationlimit || 10}`);
+        const convoResponse = await fetch(`/api/installations/${foundChatId}/conversations?archived=false&limit=${conversationlimit || 10}`);
         if (!convoResponse.ok) throw new Error(`Failed to fetch conversations: ${convoResponse.statusText}`);
         const convoData: ConversationsResponse = await convoResponse.json();
         
         if (!convoData.data || convoData.data.length === 0) {
-          throw new Error("No conversations returned from API.");
+          // It's not an error to have no conversations, so just show a message.
+          setConversations([]);
+          return;
         }
 
         const participantCounts: { [id: string]: number } = {};
@@ -158,7 +168,7 @@ export const ChatWidget = ({ title, conversationlimit }: ChatWidgetProps): React
           : null;
         
         if (!currentUserId) {
-            console.warn("Could not reliably determine current user ID. Styling may be incorrect.");
+            console.warn("Could not reliably determine current user ID.");
             setCurrentUser({ id: 'unknown-user-id', firstName: 'You', lastName: '', avatar: null });
         } else {
             setCurrentUser({ id: currentUserId, firstName: 'You', lastName: '', avatar: null });
@@ -167,17 +177,18 @@ export const ChatWidget = ({ title, conversationlimit }: ChatWidgetProps): React
 
       } catch (e: any) {
         console.error("Failed to load live chat data:", e.message);
-        loadDummyData();
+        setError(`Failed to load data: ${e.message}`);
       } finally {
         setLoading(null);
       }
     };
 
     fetchData();
-  }, [conversationlimit]);
+  }, [conversationlimit, apitoken]);
 
   // Effect to fetch messages when a conversation is selected
   useEffect(() => {
+    // This effect remains unchanged.
     if (!selectedConversation) return;
 
     if (useDummyData) {
@@ -213,8 +224,8 @@ export const ChatWidget = ({ title, conversationlimit }: ChatWidgetProps): React
   }, [selectedConversation, currentUser, useDummyData]);
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedConversation || !currentUser) return;
-  
+    if (!newMessage.trim() || !selectedConversation || !currentUser || !chatInstallationId || !apitoken) return;
+
     const optimisticMessage: Message = {
       id: `temp-${Date.now()}`,
       senderID: currentUser.id,
@@ -226,27 +237,44 @@ export const ChatWidget = ({ title, conversationlimit }: ChatWidgetProps): React
     setMessages(prevMessages => [optimisticMessage, ...prevMessages]);
     const messageToSend = newMessage;
     setNewMessage("");
-  
+
+    // Determine participant IDs for the API call
+    const participantIDs = selectedConversation.type === 'direct' && selectedConversation.partner?.id
+      ? [selectedConversation.partner.id]
+      : selectedConversation.participantIDs?.filter(id => id !== currentUser.id) || [];
+
     try {
-      const response = await fetch(`/api/conversations/${selectedConversation.id}/messages`, {
+      const response = await fetch(`/api/installations/${chatInstallationId}/conversations`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: messageToSend.trim() }),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Basic ${apitoken}`,
+        },
+        body: JSON.stringify({
+          message: messageToSend.trim(),
+          participantIDs: participantIDs,
+          type: selectedConversation.type,
+        }),
       });
   
-      const sentMessage: Message = await response.json();
-  
       if (!response.ok) {
-        throw new Error('Failed to send message');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to send message');
       }
-  
-      setMessages(prevMessages =>
-        prevMessages.map(msg => (msg.id === optimisticMessage.id ? sentMessage : msg))
-      );
-    } catch (e) {
+      
+      // Since the API doesn't return the new message object directly,
+      // we can re-fetch messages to get the real one. For now, the optimistic one will show.
+      // To improve, you could replace this with a re-fetch of messages.
+      const newConvoState = await response.json();
+      console.log('Message sent, new conversation state:', newConvoState);
+      
+      // Replace optimistic message with a pseudo-real one for now
+      setMessages(prev => prev.map(m => m.id === optimisticMessage.id ? { ...optimisticMessage, id: newConvoState.lastMessage.id || optimisticMessage.id } : m));
+
+    } catch (e: any) {
       console.error("Error sending message:", e);
       setMessages(prevMessages => prevMessages.filter(msg => msg.id !== optimisticMessage.id));
-      setError("Couldn't send message. Please try again.");
+      setError(`Couldn't send message: ${e.message}`);
     }
   };
   
@@ -258,10 +286,9 @@ export const ChatWidget = ({ title, conversationlimit }: ChatWidgetProps): React
   };
 
   const renderConversationList = () => {
-    if (!useDummyData && conversations.length === 0) {
+    if (!useDummyData && conversations.length === 0 && !loading) {
       return <div style={styles.centeredMessage}>No conversations found.</div>;
     }
-
     return (
       <section>
         <header style={styles.header}>
@@ -295,6 +322,7 @@ export const ChatWidget = ({ title, conversationlimit }: ChatWidgetProps): React
   
   const renderMessageView = () => {
     if (!selectedConversation) return null;
+    const isMessagingDisabled = !apitoken;
     return (
         <section style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             <header style={{ ...styles.header, flexShrink: 0 }}>
@@ -319,16 +347,17 @@ export const ChatWidget = ({ title, conversationlimit }: ChatWidgetProps): React
             <div style={styles.footer}>
                 <input 
                     type="text" 
-                    placeholder="Type a message..." 
+                    placeholder={isMessagingDisabled ? "API token missing in config" : "Type a message..."}
                     style={styles.messageInput} 
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     onKeyDown={handleKeyDown}
+                    disabled={isMessagingDisabled}
                 />
                 <button 
                     style={styles.sendButton}
                     onClick={handleSendMessage}
-                    disabled={!newMessage.trim()}
+                    disabled={!newMessage.trim() || isMessagingDisabled}
                 >
                     ➤
                 </button>
@@ -338,11 +367,11 @@ export const ChatWidget = ({ title, conversationlimit }: ChatWidgetProps): React
   }
 
   // Main return logic
-  if (loading || !currentUser) {
-    return <div style={styles.centeredMessage}>{loading || 'Initializing...'}</div>;
+  if (loading) {
+    return <div style={styles.centeredMessage}>{loading}</div>;
   }
   
-  if (error && !useDummyData) {
+  if (error) {
     return <div style={{...styles.centeredMessage, color: '#e53935', padding: '10px'}}>{error}</div>;
   }
 
