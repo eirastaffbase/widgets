@@ -77,7 +77,9 @@ export interface ChatWidgetProps extends BlockAttributes {
   conversationlimit: number;
   apitoken: string;
   widgetApi: WidgetApi;
-  debugmode: boolean | string; // Allow string to handle HTML attribute
+  debugmode: boolean | string;
+  // MODIFICATION: Added dummy data prop
+  dummydatajson?: string;
 }
 
 // **********************************
@@ -134,9 +136,7 @@ const DebugView = ({ logs }: { logs: LogEntry[] }) => (
 // **********************************
 // * Main ChatWidget Component
 // **********************************
-export const ChatWidget = ({ title, conversationlimit, apitoken, debugmode }: ChatWidgetProps): ReactElement => {
-  // FIX: Coerce the debugmode attribute to a strict boolean.
-  // HTML attributes pass "false" as a string, which is truthy in JS.
+export const ChatWidget = ({ title, conversationlimit, apitoken, debugmode, dummydatajson }: ChatWidgetProps): ReactElement => {
   const isDebugMode = debugmode === true || debugmode === 'true';
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -150,9 +150,10 @@ export const ChatWidget = ({ title, conversationlimit, apitoken, debugmode }: Ch
   const [chatInstallationId, setChatInstallationId] = useState<string | null>(null);
   const fetchDataAttempted = useRef(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  // MODIFICATION: State to hold parsed dummy messages
+  const [dummyMessageData, setDummyMessageData] = useState<{ [key: string]: Message[] }>({});
 
   const debugFetch = async (url: string, options?: RequestInit): Promise<Response> => {
-    // FIX: Use the coerced boolean value
     if (!isDebugMode) {
       return fetch(url, options);
     }
@@ -185,84 +186,63 @@ export const ChatWidget = ({ title, conversationlimit, apitoken, debugmode }: Ch
 
 
   useEffect(() => {
+    // MODIFICATION: loadDummyData now parses the JSON prop
     const loadDummyData = () => {
-      // This data is modeled after the API response provided.
-      // The user viewing the widget is Nicole Adams (ID 67db0d546f71c1262a47fe07).
-      const dummyUser: User = {
-        id: '67db0d546f71c1262a47fe07',
-        firstName: 'You',
-        lastName: '',
-        avatar: { icon: { url: "https://app.staffbase.com/api/media/secure/external/v2/image/upload/c_crop,w_355,h_355,x_35/c_fill,w_48,h_48/67db0d556f71c1262a47fe18.png" } }
-      };
-      
-      const nicoleAdamsSender = {
-          id: "67db0d546f71c1262a47fe07",
-          firstName: "Nicole",
-          lastName: "Adams",
-          avatar: { icon: { url: "https://app.staffbase.com/api/media/secure/external/v2/image/upload/c_crop,w_355,h_355,x_35/c_fill,w_48,h_48/67db0d556f71c1262a47fe18.png" } }
-      };
-      
-      const patrickAnderson: User = {
-          id: "67db0d54cf14a943ab2300fd",
-          firstName: "Patrick",
-          lastName: "Anderson",
-          avatar: { icon: { url: "https://app.staffbase.com/api/media/secure/external/v2/image/upload/c_crop,w_416,h_416,x_50/c_fill,w_48,h_48/67db0d56c8328b7c73d37c48.png" } }
-      };
-
-      const henryFitz: User = {
-          id: "67db0d568422de3bf0be6a0e",
-          firstName: "Henry",
-          lastName: "Fitz",
-          avatar: { icon: { url: "https://app.staffbase.com/api/media/secure/external/v2/image/upload/c_thumb,g_face,h_48,w_48/67db0d5819a0bc7adab4c6ee.jpg" } }
-      };
-
-      setCurrentUser(dummyUser);
-      setConversations([
-        {
-          id: "68d17acea93dbb47bb2faa40", // Mohammed, Maria
-          type: 'group',
-          meta: { title: "Mohammed, Maria" },
-          lastMessage: {
-            id: "68d17ad333439d03f7c68753", senderID: nicoleAdamsSender.id, parts: [{ body: "Hello!" }], sender: nicoleAdamsSender, created: "2025-09-22T16:35:31.065Z"
-          }
-        },
-        {
-          id: "68d17a58d47b5b43a83ae926", // Operations #574
-          type: 'group',
-          meta: { title: "Operations #574" },
-          lastMessage: {
-            id: "68d17aa8d47b5b43a83aecee", senderID: nicoleAdamsSender.id, parts: [{ body: "Hi everyone! Welcome to Flight A243 :)" }], sender: nicoleAdamsSender, created: "2025-09-22T16:34:48.775Z"
-          }
-        },
-        {
-          id: "681cff0808817a06dcab4e7c", // Patrick Anderson
-          type: 'direct',
-          meta: { title: "Patrick Anderson", image: { icon: { url: patrickAnderson.avatar!.icon.url } } },
-          partner: patrickAnderson,
-          lastMessage: {
-            id: "681cff0808817a06dcab4e7d", senderID: nicoleAdamsSender.id, parts: [{ body: "I need hardhats!" }], sender: nicoleAdamsSender, created: "2025-05-08T18:59:20.400Z"
-          }
-        },
-        {
-          id: "67fe89ffe6ffb4345ba56fe1", // Patrick, Maria
-          type: 'group',
-          meta: { title: "Patrick, Maria" },
-          lastMessage: {
-            id: "67fe8a062aa1c40cd2a828e9", senderID: nicoleAdamsSender.id, parts: [{ body: "Looking forward to the team meeting!" }], sender: nicoleAdamsSender, created: "2025-04-15T16:32:06.347Z"
-          }
-        },
-        {
-          id: "67f97347cf03e26581dc97de", // Henry Fitz
-          type: 'direct',
-          meta: { title: "Henry Fitz", image: { icon: { url: henryFitz.avatar!.icon.url } } },
-          partner: henryFitz,
-          lastMessage: {
-            id: "67f97347cf03e26581dc97df", senderID: nicoleAdamsSender.id, parts: [{ body: "Hey Henry, great to connect!" }], sender: nicoleAdamsSender, created: "2025-04-11T19:53:43.394Z"
-          }
+        if (!dummydatajson) {
+            setError("Error: Dummy data is not configured in the widget settings.");
+            setUseDummyData(true);
+            return;
         }
-      ]);
-      setError("Displaying sample content based on API.");
-      setUseDummyData(true);
+
+        try {
+            const data = JSON.parse(dummydatajson);
+            const { currentUser: dummyUser, senders, conversations: rawConversations, messages: rawMessages } = data;
+
+            if (!dummyUser || !senders || !rawConversations || !rawMessages) {
+                throw new Error("Dummy data is missing required keys: 'currentUser', 'senders', 'conversations', 'messages'.");
+            }
+            
+            // Re-hydrate sender and partner objects from references
+            const hydratedConversations = rawConversations.map((convo: any) => {
+                const hydratedConvo = { ...convo };
+                if (convo.lastMessage.senderRef && senders[convo.lastMessage.senderRef]) {
+                    hydratedConvo.lastMessage.sender = senders[convo.lastMessage.senderRef];
+                }
+
+                if (convo.type === 'direct' && convo.partnerRef && senders[convo.partnerRef]) {
+                    hydratedConvo.partner = senders[convo.partnerRef];
+                    if (hydratedConvo.partner.avatar?.icon?.url) {
+                        hydratedConvo.meta.image = { icon: { url: hydratedConvo.partner.avatar.icon.url } };
+                    }
+                }
+                return hydratedConvo;
+            });
+            
+            // Re-hydrate senders for all messages and store them in state
+            const hydratedMessages = Object.entries(rawMessages).reduce((acc, [convoId, msgList]) => {
+                acc[convoId] = (msgList as any[]).map(msg => {
+                    const hydratedMsg = { ...msg };
+                    if (msg.senderRef && senders[msg.senderRef]) {
+                        hydratedMsg.sender = senders[msg.senderRef];
+                    }
+                    delete hydratedMsg.senderRef;
+                    return hydratedMsg;
+                });
+                return acc;
+            }, {} as { [key: string]: Message[] });
+
+            setDummyMessageData(hydratedMessages);
+            setCurrentUser(dummyUser);
+            setConversations(hydratedConversations);
+            setError("Displaying customizable sample content.");
+            setUseDummyData(true);
+
+        } catch (e: any) {
+            console.error("Failed to parse or process dummy data JSON:", e);
+            setError(`Error in dummy data configuration: ${e.message}`);
+            setUseDummyData(true);
+            setConversations([]);
+        }
     };
 
     const fetchData = async () => {
@@ -319,51 +299,14 @@ export const ChatWidget = ({ title, conversationlimit, apitoken, debugmode }: Ch
     };
 
     fetchData();
-    // FIX: Use the coerced boolean in the dependency array
-  }, [conversationlimit, apitoken, isDebugMode]);
+  }, [conversationlimit, apitoken, isDebugMode, dummydatajson]);
 
   useEffect(() => {
     if (!selectedConversation) return;
 
+    // MODIFICATION: Use dummyMessageData state for messages
     if (useDummyData) {
-        // Dummy messages based on the provided API responses
-        const nicoleAdamsSender: User = {
-          id: "67db0d546f71c1262a47fe07",
-          firstName: "Nicole",
-          lastName: "Adams",
-          avatar: { icon: { url: "https://app.staffbase.com/api/media/secure/external/v2/image/upload/c_crop,w_355,h_355,x_35/c_fill,w_48,h_48/67db0d556f71c1262a47fe18.png" } }
-        };
-
-        const patrickAnderson: User = {
-          id: "67db0d54cf14a943ab2300fd",
-          firstName: "Patrick",
-          lastName: "Anderson",
-          avatar: { icon: { url: "https://app.staffbase.com/api/media/secure/external/v2/image/upload/c_crop,w_416,h_416,x_50/c_fill,w_48,h_48/67db0d56c8328b7c73d37c48.png" } }
-        };
-        
-        // A hypothetical user for replies in group chats
-        const mariaGarcia: User = {
-            id: 'user-maria-hypothetical',
-            firstName: 'Maria',
-            lastName: 'Garcia',
-            avatar: { icon: { url: 'https://i.pravatar.cc/150?u=mariagarcia' } }
-        };
-
-        const dummyMessages: { [key: string]: Message[] } = {
-          '68d17a58d47b5b43a83ae926': [ // Operations #574
-            { id: 'msg-ops-2', senderID: mariaGarcia.id, parts: [{ body: 'Thanks, Nicole! Glad to be here.' }], sender: mariaGarcia, created: new Date(Date.parse("2025-09-22T16:35:10.000Z")).toISOString() },
-            { id: '68d17aa8d47b5b43a83aecee', senderID: nicoleAdamsSender.id, parts: [{ body: 'Hi everyone! Welcome to Flight A243 :)' }], sender: nicoleAdamsSender, created: "2025-09-22T16:34:48.775Z" }
-          ],
-          '681cff0808817a06dcab4e7c': [ // Patrick Anderson
-            { id: 'msg-pa-2', senderID: patrickAnderson.id, parts: [{ body: 'On it. Which site needs them?' }], sender: patrickAnderson, created: new Date(Date.parse("2025-05-08T19:00:00.000Z")).toISOString() },
-            { id: '681cff0808817a06dcab4e7d', senderID: nicoleAdamsSender.id, parts: [{ body: 'I need hardhats!' }], sender: nicoleAdamsSender, created: "2025-05-08T18:59:20.400Z" }
-          ],
-          '68d17acea93dbb47bb2faa40': [ // Mohammed, Maria
-            { id: '68d17ad333439d03f7c68753', senderID: nicoleAdamsSender.id, parts: [{ body: 'Hello!' }], sender: nicoleAdamsSender, created: "2025-09-22T16:35:31.065Z" }
-          ],
-        };
-
-        setMessages(dummyMessages[selectedConversation.id] || []);
+        setMessages(dummyMessageData[selectedConversation.id] || []);
         return;
     }
 
@@ -384,8 +327,7 @@ export const ChatWidget = ({ title, conversationlimit, apitoken, debugmode }: Ch
     };
 
     fetchMessages();
-    // FIX: Use the coerced boolean in the dependency array
-  }, [selectedConversation, currentUser, useDummyData, isDebugMode]);
+  }, [selectedConversation, currentUser, useDummyData, isDebugMode, dummyMessageData]);
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation || !currentUser || !chatInstallationId || !apitoken) return;
@@ -445,7 +387,7 @@ export const ChatWidget = ({ title, conversationlimit, apitoken, debugmode }: Ch
   };
 
   const renderConversationList = () => {
-    if (!useDummyData && conversations.length === 0 && !loading) {
+    if (conversations.length === 0 && !loading) {
       return <div style={styles.centeredMessage}>No conversations found.</div>;
     }
     return (
@@ -541,10 +483,8 @@ export const ChatWidget = ({ title, conversationlimit, apitoken, debugmode }: Ch
       );
   }
 
-  // Main return logic
   return (
     <>
-      {/* FIX: Use the coerced boolean for conditional rendering */}
       {isDebugMode && <DebugView logs={logs} />}
       {renderWidgetContent()}
     </>

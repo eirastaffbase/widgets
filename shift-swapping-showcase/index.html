@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shift & Swap Demo</title>
+    <style>
+        :root {
+            /* THEME COLORS FROM SCREENSHOT */
+            --bg-dark: #1E2939;       /* The Dark Navy */
+            --brand-yellow: #EEE700;  /* The Acid Yellow */
+            --black: #000000;
+            --white: #ffffff;
+            --grey-text: #6B7280;
+            --light-grey: #F3F4F6;
+            
+            --font-stack: "Roboto Condensed", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        body {
+            font-family: var(--font-stack);
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        /* MAIN WIDGET CONTAINER */
+        .widget-card {
+            background-color: var(--white);
+            width: 100%;
+            max-width: 420px;
+            border-radius: 0; /* Squared off like screenshot or slight radius */
+            border: 4px solid var(--black); /* The thick border in screenshot */
+            padding: 30px;
+            box-sizing: border-box;
+            position: relative;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        /* --- HEADER SECTION --- */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .header-title {
+            font-size: 14px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-badge {
+            background-color: var(--black);
+            color: var(--white);
+            font-size: 12px;
+            padding: 6px 12px;
+            font-weight: 500;
+        }
+
+        /* --- TIME & INFO --- */
+        .shift-time-large {
+            font-size: 42px;
+            font-weight: 800;
+            color: var(--black);
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+
+        .shift-location {
+            font-size: 16px;
+            font-weight: 700;
+            color: #9CA3AF; /* Light grey for location */
+        }
+
+        /* --- TEAM SECTION --- */
+        .section-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 14px;
+            font-weight: 700;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+
+        .team-list {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .team-badge {
+            background-color: var(--black);
+            color: var(--white);
+            padding: 10px 14px;
+            font-size: 13px;
+            font-weight: 400;
+            display: flex;
+            align-items: center;
+        }
+
+        .team-badge.is-me {
+            background-color: var(--brand-yellow);
+            color: var(--black);
+            font-weight: 600;
+        }
+
+        .bullet { margin: 0 6px; opacity: 0.6; }
+
+        /* --- WEEK / CALENDAR SECTION --- */
+        .week-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-top: 35px;
+            margin-bottom: 15px;
+        }
+
+        .btn-swap-text {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0;
+        }
+        .btn-swap-text:hover { text-decoration: underline; }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 10px;
+        }
+
+        .day-card {
+            background-color: var(--bg-dark); /* #1E2939 */
+            color: var(--white);
+            padding: 15px 10px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100px;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        .day-card:hover { transform: translateY(-2px); }
+
+        .day-card.active {
+            background-color: var(--brand-yellow); /* #EEE700 */
+            color: var(--black);
+        }
+
+        .day-name { font-size: 12px; text-transform: uppercase; margin-bottom: 5px; opacity: 0.8; }
+        .day-number { font-size: 32px; font-weight: 800; line-height: 1; margin-bottom: 5px; }
+        .day-hours { font-size: 10px; font-weight: 500; }
+        
+        /* OFF STATE */
+        .day-card.off .day-number { opacity: 0.5; }
+        .day-card.off .day-hours { color: #9CA3AF; }
+
+        /* --- MODAL (SWAP REQUEST) --- */
+        .modal-backdrop {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: flex-end;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 50;
+        }
+        .modal-backdrop.active { opacity: 1; pointer-events: auto; }
+
+        .modal-content {
+            background: var(--bg-dark); /* Dark Modal to match theme */
+            color: white;
+            width: 100%;
+            padding: 30px;
+            box-sizing: border-box;
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            border-top: 4px solid var(--brand-yellow);
+        }
+        .modal-backdrop.active .modal-content { transform: translateY(0); }
+
+        .modal-header h2 { margin: 0; font-size: 24px; color: var(--brand-yellow); }
+        .modal-detail { margin-top: 20px; font-size: 15px; line-height: 1.6; color: #d1d5db; }
+        
+        .btn-confirm-swap {
+            background-color: var(--brand-yellow);
+            color: var(--black);
+            width: 100%;
+            border: none;
+            padding: 15px;
+            font-size: 16px;
+            font-weight: 800;
+            margin-top: 25px;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+        .btn-confirm-swap:disabled { background-color: #555; color: #888; cursor: not-allowed; }
+        
+        .btn-close {
+            background: transparent; border: 1px solid #555; color: #fff;
+            width: 100%; padding: 10px; margin-top: 10px; cursor: pointer;
+        }
+
+        /* Loader */
+        .spinner { width: 18px; height: 18px; border: 3px solid rgba(0,0,0,0.1); border-radius: 50%; border-top-color: #000; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+    </style>
+</head>
+<body>
+
+    <div class="widget-card">
+        
+        <div class="header-row">
+            <div class="header-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                TODAY'S SHIFT
+            </div>
+            <div class="status-badge">in 2 hours</div>
+        </div>
+
+        <div class="shift-time-large">09:00 - 17:30</div>
+        <div class="shift-location">Berlin Flagship - Floor 2</div>
+
+        <div class="section-label">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            Team on Shift
+        </div>
+        <div class="team-list">
+            <div class="team-badge">Marcus K.<span class="bullet">•</span>Lead</div>
+            <div class="team-badge">Sofia R.<span class="bullet">•</span>Specialist</div>
+            <div class="team-badge is-me">You<span class="bullet">•</span>Specialist</div>
+            <div class="team-badge">Liam T.<span class="bullet">•</span>Trainee</div>
+        </div>
+
+        <div class="week-header">
+            <div class="section-label" style="margin:0;">This Week</div>
+            <button class="btn-swap-text" onclick="openSwapModal()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path></svg>
+                Request Swap
+            </button>
+        </div>
+
+        <div class="calendar-grid" id="dynamicCalendar">
+            </div>
+
+        <div class="modal-backdrop" id="swapModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Confirm Swap</h2>
+                </div>
+                <div class="modal-detail">
+                    You are requesting to swap your shift on 
+                    <strong style="color:var(--brand-yellow)" id="modalDateDisplay">Today</strong>.<br>
+                    This will be sent to <strong>Marcus K.</strong> for approval.
+                </div>
+                <button id="btnConfirm" class="btn-confirm-swap" onclick="processSwap()">Confirm Request</button>
+                <button class="btn-close" onclick="closeSwapModal()">Cancel</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // 1. DYNAMIC DATE GENERATION
+        // This ensures the widget always looks "current" for the demo
+        function initCalendar() {
+            const container = document.getElementById('dynamicCalendar');
+            const today = new Date();
+            const days = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+            
+            // We want to show a 4 day window: Yesterday, Today, Tomorrow, Day After
+            // To match the screenshot where the 3rd item is invalid/off? 
+            // Actually, screenshot shows active is the 4th item.
+            // Let's do: Today - 2, Today - 1, Today - 0, Today + 1 (To highlight Friday)
+            
+            // For this specific demo look, let's render 4 cards starting 2 days ago.
+            // The 4th card (Today + 1) will be yellow to match the screenshot "Fri 16" aesthetic 
+            // OR let's simply make "TODAY" the yellow one for clarity.
+            
+            let html = '';
+            
+            for (let i = -2; i < 2; i++) {
+                let d = new Date();
+                d.setDate(today.getDate() + i); // Offset date
+                
+                let dayName = days[d.getDay()];
+                let dateNum = d.getDate();
+                
+                // Determine style based on index (i=0 is today)
+                let isToday = (i === 0);
+                let activeClass = isToday ? 'active' : '';
+                let timeText = isToday ? '09:00-17:30' : (i===-1 ? '12:00-20:30' : (i===1 ? 'OFF' : '09:00-17:30'));
+                
+                // If OFF, add specific styling
+                let offClass = (timeText === 'OFF') ? 'off' : '';
+
+                html += `
+                    <div class="day-card ${activeClass} ${offClass}" onclick="handleCardClick(${i})">
+                        <div class="day-name">${dayName}</div>
+                        <div class="day-number">${dateNum}</div>
+                        <div class="day-hours">${timeText}</div>
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+        }
+
+        // 2. MODAL LOGIC
+        const modal = document.getElementById('swapModal');
+        const btnConfirm = document.getElementById('btnConfirm');
+        const modalDateDisplay = document.getElementById('modalDateDisplay');
+
+        function openSwapModal() {
+            // Set date in modal to nicely formatted today
+            const options = { weekday: 'long', month: 'short', day: 'numeric' };
+            modalDateDisplay.innerText = new Date().toLocaleDateString('en-US', options);
+            
+            modal.classList.add('active');
+            // Reset button
+            btnConfirm.disabled = false;
+            btnConfirm.innerHTML = 'Confirm Request';
+        }
+
+        function closeSwapModal() {
+            modal.classList.remove('active');
+        }
+
+        function handleCardClick(offset) {
+            if(offset === 0) {
+                // If clicking active day
+                openSwapModal();
+            }
+        }
+
+        async function processSwap() {
+            btnConfirm.disabled = true;
+            btnConfirm.innerHTML = '<span class="spinner"></span> Sending...';
+
+            // Fake API Call
+            const payload = {
+                "content": { "en_US": { "text": "Swap Request Sent" } }
+            };
+
+            try {
+                // Mimic network delay
+                await new Promise(r => setTimeout(r, 1500));
+                
+                // Optional: Actual Fetch if environment allows
+                // await fetch('https://app.staffbase.com/api/branch/notifications', ...);
+
+                btnConfirm.innerHTML = '✔ Sent';
+                setTimeout(() => {
+                    closeSwapModal();
+                }, 1000);
+
+            } catch (error) {
+                console.error(error);
+                btnConfirm.innerHTML = 'Error';
+            }
+        }
+
+        // Initialize on load
+        initCalendar();
+
+    </script>
+</body>
+</html>

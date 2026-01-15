@@ -27,7 +27,8 @@ const widgetAttributes: string[] = [
   'title',
   'conversationlimit',
   'apitoken',
-  'debugmode'
+  'debugmode',
+  'dummydatajson', 
 ];
 
 /**
