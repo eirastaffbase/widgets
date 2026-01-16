@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Widget</title>
+    <style>
+        /* --- FONT & VARIABLES --- */
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;700&display=swap');
+
+        :root {
+            --bg-dark: #1E2939;       /* Navy */
+            --brand-yellow: #EEE700;  /* Acid Yellow */
+            --black: #000000;
+            --white: #ffffff;
+            --grey-text: #6B7280;
+            --light-bg: #F3F4F6;      /* Light grey for inactive tabs */
+            --border-thick: 4px solid var(--black);
+            
+            /* Priority Colors */
+            --flag-high-bg: #FEE2E2;
+            --flag-high-text: #991B1B;
+            --flag-med-bg: #FEF3C7;
+            --flag-med-text: #92400E;
+            --flag-low-bg: #D1FAE5;
+            --flag-low-text: #065F46;
+
+            --font-stack: "Roboto Condensed", sans-serif;
+        }
+
+        body {
+            font-family: var(--font-stack);
+            background-color: #f0f2f5;
+            margin: 0;
+        }
+
+        /* --- MAIN CONTAINER --- */
+        .widget-card {
+            background-color: var(--white);
+            width: 100%;
+            max-width: 560px;
+            border: var(--border-thick);
+            box-sizing: border-box;
+            position: relative;
+            padding: 25px;
+        }
+
+        /* --- INPUT AREA --- */
+        .input-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            gap: 10px;
+        }
+
+        .task-input {
+            width: 100%;
+            border: none;
+            font-family: var(--font-stack);
+            font-size: 16px;
+            color: var(--grey-text);
+            outline: none;
+            background: transparent;
+        }
+        
+        .task-input::placeholder {
+            color: #9CA3AF;
+        }
+
+        .btn-add {
+            background-color: #E5E7EB;
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%; /* Circle shape like screenshot */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #6B7280;
+            font-size: 20px;
+            transition: transform 0.1s;
+        }
+        .btn-add.is-ready {
+            background-color: var(--brand-yellow);
+            color: var(--black);
+        }
+        .btn-add:disabled {
+            cursor: not-allowed;
+        }
+        .btn-add:hover { transform: scale(1.05); }
+        .btn-add:active { transform: scale(0.95); }
+
+        /* --- TABS --- */
+        .tabs-container {
+            display: flex;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab.active {
+            background-color: var(--black);
+            color: var(--white);
+        }
+
+        .tab.inactive {
+            background-color: var(--light-bg);
+            color: #9CA3AF;
+        }
+
+        /* --- LIST --- */
+        .task-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .task-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            animation: slideIn 0.3s ease-out;
+        }
+        .task-item.animating-out {
+            opacity: 0;
+            transform: translateX(24px);
+            transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Checkbox Circle */
+        .checkbox-wrapper {
+            margin-right: 15px;
+            margin-top: 2px;
+            cursor: pointer;
+        }
+        .circle-check {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid #9CA3AF;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+        .circle-check:hover { border-color: var(--black); }
+        .circle-check svg {
+            opacity: 0;
+            transform: scale(0.6);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+        
+        /* Checked State */
+        .task-item.completed .circle-check {
+            background-color: var(--black);
+            border-color: var(--black);
+        }
+        .task-item.completed .circle-check svg {
+            opacity: 1;
+            transform: scale(1);
+        }
+        .task-item.completed .title-text {
+            text-decoration: line-through;
+            color: #9CA3AF;
+        }
+
+        /* Content Area */
+        .task-content {
+            flex: 1;
+        }
+
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .title-text {
+            font-weight: 700;
+            font-size: 16px;
+            color: var(--black);
+            margin-bottom: 6px;
+            line-height: 1.2;
+            display: block;
+        }
+
+        /* Metadata Row (Icons) */
+        .meta-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #9CA3AF;
+        }
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        /* Right Side Badges */
+        .task-badges {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: 10px;
+            white-space: nowrap;
+        }
+
+        .date-badge {
+            border: 1px solid #E5E7EB;
+            padding: 4px 8px;
+            font-size: 12px;
+            color: var(--grey-text);
+            font-weight: 500;
+        }
+
+        .flag-badge {
+            padding: 4px 8px;
+            font-size: 12px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .flag-high { background-color: var(--flag-high-bg); color: var(--flag-high-text); }
+        .flag-med  { background-color: var(--flag-med-bg); color: var(--flag-med-text); }
+        .flag-low  { background-color: var(--flag-low-bg); color: var(--flag-low-text); }
+
+        .menu-dots {
+            color: var(--black);
+            cursor: pointer;
+            font-weight: 900;
+            font-size: 18px;
+            margin-left: 5px;
+            line-height: 0.5;
+        }
+
+        /* Scrollbar styles */
+        .task-list::-webkit-scrollbar { width: 6px; }
+        .task-list::-webkit-scrollbar-thumb { background-color: #ddd; border-radius: 3px; }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            color: #9CA3AF;
+            padding: 20px;
+            font-style: italic;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="widget-card">
+        <div class="input-row">
+            <input type="text" id="taskInput" class="task-input" placeholder="Add task + Enter" autocomplete="off">
+            <button class="btn-add" id="addTaskBtn" disabled>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            </button>
+        </div>
+
+        <div class="tabs-container">
+            <div class="tab active" id="tabActive" onclick="switchTab('active')">
+                Active (<span id="countActive">0</span>)
+            </div>
+            <div class="tab inactive" id="tabCompleted" onclick="switchTab('completed')">
+                Completed (<span id="countCompleted">0</span>)
+            </div>
+        </div>
+
+        <ul class="task-list" id="taskListContainer">
+            </ul>
+    </div>
+
+    <script>
+        // --- 1. INITIAL DATA (Matching Screenshot) ---
+        // Using "dueDate" strings to demonstrate the parsing logic from Widget 2
+        let tasks = [
+            {
+                id: 't1',
+                title: 'Replenish footwear wall sizes (Ultraboost, Gazelle)',
+                dueDate: 'today',
+                priority: 'High',
+                attachments: 1,
+                comments: 2,
+                checked: false
+            },
+            {
+                id: 't2',
+                title: 'Process click-and-collect orders for pickup',
+                dueDate: 'tomorrow',
+                priority: 'Medium',
+                attachments: 1,
+                comments: 2,
+                checked: false
+            },
+            {
+                id: 't3',
+                title: 'Steam and face out apparel tables',
+                dueDate: '2026-09-01', // Example specific date
+                priority: 'Low',
+                attachments: 1,
+                comments: 2,
+                checked: false
+            },
+            {
+                id: 't4',
+                title: 'Cycle promo signage to current campaign',
+                dueDate: 'tomorrow',
+                priority: 'Medium',
+                attachments: 2,
+                comments: 1,
+                checked: false
+            },
+            {
+                id: 't5',
+                title: 'Count backroom stock for core tees',
+                dueDate: 'tomorrow',
+                priority: 'Medium',
+                attachments: 0,
+                comments: 3,
+                checked: false
+            }
+        ];
+
+        let currentView = 'active'; // 'active' or 'completed'
+
+        // --- 2. DATE LOGIC (Ported from Widget 2) ---
+        
+        function parseDueDate(dueDateStr) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            // Regex for "today" or "today+N"
+            const match = dueDateStr.trim().match(/^today(?:\s*\+\s*(\d+))?$/i);
+            
+            if (match) {
+                const daysToAdd = match[1] ? parseInt(match[1], 10) : 0;
+                const targetDate = new Date(today);
+                targetDate.setDate(targetDate.getDate() + daysToAdd);
+                return targetDate;
+            }
+            
+            // Keyword "tomorrow" handling
+            if (dueDateStr.toLowerCase() === 'tomorrow') {
+                const tmrw = new Date(today);
+                tmrw.setDate(tmrw.getDate() + 1);
+                return tmrw;
+            }
+
+            // Fallback: standard date string
+            // Adding T00:00:00 to prevent timezone shifts
+            return new Date(dueDateStr.includes('T') ? dueDateStr : dueDateStr + "T00:00:00");
+        }
+
+        function getDateDisplay(dueDateStr) {
+            const today = new Date();
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+
+            today.setHours(0, 0, 0, 0);
+            tomorrow.setHours(0, 0, 0, 0);
+
+            const dueDate = parseDueDate(dueDateStr);
+            const timeDiff = dueDate.getTime();
+
+            if (timeDiff === today.getTime()) return "Today";
+            if (timeDiff === tomorrow.getTime()) return "Tomorrow";
+            
+            // Format like "1 Sept"
+            return dueDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+        }
+
+        // --- 3. RENDERING LOGIC ---
+
+        const container = document.getElementById('taskListContainer');
+        const countActiveEl = document.getElementById('countActive');
+        const countCompletedEl = document.getElementById('countCompleted');
+
+        function renderTasks() {
+            container.innerHTML = '';
+            
+            // Filter based on view
+            const visibleTasks = tasks.filter(t => currentView === 'active' ? !t.checked : t.checked);
+            
+            // Update Counts
+            const activeCount = tasks.filter(t => !t.checked).length;
+            const completedCount = tasks.filter(t => t.checked).length;
+            countActiveEl.textContent = activeCount;
+            countCompletedEl.textContent = completedCount;
+
+            if (visibleTasks.length === 0) {
+                container.innerHTML = `<div class="empty-state">No ${currentView} tasks</div>`;
+                return;
+            }
+
+            visibleTasks.forEach(task => {
+                const dateText = getDateDisplay(task.dueDate);
+                
+                // Determine Flag Class
+                let flagClass = 'flag-med';
+                let flagIcon = '⚑'; // Generic flag char, or use SVG
+                if(task.priority === 'High') flagClass = 'flag-high';
+                if(task.priority === 'Low') flagClass = 'flag-low';
+
+                // Checkbox SVG logic
+                const checkSVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+
+                const li = document.createElement('li');
+                li.className = `task-item ${task.checked ? 'completed' : ''}`;
+                li.setAttribute('data-task-id', task.id);
+                li.innerHTML = `
+                    <div class="checkbox-wrapper" onclick="toggleTask('${task.id}')">
+                        <div class="circle-check">${checkSVG}</div>
+                    </div>
+                    
+                    <div class="task-content">
+                        <div class="task-header">
+                            <span class="title-text">${task.title}</span>
+                        </div>
+                        
+                        <div class="meta-row">
+                            ${task.attachments > 0 ? `
+                            <div class="meta-item">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                                <span>${task.attachments}</span>
+                            </div>
+                            <span style="margin:0 2px">•</span>
+                            ` : ''}
+                            
+                            <div class="meta-item">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+                                <span>${task.comments}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="task-badges">
+                        <div class="date-badge">${dateText}</div>
+                        <div class="flag-badge ${flagClass}">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
+                            ${task.priority}
+                        </div>
+                        <div class="menu-dots">...</div>
+                    </div>
+                `;
+                container.appendChild(li);
+            });
+        }
+
+        // --- 4. INTERACTION LOGIC ---
+
+        function toggleTask(id) {
+            const task = tasks.find(t => t.id === id);
+            if(task) {
+                if (currentView === 'active' && !task.checked) {
+                    const item = container.querySelector(`[data-task-id="${id}"]`);
+                    if (item) {
+                        item.classList.add('completed');
+                        task.checked = true;
+                        setTimeout(() => {
+                            item.classList.add('animating-out');
+                        }, 500);
+                        setTimeout(() => {
+                            renderTasks();
+                        }, 760);
+                        return;
+                    }
+                }
+                task.checked = !task.checked;
+                renderTasks();
+            }
+        }
+
+        function switchTab(view) {
+            currentView = view;
+            
+            // Update Tab UI
+            document.getElementById('tabActive').className = `tab ${view === 'active' ? 'active' : 'inactive'}`;
+            document.getElementById('tabCompleted').className = `tab ${view === 'completed' ? 'active' : 'inactive'}`;
+            
+            renderTasks();
+        }
+
+        function addTask() {
+            const input = document.getElementById('taskInput');
+            const val = input.value.trim();
+            if(!val) return;
+
+            const newTask = {
+                id: 't' + Date.now(),
+                title: val,
+                dueDate: 'today', // Default
+                priority: 'Medium', // Default
+                attachments: 0,
+                comments: 0,
+                checked: false
+            };
+
+            tasks.unshift(newTask); // Add to top
+            input.value = '';
+            updateAddButtonState();
+            
+            // If we are in completed view, switch back to active so user sees the new task
+            if(currentView === 'completed') {
+                switchTab('active');
+            } else {
+                renderTasks();
+            }
+        }
+
+        // --- 5. EVENT LISTENERS ---
+
+        document.getElementById('addTaskBtn').addEventListener('click', addTask);
+        
+        document.getElementById('taskInput').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                addTask();
+            }
+        });
+        document.getElementById('taskInput').addEventListener('input', updateAddButtonState);
+
+        function updateAddButtonState() {
+            const input = document.getElementById('taskInput');
+            const addBtn = document.getElementById('addTaskBtn');
+            const hasValue = input.value.trim().length > 0;
+            addBtn.disabled = !hasValue;
+            addBtn.classList.toggle('is-ready', hasValue);
+        }
+
+        // Initialize
+        updateAddButtonState();
+        renderTasks();
+
+    </script>
+</body>
+</html>
