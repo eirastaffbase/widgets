@@ -4,12 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#050810">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Staffbase | Industry Solutions Portal</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Space+Grotesk:wght@300..700&family=Syne:wght@400..800&display=swap" rel="stylesheet">
     <style>
-        /* [PREVIOUS CSS REMAINS THE SAME - NO CHANGES NEEDED TO STYLES EXCEPT LOADING STATE] */
         :root {
             --staffbase-blue: #0052CC;
             --staffbase-light-blue: #4C9AFF;
@@ -22,8 +23,19 @@
             --text-muted: rgba(255, 255, 255, 0.4);
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        html { overflow: hidden; height: 100%; width: 100%; -webkit-overflow-scrolling: touch; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            overflow: hidden;
+            height: 100%;
+            width: 100%;
+            -webkit-overflow-scrolling: touch;
+        }
+
         body {
             font-family: 'DM Sans', sans-serif;
             background: var(--staffbase-darker);
@@ -35,117 +47,1202 @@
             touch-action: pan-y;
             -webkit-tap-highlight-color: transparent;
             position: fixed;
-            top: 0; left: 0;
+            top: 0;
+            left: 0;
         }
 
-        /* ... [ALL YOUR EXISTING CSS IS PRESERVED] ... */
-        
-        /* New Styles for Loading State */
-        .slide-cta.loading {
+        /* Custom Cursor */
+        .cursor {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--staffbase-light-blue);
+            border-radius: 50%;
+            position: fixed;
             pointer-events: none;
+            z-index: 10000;
+            transition: transform 0.15s ease, opacity 0.15s ease;
+            mix-blend-mode: difference;
+        }
+
+        .cursor-dot {
+            width: 4px;
+            height: 4px;
+            background: var(--accent-gold);
+            border-radius: 50%;
+            position: fixed;
+            pointer-events: none;
+            z-index: 10001;
+        }
+
+        /* Background Effects */
+        .bg-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(76, 154, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(76, 154, 255, 0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            z-index: 0;
+            opacity: 0.5;
+        }
+
+        .bg-gradient {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(ellipse at 20% 20%, rgba(0, 82, 204, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(201, 169, 98, 0.1) 0%, transparent 50%);
+            z-index: 0;
+        }
+
+        .noise-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.03;
+            z-index: 1;
+            pointer-events: none;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%' height='100%' filter='url(%23noise)'/%3E%3C/svg%3E");
+        }
+
+        /* Progress Indicator */
+        .progress-container {
+            position: fixed;
+            right: 60px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .progress-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            cursor: pointer;
+            opacity: 0.4;
+            transition: opacity 0.3s ease;
+        }
+
+        .progress-item.active {
+            opacity: 1;
+        }
+
+        .progress-item:hover {
             opacity: 0.8;
         }
-        .slide-cta.loading span {
-            display: none;
-        }
-        .slide-cta.loading::after {
-            content: 'Updating Profile...';
-            position: relative;
-            z-index: 2;
-        }
-        
-        /* Copying your existing CSS for layout */
-        .cursor { width: 20px; height: 20px; border: 2px solid var(--staffbase-light-blue); border-radius: 50%; position: fixed; pointer-events: none; z-index: 10000; transition: transform 0.15s ease, opacity 0.15s ease; mix-blend-mode: difference; }
-        .cursor-dot { width: 4px; height: 4px; background: var(--accent-gold); border-radius: 50%; position: fixed; pointer-events: none; z-index: 10001; }
-        .bg-grid { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-image: linear-gradient(rgba(76, 154, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(76, 154, 255, 0.03) 1px, transparent 1px); background-size: 60px 60px; z-index: 0; opacity: 0.5; }
-        .bg-gradient { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(ellipse at 20% 20%, rgba(0, 82, 204, 0.15) 0%, transparent 50%), radial-gradient(ellipse at 80% 80%, rgba(201, 169, 98, 0.1) 0%, transparent 50%); z-index: 0; }
-        .noise-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.03; z-index: 1; pointer-events: none; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%' height='100%' filter='url(%23noise)'/%3E%3C/svg%3E"); }
-        .progress-container { position: fixed; right: 60px; top: 50%; transform: translateY(-50%); z-index: 1000; display: flex; flex-direction: column; gap: 20px; }
-        .progress-item { display: flex; align-items: center; gap: 15px; cursor: pointer; opacity: 0.4; transition: opacity 0.3s ease; }
-        .progress-item.active { opacity: 1; }
-        .progress-item:hover { opacity: 0.8; }
-        .progress-dot { width: 12px; height: 12px; border: 2px solid var(--text-secondary); border-radius: 50%; transition: all 0.3s ease; position: relative; }
-        .progress-item.active .progress-dot { border-color: var(--accent-gold); background: var(--accent-gold); box-shadow: 0 0 20px rgba(201, 169, 98, 0.5); }
-        .progress-label { font-family: 'DM Sans', sans-serif; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-secondary); font-weight: 400; white-space: nowrap; opacity: 0.8; }
-        .progress-item.active .progress-label { color: var(--text-primary); }
-        .slide-counter { position: fixed; left: 60px; bottom: 40px; z-index: 1000; display: flex; align-items: baseline; gap: 8px; }
-        .counter-current { font-family: 'Syne', sans-serif; font-size: 48px; font-weight: 700; color: var(--text-primary); line-height: 1; }
-        .counter-divider { font-size: 24px; color: var(--accent-gold); }
-        .counter-total { font-size: 18px; color: var(--text-muted); }
-        .scroll-hint { position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%); z-index: 1000; display: flex; flex-direction: column; align-items: center; gap: 10px; opacity: 0.6; animation: pulse 2s ease-in-out infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 0.6; transform: translateX(-50%) translateY(0); } 50% { opacity: 1; transform: translateX(-50%) translateY(5px); } }
-        .scroll-hint-text { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--text-muted); }
-        .scroll-hint-icon { width: 24px; height: 40px; border: 2px solid var(--text-muted); border-radius: 12px; position: relative; }
-        .scroll-hint-icon::before { content: ''; position: absolute; top: 8px; left: 50%; transform: translateX(-50%); width: 4px; height: 8px; background: var(--accent-gold); border-radius: 2px; animation: scrollDown 1.5s ease-in-out infinite; }
-        @keyframes scrollDown { 0%, 100% { top: 8px; opacity: 1; } 50% { top: 20px; opacity: 0.3; } }
-        .slides-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; }
-        .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden; transition: opacity 0.8s ease, visibility 0.8s ease; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; padding: 20px 0; }
-        .slide.active { opacity: 1; visibility: visible; }
-        .slide-content { max-width: 1400px; width: 100%; padding: 0 120px; display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; }
-        .slide-left { transform: translateX(-50px); opacity: 0; transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s; }
-        .slide.active .slide-left { transform: translateX(0); opacity: 1; }
-        .industry-tag { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(201, 169, 98, 0.1); border: 1px solid rgba(201, 169, 98, 0.3); border-radius: 30px; margin-bottom: 30px; }
-        .industry-tag-dot { width: 6px; height: 6px; background: var(--accent-gold); border-radius: 50%; }
-        .industry-tag-text { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--accent-gold); font-weight: 600; }
-        .slide-title { font-family: 'Syne', sans-serif; font-size: clamp(48px, 6vw, 72px); font-weight: 800; line-height: 1.05; letter-spacing: -2px; margin-bottom: 30px; }
-        .slide-title span { background: linear-gradient(135deg, var(--text-primary) 0%, var(--staffbase-light-blue) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-        .slide-description { font-size: 18px; line-height: 1.7; color: var(--text-secondary); margin-bottom: 40px; max-width: 480px; }
-        .slide-cta { display: inline-flex; align-items: center; gap: 12px; padding: 18px 36px; background: linear-gradient(135deg, var(--staffbase-blue), var(--staffbase-light-blue)); border: none; border-radius: 50px; color: white; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; text-decoration: none; position: relative; overflow: hidden; }
-        .slide-cta::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, var(--accent-gold), var(--accent-copper)); opacity: 0; transition: opacity 0.3s ease; }
-        .slide-cta:hover { transform: translateY(-2px); box-shadow: 0 20px 40px rgba(0, 82, 204, 0.3); }
-        .slide-cta:hover::before { opacity: 1; }
-        .slide-cta span { position: relative; z-index: 1; }
-        .cta-arrow { position: relative; z-index: 1; transition: transform 0.3s ease; }
-        .slide-cta:hover .cta-arrow { transform: translateX(4px); }
-        .slide-right { position: relative; transform: translateX(50px); opacity: 0; transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.4s; }
-        .slide.active .slide-right { transform: translateX(0); opacity: 1; }
-        .visual-container { position: relative; width: 100%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; }
-        .visual-ring { position: absolute; border-radius: 50%; border: 1px solid rgba(76, 154, 255, 0.2); }
-        .visual-ring-1 { width: 100%; height: 100%; animation: rotate 30s linear infinite; }
-        .visual-ring-2 { width: 80%; height: 80%; border-style: dashed; animation: rotate 25s linear infinite reverse; }
-        .visual-ring-3 { width: 60%; height: 60%; animation: rotate 20s linear infinite; }
-        @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .visual-icon { position: absolute; width: 200px; height: 200px; display: flex; align-items: center; justify-content: center; font-size: 100px; background: linear-gradient(135deg, rgba(0, 82, 204, 0.2), rgba(76, 154, 255, 0.1)); border-radius: 50%; backdrop-filter: blur(10px); border: 1px solid rgba(76, 154, 255, 0.2); box-shadow: 0 0 60px rgba(0, 82, 204, 0.3), inset 0 0 60px rgba(0, 82, 204, 0.1); }
-        .floating-elements { position: absolute; width: 100%; height: 100%; }
-        .floating-element { position: absolute; width: 60px; height: 60px; background: rgba(201, 169, 98, 0.1); border: 1px solid rgba(201, 169, 98, 0.3); border-radius: 16px; backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; font-size: 24px; animation: float 4s ease-in-out infinite; }
-        .floating-element:nth-child(1) { top: 10%; left: 10%; animation-delay: 0s; }
-        .floating-element:nth-child(2) { top: 20%; right: 5%; animation-delay: 1s; }
-        .floating-element:nth-child(3) { bottom: 20%; left: 5%; animation-delay: 2s; }
-        .floating-element:nth-child(4) { bottom: 10%; right: 15%; animation-delay: 3s; }
-        @keyframes float { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-15px) rotate(5deg); } }
-        .slide-welcome .slide-content { display: flex; flex-direction: column; align-items: center; text-align: center; }
-        .slide-welcome .slide-left { width: 100%; max-width: 900px; display: flex; flex-direction: column; align-items: center; }
-        .welcome-title { font-family: 'Syne', sans-serif; font-size: clamp(56px, 8vw, 96px); font-weight: 800; line-height: 1.05; letter-spacing: -3px; margin-bottom: 30px; background: linear-gradient(135deg, var(--text-primary) 0%, var(--staffbase-light-blue) 50%, var(--accent-gold) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-        .welcome-subtitle { font-size: 22px; line-height: 1.6; color: var(--text-secondary); max-width: 600px; margin-bottom: 60px; }
-        .portfolio-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; width: 100%; max-width: 900px; }
-        .portfolio-card { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 20px; padding: 30px; display: flex; flex-direction: column; align-items: center; gap: 15px; cursor: pointer; transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); text-decoration: none; color: inherit; }
-        .portfolio-card:hover { background: rgba(0, 82, 204, 0.1); border-color: rgba(76, 154, 255, 0.3); transform: translateY(-8px); box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3); }
-        .portfolio-icon { font-size: 36px; width: 70px; height: 70px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, rgba(0, 82, 204, 0.2), rgba(76, 154, 255, 0.1)); border-radius: 16px; transition: all 0.3s ease; }
-        .portfolio-card:hover .portfolio-icon { transform: scale(1.1); background: linear-gradient(135deg, rgba(201, 169, 98, 0.2), rgba(184, 115, 51, 0.1)); }
-        .portfolio-name { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700; letter-spacing: -0.5px; }
-        .stats-row { display: flex; gap: 60px; margin-top: 60px; }
-        .stat-item { text-align: center; }
-        .stat-value { font-family: 'Syne', sans-serif; font-size: 42px; font-weight: 800; color: var(--accent-gold); line-height: 1; }
-        .stat-label { font-size: 13px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 2px; margin-top: 8px; }
 
-        @media (max-width: 1400px) { .slide-content { padding: 0 80px; gap: 60px; } .visual-container { max-width: 450px; } }
-        @media (max-width: 1200px) { .slide-content { padding: 0 60px; gap: 50px; } .progress-container { right: 30px; } .progress-label { display: none; } .slide-title { font-size: clamp(42px, 5vw, 60px); } .visual-container { max-width: 380px; } .visual-icon { width: 160px; height: 160px; font-size: 80px; } .floating-element { width: 50px; height: 50px; font-size: 20px; } }
-        @media (max-width: 1024px) { .slide-content { grid-template-columns: 1fr; gap: 40px; text-align: center; max-width: 700px; margin: 0 auto; } .slide-left { display: flex; flex-direction: column; align-items: center; } .slide-description { max-width: 100%; } .slide-right { display: none; } .slide-cta { padding: 16px 32px; } .portfolio-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; } .portfolio-card { padding: 24px 16px; } .stats-row { gap: 40px; } }
-        @media (max-width: 768px) { .slide { padding: 60px 0 80px 0; align-items: flex-start; } .slide-content { padding: 0 30px; padding-right: 50px; } .slide-counter { left: 16px; bottom: 16px; } .counter-current { font-size: 28px; } .counter-total { font-size: 12px; } .slide-title { font-size: clamp(32px, 8vw, 42px); letter-spacing: -1px; margin-bottom: 16px; } .slide-description { font-size: 15px; margin-bottom: 24px; line-height: 1.6; } .industry-tag { margin-bottom: 16px; padding: 6px 12px; } .industry-tag-text { font-size: 9px; letter-spacing: 2px; } .progress-container { right: 12px; gap: 12px; } .progress-dot { width: 8px; height: 8px; } .scroll-hint { bottom: 12px; } .scroll-hint-text { font-size: 9px; letter-spacing: 2px; } .scroll-hint-icon { width: 18px; height: 30px; } .slide-cta { padding: 14px 24px; font-size: 14px; } .slide-welcome .slide-content { padding: 0 20px; padding-right: 40px; } .welcome-title { font-size: clamp(32px, 9vw, 48px); letter-spacing: -1.5px; margin-bottom: 16px; } .welcome-subtitle { font-size: 14px; margin-bottom: 28px; line-height: 1.5; } .portfolio-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; max-width: 100%; width: 100%; } .portfolio-card { padding: 16px 10px; border-radius: 14px; gap: 8px; } .portfolio-icon { font-size: 26px; width: 50px; height: 50px; border-radius: 12px; } .portfolio-name { font-size: 11px; } .stats-row { flex-wrap: wrap; justify-content: center; gap: 16px; margin-top: 28px; } .stat-item { flex: 0 0 45%; } .stat-value { font-size: 28px; } .stat-label { font-size: 10px; letter-spacing: 1px; } .cursor, .cursor-dot { display: none; } }
-        @media (max-width: 576px) { .slide { padding: 50px 0 70px 0; } .slide-content { padding: 0 20px; padding-right: 40px; } .slide-counter { left: 12px; bottom: 12px; } .counter-current { font-size: 24px; } .counter-divider { font-size: 16px; } .counter-total { font-size: 11px; } .slide-title { font-size: clamp(28px, 8vw, 36px); letter-spacing: -0.5px; } .slide-description { font-size: 14px; } .slide-cta { padding: 12px 20px; font-size: 13px; width: 100%; justify-content: center; } .progress-container { right: 10px; gap: 10px; } .progress-dot { width: 6px; height: 6px; border-width: 1.5px; } .scroll-hint { display: none; } .welcome-title { font-size: clamp(28px, 8vw, 38px); } .welcome-subtitle { font-size: 13px; } .portfolio-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; } .portfolio-card { padding: 14px 8px; gap: 6px; } .portfolio-icon { font-size: 22px; width: 44px; height: 44px; } .portfolio-name { font-size: 10px; } .stats-row { gap: 12px; margin-top: 24px; } .stat-value { font-size: 24px; } .stat-label { font-size: 9px; } }
-        @media (max-width: 380px) { .slide { padding: 40px 0 60px 0; } .slide-content { padding: 0 16px; padding-right: 36px; } .slide-title { font-size: 26px; } .slide-description { font-size: 13px; } .industry-tag { padding: 4px 10px; } .industry-tag-text { font-size: 8px; letter-spacing: 1.5px; } .slide-cta { padding: 11px 18px; font-size: 12px; } .welcome-title { font-size: 26px; } .welcome-subtitle { font-size: 12px; } .portfolio-grid { gap: 6px; } .portfolio-card { padding: 12px 6px; } .portfolio-icon { font-size: 20px; width: 40px; height: 40px; } .portfolio-name { font-size: 9px; } .stats-row { gap: 10px; } .stat-value { font-size: 22px; } .stat-label { font-size: 8px; } .progress-container { right: 8px; gap: 8px; } .progress-dot { width: 5px; height: 5px; } }
-        @media (max-height: 500px) { .slide { padding: 30px 0 50px 0; align-items: flex-start; } .slide-content { padding: 0 30px; padding-right: 50px; } .slide-title { font-size: 24px; margin-bottom: 10px; } .slide-description { font-size: 12px; margin-bottom: 14px; } .industry-tag { margin-bottom: 10px; padding: 4px 8px; } .industry-tag-text { font-size: 8px; } .slide-cta { padding: 10px 20px; font-size: 12px; } .scroll-hint { display: none; } .slide-counter { bottom: 8px; } .counter-current { font-size: 20px; } .welcome-title { font-size: 26px; margin-bottom: 10px; } .welcome-subtitle { font-size: 12px; margin-bottom: 20px; } .portfolio-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; } .portfolio-card { padding: 10px 6px; } .portfolio-icon { width: 36px; height: 36px; font-size: 18px; } .portfolio-name { font-size: 9px; } .stats-row { margin-top: 16px; gap: 20px; flex-wrap: nowrap; } .stat-item { flex: 1; } .stat-value { font-size: 20px; } .stat-label { font-size: 8px; } }
-        @media (max-height: 400px) { .slide { padding: 20px 0 40px 0; } .slide-title { font-size: 20px; margin-bottom: 8px; } .slide-description { font-size: 11px; margin-bottom: 12px; } .slide-cta { padding: 8px 16px; font-size: 11px; } .welcome-title { font-size: 22px; } .welcome-subtitle { font-size: 11px; margin-bottom: 16px; } .portfolio-grid { grid-template-columns: repeat(6, 1fr); gap: 6px; } .portfolio-card { padding: 8px 4px; } .portfolio-icon { width: 32px; height: 32px; font-size: 16px; } .portfolio-name { font-size: 8px; } .stats-row { margin-top: 12px; gap: 16px; } .stat-value { font-size: 18px; } .stat-label { font-size: 7px; } }
+        .progress-dot {
+            width: 12px;
+            height: 12px;
+            border: 2px solid var(--text-secondary);
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .progress-item.active .progress-dot {
+            border-color: var(--accent-gold);
+            background: var(--accent-gold);
+            box-shadow: 0 0 20px rgba(201, 169, 98, 0.5);
+        }
+
+        .progress-label {
+            font-family: 'DM Sans', sans-serif;
+            font-size: 11px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            font-weight: 400;
+            white-space: nowrap;
+            opacity: 0.8;
+        }
+
+        .progress-item.active .progress-label {
+            color: var(--text-primary);
+        }
+
+        /* Slide Counter */
+        .slide-counter {
+            position: fixed;
+            left: 60px;
+            bottom: 40px;
+            z-index: 1000;
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+        }
+
+        .counter-current {
+            font-family: 'Syne', sans-serif;
+            font-size: 48px;
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1;
+        }
+
+        .counter-divider {
+            font-size: 24px;
+            color: var(--accent-gold);
+        }
+
+        .counter-total {
+            font-size: 18px;
+            color: var(--text-muted);
+        }
+
+        /* Scroll Hint */
+        .scroll-hint {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            opacity: 0.6;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; transform: translateX(-50%) translateY(0); }
+            50% { opacity: 1; transform: translateX(-50%) translateY(5px); }
+        }
+
+        .scroll-hint-text {
+            font-size: 11px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+
+        .scroll-hint-icon {
+            width: 24px;
+            height: 40px;
+            border: 2px solid var(--text-muted);
+            border-radius: 12px;
+            position: relative;
+        }
+
+        .scroll-hint-icon::before {
+            content: '';
+            position: absolute;
+            top: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 4px;
+            height: 8px;
+            background: var(--accent-gold);
+            border-radius: 2px;
+            animation: scrollDown 1.5s ease-in-out infinite;
+        }
+
+        @keyframes scrollDown {
+            0%, 100% { top: 8px; opacity: 1; }
+            50% { top: 20px; opacity: 0.3; }
+        }
+
+        /* Main Container */
+        .slides-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+        }
+
+        /* Individual Slides */
+        .slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.8s ease, visibility 0.8s ease;
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+            padding: 20px 0;
+        }
+
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .slide-content {
+            max-width: 1400px;
+            width: 100%;
+            padding: 0 120px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 80px;
+            align-items: center;
+        }
+
+        /* Left Content */
+        .slide-left {
+            transform: translateX(-50px);
+            opacity: 0;
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s;
+        }
+
+        .slide.active .slide-left {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        .industry-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(201, 169, 98, 0.1);
+            border: 1px solid rgba(201, 169, 98, 0.3);
+            border-radius: 30px;
+            margin-bottom: 30px;
+        }
+
+        .industry-tag-dot {
+            width: 6px;
+            height: 6px;
+            background: var(--accent-gold);
+            border-radius: 50%;
+        }
+
+        .industry-tag-text {
+            font-size: 11px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--accent-gold);
+            font-weight: 600;
+        }
+
+        .slide-title {
+            font-family: 'Syne', sans-serif;
+            font-size: clamp(48px, 6vw, 72px);
+            font-weight: 800;
+            line-height: 1.05;
+            letter-spacing: -2px;
+            margin-bottom: 30px;
+        }
+
+        .slide-title span {
+            background: linear-gradient(135deg, var(--text-primary) 0%, var(--staffbase-light-blue) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .slide-description {
+            font-size: 18px;
+            line-height: 1.7;
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+            max-width: 480px;
+        }
+
+        .slide-cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 18px 36px;
+            background: linear-gradient(135deg, var(--staffbase-blue), var(--staffbase-light-blue));
+            border: none;
+            border-radius: 50px;
+            color: white;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .slide-cta::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, var(--accent-gold), var(--accent-copper));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .slide-cta:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 40px rgba(0, 82, 204, 0.3);
+        }
+
+        .slide-cta:hover::before {
+            opacity: 1;
+        }
+
+        .slide-cta span {
+            position: relative;
+            z-index: 1;
+        }
+
+        .cta-arrow {
+            position: relative;
+            z-index: 1;
+            transition: transform 0.3s ease;
+        }
+
+        .slide-cta:hover .cta-arrow {
+            transform: translateX(4px);
+        }
+
+        /* Right Visual */
+        .slide-right {
+            position: relative;
+            transform: translateX(50px);
+            opacity: 0;
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.4s;
+        }
+
+        .slide.active .slide-right {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        .visual-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .visual-ring {
+            position: absolute;
+            border-radius: 50%;
+            border: 1px solid rgba(76, 154, 255, 0.2);
+        }
+
+        .visual-ring-1 {
+            width: 100%;
+            height: 100%;
+            animation: rotate 30s linear infinite;
+        }
+
+        .visual-ring-2 {
+            width: 80%;
+            height: 80%;
+            border-style: dashed;
+            animation: rotate 25s linear infinite reverse;
+        }
+
+        .visual-ring-3 {
+            width: 60%;
+            height: 60%;
+            animation: rotate 20s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .visual-icon {
+            position: absolute;
+            width: 200px;
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 100px;
+            background: linear-gradient(135deg, rgba(0, 82, 204, 0.2), rgba(76, 154, 255, 0.1));
+            border-radius: 50%;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(76, 154, 255, 0.2);
+            box-shadow: 
+                0 0 60px rgba(0, 82, 204, 0.3),
+                inset 0 0 60px rgba(0, 82, 204, 0.1);
+        }
+
+        .floating-elements {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+
+        .floating-element {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background: rgba(201, 169, 98, 0.1);
+            border: 1px solid rgba(201, 169, 98, 0.3);
+            border-radius: 16px;
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            animation: float 4s ease-in-out infinite;
+        }
+
+        .floating-element:nth-child(1) {
+            top: 10%;
+            left: 10%;
+            animation-delay: 0s;
+        }
+
+        .floating-element:nth-child(2) {
+            top: 20%;
+            right: 5%;
+            animation-delay: 1s;
+        }
+
+        .floating-element:nth-child(3) {
+            bottom: 20%;
+            left: 5%;
+            animation-delay: 2s;
+        }
+
+        .floating-element:nth-child(4) {
+            bottom: 10%;
+            right: 15%;
+            animation-delay: 3s;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-15px) rotate(5deg); }
+        }
+
+        /* Welcome Slide */
+        .slide-welcome .slide-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .slide-welcome .slide-left {
+            width: 100%;
+            max-width: 900px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .welcome-title {
+            font-family: 'Syne', sans-serif;
+            font-size: clamp(56px, 8vw, 96px);
+            font-weight: 800;
+            line-height: 1.05;
+            letter-spacing: -3px;
+            margin-bottom: 30px;
+            background: linear-gradient(135deg, var(--text-primary) 0%, var(--staffbase-light-blue) 50%, var(--accent-gold) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .welcome-subtitle {
+            font-size: 22px;
+            line-height: 1.6;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin-bottom: 60px;
+        }
+
+        .portfolio-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            width: 100%;
+            max-width: 900px;
+        }
+
+        .portfolio-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .portfolio-card:hover {
+            background: rgba(0, 82, 204, 0.1);
+            border-color: rgba(76, 154, 255, 0.3);
+            transform: translateY(-8px);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .portfolio-icon {
+            font-size: 36px;
+            width: 70px;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, rgba(0, 82, 204, 0.2), rgba(76, 154, 255, 0.1));
+            border-radius: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .portfolio-card:hover .portfolio-icon {
+            transform: scale(1.1);
+            background: linear-gradient(135deg, rgba(201, 169, 98, 0.2), rgba(184, 115, 51, 0.1));
+        }
+
+        .portfolio-name {
+            font-family: 'Syne', sans-serif;
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        /* Stats */
+        .stats-row {
+            display: flex;
+            gap: 60px;
+            margin-top: 60px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-family: 'Syne', sans-serif;
+            font-size: 42px;
+            font-weight: 800;
+            color: var(--accent-gold);
+            line-height: 1;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-top: 8px;
+        }
+
+        /* Responsive - Large Desktop */
+        @media (max-width: 1400px) {
+            .slide-content {
+                padding: 0 80px;
+                gap: 60px;
+            }
+
+            .visual-container {
+                max-width: 450px;
+            }
+        }
+
+        /* Responsive - Desktop */
+        @media (max-width: 1200px) {
+            .slide-content {
+                padding: 0 60px;
+                gap: 50px;
+            }
+
+            .progress-container {
+                right: 30px;
+            }
+
+            .progress-label {
+                display: none;
+            }
+
+            .slide-title {
+                font-size: clamp(42px, 5vw, 60px);
+            }
+
+            .visual-container {
+                max-width: 380px;
+            }
+
+            .visual-icon {
+                width: 160px;
+                height: 160px;
+                font-size: 80px;
+            }
+
+            .floating-element {
+                width: 50px;
+                height: 50px;
+                font-size: 20px;
+            }
+        }
+
+        /* Responsive - Tablet Landscape */
+        @media (max-width: 1024px) {
+            .slide-content {
+                grid-template-columns: 1fr;
+                gap: 40px;
+                text-align: center;
+                max-width: 700px;
+                margin: 0 auto;
+            }
+
+            .slide-left {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .slide-description {
+                max-width: 100%;
+            }
+
+            .slide-right {
+                display: none;
+            }
+
+            .slide-cta {
+                padding: 16px 32px;
+            }
+
+            .portfolio-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 16px;
+            }
+
+            .portfolio-card {
+                padding: 24px 16px;
+            }
+
+            .stats-row {
+                gap: 40px;
+            }
+        }
+
+        /* Responsive - Tablet Portrait */
+        @media (max-width: 768px) {
+            .slide {
+                padding: 60px 0 80px 0;
+                align-items: flex-start;
+            }
+
+            .slide-content {
+                padding: 0 30px;
+                padding-right: 50px;
+            }
+
+            .slide-counter {
+                left: 16px;
+                bottom: 16px;
+            }
+
+            .counter-current {
+                font-size: 28px;
+            }
+
+            .counter-total {
+                font-size: 12px;
+            }
+
+            .slide-title {
+                font-size: clamp(32px, 8vw, 42px);
+                letter-spacing: -1px;
+                margin-bottom: 16px;
+            }
+
+            .slide-description {
+                font-size: 15px;
+                margin-bottom: 24px;
+                line-height: 1.6;
+            }
+
+            .industry-tag {
+                margin-bottom: 16px;
+                padding: 6px 12px;
+            }
+
+            .industry-tag-text {
+                font-size: 9px;
+                letter-spacing: 2px;
+            }
+
+            .progress-container {
+                right: 12px;
+                gap: 12px;
+            }
+
+            .progress-dot {
+                width: 8px;
+                height: 8px;
+            }
+
+            .scroll-hint {
+                bottom: 12px;
+            }
+
+            .scroll-hint-text {
+                font-size: 9px;
+                letter-spacing: 2px;
+            }
+
+            .scroll-hint-icon {
+                width: 18px;
+                height: 30px;
+            }
+
+            .slide-cta {
+                padding: 14px 24px;
+                font-size: 14px;
+            }
+
+            /* Welcome slide specific mobile styles */
+            .slide-welcome .slide-content {
+                padding: 0 20px;
+                padding-right: 40px;
+            }
+
+            .welcome-title {
+                font-size: clamp(32px, 9vw, 48px);
+                letter-spacing: -1.5px;
+                margin-bottom: 16px;
+            }
+
+            .welcome-subtitle {
+                font-size: 14px;
+                margin-bottom: 28px;
+                line-height: 1.5;
+            }
+
+            .portfolio-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+                max-width: 100%;
+                width: 100%;
+            }
+
+            .portfolio-card {
+                padding: 16px 10px;
+                border-radius: 14px;
+                gap: 8px;
+            }
+
+            .portfolio-icon {
+                font-size: 26px;
+                width: 50px;
+                height: 50px;
+                border-radius: 12px;
+            }
+
+            .portfolio-name {
+                font-size: 11px;
+            }
+
+            .stats-row {
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 16px;
+                margin-top: 28px;
+            }
+
+            .stat-item {
+                flex: 0 0 45%;
+            }
+
+            .stat-value {
+                font-size: 28px;
+            }
+
+            .stat-label {
+                font-size: 10px;
+                letter-spacing: 1px;
+            }
+
+            /* Hide custom cursor on touch devices */
+            .cursor,
+            .cursor-dot {
+                display: none;
+            }
+        }
+
+        /* Responsive - Mobile Large */
+        @media (max-width: 576px) {
+            .slide {
+                padding: 50px 0 70px 0;
+            }
+
+            .slide-content {
+                padding: 0 20px;
+                padding-right: 40px;
+            }
+
+            .slide-counter {
+                left: 12px;
+                bottom: 12px;
+            }
+
+            .counter-current {
+                font-size: 24px;
+            }
+
+            .counter-divider {
+                font-size: 16px;
+            }
+
+            .counter-total {
+                font-size: 11px;
+            }
+
+            .slide-title {
+                font-size: clamp(28px, 8vw, 36px);
+                letter-spacing: -0.5px;
+            }
+
+            .slide-description {
+                font-size: 14px;
+            }
+
+            .slide-cta {
+                padding: 12px 20px;
+                font-size: 13px;
+                width: 100%;
+                justify-content: center;
+            }
+
+            .progress-container {
+                right: 10px;
+                gap: 10px;
+            }
+
+            .progress-dot {
+                width: 6px;
+                height: 6px;
+                border-width: 1.5px;
+            }
+
+            .scroll-hint {
+                display: none;
+            }
+
+            .welcome-title {
+                font-size: clamp(28px, 8vw, 38px);
+            }
+
+            .welcome-subtitle {
+                font-size: 13px;
+            }
+
+            .portfolio-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }
+
+            .portfolio-card {
+                padding: 14px 8px;
+                gap: 6px;
+            }
+
+            .portfolio-icon {
+                font-size: 22px;
+                width: 44px;
+                height: 44px;
+            }
+
+            .portfolio-name {
+                font-size: 10px;
+            }
+
+            .stats-row {
+                gap: 12px;
+                margin-top: 24px;
+            }
+
+            .stat-value {
+                font-size: 24px;
+            }
+
+            .stat-label {
+                font-size: 9px;
+            }
+        }
+
+        /* Responsive - Mobile Small */
+        @media (max-width: 380px) {
+            .slide {
+                padding: 40px 0 60px 0;
+            }
+
+            .slide-content {
+                padding: 0 16px;
+                padding-right: 36px;
+            }
+
+            .slide-title {
+                font-size: 26px;
+            }
+
+            .slide-description {
+                font-size: 13px;
+            }
+
+            .industry-tag {
+                padding: 4px 10px;
+            }
+
+            .industry-tag-text {
+                font-size: 8px;
+                letter-spacing: 1.5px;
+            }
+
+            .slide-cta {
+                padding: 11px 18px;
+                font-size: 12px;
+            }
+
+            .welcome-title {
+                font-size: 26px;
+            }
+
+            .welcome-subtitle {
+                font-size: 12px;
+            }
+
+            .portfolio-grid {
+                gap: 6px;
+            }
+
+            .portfolio-card {
+                padding: 12px 6px;
+            }
+
+            .portfolio-icon {
+                font-size: 20px;
+                width: 40px;
+                height: 40px;
+            }
+
+            .portfolio-name {
+                font-size: 9px;
+            }
+
+            .stats-row {
+                gap: 10px;
+            }
+
+            .stat-value {
+                font-size: 22px;
+            }
+
+            .stat-label {
+                font-size: 8px;
+            }
+
+            .progress-container {
+                right: 8px;
+                gap: 8px;
+            }
+
+            .progress-dot {
+                width: 5px;
+                height: 5px;
+            }
+        }
+
+        /* Very small height (landscape or small iframe) */
+        @media (max-height: 500px) {
+            .slide {
+                padding: 30px 0 50px 0;
+                align-items: flex-start;
+            }
+
+            .slide-content {
+                padding: 0 30px;
+                padding-right: 50px;
+            }
+
+            .slide-title {
+                font-size: 24px;
+                margin-bottom: 10px;
+            }
+
+            .slide-description {
+                font-size: 12px;
+                margin-bottom: 14px;
+            }
+
+            .industry-tag {
+                margin-bottom: 10px;
+                padding: 4px 8px;
+            }
+
+            .industry-tag-text {
+                font-size: 8px;
+            }
+
+            .slide-cta {
+                padding: 10px 20px;
+                font-size: 12px;
+            }
+
+            .scroll-hint {
+                display: none;
+            }
+
+            .slide-counter {
+                bottom: 8px;
+            }
+
+            .counter-current {
+                font-size: 20px;
+            }
+
+            .welcome-title {
+                font-size: 26px;
+                margin-bottom: 10px;
+            }
+
+            .welcome-subtitle {
+                font-size: 12px;
+                margin-bottom: 20px;
+            }
+
+            .portfolio-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 8px;
+            }
+
+            .portfolio-card {
+                padding: 10px 6px;
+            }
+
+            .portfolio-icon {
+                width: 36px;
+                height: 36px;
+                font-size: 18px;
+            }
+
+            .portfolio-name {
+                font-size: 9px;
+            }
+
+            .stats-row {
+                margin-top: 16px;
+                gap: 20px;
+                flex-wrap: nowrap;
+            }
+
+            .stat-item {
+                flex: 1;
+            }
+
+            .stat-value {
+                font-size: 20px;
+            }
+
+            .stat-label {
+                font-size: 8px;
+            }
+        }
+
+        /* Extra small height */
+        @media (max-height: 400px) {
+            .slide {
+                padding: 20px 0 40px 0;
+            }
+
+            .slide-title {
+                font-size: 20px;
+                margin-bottom: 8px;
+            }
+
+            .slide-description {
+                font-size: 11px;
+                margin-bottom: 12px;
+            }
+
+            .slide-cta {
+                padding: 8px 16px;
+                font-size: 11px;
+            }
+
+            .welcome-title {
+                font-size: 22px;
+            }
+
+            .welcome-subtitle {
+                font-size: 11px;
+                margin-bottom: 16px;
+            }
+
+            .portfolio-grid {
+                grid-template-columns: repeat(6, 1fr);
+                gap: 6px;
+            }
+
+            .portfolio-card {
+                padding: 8px 4px;
+            }
+
+            .portfolio-icon {
+                width: 32px;
+                height: 32px;
+                font-size: 16px;
+            }
+
+            .portfolio-name {
+                font-size: 8px;
+            }
+
+            .stats-row {
+                margin-top: 12px;
+                gap: 16px;
+            }
+
+            .stat-value {
+                font-size: 18px;
+            }
+
+            .stat-label {
+                font-size: 7px;
+            }
+        }
     </style>
 </head>
 <body>
+    <!-- Custom Cursor -->
     <div class="cursor"></div>
     <div class="cursor-dot"></div>
 
+    <!-- Background -->
     <div class="bg-gradient"></div>
     <div class="bg-grid"></div>
     <div class="noise-overlay"></div>
 
+
+
+    <!-- Progress Indicator -->
     <div class="progress-container">
         <div class="progress-item active" data-slide="0">
             <div class="progress-dot"></div>
@@ -177,18 +1274,22 @@
         </div>
     </div>
 
+    <!-- Slide Counter -->
     <div class="slide-counter">
         <span class="counter-current">01</span>
         <span class="counter-divider">/</span>
         <span class="counter-total">07</span>
     </div>
 
+    <!-- Scroll Hint -->
     <div class="scroll-hint">
         <span class="scroll-hint-text">Scroll to Explore</span>
         <div class="scroll-hint-icon"></div>
     </div>
 
+    <!-- Slides Container -->
     <div class="slides-container">
+        <!-- Slide 1: Welcome Portal -->
         <div class="slide slide-welcome active" data-index="0">
             <div class="slide-content">
                 <div class="slide-left">
@@ -201,27 +1302,27 @@
                     </p>
                     
                     <div class="portfolio-grid">
-                        <a href="#" data-group-id="69672894afdf7d24c5feaafd" data-app-path="/content/page/6912676de1744e7a2d2e4065" class="portfolio-card nav-link group-trigger">
+                        <a href="https://showcase.staffbase.com/content/page/6912676de1744e7a2d2e4065" target="_top" data-app-path="/content/page/6912676de1744e7a2d2e4065" class="portfolio-card nav-link">
                             <div class="portfolio-icon">🏭</div>
                             <span class="portfolio-name">Manufacturing</span>
                         </a>
-                        <a href="#" data-group-id="69672db75cff0a6a031724d7" data-app-path="/content/page/6912a1cf36f42e0f440cd6c4" class="portfolio-card nav-link group-trigger">
+                        <a href="https://showcase.staffbase.com/content/page/6912a1cf36f42e0f440cd6c4" target="_top" data-app-path="/content/page/6912a1cf36f42e0f440cd6c4" class="portfolio-card nav-link">
                             <div class="portfolio-icon">🎓</div>
                             <span class="portfolio-name">Education</span>
                         </a>
-                        <a href="#" data-group-id="69672f84a2c10951567a0552" data-app-path="/content/page/694c034e5127d14c6ca00b77" class="portfolio-card nav-link group-trigger">
+                        <a href="https://showcase.staffbase.com/content/page/694c034e5127d14c6ca00b77" target="_top" data-app-path="/content/page/694c034e5127d14c6ca00b77" class="portfolio-card nav-link">
                             <div class="portfolio-icon">🏦</div>
                             <span class="portfolio-name">Financial Services</span>
                         </a>
-                        <a href="#" data-group-id="69535e6338dc171a511fecbe" data-app-path="/content/page/6912a1919fd60b3f5591c8b1" class="portfolio-card nav-link group-trigger">
+                        <a href="https://showcase.staffbase.com/content/page/6912a1919fd60b3f5591c8b1" target="_top" data-app-path="/content/page/6912a1919fd60b3f5591c8b1" class="portfolio-card nav-link">
                             <div class="portfolio-icon">🏥</div>
                             <span class="portfolio-name">Healthcare</span>
                         </a>
-                        <a href="#" data-group-id="69672fbaafdf7d24c5feef0c" data-app-path="/content/page/69129eb69ea6a346d249dac6" class="portfolio-card nav-link group-trigger">
+                        <a href="https://showcase.staffbase.com/content/page/69129eb69ea6a346d249dac6" target="_top" data-app-path="/content/page/69129eb69ea6a346d249dac6" class="portfolio-card nav-link">
                             <div class="portfolio-icon">🛍️</div>
                             <span class="portfolio-name">Retail</span>
                         </a>
-                        <a href="#" data-group-id="69673076a2c10951567a0db5" data-app-path="/content/page/692505748f3c026c135f0b90" class="portfolio-card nav-link group-trigger">
+                        <a href="https://showcase.staffbase.com/content/page/692505748f3c026c135f0b90" target="_top" data-app-path="/content/page/692505748f3c026c135f0b90" class="portfolio-card nav-link">
                             <div class="portfolio-icon">🚀</div>
                             <span class="portfolio-name">Futures</span>
                         </a>
@@ -249,6 +1350,7 @@
             </div>
         </div>
 
+        <!-- Slide 2: Manufacturing -->
         <div class="slide" data-index="1">
             <div class="slide-content">
                 <div class="slide-left">
@@ -265,7 +1367,7 @@
                         factory floor. Ensure safety protocols, operational updates, 
                         and company news reach every worker.
                     </p>
-                    <a href="#" data-group-id="69672894afdf7d24c5feaafd" data-app-path="/content/page/6912676de1744e7a2d2e4065" class="slide-cta nav-link group-trigger">
+                    <a href="https://showcase.staffbase.com/content/page/6912676de1744e7a2d2e4065" target="_top" data-app-path="/content/page/6912676de1744e7a2d2e4065" class="slide-cta nav-link">
                         <span>Explore Manufacturing</span>
                         <svg class="cta-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -289,6 +1391,7 @@
             </div>
         </div>
 
+        <!-- Slide 3: Education -->
         <div class="slide" data-index="2">
             <div class="slide-content">
                 <div class="slide-left">
@@ -305,7 +1408,7 @@
                         a mission-driven environment. Foster collaboration that 
                         inspires learning excellence.
                     </p>
-                    <a href="#" data-group-id="69672db75cff0a6a031724d7" data-app-path="/content/page/6912a1cf36f42e0f440cd6c4" class="slide-cta nav-link group-trigger">
+                    <a href="https://showcase.staffbase.com/content/page/6912a1cf36f42e0f440cd6c4" target="_top" data-app-path="/content/page/6912a1cf36f42e0f440cd6c4" class="slide-cta nav-link">
                         <span>Explore Education</span>
                         <svg class="cta-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -329,6 +1432,7 @@
             </div>
         </div>
 
+        <!-- Slide 4: Financial Services -->
         <div class="slide" data-index="3">
             <div class="slide-content">
                 <div class="slide-left">
@@ -345,7 +1449,7 @@
                         and aligned. Enable secure, compliant communication that 
                         builds trust across your organization.
                     </p>
-                    <a href="#" data-group-id="69672f84a2c10951567a0552" data-app-path="/content/page/694c034e5127d14c6ca00b77" class="slide-cta nav-link group-trigger">
+                    <a href="https://showcase.staffbase.com/content/page/694c034e5127d14c6ca00b77" target="_top" data-app-path="/content/page/694c034e5127d14c6ca00b77" class="slide-cta nav-link">
                         <span>Explore Financial Services</span>
                         <svg class="cta-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -369,6 +1473,7 @@
             </div>
         </div>
 
+        <!-- Slide 5: Healthcare -->
         <div class="slide" data-index="4">
             <div class="slide-content">
                 <div class="slide-left">
@@ -385,7 +1490,7 @@
                         Bridge communication gaps between shifts, departments, and 
                         locations to deliver exceptional patient care.
                     </p>
-                    <a href="#" data-group-id="69535e6338dc171a511fecbe" data-app-path="/content/page/6912a1919fd60b3f5591c8b1" class="slide-cta nav-link group-trigger">
+                    <a href="https://showcase.staffbase.com/content/page/6912a1919fd60b3f5591c8b1" target="_top" data-app-path="/content/page/6912a1919fd60b3f5591c8b1" class="slide-cta nav-link">
                         <span>Explore Healthcare</span>
                         <svg class="cta-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -409,6 +1514,7 @@
             </div>
         </div>
 
+        <!-- Slide 6: Retail -->
         <div class="slide" data-index="5">
             <div class="slide-content">
                 <div class="slide-left">
@@ -425,7 +1531,7 @@
                         empowered employees. Connect your frontline teams across 
                         every store, region, and channel.
                     </p>
-                    <a href="#" data-group-id="69672fbaafdf7d24c5feef0c" data-app-path="/content/page/69129eb69ea6a346d249dac6" class="slide-cta nav-link group-trigger">
+                    <a href="https://showcase.staffbase.com/content/page/69129eb69ea6a346d249dac6" target="_top" data-app-path="/content/page/69129eb69ea6a346d249dac6" class="slide-cta nav-link">
                         <span>Explore Retail</span>
                         <svg class="cta-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -449,6 +1555,7 @@
             </div>
         </div>
 
+        <!-- Slide 7: Futures -->
         <div class="slide" data-index="6">
             <div class="slide-content">
                 <div class="slide-left">
@@ -465,7 +1572,7 @@
                         Stay ahead of the curve with cutting-edge communication 
                         solutions designed for what's next.
                     </p>
-                    <a href="#" data-group-id="69673076a2c10951567a0db5" data-app-path="/content/page/692505748f3c026c135f0b90" class="slide-cta nav-link group-trigger">
+                    <a href="https://showcase.staffbase.com/content/page/692505748f3c026c135f0b90" target="_top" data-app-path="/content/page/692505748f3c026c135f0b90" class="slide-cta nav-link">
                         <span>Explore Futures</span>
                         <svg class="cta-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -491,68 +1598,305 @@
     </div>
 
     <script>
-        // Group Manager - Handles API Logic
-        class GroupManager {
+        // Mobile/App Detection and Navigation Handler
+        class NavigationHandler {
             constructor() {
-                // Map of all Industry Group IDs for cleanup reference
-                this.industryGroups = [
-                    '69672894afdf7d24c5feaafd', // Manufacturing
-                    '69672db75cff0a6a031724d7', // Education
-                    '69672f84a2c10951567a0552', // Financial
-                    '69535e6338dc171a511fecbe', // Healthcare
-                    '69672fbaafdf7d24c5feef0c', // Retail
-                    '69673076a2c10951567a0db5'  // Futures
-                ];
+                this.isMobile = this.detectMobile();
+                this.init();
+            }
+
+            detectMobile() {
+                // Check for mobile device indicators
+                const hasTouchScreen = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+                const isSmallScreen = window.innerWidth <= 1024;
+                const mobileUserAgent = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                
+                // Consider it mobile if it has touch AND (small screen OR mobile user agent)
+                return hasTouchScreen && (isSmallScreen || mobileUserAgent);
+            }
+
+            init() {
+                if (this.isMobile) {
+                    this.setupMobileNavigation();
+                }
+                // On desktop, links work normally with target="_top"
+            }
+
+            setupMobileNavigation() {
+                document.querySelectorAll('.nav-link').forEach(link => {
+                    link.addEventListener('click', (e) => {
+                        const appPath = link.getAttribute('data-app-path');
+                        if (appPath) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            
+                            // Remove target attribute for in-app navigation
+                            // Navigate using relative path for Staffbase app
+                            window.location.href = appPath;
+                        }
+                    });
+
+                    // Also handle touch events for better mobile response
+                    link.addEventListener('touchend', (e) => {
+                        const appPath = link.getAttribute('data-app-path');
+                        if (appPath) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            
+                            // Small delay to allow touch feedback
+                            setTimeout(() => {
+                                window.location.href = appPath;
+                            }, 100);
+                        }
+                    });
+                });
+            }
+        }
+
+        // Scroll Animation Controller
+        class ScrollSlider {
+            constructor() {
+                this.currentSlide = 0;
+                this.totalSlides = document.querySelectorAll('.slide').length;
+                this.isAnimating = false;
+                this.touchStartY = 0;
+                this.touchStartX = 0;
+                this.touchStartTime = 0;
+                this.lastScrollTime = Date.now();
+                
                 this.init();
             }
 
             init() {
-                // Attach event listeners to all triggers
-                document.querySelectorAll('.group-trigger').forEach(trigger => {
-                    trigger.addEventListener('click', (e) => this.handleTrigger(e, trigger));
-                    trigger.addEventListener('touchend', (e) => this.handleTrigger(e, trigger));
-                });
-            }
-
-            // Helper to get CSRF token from cookies
-            getCsrfToken() {
-                const name = "staffbase_csrf_token=";
-                const decodedCookie = decodeURIComponent(document.cookie);
-                const ca = decodedCookie.split(';');
-                for(let i = 0; i <ca.length; i++) {
-                    let c = ca[i];
-                    while (c.charAt(0) == ' ') {
-                        c = c.substring(1);
-                    }
-                    if (c.indexOf(name) == 0) {
-                        return c.substring(name.length, c.length);
-                    }
-                }
-                return "";
-            }
-
-            async handleTrigger(e, element) {
-                e.preventDefault();
-                e.stopPropagation();
-
-                const targetGroupId = element.getAttribute('data-group-id');
-                const destination = element.getAttribute('data-app-path');
-
-                if (!targetGroupId || !destination) return;
-
-                // UI Loading State
-                element.classList.add('loading');
-                const originalText = element.querySelector('span')?.textContent;
+                // Wheel event
+                window.addEventListener('wheel', (e) => this.handleScroll(e), { passive: false });
                 
-                try {
-                    // 1. Get Current User Info
-                    const userResponse = await fetch('/api/users/me', {
-                        headers: { 'accept': 'application/vnd.staffbase.accessors.user.v2+json' }
+                // Touch events with improved handling for iframe
+                document.addEventListener('touchstart', (e) => this.handleTouchStart(e), { passive: true });
+                document.addEventListener('touchmove', (e) => this.handleTouchMove(e), { passive: false });
+                document.addEventListener('touchend', (e) => this.handleTouchEnd(e), { passive: true });
+                
+                // Keyboard events
+                window.addEventListener('keydown', (e) => this.handleKeydown(e));
+                
+                // Progress dots click/touch
+                document.querySelectorAll('.progress-item').forEach(item => {
+                    item.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const slideIndex = parseInt(item.dataset.slide);
+                        this.goToSlide(slideIndex);
                     });
                     
-                    if (!userResponse.ok) throw new Error('Failed to fetch user');
-                    const user = await userResponse.json();
-                    const userId = user.id;
-                    const currentGroups = user.groupIDs || [];
+                    item.addEventListener('touchend', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const slideIndex = parseInt(item.dataset.slide);
+                        this.goToSlide(slideIndex);
+                    });
+                });
 
-                    // 2. Identify Groups to Remove and Add
+                // Custom cursor (only on non-touch devices)
+                if (window.matchMedia('(hover: hover)').matches) {
+                    this.initCursor();
+                }
+            }
+
+            handleScroll(e) {
+                e.preventDefault();
+                
+                const now = Date.now();
+                if (now - this.lastScrollTime < 150) return;
+                
+                if (this.isAnimating) return;
+                
+                const delta = e.deltaY;
+                
+                if (Math.abs(delta) > 20) {
+                    if (delta > 0) {
+                        this.nextSlide();
+                    } else {
+                        this.prevSlide();
+                    }
+                    this.lastScrollTime = now;
+                }
+            }
+
+            handleTouchStart(e) {
+                // Don't track swipes that start on nav links
+                if (e.target.closest('.nav-link')) return;
+                
+                this.touchStartY = e.touches[0].clientY;
+                this.touchStartX = e.touches[0].clientX;
+                this.touchStartTime = Date.now();
+            }
+
+            handleTouchMove(e) {
+                // Don't interfere with nav link touches
+                if (e.target.closest('.nav-link')) return;
+                
+                // Only prevent default if we're doing a vertical swipe
+                if (this.isAnimating) return;
+                
+                const touchY = e.touches[0].clientY;
+                const touchX = e.touches[0].clientX;
+                const diffY = this.touchStartY - touchY;
+                const diffX = this.touchStartX - touchX;
+                
+                // If vertical movement is greater than horizontal, prevent scrolling
+                if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > 10) {
+                    e.preventDefault();
+                }
+            }
+
+            handleTouchEnd(e) {
+                // Don't handle swipes that end on nav links
+                if (e.target.closest('.nav-link')) return;
+                
+                if (this.isAnimating) return;
+                
+                const touchEndY = e.changedTouches[0].clientY;
+                const touchEndX = e.changedTouches[0].clientX;
+                const touchEndTime = Date.now();
+                
+                const diffY = this.touchStartY - touchEndY;
+                const diffX = this.touchStartX - touchEndX;
+                const timeDiff = touchEndTime - this.touchStartTime;
+                
+                // Swipe detection:
+                // 1. Vertical movement > horizontal (it's a vertical swipe)
+                // 2. Movement is significant (> 30px for mobile sensitivity)
+                // 3. Swipe was reasonably fast (< 600ms)
+                if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > 30 && timeDiff < 600) {
+                    if (diffY > 0) {
+                        this.nextSlide();
+                    } else {
+                        this.prevSlide();
+                    }
+                }
+            }
+
+            handleKeydown(e) {
+                if (this.isAnimating) return;
+                
+                if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') {
+                    e.preventDefault();
+                    this.nextSlide();
+                } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+                    e.preventDefault();
+                    this.prevSlide();
+                }
+            }
+
+            nextSlide() {
+                if (this.currentSlide < this.totalSlides - 1) {
+                    this.goToSlide(this.currentSlide + 1);
+                }
+            }
+
+            prevSlide() {
+                if (this.currentSlide > 0) {
+                    this.goToSlide(this.currentSlide - 1);
+                }
+            }
+
+            goToSlide(index) {
+                if (index === this.currentSlide || this.isAnimating) return;
+                
+                this.isAnimating = true;
+                
+                // Update slides
+                const slides = document.querySelectorAll('.slide');
+                slides[this.currentSlide].classList.remove('active');
+                slides[index].classList.add('active');
+                
+                // Scroll slide to top
+                slides[index].scrollTop = 0;
+                
+                // Update progress
+                const progressItems = document.querySelectorAll('.progress-item');
+                progressItems[this.currentSlide].classList.remove('active');
+                progressItems[index].classList.add('active');
+                
+                // Update counter
+                document.querySelector('.counter-current').textContent = 
+                    String(index + 1).padStart(2, '0');
+                
+                // Update scroll hint visibility
+                const scrollHint = document.querySelector('.scroll-hint');
+                if (scrollHint) {
+                    if (index === this.totalSlides - 1) {
+                        scrollHint.style.opacity = '0';
+                    } else {
+                        scrollHint.style.opacity = '0.6';
+                    }
+                }
+                
+                this.currentSlide = index;
+                
+                setTimeout(() => {
+                    this.isAnimating = false;
+                }, 800);
+            }
+
+            initCursor() {
+                const cursor = document.querySelector('.cursor');
+                const cursorDot = document.querySelector('.cursor-dot');
+                
+                if (!cursor || !cursorDot) return;
+                
+                let mouseX = 0;
+                let mouseY = 0;
+                let cursorX = 0;
+                let cursorY = 0;
+                
+                document.addEventListener('mousemove', (e) => {
+                    mouseX = e.clientX;
+                    mouseY = e.clientY;
+                    
+                    cursorDot.style.left = mouseX + 'px';
+                    cursorDot.style.top = mouseY + 'px';
+                });
+                
+                const animateCursor = () => {
+                    cursorX += (mouseX - cursorX) * 0.15;
+                    cursorY += (mouseY - cursorY) * 0.15;
+                    
+                    cursor.style.left = cursorX - 10 + 'px';
+                    cursor.style.top = cursorY - 10 + 'px';
+                    
+                    requestAnimationFrame(animateCursor);
+                };
+                
+                animateCursor();
+                
+                // Hover effects
+                const interactiveElements = document.querySelectorAll('a, button, .progress-item, .portfolio-card');
+                
+                interactiveElements.forEach(el => {
+                    el.addEventListener('mouseenter', () => {
+                        cursor.style.transform = 'scale(1.5)';
+                        cursor.style.borderColor = 'var(--accent-gold)';
+                    });
+                    
+                    el.addEventListener('mouseleave', () => {
+                        cursor.style.transform = 'scale(1)';
+                        cursor.style.borderColor = 'var(--staffbase-light-blue)';
+                    });
+                });
+            }
+        }
+
+        // Initialize when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                new NavigationHandler();
+                new ScrollSlider();
+            });
+        } else {
+            new NavigationHandler();
+            new ScrollSlider();
+        }
+    </script>
+</body>
+</html>
