@@ -1768,6 +1768,7 @@
                 this.groupManager = groupManager;
                 this.isMobile = this.detectMobile();
                 this.isNavigating = false;
+                this.messageType = 'staffbase-industry-switch';
                 this.init();
             }
 
@@ -1785,6 +1786,14 @@
                 this.setupNavigation();
             }
 
+            detectEmbedded() {
+                try {
+                    return window.top !== window.self;
+                } catch (error) {
+                    return true;
+                }
+            }
+
             setupNavigation() {
                 document.querySelectorAll('.nav-link').forEach(link => {
                     const handler = (e) => this.handleNavigation(e, link);
@@ -1797,6 +1806,32 @@
                 const isModifiedClick = e.metaKey || e.ctrlKey || e.shiftKey || e.altKey;
                 const isNonLeftClick = typeof e.button === 'number' && e.button !== 0;
                 return isModifiedClick || isNonLeftClick;
+            }
+
+            getMessageTarget() {
+                try {
+                    if (window.top && window.top !== window) return window.top;
+                    if (window.parent && window.parent !== window) return window.parent;
+                } catch (error) {
+                    return null;
+                }
+                return null;
+            }
+
+            postSwitchMessage(groupId, destination) {
+                const target = this.getMessageTarget();
+                if (!target) return false;
+
+                target.postMessage(
+                    {
+                        type: this.messageType,
+                        groupId,
+                        destination
+                    },
+                    '*'
+                );
+
+                return true;
             }
 
             async handleNavigation(e, link) {
@@ -1814,6 +1849,16 @@
                 this.isNavigating = true;
 
                 const targetGroupId = link.getAttribute('data-group-id');
+                if (this.detectEmbedded() && targetGroupId) {
+                    const posted = this.postSwitchMessage(targetGroupId, destination);
+                    if (posted) {
+                        setTimeout(() => {
+                            this.isNavigating = false;
+                        }, 4000);
+                        return;
+                    }
+                }
+
                 if (this.groupManager && targetGroupId) {
                     try {
                         await this.groupManager.switchToGroup(targetGroupId);
