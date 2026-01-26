@@ -1,4 +1,5 @@
 (() => {
+  console.log('[Switcher] Global script loaded.');
   const MESSAGE_TYPE = 'staffbase-industry-switch';
   const INDUSTRY_GROUP_IDS = new Set([
     '69672894afdf7d24c5feaafd',
@@ -149,12 +150,17 @@
 
     if (isProcessing) return;
     isProcessing = true;
+    console.log('[Switcher] Processing request:', {
+      groupId: targetGroupId,
+      destination
+    });
 
     switchToGroup(targetGroupId)
       .catch((error) => {
         console.error('Industry switch failed:', error);
       })
       .finally(() => {
+        console.log('[Switcher] Navigating to:', destination);
         window.location.href = destination;
         isProcessing = false;
       });
