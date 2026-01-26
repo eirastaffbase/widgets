@@ -1816,19 +1816,10 @@
                 return isModifiedClick || isNonLeftClick;
             }
 
-            isNewPageNavigation(destination) {
-                if (!destination) return false;
-
-                try {
-                    const url = new URL(destination, window.location.origin);
-                    if (url.origin !== window.location.origin) return false;
-
-                    const current = window.location.pathname + window.location.search + window.location.hash;
-                    const target = url.pathname + url.search + url.hash;
-                    return current !== target;
-                } catch (error) {
-                    return false;
-                }
+            isNewPageNavigation(destination, appPath) {
+                if (appPath && appPath.startsWith('/content/page/')) return true;
+                if (typeof destination === 'string' && destination.includes('/content/page/')) return true;
+                return false;
             }
 
             getMessageTarget() {
@@ -1883,7 +1874,10 @@
 
                 if (!destination) return;
 
-                const isNewPage = this.isNewPageNavigation(destination);
+                const targetGroupId = link.getAttribute('data-group-id');
+                if (!targetGroupId) return;
+
+                const isNewPage = this.isNewPageNavigation(destination, appPath);
                 if (!isNewPage) return;
 
                 e.preventDefault();
@@ -1891,7 +1885,6 @@
 
                 this.isNavigating = true;
 
-                const targetGroupId = link.getAttribute('data-group-id');
                 console.log('[Switcher Iframe] Link activated.', {
                     groupId: targetGroupId,
                     destination,
