@@ -1783,6 +1783,7 @@
             }
 
             init() {
+                console.log('[Switcher Iframe] Navigation handler ready.');
                 this.setupNavigation();
             }
 
@@ -1809,18 +1810,30 @@
             }
 
             getMessageTarget() {
+                let parentTarget = null;
+                let topTarget = null;
+
                 try {
-                    if (window.top && window.top !== window) return window.top;
-                    if (window.parent && window.parent !== window) return window.parent;
+                    if (window.parent && window.parent !== window) parentTarget = window.parent;
                 } catch (error) {
-                    return null;
+                    // Ignore parent access errors.
                 }
-                return null;
+
+                try {
+                    if (window.top && window.top !== window) topTarget = window.top;
+                } catch (error) {
+                    // Ignore top access errors.
+                }
+
+                return topTarget || parentTarget;
             }
 
             postSwitchMessage(groupId, destination) {
                 const target = this.getMessageTarget();
-                if (!target) return false;
+                if (!target) {
+                    console.warn('[Switcher Iframe] No parent window available for messaging.');
+                    return false;
+                }
 
                 target.postMessage(
                     {
@@ -1830,6 +1843,11 @@
                     },
                     '*'
                 );
+
+                console.log('[Switcher Iframe] Posted switch message.', {
+                    groupId,
+                    destination
+                });
 
                 return true;
             }
@@ -1849,6 +1867,11 @@
                 this.isNavigating = true;
 
                 const targetGroupId = link.getAttribute('data-group-id');
+                console.log('[Switcher Iframe] Link activated.', {
+                    groupId: targetGroupId,
+                    destination,
+                    embedded: this.detectEmbedded()
+                });
                 if (this.detectEmbedded() && targetGroupId) {
                     const posted = this.postSwitchMessage(targetGroupId, destination);
                     if (posted) {

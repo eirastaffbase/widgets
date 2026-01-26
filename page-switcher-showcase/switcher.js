@@ -140,15 +140,28 @@
 
   window.addEventListener('message', (event) => {
     if (!event || !event.data || event.data.type !== MESSAGE_TYPE) return;
+    console.log('[Switcher] Message received.', {
+      origin: event.origin,
+      data: event.data
+    });
     if (!isAllowedOrigin(event.origin)) return;
 
     const targetGroupId = String(event.data.groupId || '');
-    if (!INDUSTRY_GROUP_IDS.has(targetGroupId)) return;
+    if (!INDUSTRY_GROUP_IDS.has(targetGroupId)) {
+      console.warn('[Switcher] Unknown groupId:', targetGroupId);
+      return;
+    }
 
     const destination = normalizeDestination(event.data.destination);
-    if (!destination) return;
+    if (!destination) {
+      console.warn('[Switcher] Destination rejected:', event.data.destination);
+      return;
+    }
 
-    if (isProcessing) return;
+    if (isProcessing) {
+      console.warn('[Switcher] Already processing a request.');
+      return;
+    }
     isProcessing = true;
     console.log('[Switcher] Processing request:', {
       groupId: targetGroupId,
