@@ -13,11 +13,18 @@
   const USER_ENDPOINT = '/api/users/me';
   const DISCOVER_ACCEPT = 'application/vnd.staffbase.auth.discovery.v2+json';
   const USER_ACCEPT = 'application/vnd.staffbase.accessors.user.v2+json';
+  const ALLOWED_MESSAGE_ORIGINS = new Set([
+    window.location.origin,
+    'https://eirastaffbase.github.io'
+  ]);
 
   let isProcessing = false;
 
   function isAllowedOrigin(origin) {
-    return origin === 'null' || origin === window.location.origin;
+    if (origin === 'null') return true;
+    if (ALLOWED_MESSAGE_ORIGINS.has(origin)) return true;
+    console.warn('[Switcher] Blocked message origin:', origin);
+    return false;
   }
 
   function normalizeDestination(destination) {
@@ -43,10 +50,13 @@
     });
 
     if (!response.ok) {
+      console.warn('[Switcher] Discovery request failed:', response.status);
       throw new Error('Failed to load discovery information.');
     }
 
-    return response.json();
+    const payload = await response.json();
+    console.log('[Switcher] Discovery loaded.');
+    return payload;
   }
 
   async function fetchUserFallback() {
@@ -60,10 +70,13 @@
     });
 
     if (!response.ok) {
+      console.warn('[Switcher] User fetch failed:', response.status);
       throw new Error('Failed to load user information.');
     }
 
-    return response.json();
+    const payload = await response.json();
+    console.log('[Switcher] User loaded from fallback.');
+    return payload;
   }
 
   async function getUserAndToken() {
@@ -76,6 +89,7 @@
         };
       }
     } catch (error) {
+      console.warn('[Switcher] Discovery unavailable, using fallback.');
       // Fall back to /api/users/me when discovery is unavailable.
     }
 
@@ -97,6 +111,7 @@
       headers['x-csrf-token'] = csrfToken;
     }
 
+    console.log('[Switcher] Updating group membership.', { groupId, action });
     const response = await fetch(`/api/groups/${groupId}/members`, {
       method: 'PATCH',
       credentials: 'include',
@@ -105,8 +120,14 @@
     });
 
     if (!response.ok) {
+      console.warn('[Switcher] Group update failed.', {
+        groupId,
+        action,
+        status: response.status
+      });
       throw new Error(`Failed to ${action} group membership.`);
     }
+    console.log('[Switcher] Group update success.', { groupId, action });
   }
 
   async function switchToGroup(targetGroupId) {
@@ -124,6 +145,10 @@
     );
     const needsAdd = !currentGroupIds.includes(targetGroupId);
 
+    console.log('[Switcher] Current industry groups:', {
+      groupsToRemove,
+      needsAdd
+    });
     if (!groupsToRemove.length && !needsAdd) return;
 
     if (groupsToRemove.length) {

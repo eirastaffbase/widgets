@@ -1769,6 +1769,7 @@
                 this.isMobile = this.detectMobile();
                 this.isNavigating = false;
                 this.messageType = 'staffbase-industry-switch';
+                this.lastTouchTime = 0;
                 this.init();
             }
 
@@ -1798,8 +1799,14 @@
             setupNavigation() {
                 document.querySelectorAll('.nav-link').forEach(link => {
                     const handler = (e) => this.handleNavigation(e, link);
-                    link.addEventListener('click', handler);
-                    link.addEventListener('touchend', handler);
+                    link.addEventListener('touchend', (e) => {
+                        this.lastTouchTime = Date.now();
+                        handler(e);
+                    });
+                    link.addEventListener('click', (e) => {
+                        if (Date.now() - this.lastTouchTime < 600) return;
+                        handler(e);
+                    });
                 });
             }
 
@@ -1807,6 +1814,21 @@
                 const isModifiedClick = e.metaKey || e.ctrlKey || e.shiftKey || e.altKey;
                 const isNonLeftClick = typeof e.button === 'number' && e.button !== 0;
                 return isModifiedClick || isNonLeftClick;
+            }
+
+            isNewPageNavigation(destination) {
+                if (!destination) return false;
+
+                try {
+                    const url = new URL(destination, window.location.origin);
+                    if (url.origin !== window.location.origin) return false;
+
+                    const current = window.location.pathname + window.location.search + window.location.hash;
+                    const target = url.pathname + url.search + url.hash;
+                    return current !== target;
+                } catch (error) {
+                    return false;
+                }
             }
 
             getMessageTarget() {
@@ -1860,6 +1882,9 @@
                 const destination = this.isMobile && appPath ? appPath : href;
 
                 if (!destination) return;
+
+                const isNewPage = this.isNewPageNavigation(destination);
+                if (!isNewPage) return;
 
                 e.preventDefault();
                 e.stopPropagation();
