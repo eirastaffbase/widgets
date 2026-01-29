@@ -319,9 +319,10 @@ export const WeatherTimeGeolocation = (props: WeatherTimeGeolocationProps): Reac
    * Attempt to get browser geolocation once on mount.
    * If unavailable/denied, we fall back to the `city` prop.
    */
-  useEffect(() => {
+  const requestGeolocation = () => {
     if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
       setGeoStatus("unsupported");
+      setGeoStatusMessage("Geolocation API not available");
       return;
     }
 
@@ -347,6 +348,10 @@ export const WeatherTimeGeolocation = (props: WeatherTimeGeolocationProps): Reac
         timeout: 10 * 1000,
       }
     );
+  };
+
+  useEffect(() => {
+    requestGeolocation();
   }, []);
 
   /**
@@ -680,11 +685,23 @@ export const WeatherTimeGeolocation = (props: WeatherTimeGeolocationProps): Reac
               style={{ width: "100%", marginBottom: "10px", marginTop: "10px" }}
             />
             <div>
+              <button
+                onClick={requestGeolocation}
+                style={{ marginRight: "8px", marginBottom: "10px" }}
+              >
+                Use current location
+              </button>
               <button onClick={handleSetCityOverride} style={{ marginBottom: "10px" }}>
                 OK
               </button>
               <button onClick={() => setShowPopup(false)}>Cancel</button>
             </div>
+            {geoStatus === "denied" && (
+              <p style={{ marginTop: "8px", fontSize: "12px", opacity: 0.8 }}>
+                Location permission is denied. You may need to enable Location Services
+                for this app in iOS Settings.
+              </p>
+            )}
           </div>
         </div>
       )}
