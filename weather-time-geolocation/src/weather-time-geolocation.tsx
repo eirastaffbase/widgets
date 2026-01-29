@@ -186,6 +186,10 @@ export const WeatherTimeGeolocation = (props: WeatherTimeGeolocationProps): Reac
 
   // Browser geolocation (lat,lon) for WeatherAPI query if available
   const [geoQuery, setGeoQuery] = useState<string | null>(null);
+  const [geoStatus, setGeoStatus] = useState<
+    "unknown" | "ok" | "unsupported" | "denied" | "unavailable" | "timeout" | "error"
+  >("unknown");
+  const [geoStatusMessage, setGeoStatusMessage] = useState<string>("");
 
   // Default fallback values, in case we can't fetch data
   const defaultCity = "New York City";
@@ -317,6 +321,7 @@ export const WeatherTimeGeolocation = (props: WeatherTimeGeolocationProps): Reac
    */
   useEffect(() => {
     if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
+      setGeoStatus("unsupported");
       return;
     }
 
@@ -324,8 +329,16 @@ export const WeatherTimeGeolocation = (props: WeatherTimeGeolocationProps): Reac
       (position) => {
         const { latitude, longitude } = position.coords;
         setGeoQuery(`${latitude},${longitude}`);
+        setGeoStatus("ok");
+        setGeoStatusMessage("");
       },
       (error) => {
+        let status: typeof geoStatus = "error";
+        if (error.code === error.PERMISSION_DENIED) status = "denied";
+        if (error.code === error.POSITION_UNAVAILABLE) status = "unavailable";
+        if (error.code === error.TIMEOUT) status = "timeout";
+        setGeoStatus(status);
+        setGeoStatusMessage(error.message || "Unknown error");
         console.warn("Geolocation unavailable or denied:", error.message);
       },
       {
@@ -393,6 +406,33 @@ export const WeatherTimeGeolocation = (props: WeatherTimeGeolocationProps): Reac
     : city
     ? "Prop city"
     : "Default";
+
+  const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "";
+  const isIOS = /iP(hone|od|ad)/.test(userAgent);
+  const isWebkit = /AppleWebKit/.test(userAgent);
+  const isSafari =
+    isIOS && /Safari/.test(userAgent) && !/CriOS|FxiOS|OPiOS|EdgiOS/.test(userAgent);
+  const isIOSWebView = isIOS && isWebkit && !isSafari;
+  const isSecureContext =
+    typeof window !== "undefined" ? Boolean(window.isSecureContext) : false;
+  const hasGeolocation = typeof navigator !== "undefined" && "geolocation" in navigator;
+
+  const diagnostics: string[] = [];
+  if (isIOSWebView) diagnostics.push("Environment: iOS WebView");
+  if (isIOS && !isIOSWebView) diagnostics.push("Environment: iOS browser");
+  if (!isSecureContext) diagnostics.push("Not a secure context (HTTPS required)");
+  if (!hasGeolocation) diagnostics.push("Geolocation API not available");
+  if (geoStatus !== "ok" && geoStatus !== "unknown") {
+    diagnostics.push(`Geolocation status: ${geoStatus}`);
+  }
+  if (geoStatusMessage) {
+    diagnostics.push(`Geolocation message: ${geoStatusMessage}`);
+  }
+  if (isIOSWebView || isMobileView) {
+    diagnostics.push(`Secure context: ${isSecureContext ? "yes" : "no"}`);
+    diagnostics.push(`Geolocation support: ${hasGeolocation ? "yes" : "no"}`);
+    if (userAgent) diagnostics.push(`UA: ${userAgent}`);
+  }
 
   /**
    * Container style - different if in mobile vs. desktop layout
@@ -620,6 +660,18 @@ export const WeatherTimeGeolocation = (props: WeatherTimeGeolocationProps): Reac
             <p style={{ marginTop: "6px", marginBottom: "6px", fontSize: "12px", opacity: 0.7 }}>
               <b>Location source:</b> {locationSourceLabel}
             </p>
+            {diagnostics.length > 0 && (
+              <div style={{ marginTop: "8px", fontSize: "12px", opacity: 0.8 }}>
+                <b>Diagnostics:</b>
+                <ul style={{ margin: "6px 0 0 16px", padding: 0 }}>
+                  {diagnostics.map((item) => (
+                    <li key={item} style={{ marginBottom: "4px" }}>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <input
               type="text"
               placeholder="Type a city..."
