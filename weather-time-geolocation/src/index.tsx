@@ -85,7 +85,7 @@ const blockDefinition: BlockDefinition = {
     blockLevel: 'block',
     configurationSchema: configurationSchema,
     uiSchema: uiSchema,
-    label: 'Weather Time',
+    label: 'Weather Time Geolocation',
     iconUrl: icon
 };
 
