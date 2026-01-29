@@ -679,7 +679,7 @@ export const WeatherTimeGeolocation = (props: WeatherTimeGeolocationProps): Reac
             )}
             <input
               type="text"
-              placeholder="Type a city..."
+              placeholder="Type a city name..."
               value={overrideInput}
               onChange={(e) => setOverrideInput(e.target.value)}
               style={{ width: "100%", marginBottom: "10px", marginTop: "10px" }}
