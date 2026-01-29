@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="shortcut icon" href="favicon.png">
+    <title>eira/weather-time-geolocation</title>
+    <!-- locally stored versions of Staffbase frontend assets -->
+    <link href="/css/app.css" rel="stylesheet">
+    <link href="/css/libs.css" rel="stylesheet">
+    <link href="/css/font.css" rel="stylesheet">
+    <style>
+      body {
+        padding: 50px;
+        background-color: #f5f5f5;
+        display: flex;
+      }
+      .box {
+        border: 2px dashed gray;
+        padding: 40px;
+        background-color: #D6EBFF;
+        border-radius: 10px;
+      }
+      #preview {
+        background-color: white; /* White box for the actual widget */
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1); 
+        display: inline-block;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="box" style="flex: 2; ">
+      <h3>Widget preview:</h3>
+      <br />
+      <br />
+      <section id="preview">
+        <weather-time-geolocation city="New York" allowcityoverride="true"></weather-time-geolocation>
+      </section>
+    </div>
+    <div id="config" style="flex: 1"></div>
+  </body>
+  <script src="bootstrap.js"></script>
+  <script src="eira.weather-time-geolocation.js"></script>
+</html>
