@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ford Shuttle - Live Tracker</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        .fade-in { animation: fadeIn 0.2s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Ford Colors & Custom Palette */
+        :root {
+            --ford-blue: #003478;
+            --col-green: #02b547;
+            --col-purple: #a22bfc;
+            --col-blue: #2576fe;
+            --col-orange: #fb5d01;
+        }
+
+        body { background-color: transparent; }
+
+        /* Animations */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 0.5; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+        .pulse-ring {
+            animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+        
+        .transition-width { transition: width 1s linear; }
+
+        /* Bus Float Animation */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-2px); }
+            100% { transform: translateY(0px); }
+        }
+        .bus-float { animation: float 3s ease-in-out infinite; }
+
+        .custom-scroll::-webkit-scrollbar { width: 3px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+    </style>
+</head>
+<body class="font-sans text-slate-800 p-0 min-h-screen flex items-start justify-center">
+
+    <!-- WIDGET CONTAINER: Compact Height (180px) -->
+    <div class="w-full max-w-3xl bg-white rounded-lg shadow-sm border border-slate-200 flex flex-col overflow-hidden relative h-[180px]">
+        
+        <!-- HEADER -->
+        <!-- Updated to use gradient background -->
+        <div class="px-3 py-2 flex items-center justify-between shrink-0 z-20 relative" style="background: linear-gradient(135deg, #00274C 0%, #0076CE 100%);">
+            <div class="flex items-center gap-2 min-w-0">
+                <i data-lucide="bus" class="w-3.5 h-3.5 text-white shrink-0"></i>
+                <div class="min-w-0">
+                    <h2 class="text-[11px] font-bold text-white uppercase tracking-wide leading-none truncate">Campus Transit</h2>
+                    <p class="text-[9px] text-blue-200 font-medium leading-none mt-0.5 truncate">Dearborn Truck • Stop #4</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2 shrink-0">
+                <button onclick="openMap()" class="flex items-center gap-1 bg-white/10 hover:bg-white/20 rounded px-1.5 py-0.5 transition-colors text-white border border-white/10">
+                    <i data-lucide="map" class="w-2.5 h-2.5"></i>
+                    <span class="text-[8px] font-bold uppercase hidden sm:inline">Map</span>
+                </button>
+                <div class="flex items-center gap-1 bg-blue-900/50 rounded-full px-1.5 py-0.5 border border-blue-400/30">
+                    <div class="relative w-1.5 h-1.5">
+                        <div class="absolute inset-0 bg-[#02b547] rounded-full opacity-75 pulse-ring"></div>
+                        <div class="relative w-1.5 h-1.5 bg-[#02b547] rounded-full"></div>
+                    </div>
+                    <span class="text-[8px] font-bold text-white uppercase">Live</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN BODY: Horizontal Scoreboard Layout (Side-by-Side) -->
+        <div class="flex-1 bg-slate-50 p-2 grid grid-cols-3 gap-2 relative z-10 overflow-hidden">
+            
+            <!-- Route 1: Lot E -->
+            <div id="route-1" class="bg-white border border-slate-200 rounded p-2 text-center shadow-sm flex flex-col justify-between relative overflow-hidden group hover:border-blue-300 transition-colors">
+                <div class="absolute top-0 left-0 w-full h-0.5 bg-[#2576fe]"></div>
+                
+                <div class="flex justify-between items-start">
+                    <span class="text-[9px] font-bold text-slate-500 uppercase tracking-wider truncate">Lot E (Express)</span>
+                    <i data-lucide="map-pin" class="w-2.5 h-2.5 text-[#2576fe]"></i>
+                </div>
+                
+                <div class="flex flex-col items-center justify-center flex-1">
+                    <span id="r1-time" class="text-3xl font-black text-slate-800 tracking-tight leading-none group-hover:scale-110 transition-transform duration-300">4<span class="text-[10px] text-slate-400 ml-0.5 font-normal">min</span></span>
+                </div>
+
+                <div class="w-full bg-slate-100 h-1 rounded-full overflow-hidden relative mb-1">
+                    <div id="r1-bar" class="bg-[#2576fe] h-full rounded-full transition-width" style="width: 85%"></div>
+                </div>
+                <span id="r1-status" class="text-[8px] font-bold text-[#02b547] block truncate">✓ Seats Open</span>
+            </div>
+
+            <!-- Route 2: West Gate -->
+            <div id="route-2" class="bg-white border border-slate-200 rounded p-2 text-center shadow-sm flex flex-col justify-between relative overflow-hidden group hover:border-orange-300 transition-colors">
+                <div class="absolute top-0 left-0 w-full h-0.5 bg-[#fb5d01]"></div>
+                
+                <div class="flex justify-between items-start">
+                    <span class="text-[9px] font-bold text-slate-500 uppercase tracking-wider truncate">West Gate</span>
+                    <i data-lucide="clock" class="w-2.5 h-2.5 text-[#fb5d01]"></i>
+                </div>
+                
+                <div class="flex flex-col items-center justify-center flex-1">
+                    <span id="r2-time" class="text-3xl font-black text-slate-800 tracking-tight leading-none group-hover:scale-110 transition-transform duration-300">12<span class="text-[10px] text-slate-400 ml-0.5 font-normal">min</span></span>
+                </div>
+
+                <div class="w-full bg-slate-100 h-1 rounded-full overflow-hidden relative mb-1">
+                    <div id="r2-bar" class="bg-[#fb5d01] h-full rounded-full transition-width" style="width: 45%"></div>
+                </div>
+                <span id="r2-status" class="text-[8px] font-bold text-[#fb5d01] block truncate">⚠ Standing Room</span>
+            </div>
+
+            <!-- Route 3: Lobby (Dynamic) -->
+            <div id="route-3" class="bg-white border border-slate-200 rounded p-2 text-center shadow-sm flex flex-col justify-between relative overflow-hidden group hover:border-green-300 transition-colors">
+                <div class="absolute top-0 left-0 w-full h-0.5 bg-[#02b547]"></div>
+                
+                <div class="flex justify-between items-start">
+                    <span class="text-[9px] font-bold text-slate-500 uppercase tracking-wider truncate">Main Lobby</span>
+                    <i data-lucide="check-circle" class="w-2.5 h-2.5 text-[#02b547]"></i>
+                </div>
+                
+                <div class="flex flex-col items-center justify-center flex-1">
+                    <!-- Dynamic Time Display -->
+                    <span id="r3-time" class="text-xl font-black text-[#02b547] tracking-tight leading-none group-hover:scale-110 transition-transform duration-300 py-1">ARRIVED</span>
+                </div>
+
+                <div class="w-full bg-slate-100 h-1 rounded-full overflow-hidden relative mb-1">
+                    <div id="r3-bar" class="bg-[#02b547] h-full rounded-full transition-width" style="width: 100%"></div>
+                </div>
+                <span id="r3-status" class="text-[8px] font-bold text-slate-500 block truncate">Departs: 45s</span>
+            </div>
+
+        </div>
+
+        <!-- FOOTER -->
+        <div class="bg-white border-t border-slate-200 px-3 py-1.5 flex justify-between items-center shrink-0 z-20 relative">
+            <div class="flex items-center gap-1.5 min-w-0">
+                <i data-lucide="cloud-rain" class="w-3 h-3 text-slate-400 shrink-0"></i>
+                <span class="text-[9px] text-slate-500 truncate">Rain Delay: <span class="font-bold text-slate-700">+2 mins</span> on all routes</span>
+            </div>
+            <button onclick="openSchedule()" class="text-[9px] font-bold text-[#003478] hover:underline whitespace-nowrap pl-2">
+                Full Schedule
+            </button>
+        </div>
+
+        <!-- MAP OVERLAY (Skeleton View) -->
+        <div id="mapOverlay" class="absolute inset-0 bg-white z-40 transform translate-x-full transition-transform duration-300 flex flex-col">
+             <!-- Header -->
+             <!-- Updated to use gradient background -->
+            <div class="px-3 py-1.5 flex items-center gap-2 shrink-0" style="background: linear-gradient(135deg, #00274C 0%, #0076CE 100%);">
+                <button onclick="closeMap()" class="text-white/80 hover:text-white">
+                    <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+                </button>
+                <h3 class="text-[10px] font-bold text-white uppercase tracking-wide">Live Tracking</h3>
+            </div>
+            
+            <!-- Skeleton Map -->
+            <div class="flex-1 relative bg-slate-50 overflow-hidden flex items-center justify-center">
+                <div class="absolute inset-0 opacity-5" style="background-image: linear-gradient(#003478 1px, transparent 1px), linear-gradient(90deg, #003478 1px, transparent 1px); background-size: 20px 20px;"></div>
+                
+                <div class="w-full h-full relative px-8 py-6">
+                    <svg class="absolute inset-0 w-full h-full" style="pointer-events: none;">
+                        <path d="M 40,50 Q 150,10 250,50 T 460,50" fill="none" stroke="#e2e8f0" stroke-width="4" />
+                        <path d="M 40,50 Q 150,10 250,50 T 460,50" fill="none" stroke="#003478" stroke-width="2" stroke-dasharray="4 4" class="opacity-30" />
+                    </svg>
+
+                    <!-- Stops -->
+                    <div class="absolute top-[40%] left-[5%] flex flex-col items-center gap-1">
+                        <div class="w-2.5 h-2.5 bg-white border-2 border-[#2576fe] rounded-full z-10 relative"></div>
+                        <span class="text-[8px] font-bold text-slate-500 bg-white px-1 rounded shadow-sm">Lot E</span>
+                    </div>
+                    <div class="absolute top-[20%] left-[50%] flex flex-col items-center gap-1">
+                        <div class="w-2.5 h-2.5 bg-white border-2 border-[#fb5d01] rounded-full z-10"></div>
+                        <span class="text-[8px] font-bold text-slate-500 bg-white px-1 rounded shadow-sm">West Gate</span>
+                    </div>
+                    <div class="absolute top-[40%] right-[5%] flex flex-col items-center gap-1">
+                        <div class="w-2.5 h-2.5 bg-white border-2 border-[#02b547] rounded-full z-10"></div>
+                        <span class="text-[8px] font-bold text-slate-500 bg-white px-1 rounded shadow-sm">Lobby</span>
+                    </div>
+
+                    <!-- Buses -->
+                    <div class="absolute top-[35%] left-[20%] bus-float transition-all duration-1000">
+                        <div class="bg-[#2576fe] text-white px-1.5 py-0.5 rounded shadow-lg flex items-center gap-1 z-20 relative">
+                            <i data-lucide="bus" class="w-2 h-2"></i>
+                            <span class="text-[8px] font-bold">4m</span>
+                        </div>
+                    </div>
+                    <div class="absolute top-[15%] left-[40%] bus-float transition-all duration-1000" style="animation-delay: 1s;">
+                        <div class="bg-[#fb5d01] text-white px-1.5 py-0.5 rounded shadow-lg flex items-center gap-1 z-20 relative">
+                            <i data-lucide="bus" class="w-2 h-2"></i>
+                            <span class="text-[8px] font-bold">12m</span>
+                        </div>
+                    </div>
+                    <div class="absolute top-[32%] right-[5%] transition-all duration-1000">
+                        <div class="bg-[#02b547] text-white px-1.5 py-0.5 rounded shadow-lg flex items-center gap-1 z-20 relative animate-bounce">
+                            <span class="text-[8px] font-bold">HERE</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="absolute bottom-1 right-2 text-[8px] text-slate-300 font-mono">LIVE FEED • CAM_02</div>
+            </div>
+        </div>
+
+        <!-- SCHEDULE OVERLAY -->
+        <div id="scheduleOverlay" class="absolute inset-0 bg-white z-40 transform translate-x-full transition-transform duration-300 flex flex-col">
+            <!-- Header -->
+            <!-- Updated to use gradient background -->
+            <div class="px-3 py-1.5 flex items-center gap-2 shrink-0" style="background: linear-gradient(135deg, #00274C 0%, #0076CE 100%);">
+                <button onclick="closeSchedule()" class="text-white/80 hover:text-white">
+                    <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+                </button>
+                <h3 class="text-[10px] font-bold text-white uppercase tracking-wide">Daily Timetable</h3>
+            </div>
+            <div class="flex-1 overflow-y-auto custom-scroll p-3 bg-slate-50">
+                <div class="space-y-4">
+                    <div>
+                        <span class="text-[10px] font-bold text-[#003478] uppercase block mb-1">Lot E Express</span>
+                        <div class="grid grid-cols-4 gap-2 text-center text-[10px] font-mono text-slate-500">
+                            <span>14:00</span><span class="bg-blue-100 text-blue-800 font-bold rounded">14:10</span><span>14:20</span><span>14:30</span>
+                        </div>
+                    </div>
+                    <div>
+                        <span class="text-[10px] font-bold text-[#003478] uppercase block mb-1">West Gate Loop</span>
+                        <div class="grid grid-cols-4 gap-2 text-center text-[10px] font-mono text-slate-500">
+                            <span>14:00</span><span>14:15</span><span class="bg-orange-100 text-orange-800 font-bold rounded">14:30</span><span>14:45</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Initialize Icons & Scripts -->
+    <script>
+        lucide.createIcons();
+
+        // --- SIMULATION LOGIC ---
+        
+        // Define Routes State
+        const routes = [
+            { id: 1, name: "Lot E", time: 4 * 60, maxTime: 10 * 60, status: "Seats Open", color: "#2576fe", statusColor: "#02b547" },
+            { id: 2, name: "West Gate", time: 12 * 60, maxTime: 15 * 60, status: "Standing Only", color: "#fb5d01", statusColor: "#fb5d01" },
+            { id: 3, name: "Main Lobby", time: 45, maxTime: 20 * 60, status: "Departs: ", color: "#02b547", statusColor: "slate-500", isArrived: true }
+        ];
+
+        function updateRoutes() {
+            routes.forEach(route => {
+                // Decrement time
+                if (route.time > 0) {
+                    route.time--;
+                } else {
+                    // Reset cycle
+                    route.time = route.maxTime;
+                    if(route.id === 3) {
+                        route.isArrived = false; // It departed, now it's loop time
+                        // Simplified simulation: Flip arrived state for demo
+                    }
+                }
+
+                // Update DOM based on ID
+                const timeEl = document.getElementById(`r${route.id}-time`);
+                const statusEl = document.getElementById(`r${route.id}-status`);
+                const barEl = document.getElementById(`r${route.id}-bar`);
+
+                // Logic for Route 3 (Lobby - The Special One)
+                if (route.id === 3) {
+                    // Logic: count down 45s (Arrived) -> then switch to 20min loop
+                    if (route.time < 60 && route.isArrived) {
+                        timeEl.innerHTML = "ARRIVED";
+                        timeEl.classList.add("text-xl", "text-[#02b547]"); 
+                        timeEl.classList.remove("text-3xl", "text-slate-800");
+                        statusEl.innerText = `Departs: ${route.time}s`;
+                        barEl.style.width = "100%";
+                        barEl.classList.remove("animate-drive");
+                    } else {
+                        // It has departed, show next arrival
+                        // For demo, we just treat large numbers as "En Route"
+                        route.isArrived = false;
+                        const mins = Math.ceil(route.time / 60);
+                        timeEl.innerHTML = `${mins}<span class="text-[10px] text-slate-400 ml-0.5 font-normal">min</span>`;
+                        timeEl.classList.remove("text-xl", "text-[#02b547]");
+                        timeEl.classList.add("text-3xl", "text-slate-800");
+                        statusEl.innerText = "Next Shuttle";
+                        const pct = 100 - ((route.time / route.maxTime) * 100);
+                        barEl.style.width = `${pct}%`;
+                        barEl.classList.add("animate-drive");
+                        
+                        // Hack to reset to "Arrived" for demo purposes if it gets low
+                        if (route.time < 1180 && !route.isArrived) { // fast forward for demo
+                             route.time = 50; 
+                             route.isArrived = true;
+                        }
+                    }
+                } else {
+                    // Standard Routes (1 & 2)
+                    const mins = Math.ceil(route.time / 60);
+                    timeEl.innerHTML = `${mins}<span class="text-[10px] text-slate-400 ml-0.5 font-normal">min</span>`;
+                    
+                    // Update Bar
+                    const pct = 100 - ((route.time / route.maxTime) * 100);
+                    // Keep bar somewhat visible
+                    const visualPct = Math.max(10, pct); 
+                    barEl.style.width = `${visualPct}%`;
+                }
+            });
+        }
+
+        // Run simulation
+        setInterval(updateRoutes, 1000);
+
+        function openSchedule() { document.getElementById('scheduleOverlay').classList.remove('translate-x-full'); }
+        function closeSchedule() { document.getElementById('scheduleOverlay').classList.add('translate-x-full'); }
+        function openMap() { document.getElementById('mapOverlay').classList.remove('translate-x-full'); }
+        function closeMap() { document.getElementById('mapOverlay').classList.add('translate-x-full'); }
+    </script>
+</body>
+</html>

@@ -1,0 +1,331 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { Check, Clock, Edit2, Calendar, AlertCircle, ChevronRight, Save, X } from 'lucide-react';
+
+const App = () => {
+  // --- STATE ---
+  const [tasks, setTasks] = useState([
+    {
+      id: 1,
+      title: "Complete mandatory 'Cybersecurity & Data Privacy' learning module",
+      dueDate: '2025-02-03', // YYYY-MM-DD
+      completed: false,
+      isEditing: false
+    },
+    {
+      id: 2,
+      title: "Submit Concur expense report for last week's team offsite",
+      dueDate: '2025-02-04',
+      completed: false,
+      isEditing: false
+    },
+    {
+      id: 3,
+      title: "Draft self-reflection for Q3 'Check-In' with director",
+      dueDate: '2025-02-07',
+      completed: false,
+      isEditing: false
+    },
+    {
+      id: 4,
+      title: 'Reserve desk space for Tuesday/Wednesday (Hybrid schedule)',
+      dueDate: '2025-02-03',
+      completed: false,
+      isEditing: false
+    }
+  ]);
+
+  // --- BRAND COLORS ---
+  const colors = {
+    fordBlue: '#00274C',
+    fordLightBlue: '#0076CE',
+    fordGray: '#505759',
+    bg: '#F8F9FA',
+    urgencyHigh: '#dc2626',   // Red
+    urgencyMed: '#f59e0b',    // Amber
+    urgencyLow: '#64748b',    // Slate
+  };
+
+  // --- HELPERS ---
+  const calculateUrgency = (dateString) => {
+    if (!dateString) return 'low';
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dueDate = new Date(dateString + 'T00:00:00');
+    const diffTime = dueDate - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays <= 1) return 'high';
+    if (diffDays <= 3) return 'medium';
+    return 'low';
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString + 'T00:00:00');
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const getUrgencyBg = (level) => {
+    switch (level) {
+      case 'high': return 'bg-red-50 text-red-700 border-red-200';
+      case 'medium': return 'bg-amber-50 text-amber-700 border-amber-200';
+      default: return 'bg-slate-100 text-slate-600 border-slate-200';
+    }
+  };
+
+  // --- ACTIONS ---
+  const toggleComplete = (id) => {
+    setTasks(prev => prev.map(t => 
+      t.id === id ? { ...t, completed: !t.completed } : t
+    ));
+  };
+
+  const startEdit = (id) => {
+    setTasks(prev => prev.map(t => 
+      t.id === id ? { ...t, isEditing: true } : { ...t, isEditing: false }
+    ));
+  };
+
+  const cancelEdit = (id) => {
+    setTasks(prev => prev.map(t => 
+      t.id === id ? { ...t, isEditing: false } : t
+    ));
+  };
+
+  const saveEdit = (id, newTitle, newDate) => {
+    setTasks(prev => prev.map(t => 
+      t.id === id ? { ...t, title: newTitle, dueDate: newDate, isEditing: false } : t
+    ));
+  };
+
+  // --- DERIVED STATE ---
+  const sortedTasks = useMemo(() => {
+    const urgencyOrder = { high: 0, medium: 1, low: 2 };
+    return [...tasks].sort((a, b) => {
+      // 1. Completed at bottom
+      if (a.completed !== b.completed) return a.completed ? 1 : -1;
+      
+      const urgencyA = calculateUrgency(a.dueDate);
+      const urgencyB = calculateUrgency(b.dueDate);
+      
+      // 2. High urgency at top
+      return urgencyOrder[urgencyA] - urgencyOrder[urgencyB];
+    });
+  }, [tasks]);
+
+  const progress = useMemo(() => {
+    if (tasks.length === 0) return 0;
+    const completedCount = tasks.filter(t => t.completed).length;
+    return Math.round((completedCount / tasks.length) * 100);
+  }, [tasks]);
+
+  // --- RENDER ---
+  return (
+    // Outer container simulates the parent "slot" in your layout. 
+    // We removed 'items-center justify-center' so it fills the space naturally.
+    <div className="w-full h-full min-h-[400px] p-4 bg-gray-100 font-sans flex flex-col">
+      
+      {/* Widget Card */}
+      {/* Removed 'max-w-md' so it expands to fill the parent container */}
+      <div className="w-full h-full max-h-[600px] bg-white rounded-[10px] overflow-hidden flex flex-col shadow-[0_2px_8px_rgba(0,0,0,0.06)] border border-slate-200/60 relative">
+        
+        {/* HEADER */}
+        <div 
+          className="px-4 py-3 text-white flex items-center justify-between shrink-0"
+          style={{ background: `linear-gradient(135deg, ${colors.fordBlue} 0%, ${colors.fordLightBlue} 100%)` }}
+        >
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-white/10 rounded backdrop-blur-sm">
+               {/* Simple Logo Placeholder */}
+               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 40" className="w-10 h-auto fill-white">
+                  <path d="M95 10c-5 0-15 0-20 5s-5 10-5 10l-2 5h-5l5-15s5-10 25-10h2l-2 5z" opacity="0.8"/>
+                  <text x="5" y="28" fontFamily="Arial" fontWeight="bold" fontSize="24" letterSpacing="-1">Ford</text>
+               </svg>
+            </div>
+            <div>
+              <h2 className="text-[11px] font-bold uppercase tracking-wide leading-none">My Tasks</h2>
+              <p className="text-[10px] text-blue-100 font-medium opacity-90 mt-0.5">Action Items</p>
+            </div>
+          </div>
+
+          {/* Counter Badge */}
+          <div className="flex items-center gap-1.5 bg-black/20 rounded-full px-2.5 py-1 border border-white/10 backdrop-blur-md">
+            <div className={`w-1.5 h-1.5 rounded-full ${progress === 100 ? 'bg-emerald-400' : 'bg-orange-400'}`}></div>
+            <span className="text-[9px] font-bold text-white uppercase tracking-wider">
+              {tasks.filter(t => !t.completed).length} Pending
+            </span>
+          </div>
+        </div>
+
+        {/* BODY (Scrollable) */}
+        <div className="flex-1 overflow-y-auto bg-slate-50/50 p-3 space-y-2 custom-scrollbar">
+          {sortedTasks.map(task => (
+            <TaskItem 
+              key={task.id} 
+              task={task} 
+              urgency={calculateUrgency(task.dueDate)}
+              formattedDate={formatDate(task.dueDate)}
+              urgencyBg={getUrgencyBg(calculateUrgency(task.dueDate))}
+              onToggle={() => toggleComplete(task.id)}
+              onEdit={() => startEdit(task.id)}
+              onSave={saveEdit}
+              onCancel={() => cancelEdit(task.id)}
+              colors={colors}
+            />
+          ))}
+          
+          {tasks.length === 0 && (
+            <div className="h-full flex flex-col items-center justify-center text-slate-400">
+              <Check size={32} className="mb-2 opacity-20" />
+              <p className="text-sm font-medium">All caught up!</p>
+            </div>
+          )}
+        </div>
+
+        {/* FOOTER (Progress) */}
+        <div className="bg-white border-t border-slate-100 px-4 py-3 shrink-0">
+          <div className="flex justify-between items-end mb-1.5">
+            <div className="flex flex-col leading-none">
+              <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">Overall Progress</span>
+              <span className="text-lg font-black tracking-tight" style={{ color: colors.fordBlue }}>
+                {progress}%
+              </span>
+            </div>
+            <div className="flex items-center gap-1 text-slate-400">
+               <span className="text-[9px] font-medium">{tasks.filter(t=>t.completed).length}/{tasks.length} Completed</span>
+            </div>
+          </div>
+          
+          {/* Progress Bar */}
+          <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+            <div 
+              className="h-full rounded-full transition-all duration-700 ease-out"
+              style={{ 
+                width: `${progress}%`,
+                background: `linear-gradient(90deg, ${colors.fordLightBlue}, ${colors.fordBlue})`
+              }}
+            />
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+};
+
+// --- SUB-COMPONENT: TASK ITEM ---
+const TaskItem = ({ task, urgency, formattedDate, urgencyBg, onToggle, onEdit, onSave, onCancel, colors }) => {
+  const [editTitle, setEditTitle] = useState(task.title);
+  const [editDate, setEditDate] = useState(task.dueDate);
+
+  useEffect(() => {
+    if (task.isEditing) {
+      setEditTitle(task.title);
+      setEditDate(task.dueDate);
+    }
+  }, [task.isEditing, task.title, task.dueDate]);
+
+  const handleSave = () => {
+    if (editTitle.trim()) {
+      onSave(task.id, editTitle, editDate);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') handleSave();
+    if (e.key === 'Escape') onCancel();
+  };
+
+  if (task.isEditing) {
+    return (
+      <div className="bg-white rounded-lg p-3 shadow-sm border border-blue-200 animate-in fade-in zoom-in-95 duration-200">
+        <input
+          autoFocus
+          type="text"
+          value={editTitle}
+          onChange={(e) => setEditTitle(e.target.value)}
+          onKeyDown={handleKeyDown}
+          className="w-full text-sm font-medium text-slate-800 border-b border-blue-100 focus:border-blue-500 outline-none pb-1 mb-3 placeholder:text-slate-300"
+          placeholder="Task title..."
+        />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Calendar size={12} className="text-slate-400" />
+            <input 
+              type="date" 
+              value={editDate}
+              onChange={(e) => setEditDate(e.target.value)}
+              className="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded px-1 py-0.5 focus:border-blue-500 outline-none"
+            />
+          </div>
+          <div className="flex gap-1">
+             <button onClick={handleSave} className="p-1.5 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors">
+               <Save size={14} />
+             </button>
+             <button onClick={onCancel} className="p-1.5 bg-slate-50 text-slate-500 rounded hover:bg-slate-100 transition-colors">
+               <X size={14} />
+             </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div 
+      className={`group relative bg-white rounded-lg p-3 shadow-[0_1px_2px_rgba(0,0,0,0.03)] border border-transparent hover:border-blue-100 hover:shadow-md transition-all duration-200 flex gap-3 ${task.completed ? 'opacity-60 bg-slate-50' : ''}`}
+    >
+      {/* Visual Urgency Indicator Strip */}
+      <div className={`absolute left-0 top-3 bottom-3 w-0.5 rounded-r ${
+        task.completed ? 'bg-slate-200' : 
+        urgency === 'high' ? 'bg-red-500' : 
+        urgency === 'medium' ? 'bg-amber-400' : 'bg-slate-300'
+      }`} />
+
+      {/* Checkbox */}
+      <button 
+        onClick={(e) => { e.stopPropagation(); onToggle(); }}
+        className={`mt-0.5 shrink-0 w-5 h-5 rounded-[5px] border-2 flex items-center justify-center transition-all duration-200 ${
+          task.completed 
+            ? `bg-[${colors.fordBlue}] border-[${colors.fordBlue}]` 
+            : 'bg-white border-slate-300 hover:border-blue-400'
+        }`}
+        style={{ 
+          backgroundColor: task.completed ? colors.fordBlue : 'white',
+          borderColor: task.completed ? colors.fordBlue : undefined
+        }}
+      >
+        <Check size={12} className={`text-white transform transition-transform duration-200 ${task.completed ? 'scale-100' : 'scale-0'}`} strokeWidth={3} />
+      </button>
+
+      {/* Content */}
+      <div className="flex-1 min-w-0" onClick={onToggle}>
+        <p className={`text-[13px] font-medium leading-snug mb-1.5 transition-colors ${task.completed ? 'text-slate-400 line-through decoration-slate-300' : 'text-slate-700'}`}>
+          {task.title}
+        </p>
+        
+        <div className="flex items-center gap-2">
+          <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-sm flex items-center gap-1 ${task.completed ? 'bg-slate-100 text-slate-400 border border-slate-200' : urgencyBg}`}>
+             {urgency === 'high' && <AlertCircle size={8} />}
+             {formattedDate}
+          </span>
+          {urgency === 'high' && !task.completed && (
+             <span className="text-[9px] font-bold text-red-600 animate-pulse">DUE SOON</span>
+          )}
+        </div>
+      </div>
+
+      {/* Actions (Visible on Hover) */}
+      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-start">
+        <button 
+          onClick={(e) => { e.stopPropagation(); onEdit(); }}
+          className="p-1.5 text-slate-300 hover:text-slate-600 hover:bg-slate-100 rounded transition-colors"
+        >
+          <Edit2 size={14} />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default App;
