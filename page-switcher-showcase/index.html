@@ -21,6 +21,7 @@
             --text-primary: #FFFFFF;
             --text-secondary: rgba(255, 255, 255, 0.7);
             --text-muted: rgba(255, 255, 255, 0.4);
+            --ui-scale: 0.65;
         }
 
         * {
@@ -49,6 +50,12 @@
             position: fixed;
             top: 0;
             left: 0;
+        }
+
+        @media (hover: hover) and (pointer: fine) {
+            * {
+                cursor: none !important;
+            }
         }
 
         /* Custom Cursor */
@@ -111,6 +118,17 @@
             z-index: 1;
             pointer-events: none;
             background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%' height='100%' filter='url(%23noise)'/%3E%3C/svg%3E");
+        }
+
+        .ui-scale {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            width: calc(100% / var(--ui-scale));
+            height: calc(100% / var(--ui-scale));
+            transform: translate(-50%, -50%) scale(var(--ui-scale));
+            transform-origin: center;
+            z-index: 5;
         }
 
         /* Progress Indicator */
@@ -276,7 +294,7 @@
             justify-content: center;
             opacity: 0;
             visibility: hidden;
-            transition: opacity 0.8s ease, visibility 0.8s ease;
+            transition: opacity 0.65s ease, visibility 0.65s ease;
             overflow-y: auto;
             overflow-x: hidden;
             -webkit-overflow-scrolling: touch;
@@ -697,6 +715,12 @@
                 width: 50px;
                 height: 50px;
                 font-size: 20px;
+            }
+        }
+
+        @media (max-width: 1200px), (max-height: 700px) {
+            :root {
+                --ui-scale: 1;
             }
         }
 
@@ -1240,55 +1264,54 @@
     <div class="bg-grid"></div>
     <div class="noise-overlay"></div>
 
+    <div class="ui-scale">
+        <!-- Progress Indicator -->
+        <div class="progress-container">
+            <div class="progress-item active" data-slide="0">
+                <div class="progress-dot"></div>
+                <span class="progress-label">Welcome</span>
+            </div>
+            <div class="progress-item" data-slide="1">
+                <div class="progress-dot"></div>
+                <span class="progress-label">Manufacturing</span>
+            </div>
+            <div class="progress-item" data-slide="2">
+                <div class="progress-dot"></div>
+                <span class="progress-label">Education</span>
+            </div>
+            <div class="progress-item" data-slide="3">
+                <div class="progress-dot"></div>
+                <span class="progress-label">Financial</span>
+            </div>
+            <div class="progress-item" data-slide="4">
+                <div class="progress-dot"></div>
+                <span class="progress-label">Healthcare</span>
+            </div>
+            <div class="progress-item" data-slide="5">
+                <div class="progress-dot"></div>
+                <span class="progress-label">Retail</span>
+            </div>
+            <div class="progress-item" data-slide="6">
+                <div class="progress-dot"></div>
+                <span class="progress-label">Futures</span>
+            </div>
+        </div>
 
+        <!-- Slide Counter -->
+        <div class="slide-counter">
+            <span class="counter-current">01</span>
+            <span class="counter-divider">/</span>
+            <span class="counter-total">07</span>
+        </div>
 
-    <!-- Progress Indicator -->
-    <div class="progress-container">
-        <div class="progress-item active" data-slide="0">
-            <div class="progress-dot"></div>
-            <span class="progress-label">Welcome</span>
+        <!-- Scroll Hint -->
+        <div class="scroll-hint">
+            <span class="scroll-hint-text">Scroll to Explore</span>
+            <div class="scroll-hint-icon"></div>
         </div>
-        <div class="progress-item" data-slide="1">
-            <div class="progress-dot"></div>
-            <span class="progress-label">Manufacturing</span>
-        </div>
-        <div class="progress-item" data-slide="2">
-            <div class="progress-dot"></div>
-            <span class="progress-label">Education</span>
-        </div>
-        <div class="progress-item" data-slide="3">
-            <div class="progress-dot"></div>
-            <span class="progress-label">Financial</span>
-        </div>
-        <div class="progress-item" data-slide="4">
-            <div class="progress-dot"></div>
-            <span class="progress-label">Healthcare</span>
-        </div>
-        <div class="progress-item" data-slide="5">
-            <div class="progress-dot"></div>
-            <span class="progress-label">Retail</span>
-        </div>
-        <div class="progress-item" data-slide="6">
-            <div class="progress-dot"></div>
-            <span class="progress-label">Futures</span>
-        </div>
-    </div>
 
-    <!-- Slide Counter -->
-    <div class="slide-counter">
-        <span class="counter-current">01</span>
-        <span class="counter-divider">/</span>
-        <span class="counter-total">07</span>
-    </div>
-
-    <!-- Scroll Hint -->
-    <div class="scroll-hint">
-        <span class="scroll-hint-text">Scroll to Explore</span>
-        <div class="scroll-hint-icon"></div>
-    </div>
-
-    <!-- Slides Container -->
-    <div class="slides-container">
+        <!-- Slides Container -->
+        <div class="slides-container">
         <!-- Slide 1: Welcome Portal -->
         <div class="slide slide-welcome active" data-index="0">
             <div class="slide-content">
@@ -1594,6 +1617,7 @@
                     </div>
                 </div>
             </div>
+        </div>
         </div>
     </div>
 
@@ -1928,6 +1952,8 @@
                 this.touchStartX = 0;
                 this.touchStartTime = 0;
                 this.lastScrollTime = Date.now();
+                this.wheelDeltaAccumulator = 0;
+                this.wheelResetTimer = null;
                 
                 this.init();
             }
@@ -1971,18 +1997,21 @@
                 e.preventDefault();
                 
                 const now = Date.now();
-                if (now - this.lastScrollTime < 150) return;
+                if (now - this.lastScrollTime < 90) return;
                 
                 if (this.isAnimating) return;
                 
-                const delta = e.deltaY;
-                
-                if (Math.abs(delta) > 20) {
-                    if (delta > 0) {
-                        this.nextSlide();
-                    } else {
-                        this.prevSlide();
-                    }
+                this.wheelDeltaAccumulator += e.deltaY;
+                if (this.wheelResetTimer) clearTimeout(this.wheelResetTimer);
+                this.wheelResetTimer = setTimeout(() => {
+                    this.wheelDeltaAccumulator = 0;
+                }, 140);
+
+                if (Math.abs(this.wheelDeltaAccumulator) >= 45) {
+                    if (this.wheelDeltaAccumulator > 0) this.nextSlide();
+                    else this.prevSlide();
+
+                    this.wheelDeltaAccumulator = 0;
                     this.lastScrollTime = now;
                 }
             }
@@ -2032,7 +2061,7 @@
                 // 1. Vertical movement > horizontal (it's a vertical swipe)
                 // 2. Movement is significant (> 30px for mobile sensitivity)
                 // 3. Swipe was reasonably fast (< 600ms)
-                if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > 30 && timeDiff < 600) {
+                if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > 24 && timeDiff < 700) {
                     if (diffY > 0) {
                         this.nextSlide();
                     } else {
@@ -2101,7 +2130,7 @@
                 
                 setTimeout(() => {
                     this.isAnimating = false;
-                }, 800);
+                }, 650);
             }
 
             initCursor() {
@@ -2124,8 +2153,8 @@
                 });
                 
                 const animateCursor = () => {
-                    cursorX += (mouseX - cursorX) * 0.15;
-                    cursorY += (mouseY - cursorY) * 0.15;
+                    cursorX += (mouseX - cursorX) * 0.2;
+                    cursorY += (mouseY - cursorY) * 0.2;
                     
                     cursor.style.left = cursorX - 10 + 'px';
                     cursor.style.top = cursorY - 10 + 'px';
