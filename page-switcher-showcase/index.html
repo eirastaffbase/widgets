@@ -21,7 +21,7 @@
             --text-primary: #FFFFFF;
             --text-secondary: rgba(255, 255, 255, 0.7);
             --text-muted: rgba(255, 255, 255, 0.4);
-            --ui-scale: 0.65;
+            --ui-scale: 0.95;
         }
 
         * {
@@ -718,10 +718,37 @@
             }
         }
 
+        /* Zoom levels by viewport size */
+        @media (min-width: 2200px) {
+            :root { --ui-scale: 1; }
+        }
+
+        @media (min-width: 1800px) {
+            :root { --ui-scale: 0.95; }
+        }
+
+        @media (max-width: 1600px) {
+            :root { --ui-scale: 0.82; }
+        }
+
+        @media (max-width: 1440px) {
+            :root { --ui-scale: 0.78; }
+        }
+
+        @media (max-width: 1280px) {
+            :root { --ui-scale: 0.74; }
+        }
+
+        @media (max-height: 900px) {
+            :root { --ui-scale: 0.82; }
+        }
+
+        @media (max-height: 800px) {
+            :root { --ui-scale: 0.76; }
+        }
+
         @media (max-width: 1200px), (max-height: 700px) {
-            :root {
-                --ui-scale: 1;
-            }
+            :root { --ui-scale: 1; }
         }
 
         /* Responsive - Tablet Landscape */
