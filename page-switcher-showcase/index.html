@@ -670,6 +670,68 @@
             margin-top: 8px;
         }
 
+        /* Under Construction States */
+        .portfolio-card.under-construction {
+            opacity: 0.5;
+            cursor: default;
+        }
+
+        .portfolio-card.under-construction:hover {
+            background: rgba(255, 255, 255, 0.03);
+            border-color: rgba(255, 255, 255, 0.08);
+            transform: none;
+            box-shadow: none;
+        }
+
+        .portfolio-card.under-construction:hover .portfolio-icon {
+            transform: none;
+        }
+
+        .under-construction-badge {
+            font-size: 7px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--accent-gold);
+            background: rgba(201, 169, 98, 0.12);
+            padding: 3px 10px;
+            border-radius: 20px;
+            border: 1px solid rgba(201, 169, 98, 0.2);
+            white-space: nowrap;
+        }
+
+        .under-construction-notice {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 20px;
+            background: rgba(201, 169, 98, 0.08);
+            border: 1px solid rgba(201, 169, 98, 0.2);
+            border-radius: 12px;
+            margin-bottom: 24px;
+        }
+
+        .notice-icon {
+            font-size: 18px;
+        }
+
+        .notice-text {
+            font-size: 13px;
+            color: var(--accent-gold);
+            letter-spacing: 0.5px;
+        }
+
+        .slide-cta.disabled {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            cursor: default;
+            pointer-events: none;
+            opacity: 0.6;
+        }
+
+        .slide-cta.disabled::before {
+            display: none;
+        }
+
         /* Responsive - Large Desktop */
         @media (max-width: 1400px) {
             .slide-content {
@@ -1006,7 +1068,7 @@
             }
 
             .portfolio-grid {
-                grid-template-columns: repeat(2, 1fr);
+                grid-template-columns: 1fr;
                 gap: 8px;
             }
 
@@ -1266,6 +1328,10 @@
                 font-size: 8px;
             }
 
+            .under-construction-badge {
+                display: none;
+            }
+
             .stats-row {
                 margin-top: 12px;
                 gap: 16px;
@@ -1360,11 +1426,11 @@
                             <div class="portfolio-icon">🎓</div>
                             <span class="portfolio-name">Education</span>
                         </a>
-                        <a href ="#" class="portfolio-card nav-link">
-                        <!-- <a href="https://showcase.staffbase.com/content/page/694c034e5127d14c6ca00b77" target="_top" data-app-path="/content/page/694c034e5127d14c6ca00b77" data-group-id="69672f84a2c10951567a0552" class="portfolio-card nav-link"> -->
+                        <div class="portfolio-card under-construction">
                             <div class="portfolio-icon">🏦</div>
-                            <span class="portfolio-name">*Under Construction* <br> <br> Financial Services</span>
-                        </a>
+                            <span class="portfolio-name">Financial Services</span>
+                            <span class="under-construction-badge">Under Construction</span>
+                        </div>
                         <a href="https://showcase.staffbase.com/content/page/6912a1919fd60b3f5591c8b1" target="_top" data-app-path="/content/page/6912a1919fd60b3f5591c8b1" data-group-id="69535e6338dc171a511fecbe" class="portfolio-card nav-link">
                             <div class="portfolio-icon">🏥</div>
                             <span class="portfolio-name">Healthcare</span>
@@ -1373,11 +1439,11 @@
                             <div class="portfolio-icon">🛍️</div>
                             <span class="portfolio-name">Retail</span>
                         </a>
-                        <a href ="#" class="portfolio-card nav-link">
-                        <!-- <a href="https://showcase.staffbase.com/content/page/692505748f3c026c135f0b90" target="_top" data-app-path="/content/page/692505748f3c026c135f0b90" data-group-id="69673076a2c10951567a0db5" class="portfolio-card nav-link"> -->
+                        <div class="portfolio-card under-construction">
                             <div class="portfolio-icon">🚀</div>
-                            <span class="portfolio-name">*Under Construction* <br> <br> Futures</span>
-                        </a>
+                            <span class="portfolio-name">Futures</span>
+                            <span class="under-construction-badge">Under Construction</span>
+                        </div>
                     </div>
 
                     <div class="stats-row">
@@ -1501,13 +1567,13 @@
                         and aligned. Enable secure, compliant communication that 
                         builds trust across your organization.
                     </p>
-                    <a href ="#" class="slide-cta nav-link">
-                    <!-- <a href="https://showcase.staffbase.com/content/page/694c034e5127d14c6ca00b77" target="_top" data-app-path="/content/page/694c034e5127d14c6ca00b77" data-group-id="69672f84a2c10951567a0552" class="slide-cta nav-link"> -->
-                        <span>*Under Construction* Explore Financial Services </span>
-                        <svg class="cta-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M5 12h14M12 5l7 7-7 7"/>
-                        </svg>
-                    </a>
+                    <div class="under-construction-notice">
+                        <span class="notice-icon">🚧</span>
+                        <span class="notice-text">This experience is under construction</span>
+                    </div>
+                    <div class="slide-cta disabled">
+                        <span>Coming Soon</span>
+                    </div>
                 </div>
                 <div class="slide-right">
                     <div class="visual-container">
@@ -1625,13 +1691,13 @@
                         Stay ahead of the curve with cutting-edge communication 
                         solutions designed for what's next.
                     </p>
-                    <a href ="#" class="slide-cta nav-link">
-                    <!-- <a href="https://showcase.staffbase.com/content/page/692505748f3c026c135f0b90" target="_top" data-app-path="/content/page/692505748f3c026c135f0b90" data-group-id="69673076a2c10951567a0db5" class="slide-cta nav-link"> -->
-                        <span>*Under Construction* Explore Futures</span>
-                        <svg class="cta-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M5 12h14M12 5l7 7-7 7"/>
-                        </svg>
-                    </a>
+                    <div class="under-construction-notice">
+                        <span class="notice-icon">🚧</span>
+                        <span class="notice-text">This experience is under construction</span>
+                    </div>
+                    <div class="slide-cta disabled">
+                        <span>Coming Soon</span>
+                    </div>
                 </div>
                 <div class="slide-right">
                     <div class="visual-container">
