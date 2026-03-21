@@ -1,0 +1,1179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#050810">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Staffbase | Industry Solutions Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Syne:wght@400..800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --staffbase-blue: #0052CC;
+            --staffbase-light-blue: #4C9AFF;
+            --staffbase-dark: #0A0F1C;
+            --staffbase-darker: #050810;
+            --accent-gold: #C9A962;
+            --accent-copper: #B87333;
+            --text-primary: #FFFFFF;
+            --text-secondary: rgba(255, 255, 255, 0.7);
+            --text-muted: rgba(255, 255, 255, 0.4);
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        html { overflow: hidden; height: 100%; width: 100%; }
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--staffbase-darker);
+            color: var(--text-primary);
+            height: 100%; width: 100%;
+            overflow: hidden;
+            position: absolute; top: 0; left: 0;
+            touch-action: none;
+        }
+
+        /* === BACKGROUND === */
+        .bg-gradient {
+            position: fixed; inset: 0; z-index: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(0, 82, 204, 0.12) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(201, 169, 98, 0.08) 0%, transparent 50%);
+        }
+        .bg-grid {
+            position: fixed; inset: 0; z-index: 0; opacity: 0.4;
+            background-image:
+                linear-gradient(rgba(76, 154, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(76, 154, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        /* === PROGRESS DOTS === */
+        .progress-container {
+            position: fixed; right: 6px; top: 50%;
+            transform: translateY(-50%); z-index: 1000;
+            display: flex; flex-direction: column; gap: 4px;
+        }
+        .progress-item {
+            display: flex; align-items: center; gap: 10px;
+            opacity: 0.35; transition: opacity 0.3s ease;
+            cursor: pointer; padding: 6px;
+        }
+        .progress-item.active { opacity: 1; }
+        .progress-dot {
+            width: 7px; height: 7px;
+            border: 1.5px solid var(--text-secondary);
+            border-radius: 50%; transition: all 0.3s ease; flex-shrink: 0;
+        }
+        .progress-item.active .progress-dot {
+            border-color: var(--accent-gold);
+            background: var(--accent-gold);
+            box-shadow: 0 0 10px rgba(201, 169, 98, 0.5);
+        }
+        .progress-label {
+            font-size: 10px; letter-spacing: 1.5px;
+            text-transform: uppercase; color: var(--text-secondary);
+            white-space: nowrap; display: none;
+        }
+
+        /* === COUNTER === */
+        .slide-counter {
+            position: fixed; left: 16px;
+            bottom: calc(10px + var(--safe-bottom));
+            z-index: 1000; display: flex; align-items: baseline; gap: 4px;
+        }
+        .counter-current { font-family: 'Syne', sans-serif; font-size: clamp(18px, 3vh, 26px); font-weight: 700; color: var(--text-primary); line-height: 1; }
+        .counter-divider { font-size: clamp(11px, 1.8vh, 16px); color: var(--accent-gold); }
+        .counter-total { font-size: clamp(9px, 1.4vh, 12px); color: var(--text-muted); }
+
+        /* === SCROLL HINT === */
+        .scroll-hint {
+            position: fixed; bottom: calc(10px + var(--safe-bottom));
+            left: 50%; transform: translateX(-50%); z-index: 1000;
+            display: flex; flex-direction: column; align-items: center;
+            gap: 4px; opacity: 0.5; animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; transform: translateX(-50%) translateY(0); }
+            50% { opacity: 0.9; transform: translateX(-50%) translateY(3px); }
+        }
+        .scroll-hint-text { font-size: 8px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); }
+        .scroll-hint-icon { width: 16px; height: 24px; border: 1.5px solid var(--text-muted); border-radius: 8px; position: relative; }
+        .scroll-hint-icon::before {
+            content: ''; position: absolute; top: 5px; left: 50%;
+            transform: translateX(-50%); width: 3px; height: 5px;
+            background: var(--accent-gold); border-radius: 2px;
+            animation: scrollDown 1.5s ease-in-out infinite;
+        }
+        @keyframes scrollDown { 0%, 100% { top: 5px; opacity: 1; } 50% { top: 12px; opacity: 0.3; } }
+
+        /* =============================================
+           SLIDES — FLUID vh-BASED MOBILE LAYOUT
+           Every size uses clamp(min, vh-scale, max).
+           This stretches like a rubber band — no
+           breakpoint jumps, just smooth scaling.
+           ============================================= */
+        .slides-container { position: absolute; inset: 0; z-index: 10; }
+
+        .slide {
+            position: absolute; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; visibility: hidden;
+            transition: opacity 0.6s ease, visibility 0.6s ease;
+            overflow-y: auto; overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+            padding: calc(2.5vh + var(--safe-top)) clamp(28px, 8vw, 40px) calc(6vh + var(--safe-bottom)) clamp(14px, 4vw, 22px);
+        }
+        .slide.active { opacity: 1; visibility: visible; }
+
+        .slide-content { width: 100%; max-width: 600px; display: flex; flex-direction: column; }
+
+        /* Compact icon */
+        .slide-icon-compact {
+            width: clamp(44px, 7vh, 64px); height: clamp(44px, 7vh, 64px);
+            display: flex; align-items: center; justify-content: center;
+            font-size: clamp(22px, 3.5vh, 32px);
+            background: linear-gradient(135deg, rgba(0, 82, 204, 0.2), rgba(76, 154, 255, 0.08));
+            border-radius: clamp(12px, 2vh, 18px);
+            border: 1px solid rgba(76, 154, 255, 0.15);
+            margin-bottom: clamp(10px, 1.8vh, 20px);
+            box-shadow: 0 0 24px rgba(0, 82, 204, 0.15);
+        }
+
+        /* Text content */
+        .slide-left { transform: translateY(16px); opacity: 0; transition: all 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.15s; }
+        .slide.active .slide-left { transform: translateY(0); opacity: 1; }
+
+        .industry-tag {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: clamp(3px, 0.5vh, 6px) clamp(8px, 1.2vw, 14px);
+            background: rgba(201, 169, 98, 0.1); border: 1px solid rgba(201, 169, 98, 0.25);
+            border-radius: 30px; margin-bottom: clamp(8px, 1.5vh, 16px);
+        }
+        .industry-tag-dot { width: 5px; height: 5px; background: var(--accent-gold); border-radius: 50%; }
+        .industry-tag-text { font-size: clamp(7px, 1.1vh, 10px); letter-spacing: 2px; text-transform: uppercase; color: var(--accent-gold); font-weight: 600; }
+
+        .slide-title {
+            font-family: 'Syne', sans-serif;
+            font-size: clamp(24px, 4.5vh, 42px);
+            font-weight: 800; line-height: 1.05; letter-spacing: -1px;
+            margin-bottom: clamp(8px, 1.5vh, 16px);
+        }
+        .slide-title span {
+            background: linear-gradient(135deg, var(--text-primary) 0%, var(--staffbase-light-blue) 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+
+        .slide-description {
+            font-size: clamp(12px, 1.7vh, 15px); line-height: 1.6;
+            color: var(--text-secondary); margin-bottom: clamp(14px, 2.5vh, 28px);
+        }
+
+        /* CTA */
+        .slide-cta {
+            display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+            padding: clamp(11px, 1.7vh, 16px) clamp(20px, 3vw, 30px);
+            background: linear-gradient(135deg, var(--staffbase-blue), var(--staffbase-light-blue));
+            border: none; border-radius: 50px; color: white;
+            font-family: 'DM Sans', sans-serif; font-size: clamp(12px, 1.7vh, 15px);
+            font-weight: 600; text-decoration: none; transition: all 0.3s ease;
+            position: relative; overflow: hidden; width: 100%;
+        }
+        .slide-cta::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, var(--accent-gold), var(--accent-copper)); opacity: 0; transition: opacity 0.3s ease; }
+        .slide-cta:active::before { opacity: 1; }
+        .slide-cta:active { transform: scale(0.98); }
+        .slide-cta span, .cta-arrow { position: relative; z-index: 1; }
+        .slide-cta.disabled { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); pointer-events: none; opacity: 0.5; }
+        .slide-cta.disabled::before { display: none; }
+
+        /* Under construction */
+        .under-construction-notice {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: clamp(6px, 1vh, 10px) clamp(10px, 1.5vw, 16px);
+            background: rgba(201, 169, 98, 0.08); border: 1px solid rgba(201, 169, 98, 0.2);
+            border-radius: 10px; margin-bottom: clamp(10px, 1.5vh, 16px);
+        }
+        .notice-icon { font-size: clamp(12px, 1.8vh, 16px); }
+        .notice-text { font-size: clamp(10px, 1.4vh, 13px); color: var(--accent-gold); letter-spacing: 0.3px; }
+
+        /* Right panel — hidden on mobile */
+        .slide-right { display: none; }
+
+        /* === WELCOME SLIDE === */
+        .slide-welcome .slide-content { align-items: center; text-align: center; }
+        .slide-welcome .slide-icon-compact { display: none; }
+
+        .welcome-title {
+            font-family: 'Syne', sans-serif; font-size: clamp(24px, 4.2vh, 42px);
+            font-weight: 800; line-height: 1.05; letter-spacing: -1.5px;
+            margin-bottom: clamp(8px, 1.2vh, 14px);
+            background: linear-gradient(135deg, var(--text-primary) 0%, var(--staffbase-light-blue) 50%, var(--accent-gold) 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .welcome-subtitle {
+            font-size: clamp(11px, 1.5vh, 14px); line-height: 1.5;
+            color: var(--text-secondary); max-width: 420px;
+            margin-bottom: clamp(14px, 2.2vh, 24px);
+        }
+
+        /* Portfolio grid — 3 col on mobile */
+        .portfolio-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(90px, 100%), 1fr)); gap: clamp(6px, 1vh, 12px); width: 100%; }
+        .portfolio-card {
+            background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: clamp(10px, 1.5vh, 14px);
+            padding: clamp(10px, 1.5vh, 18px) clamp(6px, 1vw, 12px);
+            display: flex; flex-direction: column; align-items: center;
+            gap: clamp(4px, 0.8vh, 10px); text-decoration: none; color: inherit; transition: all 0.3s ease;
+        }
+        .portfolio-card:active { background: rgba(0, 82, 204, 0.12); border-color: rgba(76, 154, 255, 0.3); transform: scale(0.97); }
+
+        .portfolio-icon {
+            font-size: clamp(20px, 3vh, 30px);
+            width: clamp(38px, 5.5vh, 56px); height: clamp(38px, 5.5vh, 56px);
+            display: flex; align-items: center; justify-content: center;
+            background: linear-gradient(135deg, rgba(0, 82, 204, 0.2), rgba(76, 154, 255, 0.08));
+            border-radius: clamp(10px, 1.5vh, 14px); transition: all 0.3s ease;
+        }
+        .portfolio-name { font-family: 'Syne', sans-serif; font-size: clamp(8px, 1.3vh, 12px); font-weight: 700; letter-spacing: -0.3px; }
+
+        .portfolio-card.under-construction { opacity: 0.45; cursor: default; }
+        .portfolio-card.under-construction:active { background: rgba(255, 255, 255, 0.03); border-color: rgba(255, 255, 255, 0.08); transform: none; }
+
+        .under-construction-badge {
+            font-size: clamp(5px, 0.8vh, 7px); letter-spacing: 1px; text-transform: uppercase;
+            color: var(--accent-gold); background: rgba(201, 169, 98, 0.12);
+            padding: 2px 6px; border-radius: 20px; border: 1px solid rgba(201, 169, 98, 0.2); white-space: nowrap;
+        }
+
+        /* Stats — 4 col always */
+        .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(70px, 100%), 1fr)); gap: clamp(6px, 1vw, 14px); margin-top: clamp(14px, 2.2vh, 28px); width: 100%; }
+        .stat-item { text-align: center; }
+        .stat-value { font-family: 'Syne', sans-serif; font-size: clamp(18px, 2.8vh, 28px); font-weight: 800; color: var(--accent-gold); line-height: 1; }
+        .stat-label { font-size: clamp(6px, 0.9vh, 9px); color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 3px; }
+
+        /* Cursor — desktop only */
+        .cursor, .cursor-dot { display: none; }
+
+        /* === ONLY BREAKPOINT ON MOBILE: landscape kill === */
+        @media (max-height: 440px) {
+            .scroll-hint { display: none; }
+            .under-construction-badge { display: none; }
+            .slide { align-items: flex-start; }
+        }
+
+        /* === TABLET 768px+ === */
+        @media (min-width: 768px) {
+            .slide { padding: 40px 60px 70px 50px; align-items: center; }
+            .slide-content { max-width: 700px; }
+            .slide-title { font-size: clamp(38px, 5vw, 54px); letter-spacing: -1.5px; margin-bottom: 24px; }
+            .slide-description { font-size: 16px; margin-bottom: 32px; max-width: 520px; }
+            .slide-cta { width: auto; padding: 16px 34px; font-size: 15px; }
+            .slide-icon-compact { width: 80px; height: 80px; font-size: 40px; margin-bottom: 24px; }
+            .industry-tag { margin-bottom: 20px; padding: 6px 14px; }
+            .industry-tag-text { font-size: 10px; }
+            .progress-container { right: 24px; gap: 12px; }
+            .progress-dot { width: 10px; height: 10px; }
+            .slide-counter { left: 40px; bottom: 30px; }
+            .counter-current { font-size: 36px; }
+            .counter-divider { font-size: 20px; }
+            .counter-total { font-size: 14px; }
+            .welcome-title { font-size: clamp(38px, 6vw, 56px); }
+            .welcome-subtitle { font-size: 16px; margin-bottom: 32px; }
+            .portfolio-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; }
+            .portfolio-card { padding: 24px 16px; gap: 12px; }
+            .portfolio-icon { font-size: 32px; width: 62px; height: 62px; }
+            .portfolio-name { font-size: 13px; }
+            .stats-row { grid-template-columns: repeat(4, 1fr); gap: 24px; margin-top: 40px; }
+            .stat-value { font-size: 34px; }
+            .stat-label { font-size: 11px; }
+            .scroll-hint-text { font-size: 10px; letter-spacing: 2.5px; }
+            .scroll-hint-icon { width: 20px; height: 34px; }
+            .under-construction-notice { padding: 10px 16px; }
+            .notice-icon { font-size: 16px; }
+            .notice-text { font-size: 13px; }
+        }
+
+        /* === DESKTOP 1024px+ === */
+        @media (min-width: 1024px) {
+            .slide { padding: 40px 80px 60px 60px; }
+            .slide-content { max-width: 1300px; display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
+            .slide-welcome .slide-content { display: flex; flex-direction: column; align-items: center; }
+            .slide-icon-compact { display: none; }
+            .slide-right { display: flex; align-items: center; justify-content: center; transform: translateX(40px); opacity: 0; transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.35s; }
+            .slide.active .slide-right { transform: translateX(0); opacity: 1; }
+            .slide-left { transform: translateX(-30px); text-align: left; }
+            .slide.active .slide-left { transform: translateX(0); }
+            .slide-cta { width: auto; }
+            .slide-description { max-width: 480px; }
+            .progress-container { right: 50px; gap: 16px; }
+            .progress-label { display: block; }
+            .progress-dot { width: 12px; height: 12px; border-width: 2px; }
+            .slide-counter { left: 50px; bottom: 36px; }
+            .counter-current { font-size: 44px; }
+
+            .visual-container { position: relative; width: 100%; max-width: 420px; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; }
+            .visual-ring { position: absolute; border-radius: 50%; border: 1px solid rgba(76, 154, 255, 0.15); }
+            .visual-ring-1 { width: 100%; height: 100%; animation: rotate 30s linear infinite; }
+            .visual-ring-2 { width: 80%; height: 80%; border-style: dashed; animation: rotate 25s linear infinite reverse; }
+            .visual-ring-3 { width: 60%; height: 60%; animation: rotate 20s linear infinite; }
+            @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+            .visual-icon { position: absolute; width: 160px; height: 160px; display: flex; align-items: center; justify-content: center; font-size: 80px; background: linear-gradient(135deg, rgba(0, 82, 204, 0.2), rgba(76, 154, 255, 0.08)); border-radius: 50%; backdrop-filter: blur(10px); border: 1px solid rgba(76, 154, 255, 0.15); box-shadow: 0 0 50px rgba(0, 82, 204, 0.2), inset 0 0 40px rgba(0, 82, 204, 0.08); }
+            .floating-elements { position: absolute; width: 100%; height: 100%; }
+            .floating-element { position: absolute; width: 52px; height: 52px; background: rgba(201, 169, 98, 0.08); border: 1px solid rgba(201, 169, 98, 0.2); border-radius: 14px; backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; font-size: 22px; animation: float 4s ease-in-out infinite; }
+            .floating-element:nth-child(1) { top: 10%; left: 10%; animation-delay: 0s; }
+            .floating-element:nth-child(2) { top: 20%; right: 5%; animation-delay: 1s; }
+            .floating-element:nth-child(3) { bottom: 20%; left: 5%; animation-delay: 2s; }
+            .floating-element:nth-child(4) { bottom: 10%; right: 15%; animation-delay: 3s; }
+            @keyframes float { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-12px) rotate(4deg); } }
+
+            .portfolio-card:hover { background: rgba(0, 82, 204, 0.1); border-color: rgba(76, 154, 255, 0.3); transform: translateY(-6px); box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25); }
+            .portfolio-card:hover .portfolio-icon { transform: scale(1.08); background: linear-gradient(135deg, rgba(201, 169, 98, 0.2), rgba(184, 115, 51, 0.1)); }
+            .slide-cta:hover { transform: translateY(-2px); box-shadow: 0 16px 36px rgba(0, 82, 204, 0.3); }
+            .slide-cta:hover::before { opacity: 1; }
+            .slide-cta:hover .cta-arrow { transform: translateX(4px); }
+        }
+
+        /* === LARGE DESKTOP 1400px+ === */
+        @media (min-width: 1400px) {
+            .slide { padding: 40px 120px 60px 80px; }
+            .slide-content { gap: 80px; }
+            .slide-title { font-size: clamp(52px, 5vw, 68px); letter-spacing: -2px; margin-bottom: 28px; }
+            .slide-description { font-size: 17px; margin-bottom: 36px; }
+            .visual-container { max-width: 500px; }
+            .visual-icon { width: 190px; height: 190px; font-size: 95px; }
+            .floating-element { width: 58px; height: 58px; font-size: 24px; }
+            .welcome-title { font-size: clamp(50px, 6vw, 72px); }
+        }
+
+        /* Desktop cursor */
+        @media (hover: hover) and (pointer: fine) {
+            * { cursor: none !important; }
+            .cursor { display: block; width: 20px; height: 20px; border: 2px solid var(--staffbase-light-blue); border-radius: 50%; position: fixed; pointer-events: none; z-index: 10000; transition: transform 0.15s ease, border-color 0.15s ease; mix-blend-mode: difference; }
+            .cursor-dot { display: block; width: 4px; height: 4px; background: var(--accent-gold); border-radius: 50%; position: fixed; pointer-events: none; z-index: 10001; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Custom Cursor (desktop only via CSS) -->
+    <div class="cursor"></div>
+    <div class="cursor-dot"></div>
+
+    <!-- Background -->
+    <div class="bg-gradient"></div>
+    <div class="bg-grid"></div>
+
+    <!-- Progress Indicator -->
+    <div class="progress-container">
+        <div class="progress-item active" data-slide="0">
+            <div class="progress-dot"></div>
+            <span class="progress-label">Welcome</span>
+        </div>
+        <div class="progress-item" data-slide="1">
+            <div class="progress-dot"></div>
+            <span class="progress-label">Manufacturing</span>
+        </div>
+        <div class="progress-item" data-slide="2">
+            <div class="progress-dot"></div>
+            <span class="progress-label">Education</span>
+        </div>
+        <div class="progress-item" data-slide="3">
+            <div class="progress-dot"></div>
+            <span class="progress-label">Financial</span>
+        </div>
+        <div class="progress-item" data-slide="4">
+            <div class="progress-dot"></div>
+            <span class="progress-label">Healthcare</span>
+        </div>
+        <div class="progress-item" data-slide="5">
+            <div class="progress-dot"></div>
+            <span class="progress-label">Retail</span>
+        </div>
+        <div class="progress-item" data-slide="6">
+            <div class="progress-dot"></div>
+            <span class="progress-label">Futures</span>
+        </div>
+    </div>
+
+    <!-- Slide Counter -->
+    <div class="slide-counter">
+        <span class="counter-current">01</span>
+        <span class="counter-divider">/</span>
+        <span class="counter-total">07</span>
+    </div>
+
+    <!-- Scroll Hint -->
+    <div class="scroll-hint">
+        <span class="scroll-hint-text">Swipe to Explore</span>
+        <div class="scroll-hint-icon"></div>
+    </div>
+
+    <!-- Slides Container -->
+    <div class="slides-container">
+
+        <!-- Slide 1: Welcome -->
+        <div class="slide slide-welcome active" data-index="0">
+            <div class="slide-content">
+                <div class="slide-left">
+                    <h1 class="welcome-title">Your Journey<br>Starts Here</h1>
+                    <p class="welcome-subtitle">
+                        Explore our industry-specific solutions and discover how
+                        Staffbase can transform your employee experience and digital culture.
+                    </p>
+
+                    <div class="portfolio-grid">
+                        <a href="https://showcase.staffbase.com/content/page/6912676de1744e7a2d2e4065" target="_top" data-app-path="/content/page/6912676de1744e7a2d2e4065" data-group-id="69672894afdf7d24c5feaafd" class="portfolio-card nav-link">
+                            <div class="portfolio-icon">🏭</div>
+                            <span class="portfolio-name">Manufacturing</span>
+                        </a>
+                        <a href="https://showcase.staffbase.com/content/page/6912a1cf36f42e0f440cd6c4" target="_top" data-app-path="/content/page/6912a1cf36f42e0f440cd6c4" data-group-id="69672db75cff0a6a031724d7" class="portfolio-card nav-link">
+                            <div class="portfolio-icon">🎓</div>
+                            <span class="portfolio-name">Education</span>
+                        </a>
+                        <div class="portfolio-card under-construction">
+                            <div class="portfolio-icon">🏦</div>
+                            <span class="portfolio-name">Financial Services</span>
+                            <span class="under-construction-badge">Under Construction</span>
+                        </div>
+                        <a href="https://showcase.staffbase.com/content/page/6912a1919fd60b3f5591c8b1" target="_top" data-app-path="/content/page/6912a1919fd60b3f5591c8b1" data-group-id="69535e6338dc171a511fecbe" class="portfolio-card nav-link">
+                            <div class="portfolio-icon">🏥</div>
+                            <span class="portfolio-name">Healthcare</span>
+                        </a>
+                        <a href="https://showcase.staffbase.com/content/page/69129eb69ea6a346d249dac6" target="_top" data-app-path="/content/page/69129eb69ea6a346d249dac6" data-group-id="69672fbaafdf7d24c5feef0c" class="portfolio-card nav-link">
+                            <div class="portfolio-icon">🛍️</div>
+                            <span class="portfolio-name">Retail</span>
+                        </a>
+                        <div class="portfolio-card under-construction">
+                            <div class="portfolio-icon">🚀</div>
+                            <span class="portfolio-name">Futures</span>
+                            <span class="under-construction-badge">Under Construction</span>
+                        </div>
+                    </div>
+
+                    <div class="stats-row">
+                        <div class="stat-item">
+                            <div class="stat-value">2000+</div>
+                            <div class="stat-label">Companies</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">16.5M</div>
+                            <div class="stat-label">Employees Reached</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">190+</div>
+                            <div class="stat-label">Countries</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">97%</div>
+                            <div class="stat-label">Satisfaction</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 2: Manufacturing -->
+        <div class="slide" data-index="1">
+            <div class="slide-content">
+                <div class="slide-left">
+                    <div class="slide-icon-compact">🏭</div>
+                    <div class="industry-tag">
+                        <span class="industry-tag-dot"></span>
+                        <span class="industry-tag-text">Industry Solutions</span>
+                    </div>
+                    <h1 class="slide-title"><span>Manufacturing</span><br>Innovation</h1>
+                    <p class="slide-description">
+                        Break the communication barrier and finally reach your
+                        factory floor. Ensure safety protocols, operational updates,
+                        and company news reach every worker.
+                    </p>
+                    <a href="https://showcase.staffbase.com/content/page/6912676de1744e7a2d2e4065" target="_top" data-app-path="/content/page/6912676de1744e7a2d2e4065" data-group-id="69672894afdf7d24c5feaafd" class="slide-cta nav-link">
+                        <span>Explore Manufacturing</span>
+                        <svg class="cta-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                    </a>
+                </div>
+                <div class="slide-right">
+                    <div class="visual-container">
+                        <div class="visual-ring visual-ring-1"></div>
+                        <div class="visual-ring visual-ring-2"></div>
+                        <div class="visual-ring visual-ring-3"></div>
+                        <div class="visual-icon">🏭</div>
+                        <div class="floating-elements">
+                            <div class="floating-element">⚙️</div>
+                            <div class="floating-element">🔧</div>
+                            <div class="floating-element">🦺</div>
+                            <div class="floating-element">📊</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 3: Education -->
+        <div class="slide" data-index="2">
+            <div class="slide-content">
+                <div class="slide-left">
+                    <div class="slide-icon-compact">🎓</div>
+                    <div class="industry-tag">
+                        <span class="industry-tag-dot"></span>
+                        <span class="industry-tag-text">Industry Solutions</span>
+                    </div>
+                    <h1 class="slide-title"><span>Education</span><br>Empowerment</h1>
+                    <p class="slide-description">
+                        Unite educators, administrators, and support staff in
+                        a mission-driven environment. Foster collaboration that
+                        inspires learning excellence.
+                    </p>
+                    <a href="https://showcase.staffbase.com/content/page/6912a1cf36f42e0f440cd6c4" target="_top" data-app-path="/content/page/6912a1cf36f42e0f440cd6c4" data-group-id="69672db75cff0a6a031724d7" class="slide-cta nav-link">
+                        <span>Explore Education</span>
+                        <svg class="cta-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                    </a>
+                </div>
+                <div class="slide-right">
+                    <div class="visual-container">
+                        <div class="visual-ring visual-ring-1"></div>
+                        <div class="visual-ring visual-ring-2"></div>
+                        <div class="visual-ring visual-ring-3"></div>
+                        <div class="visual-icon">🎓</div>
+                        <div class="floating-elements">
+                            <div class="floating-element">📚</div>
+                            <div class="floating-element">✏️</div>
+                            <div class="floating-element">🔬</div>
+                            <div class="floating-element">💡</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 4: Financial Services -->
+        <div class="slide" data-index="3">
+            <div class="slide-content">
+                <div class="slide-left">
+                    <div class="slide-icon-compact">🏦</div>
+                    <div class="industry-tag">
+                        <span class="industry-tag-dot"></span>
+                        <span class="industry-tag-text">Industry Solutions</span>
+                    </div>
+                    <h1 class="slide-title"><span>Financial</span><br>Services</h1>
+                    <p class="slide-description">
+                        Navigate regulatory complexity while keeping teams informed
+                        and aligned. Enable secure, compliant communication that
+                        builds trust across your organization.
+                    </p>
+                    <div class="under-construction-notice">
+                        <span class="notice-icon">🚧</span>
+                        <span class="notice-text">This experience is under construction</span>
+                    </div>
+                    <div class="slide-cta disabled"><span>Coming Soon</span></div>
+                </div>
+                <div class="slide-right">
+                    <div class="visual-container">
+                        <div class="visual-ring visual-ring-1"></div>
+                        <div class="visual-ring visual-ring-2"></div>
+                        <div class="visual-ring visual-ring-3"></div>
+                        <div class="visual-icon">🏦</div>
+                        <div class="floating-elements">
+                            <div class="floating-element">💰</div>
+                            <div class="floating-element">📈</div>
+                            <div class="floating-element">🔐</div>
+                            <div class="floating-element">💎</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 5: Healthcare -->
+        <div class="slide" data-index="4">
+            <div class="slide-content">
+                <div class="slide-left">
+                    <div class="slide-icon-compact">🏥</div>
+                    <div class="industry-tag">
+                        <span class="industry-tag-dot"></span>
+                        <span class="industry-tag-text">Industry Solutions</span>
+                    </div>
+                    <h1 class="slide-title"><span>Healthcare</span><br>Evolution</h1>
+                    <p class="slide-description">
+                        Empower purposeful connections with your team of caregivers.
+                        Bridge communication gaps between shifts, departments, and
+                        locations to deliver exceptional patient care.
+                    </p>
+                    <a href="https://showcase.staffbase.com/content/page/6912a1919fd60b3f5591c8b1" target="_top" data-app-path="/content/page/6912a1919fd60b3f5591c8b1" data-group-id="69535e6338dc171a511fecbe" class="slide-cta nav-link">
+                        <span>Explore Healthcare</span>
+                        <svg class="cta-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                    </a>
+                </div>
+                <div class="slide-right">
+                    <div class="visual-container">
+                        <div class="visual-ring visual-ring-1"></div>
+                        <div class="visual-ring visual-ring-2"></div>
+                        <div class="visual-ring visual-ring-3"></div>
+                        <div class="visual-icon">🏥</div>
+                        <div class="floating-elements">
+                            <div class="floating-element">💊</div>
+                            <div class="floating-element">🩺</div>
+                            <div class="floating-element">❤️</div>
+                            <div class="floating-element">🔬</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 6: Retail -->
+        <div class="slide" data-index="5">
+            <div class="slide-content">
+                <div class="slide-left">
+                    <div class="slide-icon-compact">🛍️</div>
+                    <div class="industry-tag">
+                        <span class="industry-tag-dot"></span>
+                        <span class="industry-tag-text">Industry Solutions</span>
+                    </div>
+                    <h1 class="slide-title"><span>Retail</span><br>Excellence</h1>
+                    <p class="slide-description">
+                        Unleash exceptional customer experiences that begin with
+                        empowered employees. Connect your frontline teams across
+                        every store, region, and channel.
+                    </p>
+                    <a href="https://showcase.staffbase.com/content/page/69129eb69ea6a346d249dac6" target="_top" data-app-path="/content/page/69129eb69ea6a346d249dac6" data-group-id="69672fbaafdf7d24c5feef0c" class="slide-cta nav-link">
+                        <span>Explore Retail</span>
+                        <svg class="cta-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                    </a>
+                </div>
+                <div class="slide-right">
+                    <div class="visual-container">
+                        <div class="visual-ring visual-ring-1"></div>
+                        <div class="visual-ring visual-ring-2"></div>
+                        <div class="visual-ring visual-ring-3"></div>
+                        <div class="visual-icon">🛍️</div>
+                        <div class="floating-elements">
+                            <div class="floating-element">🏪</div>
+                            <div class="floating-element">💳</div>
+                            <div class="floating-element">⭐</div>
+                            <div class="floating-element">📦</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 7: Futures -->
+        <div class="slide" data-index="6">
+            <div class="slide-content">
+                <div class="slide-left">
+                    <div class="slide-icon-compact">🚀</div>
+                    <div class="industry-tag">
+                        <span class="industry-tag-dot"></span>
+                        <span class="industry-tag-text">Industry Solutions</span>
+                    </div>
+                    <h1 class="slide-title"><span>Futures</span><br>& Beyond</h1>
+                    <p class="slide-description">
+                        Shape tomorrow's workplace with AI-native employee experiences.
+                        Stay ahead of the curve with cutting-edge communication
+                        solutions designed for what's next.
+                    </p>
+                    <div class="under-construction-notice">
+                        <span class="notice-icon">🚧</span>
+                        <span class="notice-text">This experience is under construction</span>
+                    </div>
+                    <div class="slide-cta disabled"><span>Coming Soon</span></div>
+                </div>
+                <div class="slide-right">
+                    <div class="visual-container">
+                        <div class="visual-ring visual-ring-1"></div>
+                        <div class="visual-ring visual-ring-2"></div>
+                        <div class="visual-ring visual-ring-3"></div>
+                        <div class="visual-icon">🚀</div>
+                        <div class="floating-elements">
+                            <div class="floating-element">🤖</div>
+                            <div class="floating-element">🌐</div>
+                            <div class="floating-element">⚡</div>
+                            <div class="floating-element">✨</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        /* ============================================
+           SHARED CONSTANTS
+           Both the iframe logic and the parent-listener
+           use these — single source of truth.
+           ============================================ */
+        const MESSAGE_TYPE = 'staffbase-industry-switch';
+        const INDUSTRY_GROUP_IDS = new Set([
+            '69672894afdf7d24c5feaafd',
+            '69672db75cff0a6a031724d7',
+            '69672f84a2c10951567a0552',
+            '69535e6338dc171a511fecbe',
+            '69672fbaafdf7d24c5feef0c',
+            '69673076a2c10951567a0db5'
+        ]);
+        const DISCOVER_ENDPOINT = '/auth/discover';
+        const USER_ENDPOINT = '/api/users/me';
+        const DISCOVER_ACCEPT = 'application/vnd.staffbase.auth.discovery.v2+json';
+        const USER_ACCEPT = 'application/vnd.staffbase.accessors.user.v2+json';
+
+        /* ============================================
+           GROUP MEMBERSHIP — shared API layer
+           Used by both the iframe nav handler AND
+           the parent message listener.
+           ============================================ */
+        class GroupMembershipManager {
+            constructor() {
+                this.cachedUser = null;
+                this.cachedCsrfToken = '';
+                this.discoverPromise = null;
+            }
+
+            async switchToGroup(targetGroupId) {
+                if (!targetGroupId || !INDUSTRY_GROUP_IDS.has(targetGroupId)) return;
+                const { user, csrfToken } = await this.getUserAndToken();
+                if (!user || !user.id) return;
+
+                const currentIds = Array.isArray(user.groupIDs) ? user.groupIDs : [];
+                const toRemove = currentIds.filter(
+                    gid => INDUSTRY_GROUP_IDS.has(gid) && gid !== targetGroupId
+                );
+                const needsAdd = !currentIds.includes(targetGroupId);
+
+                console.log('[Switcher] Group state:', { toRemove, needsAdd });
+                if (!toRemove.length && !needsAdd) return;
+
+                if (toRemove.length) {
+                    await Promise.allSettled(
+                        toRemove.map(gid => this.updateMembership(gid, 'remove', user.id, csrfToken))
+                    );
+                }
+                if (needsAdd) {
+                    await this.updateMembership(targetGroupId, 'add', user.id, csrfToken);
+                }
+            }
+
+            async getUserAndToken() {
+                // Try discovery first (gives us user + csrf in one call)
+                try {
+                    const discovery = await this.fetchDiscover();
+                    if (discovery?.user) {
+                        return { user: discovery.user, csrfToken: discovery.csrfToken || '' };
+                    }
+                } catch (e) {
+                    console.warn('[Switcher] Discovery unavailable, using fallback.');
+                }
+
+                // Fallback to /api/users/me
+                const res = await fetch(USER_ENDPOINT, {
+                    method: 'GET',
+                    credentials: 'include',
+                    cache: 'no-store',
+                    headers: { 'accept': USER_ACCEPT }
+                });
+                if (!res.ok) throw new Error('Failed to load user information.');
+                const user = await res.json();
+                this.cachedUser = user;
+                return { user, csrfToken: this.getCsrfToken() };
+            }
+
+            async fetchDiscover() {
+                if (this.discoverPromise) return this.discoverPromise;
+                this.discoverPromise = fetch(DISCOVER_ENDPOINT, {
+                    method: 'GET',
+                    credentials: 'include',
+                    cache: 'no-store',
+                    headers: { 'accept': DISCOVER_ACCEPT }
+                })
+                .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+                .then(data => {
+                    if (data?.user) this.cachedUser = data.user;
+                    if (data?.csrfToken) this.cachedCsrfToken = data.csrfToken;
+                    console.log('[Switcher] Discovery loaded.');
+                    return data;
+                })
+                .finally(() => { this.discoverPromise = null; });
+                return this.discoverPromise;
+            }
+
+            getCookieValue(name) {
+                const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const match = document.cookie.match(new RegExp('(?:^|; )' + escaped + '=([^;]*)'));
+                return match ? decodeURIComponent(match[1]) : '';
+            }
+
+            getCsrfToken() {
+                // 1. Meta tag
+                const meta = document.querySelector('meta[name="csrf-token"], meta[name="x-csrf-token"]');
+                if (meta?.content) return meta.content;
+
+                // 2. Common cookie names
+                for (const name of ['csrf', 'csrf_token', 'csrfToken', 'XSRF-TOKEN', 'CSRF-TOKEN']) {
+                    const v = this.getCookieValue(name);
+                    if (v) return v;
+                }
+
+                // 3. CSRF_ prefix pattern
+                const match = document.cookie.match(/CSRF_[A-Za-z0-9]+/);
+                if (match) return match[0];
+
+                // 4. Staffbase global objects
+                if (window.staffbase?.csrfToken) return window.staffbase.csrfToken;
+                if (window.__STAFFBASE__?.csrfToken) return window.__STAFFBASE__.csrfToken;
+                if (window.__INITIAL_STATE__?.csrfToken) return window.__INITIAL_STATE__.csrfToken;
+
+                // 5. Cached from discovery
+                return this.cachedCsrfToken || '';
+            }
+
+            async updateMembership(groupId, action, userId, csrfToken) {
+                const isAdd = action === 'add';
+                const mediaType = isAdd
+                    ? 'application/vnd.staffbase.accessors.group.members-add.v1+json'
+                    : 'application/vnd.staffbase.accessors.group.members-remove.v1+json';
+                const headers = { 'accept': mediaType, 'content-type': mediaType };
+
+                // If no token was passed in, try to get one fresh
+                if (!csrfToken) {
+                    try { await this.fetchDiscover(); } catch(e) {}
+                    csrfToken = this.getCsrfToken();
+                }
+                if (csrfToken) headers['x-csrf-token'] = csrfToken;
+
+                console.log('[Switcher] Updating group:', { groupId, action });
+                const res = await fetch(`/api/groups/${groupId}/members`, {
+                    method: 'PATCH',
+                    credentials: 'include',
+                    headers,
+                    body: JSON.stringify({ userIds: [userId] })
+                });
+                if (!res.ok) {
+                    console.warn('[Switcher] Group update failed:', { groupId, action, status: res.status });
+                    throw new Error(`Failed to ${action} group membership.`);
+                }
+                console.log('[Switcher] Group update success:', { groupId, action });
+            }
+        }
+
+        /* ============================================
+           NAVIGATION HANDLER — iframe-side nav clicks
+           Posts messages to parent Staffbase shell when
+           embedded. The shell's injected JS (separate
+           file) catches the message, switches groups,
+           and redirects. If not embedded, falls back to
+           direct API calls + redirect from here.
+           ============================================ */
+        class NavigationHandler {
+            constructor(groupManager) {
+                this.groupManager = groupManager;
+                this.isMobile = this.detectMobile();
+                this.isNavigating = false;
+                this.lastTouchTime = 0;
+                this.init();
+            }
+
+            detectMobile() {
+                const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+                const smallScreen = window.innerWidth <= 1024;
+                const mobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                return hasTouch && (smallScreen || mobileUA);
+            }
+
+            init() {
+                console.log('[Switcher] Nav handler ready. Mobile:', this.isMobile);
+                this.setupNavigation();
+            }
+
+            isEmbedded() {
+                try { return window.top !== window.self; } catch (e) { return true; }
+            }
+
+            setupNavigation() {
+                document.querySelectorAll('.nav-link').forEach(link => {
+                    const handler = (e) => this.handleNavigation(e, link);
+
+                    // Touch-first: touchend fires before click on mobile.
+                    // We track timing to prevent double-firing.
+                    link.addEventListener('touchend', (e) => {
+                        this.lastTouchTime = Date.now();
+                        handler(e);
+                    }, { passive: false });
+
+                    link.addEventListener('click', (e) => {
+                        // Skip if this was already handled by touchend
+                        if (Date.now() - this.lastTouchTime < 800) return;
+                        handler(e);
+                    });
+                });
+            }
+
+            shouldIgnoreEvent(e) {
+                return (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) ||
+                       (typeof e.button === 'number' && e.button !== 0);
+            }
+
+            getMessageTarget() {
+                // Prefer top (Staffbase shell), fall back to parent
+                let t = null;
+                try { if (window.top && window.top !== window) t = window.top; } catch(e) {}
+                if (!t) { try { if (window.parent && window.parent !== window) t = window.parent; } catch(e) {} }
+                return t;
+            }
+
+            postSwitchMessage(groupId, destination) {
+                const target = this.getMessageTarget();
+                if (!target) return false;
+                target.postMessage({ type: MESSAGE_TYPE, groupId, destination }, '*');
+                console.log('[Switcher] Posted switch message:', { groupId, destination });
+                return true;
+            }
+
+            async handleNavigation(e, link) {
+                if (this.isNavigating || this.shouldIgnoreEvent(e)) return;
+
+                const appPath = link.getAttribute('data-app-path');
+                const href = link.getAttribute('href');
+                const targetGroupId = link.getAttribute('data-group-id');
+
+                // On mobile webview: prefer app-relative path
+                // On desktop/browser: use full href
+                const destination = this.isMobile && appPath ? appPath : href;
+
+                if (!destination || !targetGroupId) return;
+                if (!appPath?.startsWith('/content/page/') && !href?.includes('/content/page/')) return;
+
+                e.preventDefault();
+                e.stopPropagation();
+                this.isNavigating = true;
+
+                console.log('[Switcher] Link activated:', {
+                    groupId: targetGroupId,
+                    destination,
+                    embedded: this.isEmbedded(),
+                    mobile: this.isMobile
+                });
+
+                // Strategy 1: If embedded, post message to parent shell
+                // The parent listener (either injected Staffbase JS or our
+                // own ParentMessageListener) handles the switch + redirect.
+                if (this.isEmbedded() && targetGroupId) {
+                    if (this.postSwitchMessage(targetGroupId, destination)) {
+                        // Give the parent time to process before unlocking
+                        setTimeout(() => { this.isNavigating = false; }, 5000);
+                        return;
+                    }
+                }
+
+                // Strategy 2: Direct API call + redirect (non-embedded fallback)
+                if (this.groupManager && targetGroupId) {
+                    try {
+                        await this.groupManager.switchToGroup(targetGroupId);
+                    } catch (err) {
+                        console.error('[Switcher] Direct group switch failed:', err);
+                    }
+                }
+
+                // Mobile webviews sometimes need a tick to flush pending requests
+                if (this.isMobile) {
+                    setTimeout(() => { window.location.href = destination; }, 150);
+                } else {
+                    window.location.href = destination;
+                }
+            }
+        }
+
+        /* ============================================
+           SCROLL SLIDER — swipe + wheel + keyboard
+           ============================================ */
+        class ScrollSlider {
+            constructor() {
+                this.currentSlide = 0;
+                this.totalSlides = document.querySelectorAll('.slide').length;
+                this.isAnimating = false;
+                this.touchStartY = 0;
+                this.touchStartX = 0;
+                this.touchStartTime = 0;
+                this.lastScrollTime = Date.now();
+                this.wheelDelta = 0;
+                this.wheelTimer = null;
+                this.init();
+            }
+
+            init() {
+                // Wheel (desktop)
+                window.addEventListener('wheel', e => this.handleScroll(e), { passive: false });
+
+                // Touch (mobile) — using document-level listeners for
+                // reliable capture inside webview iframes
+                document.addEventListener('touchstart', e => this.handleTouchStart(e), { passive: true });
+                document.addEventListener('touchmove', e => this.handleTouchMove(e), { passive: false });
+                document.addEventListener('touchend', e => this.handleTouchEnd(e), { passive: true });
+
+                // Keyboard
+                window.addEventListener('keydown', e => this.handleKeydown(e));
+
+                // Progress dot navigation (click + touch)
+                document.querySelectorAll('.progress-item').forEach(item => {
+                    const go = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.goToSlide(parseInt(item.dataset.slide));
+                    };
+                    item.addEventListener('click', go);
+                    item.addEventListener('touchend', go);
+                });
+
+                // Custom cursor — desktop only
+                if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+                    this.initCursor();
+                }
+            }
+
+            /* --- Wheel (desktop) --- */
+            handleScroll(e) {
+                e.preventDefault();
+                if (Date.now() - this.lastScrollTime < 90 || this.isAnimating) return;
+
+                this.wheelDelta += e.deltaY;
+                if (this.wheelTimer) clearTimeout(this.wheelTimer);
+                this.wheelTimer = setTimeout(() => { this.wheelDelta = 0; }, 140);
+
+                if (Math.abs(this.wheelDelta) >= 45) {
+                    this.wheelDelta > 0 ? this.nextSlide() : this.prevSlide();
+                    this.wheelDelta = 0;
+                    this.lastScrollTime = Date.now();
+                }
+            }
+
+            /* --- Touch (mobile) --- */
+            handleTouchStart(e) {
+                // Don't hijack touches on nav links or portfolio cards
+                if (e.target.closest('.nav-link, .portfolio-card')) return;
+                this.touchStartY = e.touches[0].clientY;
+                this.touchStartX = e.touches[0].clientX;
+                this.touchStartTime = Date.now();
+            }
+
+            handleTouchMove(e) {
+                if (e.target.closest('.nav-link, .portfolio-card') || this.isAnimating) return;
+                const dy = this.touchStartY - e.touches[0].clientY;
+                const dx = this.touchStartX - e.touches[0].clientX;
+                // Only prevent default for clearly vertical swipes
+                if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 10) {
+                    e.preventDefault();
+                }
+            }
+
+            handleTouchEnd(e) {
+                if (e.target.closest('.nav-link, .portfolio-card') || this.isAnimating) return;
+                const dy = this.touchStartY - e.changedTouches[0].clientY;
+                const dx = this.touchStartX - e.changedTouches[0].clientX;
+                const dt = Date.now() - this.touchStartTime;
+
+                // Swipe thresholds tuned for mobile webview:
+                // - 24px minimum travel (forgiving for small screens)
+                // - 700ms max duration (allows deliberate swipes)
+                // - Must be more vertical than horizontal
+                if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 24 && dt < 700) {
+                    dy > 0 ? this.nextSlide() : this.prevSlide();
+                }
+            }
+
+            /* --- Keyboard --- */
+            handleKeydown(e) {
+                if (this.isAnimating) return;
+                if (['ArrowDown', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); this.nextSlide(); }
+                else if (['ArrowUp', 'PageUp'].includes(e.key)) { e.preventDefault(); this.prevSlide(); }
+            }
+
+            /* --- Slide transitions --- */
+            nextSlide() { if (this.currentSlide < this.totalSlides - 1) this.goToSlide(this.currentSlide + 1); }
+            prevSlide() { if (this.currentSlide > 0) this.goToSlide(this.currentSlide - 1); }
+
+            goToSlide(index) {
+                if (index === this.currentSlide || this.isAnimating) return;
+                this.isAnimating = true;
+
+                const slides = document.querySelectorAll('.slide');
+                const progress = document.querySelectorAll('.progress-item');
+
+                slides[this.currentSlide].classList.remove('active');
+                slides[index].classList.add('active');
+                slides[index].scrollTop = 0;
+
+                progress[this.currentSlide].classList.remove('active');
+                progress[index].classList.add('active');
+
+                document.querySelector('.counter-current').textContent =
+                    String(index + 1).padStart(2, '0');
+
+                const hint = document.querySelector('.scroll-hint');
+                if (hint) hint.style.opacity = index === this.totalSlides - 1 ? '0' : '0.5';
+
+                this.currentSlide = index;
+                setTimeout(() => { this.isAnimating = false; }, 650);
+            }
+
+            /* --- Custom cursor (desktop only) --- */
+            initCursor() {
+                const cursor = document.querySelector('.cursor');
+                const dot = document.querySelector('.cursor-dot');
+                if (!cursor || !dot) return;
+
+                let mx = 0, my = 0, cx = 0, cy = 0;
+
+                document.addEventListener('mousemove', e => {
+                    mx = e.clientX; my = e.clientY;
+                    dot.style.left = mx + 'px';
+                    dot.style.top = my + 'px';
+                });
+
+                const animate = () => {
+                    cx += (mx - cx) * 0.2;
+                    cy += (my - cy) * 0.2;
+                    cursor.style.left = (cx - 10) + 'px';
+                    cursor.style.top = (cy - 10) + 'px';
+                    requestAnimationFrame(animate);
+                };
+                animate();
+
+                document.querySelectorAll('a, button, .progress-item, .portfolio-card').forEach(el => {
+                    el.addEventListener('mouseenter', () => {
+                        cursor.style.transform = 'scale(1.5)';
+                        cursor.style.borderColor = 'var(--accent-gold)';
+                    });
+                    el.addEventListener('mouseleave', () => {
+                        cursor.style.transform = 'scale(1)';
+                        cursor.style.borderColor = 'var(--staffbase-light-blue)';
+                    });
+                });
+            }
+        }
+
+        /* ============================================
+           BOOT — initialize everything
+           ============================================ */
+        const boot = () => {
+            console.log('[Switcher] Booting portal (iframe)...');
+            const gm = new GroupMembershipManager();
+
+            // 1. Navigation handler (posts messages to parent shell on click)
+            new NavigationHandler(gm);
+
+            // 2. Slide controller (swipe, wheel, keyboard)
+            new ScrollSlider();
+
+            console.log('[Switcher] Portal ready.');
+        };
+
+        document.readyState === 'loading'
+            ? document.addEventListener('DOMContentLoaded', boot)
+            : boot();
+    </script>
+</body>
+</html>
