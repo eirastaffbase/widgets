@@ -3,18 +3,11 @@
 /*
   Industry Switcher Widget
   ========================
-  A Staffbase custom block that lets users switch between industry groups
-  directly from the mobile app — no iframe, no postMessage, no /me endpoint.
+  Auth: widgetApi.getUserInformation() for user ID (SDK-native, mobile-safe)
+        Basic auth API key for group PATCH calls (bypasses mobile cookie issues)
 
-  Auth flow:
-    1. widgetApi.getUserInformation() → current user ID + groupIDs (SDK-native, works on mobile)
-    2. Optionally grab CSRF token from /auth/discover for the group PATCH calls
-    3. PATCH /api/groups/{id}/members to remove old industry groups + add the new one
-    4. Navigate to the industry's landing page
-
-  Per-industry config:
-    Each industry has a groupid field and a path field.
-    Set a path to "in progress" to show the Under Construction badge instead of Explore.
+  Debug mode: enable "Debug Mode" in widget config to see a live log panel
+              showing every API call, status code, and response body.
 
   Build: npm run build → dist/industry-switcher.js
 */
@@ -28,9 +21,13 @@ var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _argume
     });
 };
 /* ============================================================
+   API KEY — Basic auth for group membership PATCH calls.
+   Bypasses mobile webview cookie auth issues.
+   (Showcase-only env; not a multi-tenant secret.)
+   ============================================================ */
+const API_KEY = "NjliZGQ4YjU1MjIyMjU1YjEyODRmZmNmOl14XU83ciFeLE9rRUZjV1BaZ1E1KE82JDFrIVNTeGxVWFQoSVRfNGhlQ3h7RXRNfTt4Ym9YQ2JuQ1tHIVBoQTI=";
+/* ============================================================
    INDUSTRY STATIC CONFIG
-   Defines attribute names, display names, and hardcoded defaults.
-   All values are overridable via widget config.
    ============================================================ */
 const INDUSTRY_CONFIG = [
     {
@@ -77,10 +74,13 @@ const INDUSTRY_CONFIG = [
     },
 ];
 const IN_PROGRESS = "in progress";
+const ALL_ATTRIBUTES = [
+    "widgettitle",
+    "debugmode",
+    ...INDUSTRY_CONFIG.flatMap((i) => [i.groupAttr, i.pathAttr]),
+];
 /* ============================================================
    SCHEMA
-   One group ID + one page path field per industry.
-   Set a path to "in progress" to show the Under Construction badge.
    ============================================================ */
 const configurationSchema = {
     properties: {
@@ -88,7 +88,11 @@ const configurationSchema = {
             type: "string",
             title: "Widget Title",
         },
-        // Manufacturing
+        debugmode: {
+            type: "boolean",
+            title: "Debug Mode",
+            default: false,
+        },
         manufacturinggroupid: {
             type: "string",
             title: "Manufacturing — Group ID",
@@ -99,7 +103,6 @@ const configurationSchema = {
             title: "Manufacturing — Page Path",
             default: "/content/page/6912676de1744e7a2d2e4065",
         },
-        // Education
         educationgroupid: {
             type: "string",
             title: "Education — Group ID",
@@ -110,7 +113,6 @@ const configurationSchema = {
             title: "Education — Page Path",
             default: "/content/page/6912a1cf36f42e0f440cd6c4",
         },
-        // Financial Services
         financialservicesgroupid: {
             type: "string",
             title: "Financial Services — Group ID",
@@ -121,7 +123,6 @@ const configurationSchema = {
             title: "Financial Services — Page Path",
             default: "in progress",
         },
-        // Healthcare
         healthcaregroupid: {
             type: "string",
             title: "Healthcare — Group ID",
@@ -132,7 +133,6 @@ const configurationSchema = {
             title: "Healthcare — Page Path",
             default: "/content/page/6912a1919fd60b3f5591c8b1",
         },
-        // Retail
         retailgroupid: {
             type: "string",
             title: "Retail — Group ID",
@@ -143,7 +143,6 @@ const configurationSchema = {
             title: "Retail — Page Path",
             default: "/content/page/69129eb69ea6a346d249dac6",
         },
-        // Futures
         futuresgroupid: {
             type: "string",
             title: "Futures — Group ID",
@@ -159,6 +158,9 @@ const configurationSchema = {
 const uiSchema = {
     widgettitle: {
         "ui:help": "Optional heading shown above the industry cards",
+    },
+    debugmode: {
+        "ui:help": "Show a live API log panel below the cards — useful for diagnosing mobile issues",
     },
     manufacturingpath: {
         "ui:help": 'Page path, or type "in progress" to show Under Construction',
@@ -179,11 +181,6 @@ const uiSchema = {
         "ui:help": 'Page path, or type "in progress" to show Under Construction',
     },
 };
-// All attribute names registered with the SDK
-const ALL_ATTRIBUTES = [
-    "widgettitle",
-    ...INDUSTRY_CONFIG.flatMap((i) => [i.groupAttr, i.pathAttr]),
-];
 /* ============================================================
    FACTORY
    ============================================================ */
@@ -192,8 +189,12 @@ const factory = (BaseBlockClass, widgetApi) => {
         constructor() {
             super();
             this.isProcessing = false;
+            this.debugLogs = [];
         }
-        // Resolve live industry data from attributes (falls back to defaults)
+        isDebug() {
+            const val = this.getAttribute("debugmode");
+            return val === "true" || val === "1";
+        }
         getIndustries() {
             return INDUSTRY_CONFIG.map((ind) => {
                 var _a, _b;
@@ -207,15 +208,31 @@ const factory = (BaseBlockClass, widgetApi) => {
                 };
             });
         }
-        // Build the set of all configured industry group IDs (used to find groups to remove)
         getIndustryGroupIds() {
             return new Set(this.getIndustries().map((i) => i.groupId));
         }
         renderBlock(container) {
             return __awaiter(this, void 0, void 0, function* () {
+                this.debugLogs = [];
                 container.innerHTML = this.buildStyles() + this.buildHTML();
                 this.attachHandlers(container);
             });
+        }
+        /* ----------------------------------------------------------
+           DEBUG LOGGING
+        ---------------------------------------------------------- */
+        dbLog(msg, level = "info") {
+            const ts = new Date().toISOString().slice(11, 23); // HH:MM:SS.mmm
+            const entry = `[${ts}] ${msg}`;
+            console.log("[Switcher]", entry);
+            this.debugLogs.push(`<span class="db-${level}">${this.escapeHtml(entry)}</span>`);
+        }
+        flushDebugPanel(container) {
+            const panel = container.querySelector("#sw-debug");
+            if (!panel)
+                return;
+            panel.innerHTML = this.debugLogs.join("<br>");
+            panel.scrollTop = panel.scrollHeight;
         }
         /* ----------------------------------------------------------
            STYLES
@@ -250,9 +267,7 @@ const factory = (BaseBlockClass, widgetApi) => {
             -webkit-tap-highlight-color: transparent;
             user-select: none;
           }
-          .sw-card:not(.sw-disabled) {
-            cursor: pointer;
-          }
+          .sw-card:not(.sw-disabled) { cursor: pointer; }
           .sw-card:not(.sw-disabled):active {
             background: #e8f0fe;
             border-color: #1a73e8;
@@ -283,10 +298,7 @@ const factory = (BaseBlockClass, widgetApi) => {
             touch-action: manipulation;
             box-sizing: border-box;
           }
-          .sw-btn:disabled {
-            background: #aaa;
-            cursor: default;
-          }
+          .sw-btn:disabled { background: #aaa; cursor: default; }
           .sw-badge {
             display: inline-block;
             padding: 3px 8px;
@@ -307,6 +319,32 @@ const factory = (BaseBlockClass, widgetApi) => {
             min-height: 20px;
           }
           .sw-status.sw-error { color: #c5221f; }
+
+          /* Debug panel */
+          #sw-debug {
+            margin-top: 14px;
+            padding: 10px 12px;
+            background: #0d1117;
+            border-radius: 8px;
+            font-family: 'Menlo', 'Courier New', monospace;
+            font-size: 11px;
+            line-height: 1.7;
+            color: #c9d1d9;
+            max-height: 280px;
+            overflow-y: auto;
+            word-break: break-all;
+          }
+          #sw-debug .db-ok  { color: #3fb950; }
+          #sw-debug .db-err { color: #f85149; }
+          #sw-debug .db-info { color: #79c0ff; }
+          .sw-debug-label {
+            margin-top: 10px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: #aaa;
+          }
         </style>
       `;
         }
@@ -336,11 +374,16 @@ const factory = (BaseBlockClass, widgetApi) => {
             </div>`;
             })
                 .join("");
+            const debugPanel = this.isDebug()
+                ? `<div class="sw-debug-label">Debug Log</div>
+           <div id="sw-debug">Waiting for tap...</div>`
+                : "";
             return `
         <div class="sw-wrap">
           ${headingHTML}
           <div class="sw-grid">${cards}</div>
           <div class="sw-status" id="sw-status"></div>
+          ${debugPanel}
         </div>`;
         }
         escapeHtml(str) {
@@ -384,13 +427,15 @@ const factory = (BaseBlockClass, widgetApi) => {
                 .forEach((b) => (b.disabled = disabled));
         }
         /* ----------------------------------------------------------
-           CORE: GET CURRENT USER
-           widgetApi.getUserInformation() — SDK-native, works on mobile
+           CORE: GET CURRENT USER (SDK-native, works on mobile)
         ---------------------------------------------------------- */
-        getCurrentUser() {
+        getCurrentUser(container) {
             return __awaiter(this, void 0, void 0, function* () {
+                this.dbLog("widgetApi.getUserInformation() →");
+                this.flushDebugPanel(container);
                 const profile = yield widgetApi.getUserInformation();
-                console.log("[Switcher] Got user:", profile.id);
+                this.dbLog(`  userId=${profile.id} groupIDs=[${(profile.groupIDs || []).join(", ")}]`, "ok");
+                this.flushDebugPanel(container);
                 return {
                     userId: profile.id,
                     groupIDs: Array.isArray(profile.groupIDs) ? profile.groupIDs : [],
@@ -398,77 +443,70 @@ const factory = (BaseBlockClass, widgetApi) => {
             });
         }
         /* ----------------------------------------------------------
-           CORE: GET CSRF TOKEN (optional)
-        ---------------------------------------------------------- */
-        getCsrfToken() {
-            return __awaiter(this, void 0, void 0, function* () {
-                try {
-                    const res = yield fetch("/auth/discover", {
-                        credentials: "include",
-                        cache: "no-store",
-                        headers: {
-                            accept: "application/vnd.staffbase.auth.discovery.v2+json",
-                        },
-                    });
-                    if (res.ok) {
-                        const data = yield res.json();
-                        return (data === null || data === void 0 ? void 0 : data.csrfToken) || "";
-                    }
-                }
-                catch (_a) {
-                    // Non-fatal
-                }
-                return "";
-            });
-        }
-        /* ----------------------------------------------------------
            CORE: UPDATE GROUP MEMBERSHIP
+           Uses Basic auth (bypasses mobile cookie/session issues)
         ---------------------------------------------------------- */
-        updateMembership(groupId, action, userId, csrfToken) {
+        updateMembership(groupId, action, userId, container) {
             return __awaiter(this, void 0, void 0, function* () {
                 const mediaType = action === "add"
                     ? "application/vnd.staffbase.accessors.group.members-add.v1+json"
                     : "application/vnd.staffbase.accessors.group.members-remove.v1+json";
-                const headers = {
-                    accept: mediaType,
-                    "content-type": mediaType,
-                };
-                if (csrfToken)
-                    headers["x-csrf-token"] = csrfToken;
-                console.log(`[Switcher] ${action} group ${groupId}`);
-                const res = yield fetch(`/api/groups/${groupId}/members`, {
-                    method: "PATCH",
-                    credentials: "include",
-                    headers,
-                    body: JSON.stringify({ userIds: [userId] }),
-                });
-                if (!res.ok) {
-                    console.warn(`[Switcher] ${action} failed for ${groupId}:`, res.status);
+                const endpoint = `/api/groups/${groupId}/members`;
+                this.dbLog(`PATCH ${endpoint} [${action}] userId=${userId} →`);
+                this.flushDebugPanel(container);
+                let res;
+                let responseText = "";
+                try {
+                    res = yield fetch(endpoint, {
+                        method: "PATCH",
+                        headers: {
+                            accept: mediaType,
+                            "content-type": mediaType,
+                            authorization: `Basic ${API_KEY}`,
+                        },
+                        body: JSON.stringify({ userIds: [userId] }),
+                    });
+                    responseText = yield res.text();
+                }
+                catch (fetchErr) {
+                    this.dbLog(`  NETWORK ERROR: ${fetchErr.message}`, "err");
+                    this.flushDebugPanel(container);
                     if (action === "add")
-                        throw new Error("Failed to join group");
-                    // remove failures are non-fatal (user may not be in that group)
+                        throw new Error(`Network error: ${fetchErr.message}`);
+                    return;
+                }
+                if (res.ok) {
+                    this.dbLog(`  ${res.status} OK`, "ok");
+                }
+                else {
+                    this.dbLog(`  ${res.status} FAILED — ${responseText.slice(0, 120)}`, "err");
+                }
+                this.flushDebugPanel(container);
+                if (!res.ok && action === "add") {
+                    throw new Error(`Add to group failed (${res.status}): ${responseText.slice(0, 200)}`);
                 }
             });
         }
         /* ----------------------------------------------------------
            CORE: SWITCH GROUP
-           Reads configured group IDs at runtime so they stay in sync
-           with whatever the admin has set in the widget config.
         ---------------------------------------------------------- */
-        switchGroup(targetGroupId, userId, currentGroupIDs, csrfToken) {
+        switchGroup(targetGroupId, userId, currentGroupIDs, container) {
             return __awaiter(this, void 0, void 0, function* () {
-                // Build the set of known industry group IDs from current config
                 const industryGroupIds = this.getIndustryGroupIds();
                 const toRemove = currentGroupIDs.filter((gid) => industryGroupIds.has(gid) && gid !== targetGroupId);
                 const needsAdd = !currentGroupIDs.includes(targetGroupId);
-                console.log("[Switcher] Plan:", { toRemove, needsAdd });
-                if (!toRemove.length && !needsAdd)
+                this.dbLog(`Plan: remove=[${toRemove.join(", ")}] add=${needsAdd ? targetGroupId : "none"}`);
+                this.flushDebugPanel(container);
+                if (!toRemove.length && !needsAdd) {
+                    this.dbLog("Already in target group, skipping", "ok");
+                    this.flushDebugPanel(container);
                     return;
+                }
                 if (toRemove.length) {
-                    yield Promise.allSettled(toRemove.map((gid) => this.updateMembership(gid, "remove", userId, csrfToken)));
+                    yield Promise.allSettled(toRemove.map((gid) => this.updateMembership(gid, "remove", userId, container)));
                 }
                 if (needsAdd) {
-                    yield this.updateMembership(targetGroupId, "add", userId, csrfToken);
+                    yield this.updateMembership(targetGroupId, "add", userId, container);
                 }
             });
         }
@@ -480,22 +518,45 @@ const factory = (BaseBlockClass, widgetApi) => {
                 if (this.isProcessing)
                     return;
                 this.isProcessing = true;
+                this.debugLogs = [];
                 this.setButtonsDisabled(container, true);
                 this.setStatus(container, "Switching industry...");
+                const debugPanel = container.querySelector("#sw-debug");
+                if (debugPanel)
+                    debugPanel.innerHTML = "";
+                this.dbLog(`Tap → groupId=${groupId} path=${path}`);
+                this.flushDebugPanel(container);
                 try {
-                    const [{ userId, groupIDs }, csrfToken] = yield Promise.all([
-                        this.getCurrentUser(),
-                        this.getCsrfToken(),
-                    ]);
-                    yield this.switchGroup(groupId, userId, groupIDs, csrfToken);
+                    const { userId, groupIDs } = yield this.getCurrentUser(container);
+                    yield this.switchGroup(groupId, userId, groupIDs, container);
+                    this.dbLog("Group switch complete ✓", "ok");
+                    this.flushDebugPanel(container);
                     this.setStatus(container, "Done! Taking you there...");
-                    setTimeout(() => {
-                        window.location.href = path;
-                    }, 150);
+                    if (this.isDebug()) {
+                        // In debug mode hold for 8s so user can read the log before navigating
+                        this.dbLog(`Navigating to ${path} in 8s...`, "info");
+                        this.flushDebugPanel(container);
+                        setTimeout(() => {
+                            window.location.href = path;
+                        }, 8000);
+                    }
+                    else {
+                        setTimeout(() => {
+                            window.location.href = path;
+                        }, 150);
+                    }
                 }
                 catch (err) {
                     console.error("[Switcher] Error:", err);
-                    this.setStatus(container, `Error: ${err.message}`, true);
+                    this.dbLog(`FATAL: ${err.message}`, "err");
+                    this.flushDebugPanel(container);
+                    if (this.isDebug()) {
+                        // Show full log + error for as long as needed — no timeout, user can read
+                        this.setStatus(container, `Switch failed — see debug log below`, true);
+                    }
+                    else {
+                        this.setStatus(container, `Error: ${err.message}`, true);
+                    }
                     this.setButtonsDisabled(container, false);
                     this.isProcessing = false;
                 }
