@@ -34,6 +34,7 @@ const API_KEY =
 const INDUSTRY_CONFIG = [
   {
     name: "Manufacturing",
+    icon: "🏭",
     groupAttr: "manufacturinggroupid",
     pathAttr: "manufacturingpath",
     defaultGroupId: "69672894afdf7d24c5feaafd",
@@ -41,6 +42,7 @@ const INDUSTRY_CONFIG = [
   },
   {
     name: "Education",
+    icon: "🎓",
     groupAttr: "educationgroupid",
     pathAttr: "educationpath",
     defaultGroupId: "69672db75cff0a6a031724d7",
@@ -48,6 +50,7 @@ const INDUSTRY_CONFIG = [
   },
   {
     name: "Financial Services",
+    icon: "🏦",
     groupAttr: "financialservicesgroupid",
     pathAttr: "financialservicespath",
     defaultGroupId: "69672f84a2c10951567a0552",
@@ -55,6 +58,7 @@ const INDUSTRY_CONFIG = [
   },
   {
     name: "Healthcare",
+    icon: "🏥",
     groupAttr: "healthcaregroupid",
     pathAttr: "healthcarepath",
     defaultGroupId: "69535e6338dc171a511fecbe",
@@ -62,6 +66,7 @@ const INDUSTRY_CONFIG = [
   },
   {
     name: "Retail",
+    icon: "🛍️",
     groupAttr: "retailgroupid",
     pathAttr: "retailpath",
     defaultGroupId: "69672fbaafdf7d24c5feef0c",
@@ -69,6 +74,7 @@ const INDUSTRY_CONFIG = [
   },
   {
     name: "Futures",
+    icon: "🚀",
     groupAttr: "futuresgroupid",
     pathAttr: "futurespath",
     defaultGroupId: "69673076a2c10951567a0db5",
@@ -220,6 +226,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           this.getAttribute(ind.pathAttr)?.trim() || ind.defaultPath;
         return {
           name: ind.name,
+          icon: ind.icon,
           groupId,
           path,
           disabled: path.toLowerCase() === IN_PROGRESS,
@@ -259,18 +266,25 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
     ---------------------------------------------------------- */
     buildStyles(): string {
       return `
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300..700&family=Syne:wght@600..800&display=swap" rel="stylesheet">
         <style>
           .sw-wrap {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            padding: 4px 0;
+            font-family: 'DM Sans', sans-serif;
+            background: #0A0F1C;
+            border-radius: 16px;
+            padding: 20px 16px 16px;
+            border: 1px solid rgba(201, 169, 98, 0.2);
           }
           .sw-heading {
-            font-size: 13px;
+            font-family: 'Syne', sans-serif;
+            font-size: 11px;
             font-weight: 700;
-            letter-spacing: 0.06em;
+            letter-spacing: 0.12em;
             text-transform: uppercase;
-            color: #888;
-            margin: 0 0 12px 2px;
+            color: #C9A962;
+            margin: 0 0 16px 2px;
           }
           .sw-grid {
             display: grid;
@@ -279,91 +293,103 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           }
           .sw-card {
             border-radius: 12px;
-            padding: 16px 12px;
-            background: #f4f4f4;
+            padding: 18px 12px 14px;
+            background: #131929;
             text-align: center;
-            border: 2px solid transparent;
-            transition: background 0.15s, border-color 0.15s;
+            border: 1px solid rgba(255,255,255,0.06);
+            transition: background 0.18s, border-color 0.18s;
             -webkit-tap-highlight-color: transparent;
             user-select: none;
           }
           .sw-card:not(.sw-disabled) { cursor: pointer; }
           .sw-card:not(.sw-disabled):active {
-            background: #e8f0fe;
-            border-color: #1a73e8;
+            background: #1a2540;
+            border-color: rgba(201, 169, 98, 0.5);
           }
           .sw-card.sw-disabled {
-            opacity: 0.45;
+            opacity: 0.38;
             cursor: default;
             pointer-events: none;
           }
+          .sw-icon {
+            font-size: 28px;
+            margin-bottom: 8px;
+            line-height: 1;
+          }
           .sw-name {
-            font-weight: 600;
-            font-size: 14px;
-            color: #111;
-            margin-bottom: 10px;
+            font-family: 'Syne', sans-serif;
+            font-weight: 700;
+            font-size: 13px;
+            color: #fff;
+            margin-bottom: 12px;
             line-height: 1.3;
           }
           .sw-btn {
             display: block;
             padding: 7px 14px;
-            background: #1a73e8;
-            color: #fff;
+            background: #C9A962;
+            color: #0A0F1C;
             border: none;
             border-radius: 8px;
+            font-family: 'DM Sans', sans-serif;
             font-size: 12px;
-            font-weight: 600;
+            font-weight: 700;
             cursor: pointer;
             width: 100%;
             touch-action: manipulation;
             box-sizing: border-box;
+            letter-spacing: 0.02em;
+            transition: background 0.15s;
           }
-          .sw-btn:disabled { background: #aaa; cursor: default; }
+          .sw-btn:active { background: #b8953a; }
+          .sw-btn:disabled { background: #333; color: #666; cursor: default; }
           .sw-badge {
             display: inline-block;
-            padding: 3px 8px;
-            background: #fff3cd;
-            color: #856404;
-            border: 1px solid #ffc107;
+            padding: 3px 9px;
+            background: transparent;
+            color: #C9A962;
+            border: 1px solid rgba(201, 169, 98, 0.4);
             border-radius: 20px;
-            font-size: 10px;
-            font-weight: 600;
-            letter-spacing: 0.03em;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
             text-transform: uppercase;
           }
           .sw-status {
-            margin-top: 12px;
-            font-size: 13px;
-            color: #555;
+            margin-top: 14px;
+            font-size: 12px;
+            color: rgba(255,255,255,0.45);
             text-align: center;
-            min-height: 20px;
+            min-height: 18px;
+            letter-spacing: 0.01em;
           }
-          .sw-status.sw-error { color: #c5221f; }
+          .sw-status.sw-error { color: #f85149; }
 
           /* Debug panel */
           #sw-debug {
             margin-top: 14px;
             padding: 10px 12px;
-            background: #0d1117;
+            background: #050810;
+            border: 1px solid rgba(201, 169, 98, 0.15);
             border-radius: 8px;
             font-family: 'Menlo', 'Courier New', monospace;
-            font-size: 11px;
-            line-height: 1.7;
-            color: #c9d1d9;
+            font-size: 10.5px;
+            line-height: 1.75;
+            color: #8b949e;
             max-height: 280px;
             overflow-y: auto;
             word-break: break-all;
           }
-          #sw-debug .db-ok  { color: #3fb950; }
-          #sw-debug .db-err { color: #f85149; }
-          #sw-debug .db-info { color: #79c0ff; }
+          #sw-debug .db-ok   { color: #3fb950; }
+          #sw-debug .db-err  { color: #f85149; }
+          #sw-debug .db-info { color: #C9A962; }
           .sw-debug-label {
-            margin-top: 10px;
-            font-size: 10px;
+            margin-top: 14px;
+            font-size: 9px;
             font-weight: 700;
-            letter-spacing: 0.06em;
+            letter-spacing: 0.1em;
             text-transform: uppercase;
-            color: #aaa;
+            color: rgba(201, 169, 98, 0.5);
           }
         </style>
       `;
@@ -383,12 +409,14 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           if (ind.disabled) {
             return `
               <div class="sw-card sw-disabled">
+                <div class="sw-icon">${ind.icon}</div>
                 <div class="sw-name">${ind.name}</div>
                 <span class="sw-badge">Under Construction</span>
               </div>`;
           }
           return `
             <div class="sw-card">
+              <div class="sw-icon">${ind.icon}</div>
               <div class="sw-name">${ind.name}</div>
               <button class="sw-btn" data-group="${ind.groupId}" data-path="${ind.path}">
                 Explore
