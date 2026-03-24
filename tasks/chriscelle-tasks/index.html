@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Creator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --bam-maroon: #722F37;
+            --bam-maroon-dark: #5a252c;
+            --bam-gold: #C9A227;
+            --bam-cream: #FDF8F0;
+            --bam-cream-dark: #f5ebe0;
+            --bam-charcoal: #2D2D2D;
+            --bam-gray: #6B6B6B;
+            --bam-success: #2E7D4A;
+            --bam-error: #C41E3A;
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+            --shadow-lg: 0 8px 30px rgba(0,0,0,0.12);
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 16px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Source Sans Pro', sans-serif;
+            background: linear-gradient(135deg, var(--bam-cream), var(--bam-cream-dark));
+            min-height: 100vh;
+            color: var(--bam-charcoal);
+            line-height: 1.6;
+        }
+        .container { max-width: 720px; margin: 0 auto; padding: 40px 24px; }
+        .header { text-align: center; margin-bottom: 40px; }
+        .logo-container { display: inline-flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+        .logo-icon {
+            width: 56px; height: 56px;
+            background: linear-gradient(135deg, var(--bam-maroon), var(--bam-maroon-dark));
+            border-radius: var(--radius-md);
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: var(--shadow-md);
+        }
+        .logo-icon svg { width: 32px; height: 32px; fill: var(--bam-gold); }
+        .header h1 { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 700; color: var(--bam-maroon); }
+        .header p { color: var(--bam-gray); font-size: 15px; margin-top: 8px; }
+        .card {
+            background: white;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            padding: 32px;
+            margin-bottom: 24px;
+            border: 1px solid rgba(114, 47, 55, 0.08);
+        }
+        .card-header {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 24px; padding-bottom: 16px;
+            border-bottom: 2px solid var(--bam-cream);
+        }
+        .step-number {
+            width: 32px; height: 32px;
+            background: var(--bam-maroon); color: white;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 600; font-size: 14px;
+        }
+        .card-header h2 { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 600; }
+        .form-group { margin-bottom: 24px; }
+        label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 14px; }
+        label .required { color: var(--bam-error); }
+        .text-input {
+            width: 100%; padding: 14px 16px;
+            border: 2px solid #e0e0e0; border-radius: var(--radius-md);
+            font-size: 15px; font-family: inherit;
+            transition: all 0.2s ease;
+        }
+        .text-input:focus { outline: none; border-color: var(--bam-maroon); box-shadow: 0 0 0 3px rgba(114, 47, 55, 0.1); }
+        .multi-select-container { position: relative; }
+        .multi-select-trigger {
+            width: 100%; min-height: 52px; padding: 12px 44px 12px 16px;
+            border: 2px solid #e0e0e0; border-radius: var(--radius-md);
+            background: white; cursor: pointer;
+            display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+            transition: all 0.2s ease; position: relative;
+        }
+        .multi-select-trigger:hover { border-color: var(--bam-maroon); }
+        .multi-select-trigger.active { border-color: var(--bam-maroon); box-shadow: 0 0 0 3px rgba(114, 47, 55, 0.1); }
+        .multi-select-trigger::after {
+            content: ''; position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+            border: 6px solid transparent; border-top-color: var(--bam-gray);
+            transition: transform 0.2s ease;
+        }
+        .multi-select-trigger.active::after { transform: translateY(-50%) rotate(180deg); }
+        .multi-select-placeholder { color: #999; font-size: 15px; }
+        .selected-tag {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: linear-gradient(135deg, var(--bam-maroon), var(--bam-maroon-dark));
+            color: white; padding: 6px 12px; border-radius: 20px;
+            font-size: 13px; font-weight: 600;
+        }
+        .selected-tag .remove-tag { cursor: pointer; opacity: 0.8; font-size: 16px; margin-left: 4px; }
+        .selected-tag .remove-tag:hover { opacity: 1; }
+        .multi-select-dropdown {
+            position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+            background: white; border: 2px solid var(--bam-maroon);
+            border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
+            max-height: 320px; overflow: hidden; z-index: 100; display: none;
+        }
+        .multi-select-dropdown.show { display: block; animation: dropdownFade 0.2s ease; }
+        @keyframes dropdownFade { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+        .dropdown-search { padding: 12px; border-bottom: 1px solid #eee; background: white; }
+        .dropdown-search input {
+            width: 100%; padding: 10px 14px;
+            border: 2px solid #e0e0e0; border-radius: var(--radius-sm);
+            font-size: 14px; font-family: inherit;
+        }
+        .dropdown-search input:focus { outline: none; border-color: var(--bam-maroon); }
+        .dropdown-options { max-height: 250px; overflow-y: auto; }
+        .dropdown-option {
+            padding: 14px 16px; cursor: pointer;
+            display: flex; align-items: center; gap: 12px;
+            border-bottom: 1px solid #f5f5f5;
+        }
+        .dropdown-option:hover { background: var(--bam-cream); }
+        .dropdown-option.selected { background: rgba(114, 47, 55, 0.08); }
+        .dropdown-option .checkbox {
+            width: 22px; height: 22px; border: 2px solid #ccc; border-radius: 4px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .dropdown-option.selected .checkbox { background: var(--bam-maroon); border-color: var(--bam-maroon); }
+        .dropdown-option .checkbox svg { width: 14px; height: 14px; fill: white; opacity: 0; }
+        .dropdown-option.selected .checkbox svg { opacity: 1; }
+        .dropdown-option .store-title { font-weight: 600; }
+        .dropdown-option .store-id { font-size: 12px; color: var(--bam-gray); font-family: monospace; }
+        .dropdown-loading, .dropdown-empty, .dropdown-error { padding: 32px 24px; text-align: center; color: var(--bam-gray); }
+        .dropdown-loading .spinner {
+            width: 32px; height: 32px; border: 3px solid var(--bam-cream);
+            border-top-color: var(--bam-maroon); border-radius: 50%;
+            animation: spin 0.8s linear infinite; margin: 0 auto 12px;
+        }
+        .file-upload-zone {
+            border: 2px dashed #d0d0d0; border-radius: var(--radius-md);
+            padding: 40px 24px; text-align: center; cursor: pointer;
+            background: var(--bam-cream); transition: all 0.2s ease;
+        }
+        .file-upload-zone:hover { border-color: var(--bam-maroon); background: rgba(114, 47, 55, 0.03); }
+        .file-upload-zone.has-file { border-color: var(--bam-success); border-style: solid; background: rgba(46, 125, 74, 0.05); }
+        .file-upload-icon {
+            width: 64px; height: 64px; background: white; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 16px; box-shadow: var(--shadow-md);
+        }
+        .file-upload-icon svg { width: 32px; height: 32px; fill: var(--bam-maroon); }
+        .file-upload-zone h3 { font-size: 16px; margin-bottom: 4px; }
+        .file-upload-zone p { font-size: 14px; color: var(--bam-gray); }
+        .file-upload-zone input { display: none; }
+        .file-info {
+            display: flex; align-items: center; gap: 12px; padding: 16px;
+            background: white; border-radius: var(--radius-md);
+            margin-top: 16px; border: 1px solid #e0e0e0;
+        }
+        .file-info .file-icon {
+            width: 48px; height: 48px; background: var(--bam-success);
+            border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center;
+        }
+        .file-info .file-icon svg { width: 24px; height: 24px; fill: white; }
+        .file-info .file-details { flex: 1; }
+        .file-info .file-name { font-weight: 600; }
+        .file-info .file-meta { font-size: 13px; color: var(--bam-gray); }
+        .file-info .remove-file {
+            width: 36px; height: 36px; border: none; background: var(--bam-cream);
+            border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center;
+        }
+        .file-info .remove-file:hover { background: var(--bam-error); }
+        .file-info .remove-file:hover svg { fill: white; }
+        .file-info .remove-file svg { width: 18px; height: 18px; fill: var(--bam-gray); }
+        .help-text { font-size: 13px; color: var(--bam-gray); margin-top: 8px; }
+        .preview-section { margin-top: 24px; }
+        .preview-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+        .preview-header h4 { font-size: 15px; font-weight: 600; }
+        .preview-count { font-size: 13px; color: white; background: var(--bam-maroon); padding: 4px 12px; border-radius: 20px; font-weight: 600; }
+        .preview-table-wrapper { border: 1px solid #e0e0e0; border-radius: var(--radius-md); overflow: hidden; max-height: 280px; overflow-y: auto; }
+        .preview-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        .preview-table th { background: var(--bam-charcoal); color: white; padding: 12px 16px; text-align: left; font-weight: 600; position: sticky; top: 0; }
+        .preview-table td { padding: 12px 16px; border-bottom: 1px solid #eee; }
+        .preview-table tr:hover td { background: var(--bam-cream); }
+        .preview-table .task-title { font-weight: 600; }
+        .preview-table .task-desc { color: var(--bam-gray); max-width: 280px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .preview-table .task-due { color: var(--bam-maroon); font-weight: 500; }
+        .summary-grid { display: grid; gap: 12px; font-size: 14px; }
+        .summary-row { display: flex; justify-content: space-between; padding: 12px; background: var(--bam-cream); border-radius: 8px; }
+        .summary-row span:first-child { color: var(--bam-gray); }
+        .summary-row span:last-child { font-weight: 600; }
+        .summary-total { background: linear-gradient(135deg, var(--bam-maroon), var(--bam-maroon-dark)); color: white; }
+        .summary-total span:last-child { font-size: 16px; font-weight: 700; }
+        .submit-section { margin-top: 32px; }
+        .submit-btn {
+            width: 100%; padding: 18px 32px;
+            background: linear-gradient(135deg, var(--bam-maroon), var(--bam-maroon-dark));
+            color: white; border: none; border-radius: var(--radius-md);
+            font-size: 16px; font-weight: 600; font-family: inherit; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            box-shadow: var(--shadow-md); transition: all 0.3s ease;
+        }
+        .submit-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(114, 47, 55, 0.3); }
+        .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .submit-btn svg { width: 20px; height: 20px; fill: currentColor; }
+        .submit-btn .btn-spinner { width: 20px; height: 20px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .status-message { padding: 16px 20px; border-radius: var(--radius-md); margin-top: 16px; display: flex; align-items: flex-start; gap: 12px; animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .status-message.success { background: rgba(46, 125, 74, 0.1); border: 1px solid rgba(46, 125, 74, 0.3); color: var(--bam-success); }
+        .status-message.error { background: rgba(196, 30, 58, 0.1); border: 1px solid rgba(196, 30, 58, 0.3); color: var(--bam-error); }
+        .status-message.info { background: rgba(114, 47, 55, 0.1); border: 1px solid rgba(114, 47, 55, 0.3); color: var(--bam-maroon); }
+        .status-message svg { width: 22px; height: 22px; fill: currentColor; flex-shrink: 0; }
+        .status-message .message-content { flex: 1; }
+        .status-message .message-title { font-weight: 600; margin-bottom: 4px; }
+        .status-message .message-details { font-size: 14px; opacity: 0.9; }
+        .progress-container { margin-top: 20px; background: white; border-radius: var(--radius-md); padding: 20px; border: 1px solid #e0e0e0; }
+        .progress-header { display: flex; justify-content: space-between; margin-bottom: 12px; }
+        .progress-label { font-size: 14px; font-weight: 500; }
+        .progress-percent { font-size: 14px; color: var(--bam-maroon); font-weight: 600; }
+        .progress-bar { height: 10px; background: var(--bam-cream); border-radius: 5px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--bam-maroon), var(--bam-gold)); border-radius: 5px; transition: width 0.3s ease; }
+        .progress-details { margin-top: 16px; font-size: 13px; max-height: 120px; overflow-y: auto; }
+        .progress-item { padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
+        .progress-item.success { color: var(--bam-success); }
+        .progress-item.error { color: var(--bam-error); }
+        .progress-item.pending { color: var(--bam-gray); }
+        .footer { text-align: center; padding: 24px; color: var(--bam-gray); font-size: 13px; }
+        .footer a { color: var(--bam-maroon); text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="card-header">
+                <span class="step-number">1</span>
+                <h2>Select Target Stores</h2>
+            </div>
+            <div class="form-group">
+                <label>Store Projects <span class="required">*</span></label>
+                <div class="multi-select-container">
+                    <div class="multi-select-trigger" id="storeSelectTrigger" tabindex="0">
+                        <span class="multi-select-placeholder">Select store projects...</span>
+                    </div>
+                    <div class="multi-select-dropdown" id="storeDropdown">
+                        <div class="dropdown-search">
+                            <input type="text" id="storeSearchInput" placeholder="Search by store name...">
+                        </div>
+                        <div class="dropdown-options" id="storeOptions">
+                            <div class="dropdown-loading"><div class="spinner"></div><p>Loading store projects...</p></div>
+                        </div>
+                    </div>
+                </div>
+                <p class="help-text">Tasks will be created in each selected store's project</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <span class="step-number">2</span>
+                <h2>Configure Task List</h2>
+            </div>
+            <div class="form-group">
+                <label>Task List Name <span class="required">*</span></label>
+                <input type="text" class="text-input" id="taskListName" placeholder="e.g., January Inventory Checklist">
+                <p class="help-text">This name will be used for the task list in each store project</p>
+            </div>
+            <div class="form-group">
+                <label>Upload Tasks <span class="required">*</span></label>
+                <div class="file-upload-zone" id="fileUploadZone">
+                    <div class="file-upload-icon">
+                        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm4 18H6V4h7v5h5v11zM8 15h8v2H8v-2zm0-4h8v2H8v-2z"/></svg>
+                    </div>
+                    <h3>Drop your Excel or CSV file here</h3>
+                    <p>or click to browse • Supports .xlsx, .xls, .csv</p>
+                    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+                </div>
+                <div id="fileInfoContainer" style="display: none;"></div>
+                <p class="help-text">Expected columns: Task Title, Description, Due Date (optional)</p>
+            </div>
+            <div class="preview-section" id="previewSection" style="display: none;">
+                <div class="preview-header">
+                    <h4>📋 Task Preview</h4>
+                    <span class="preview-count" id="previewCount">0 tasks</span>
+                </div>
+                <div class="preview-table-wrapper">
+                    <table class="preview-table">
+                        <thead><tr><th>Title</th><th>Description</th><th>Due Date</th></tr></thead>
+                        <tbody id="previewTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" id="summaryCard" style="display: none;">
+            <div class="card-header">
+                <span class="step-number">✓</span>
+                <h2>Summary</h2>
+            </div>
+            <div class="summary-grid" id="summaryContent"></div>
+        </div>
+
+        <div class="submit-section">
+            <button type="button" class="submit-btn" id="submitBtn" disabled>
+                <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
+                Create Tasks
+            </button>
+            <div id="statusContainer"></div>
+            <div class="progress-container" id="progressContainer" style="display: none;">
+                <div class="progress-header">
+                    <span class="progress-label" id="progressLabel">Creating tasks...</span>
+                    <span class="progress-percent" id="progressPercent">0%</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width: 0%"></div></div>
+                <div class="progress-details" id="progressDetails"></div>
+            </div>
+        </div>
+
+        <footer class="footer">
+            <p>Books-A-Million Internal Tools • Powered by <a href="https://staffbase.com" target="_blank">Staffbase</a></p>
+        </footer>
+    </div>
+
+    <script>
+        // ========== CONFIGURATION ==========
+        const CONFIG = {
+            baseUrl: 'https://app.staffbase.com/api',
+            apiToken: 'Njk2ZmU3OWRhM2M1Y2I1MTk0YzNjYjQ3OnAwYllXKlVhW1MtTTheW2h7aF5vVCk3NXFlX2wsVnBRM2tIZE5dQU11blosM1hwR0I7RiFPOyxveWUpQ3FnWSw=', // Replace with your API token
+            taskColors: ['#722F37', '#C9A227', '#2E7D4A', '#4A90A4', '#8B4513']
+        };
+
+        // ========== STATE ==========
+        const state = { storeProjects: [], selectedStores: [], parsedTasks: [], isSubmitting: false };
+
+        // ========== DOM ELEMENTS ==========
+        const el = {
+            storeSelectTrigger: document.getElementById('storeSelectTrigger'),
+            storeDropdown: document.getElementById('storeDropdown'),
+            storeOptions: document.getElementById('storeOptions'),
+            storeSearchInput: document.getElementById('storeSearchInput'),
+            taskListName: document.getElementById('taskListName'),
+            fileUploadZone: document.getElementById('fileUploadZone'),
+            fileInput: document.getElementById('fileInput'),
+            fileInfoContainer: document.getElementById('fileInfoContainer'),
+            previewSection: document.getElementById('previewSection'),
+            previewCount: document.getElementById('previewCount'),
+            previewTableBody: document.getElementById('previewTableBody'),
+            summaryCard: document.getElementById('summaryCard'),
+            summaryContent: document.getElementById('summaryContent'),
+            submitBtn: document.getElementById('submitBtn'),
+            statusContainer: document.getElementById('statusContainer'),
+            progressContainer: document.getElementById('progressContainer'),
+            progressLabel: document.getElementById('progressLabel'),
+            progressPercent: document.getElementById('progressPercent'),
+            progressFill: document.getElementById('progressFill'),
+            progressDetails: document.getElementById('progressDetails')
+        };
+
+        // ========== API FUNCTIONS ==========
+        async function fetchStoreProjects() {
+            el.storeOptions.innerHTML = '<div class="dropdown-loading"><div class="spinner"></div><p>Loading store projects...</p></div>';
+            try {
+                const response = await fetch(`${CONFIG.baseUrl}/installations`, {
+                    headers: { 'Authorization': `Basic ${CONFIG.apiToken}`, 'Content-Type': 'application/json' }
+                });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                
+                state.storeProjects = (data.data || data)
+                    .filter(inst => inst.pluginID === 'tasks' || inst.pluginId === 'tasks')
+                    .map(inst => ({
+                        id: inst.id,
+                        title: inst.config?.localization?.en_US?.title || inst.title || inst.name || 'Untitled'
+                    }))
+                    .sort((a, b) => a.title.localeCompare(b.title));
+
+                if (state.storeProjects.length === 0) {
+                    el.storeOptions.innerHTML = '<div class="dropdown-empty"><p>No Tasks projects found.</p></div>';
+                } else {
+                    renderStoreOptions();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                el.storeOptions.innerHTML = `<div class="dropdown-error"><p>Failed to load. Using demo data.</p></div>`;
+                loadDemoData();
+            }
+        }
+
+        function loadDemoData() {
+            state.storeProjects = [
+                { id: 'demo-001', title: 'Store #001 - Birmingham, AL' },
+                { id: 'demo-002', title: 'Store #002 - Atlanta, GA' },
+                { id: 'demo-003', title: 'Store #003 - Nashville, TN' },
+                { id: 'demo-004', title: 'Store #004 - Charlotte, NC' },
+                { id: 'demo-005', title: 'Store #005 - Jacksonville, FL' }
+            ];
+            renderStoreOptions();
+        }
+
+        async function createTaskList(installationId, name, color) {
+            const response = await fetch(`${CONFIG.baseUrl}/tasks/${installationId}/lists`, {
+                method: 'POST',
+                headers: { 'Authorization': `Basic ${CONFIG.apiToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, color })
+            });
+            if (!response.ok) throw new Error(`Failed: ${response.status}`);
+            return response.json();
+        }
+
+        async function createTask(installationId, taskData) {
+            const response = await fetch(`${CONFIG.baseUrl}/tasks/${installationId}/task`, {
+                method: 'POST',
+                headers: { 'Authorization': `Basic ${CONFIG.apiToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(taskData)
+            });
+            if (!response.ok) throw new Error(`Failed: ${response.status}`);
+            return response.json();
+        }
+
+        // ========== STORE SELECTION ==========
+        function renderStoreOptions(filter = '') {
+            const filtered = state.storeProjects.filter(s => s.title.toLowerCase().includes(filter.toLowerCase()));
+            if (filtered.length === 0) {
+                el.storeOptions.innerHTML = `<div class="dropdown-empty"><p>No stores found matching "${filter}"</p></div>`;
+                return;
+            }
+            el.storeOptions.innerHTML = filtered.map(store => `
+                <div class="dropdown-option ${state.selectedStores.some(s => s.id === store.id) ? 'selected' : ''}" 
+                     data-id="${store.id}" data-title="${escapeHtml(store.title)}">
+                    <div class="checkbox"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg></div>
+                    <div class="store-info">
+                        <div class="store-title">${escapeHtml(store.title)}</div>
+                        <div class="store-id">ID: ${store.id}</div>
+                    </div>
+                </div>
+            `).join('');
+            el.storeOptions.querySelectorAll('.dropdown-option').forEach(opt => {
+                opt.addEventListener('click', () => toggleStore(opt));
+            });
+        }
+
+        function toggleStore(opt) {
+            const id = opt.dataset.id, title = opt.dataset.title;
+            const idx = state.selectedStores.findIndex(s => s.id === id);
+            if (idx >= 0) { state.selectedStores.splice(idx, 1); opt.classList.remove('selected'); }
+            else { state.selectedStores.push({ id, title }); opt.classList.add('selected'); }
+            updateSelectedDisplay();
+            updateSummary();
+            validateForm();
+        }
+
+        function updateSelectedDisplay() {
+            if (state.selectedStores.length === 0) {
+                el.storeSelectTrigger.innerHTML = '<span class="multi-select-placeholder">Select store projects...</span>';
+            } else {
+                el.storeSelectTrigger.innerHTML = state.selectedStores.map(s => `
+                    <span class="selected-tag" data-id="${s.id}">${escapeHtml(s.title)}<span class="remove-tag" onclick="event.stopPropagation(); removeStore('${s.id}')">&times;</span></span>
+                `).join('');
+            }
+        }
+
+        function removeStore(id) {
+            state.selectedStores = state.selectedStores.filter(s => s.id !== id);
+            updateSelectedDisplay();
+            renderStoreOptions(el.storeSearchInput.value);
+            updateSummary();
+            validateForm();
+        }
+        window.removeStore = removeStore;
+
+        // ========== FILE HANDLING ==========
+        function handleFile(file) {
+            if (!file) return;
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (!['xlsx', 'xls', 'csv'].includes(ext)) { showStatus('error', 'Invalid File', 'Please upload Excel or CSV.'); return; }
+            el.fileUploadZone.classList.add('has-file');
+            el.fileInfoContainer.style.display = 'block';
+            el.fileInfoContainer.innerHTML = `
+                <div class="file-info">
+                    <div class="file-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg></div>
+                    <div class="file-details"><div class="file-name">${escapeHtml(file.name)}</div><div class="file-meta">${formatSize(file.size)}</div></div>
+                    <button class="remove-file" onclick="clearFile()"><svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z"/></svg></button>
+                </div>`;
+            parseFile(file);
+        }
+
+        function parseFile(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                    if (json.length < 2) { showStatus('error', 'Empty File', 'Need header + data rows.'); return; }
+                    state.parsedTasks = json.slice(1).filter(r => r[0]).map(r => ({
+                        title: String(r[0] || '').trim(),
+                        description: String(r[1] || '').trim(),
+                        dueDate: parseDueDate(r[2])
+                    }));
+                    renderPreview();
+                    updateSummary();
+                    validateForm();
+                    showStatus('success', 'File Parsed', `Found ${state.parsedTasks.length} tasks.`);
+                } catch (err) { console.error(err); showStatus('error', 'Parse Error', 'Could not read file.'); }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function parseDueDate(val) {
+            if (!val) return null;
+            if (val instanceof Date) return val.toISOString();
+            const d = new Date(val);
+            return isNaN(d.getTime()) ? null : d.toISOString();
+        }
+
+        function renderPreview() {
+            el.previewSection.style.display = 'block';
+            el.previewCount.textContent = `${state.parsedTasks.length} task${state.parsedTasks.length !== 1 ? 's' : ''}`;
+            el.previewTableBody.innerHTML = state.parsedTasks.map(t => `
+                <tr><td class="task-title">${escapeHtml(t.title)}</td><td class="task-desc">${escapeHtml(t.description) || '—'}</td><td class="task-due">${t.dueDate ? formatDate(t.dueDate) : '—'}</td></tr>
+            `).join('');
+        }
+
+        function clearFile() {
+            el.fileInput.value = '';
+            el.fileUploadZone.classList.remove('has-file');
+            el.fileInfoContainer.style.display = 'none';
+            el.previewSection.style.display = 'none';
+            state.parsedTasks = [];
+            updateSummary();
+            validateForm();
+        }
+        window.clearFile = clearFile;
+
+        // ========== SUMMARY ==========
+        function updateSummary() {
+            const hasStores = state.selectedStores.length > 0;
+            const hasTasks = state.parsedTasks.length > 0;
+            const hasName = el.taskListName.value.trim().length > 0;
+            if (hasStores && hasTasks && hasName) {
+                el.summaryCard.style.display = 'block';
+                const total = state.selectedStores.length * state.parsedTasks.length;
+                el.summaryContent.innerHTML = `
+                    <div class="summary-row"><span>Task List Name</span><span>"${escapeHtml(el.taskListName.value.trim())}"</span></div>
+                    <div class="summary-row"><span>Target Stores</span><span>${state.selectedStores.length} project${state.selectedStores.length !== 1 ? 's' : ''}</span></div>
+                    <div class="summary-row"><span>Tasks per Store</span><span>${state.parsedTasks.length} task${state.parsedTasks.length !== 1 ? 's' : ''}</span></div>
+                    <div class="summary-row summary-total"><span>Total Tasks to Create</span><span>${total}</span></div>`;
+            } else {
+                el.summaryCard.style.display = 'none';
+            }
+        }
+
+        // ========== SUBMISSION ==========
+        async function submitTasks() {
+            if (state.isSubmitting || !validateForm()) return;
+            const listName = el.taskListName.value.trim();
+            const color = CONFIG.taskColors[Math.floor(Math.random() * CONFIG.taskColors.length)];
+            state.isSubmitting = true;
+            el.submitBtn.disabled = true;
+            el.submitBtn.innerHTML = '<div class="btn-spinner"></div> Creating Tasks...';
+            el.progressContainer.style.display = 'block';
+            el.progressDetails.innerHTML = '';
+            el.statusContainer.innerHTML = '';
+
+            const totalStores = state.selectedStores.length;
+            const totalTasks = state.parsedTasks.length;
+            const totalOps = totalStores * (1 + totalTasks);
+            let completedOps = 0, successStores = 0, failedStores = 0;
+
+            for (let i = 0; i < state.selectedStores.length; i++) {
+                const store = state.selectedStores[i];
+                addProgressItem(`Processing ${store.title}...`, 'pending');
+                try {
+                    updateProgress(Math.round((completedOps / totalOps) * 100), `Creating list in ${store.title}...`);
+                    const taskList = await createTaskList(store.id, listName, color);
+                    const listId = taskList.id || taskList.data?.id;
+                    completedOps++;
+                    if (!listId) throw new Error('No list ID returned');
+                    
+                    let created = 0;
+                    for (let j = 0; j < state.parsedTasks.length; j++) {
+                        const task = state.parsedTasks[j];
+                        updateProgress(Math.round((completedOps / totalOps) * 100), `Task ${j + 1}/${totalTasks} in ${store.title}...`);
+                        try {
+                            const taskData = { title: task.title, description: task.description || '', status: 'OPEN', priority: 'Priority_3', taskListId: listId };
+                            if (task.dueDate) taskData.dueDate = task.dueDate;
+                            await createTask(store.id, taskData);
+                            created++;
+                        } catch (e) { console.error(e); }
+                        completedOps++;
+                        await new Promise(r => setTimeout(r, 50));
+                    }
+                    updateProgressItem(i, `✓ ${store.title}: ${created} tasks`, 'success');
+                    successStores++;
+                } catch (e) {
+                    console.error(e);
+                    updateProgressItem(i, `✗ ${store.title}: ${e.message}`, 'error');
+                    failedStores++;
+                    completedOps += (1 + totalTasks);
+                }
+            }
+
+            updateProgress(100, 'Complete!');
+            if (failedStores === 0) showStatus('success', 'All Tasks Created!', `Created "${listName}" with ${totalTasks} tasks in ${successStores} stores.`);
+            else if (successStores > 0) showStatus('info', 'Partially Complete', `${successStores} of ${totalStores} stores succeeded.`);
+            else showStatus('error', 'All Failed', 'Check API token and permissions.');
+
+            state.isSubmitting = false;
+            el.submitBtn.disabled = false;
+            el.submitBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg> Create Tasks';
+            validateForm();
+        }
+
+        function addProgressItem(text, status) {
+            const item = document.createElement('div');
+            item.className = `progress-item ${status}`;
+            item.textContent = text;
+            el.progressDetails.appendChild(item);
+        }
+
+        function updateProgressItem(idx, text, status) {
+            const items = el.progressDetails.querySelectorAll('.progress-item');
+            if (items[idx]) { items[idx].textContent = text; items[idx].className = `progress-item ${status}`; }
+        }
+
+        // ========== UTILITIES ==========
+        function validateForm() {
+            const valid = state.selectedStores.length > 0 && state.parsedTasks.length > 0 && el.taskListName.value.trim().length > 0;
+            el.submitBtn.disabled = !valid || state.isSubmitting;
+            return valid;
+        }
+
+        function updateProgress(pct, label) {
+            el.progressFill.style.width = `${pct}%`;
+            el.progressPercent.textContent = `${pct}%`;
+            el.progressLabel.textContent = label;
+        }
+
+        function showStatus(type, title, msg) {
+            const icons = {
+                success: '<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>',
+                error: '<svg viewBox="0 0 24 24"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"/></svg>',
+                info: '<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>'
+            };
+            el.statusContainer.innerHTML = `<div class="status-message ${type}">${icons[type]}<div class="message-content"><div class="message-title">${title}</div><div class="message-details">${msg}</div></div></div>`;
+        }
+
+        function formatSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        function formatDate(iso) {
+            return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // ========== EVENT LISTENERS ==========
+        el.storeSelectTrigger.addEventListener('click', () => {
+            el.storeDropdown.classList.toggle('show');
+            el.storeSelectTrigger.classList.toggle('active');
+            if (el.storeDropdown.classList.contains('show')) el.storeSearchInput.focus();
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.multi-select-container')) {
+                el.storeDropdown.classList.remove('show');
+                el.storeSelectTrigger.classList.remove('active');
+            }
+        });
+
+        el.storeSearchInput.addEventListener('input', (e) => renderStoreOptions(e.target.value));
+        el.taskListName.addEventListener('input', () => { updateSummary(); validateForm(); });
+        el.fileUploadZone.addEventListener('click', () => el.fileInput.click());
+        el.fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+        el.fileUploadZone.addEventListener('dragover', (e) => { e.preventDefault(); el.fileUploadZone.classList.add('drag-over'); });
+        el.fileUploadZone.addEventListener('dragleave', () => el.fileUploadZone.classList.remove('drag-over'));
+        el.fileUploadZone.addEventListener('drop', (e) => { e.preventDefault(); el.fileUploadZone.classList.remove('drag-over'); handleFile(e.dataTransfer.files[0]); });
+        el.submitBtn.addEventListener('click', submitTasks);
+
+        // ========== INIT ==========
+        document.addEventListener('DOMContentLoaded', fetchStoreProjects);
+    </script>
+</body>
+</html>
