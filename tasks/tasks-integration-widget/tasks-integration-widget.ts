@@ -141,7 +141,7 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
 
       // SVG icons (inlined so no external deps needed)
       const iconDownload = `<svg width="18" height="18" viewBox="0 0 512 512" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M472.7 189.5c-15.76-10-36.21-16.79-58.59-19.54-6.65-39.1-24.22-72.52-51.27-97.26C334.15 46.45 296.21 32 256 32c-35.35 0-68 11.08-94.37 32a149.7 149.7 0 0 0-45.29 60.42c-30.67 4.32-57 14.61-76.71 30C13.7 174.83 0 203.56 0 237.6 0 305 55.92 352 136 352h104V208h32v144h124c72.64 0 116-34.24 116-91.6 0-30.05-13.59-54.57-39.3-70.9zM240 419.42 191.98 371l-22.61 23L256 480l86.63-86-22.61-23L272 419.42V352h-32v67.42z"/></svg>`;
-      const iconUpload   = `<svg width="18" height="18" viewBox="0 0 512 512" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M472.7 189.5c-15.76-10-36.21-16.79-58.59-19.54-6.65-39.1-24.22-72.52-51.27-97.26C334.15 46.45 296.21 32 256 32c-35.35 0-68 11.08-94.37 32a149.7 149.7 0 0 0-45.29 60.42c-30.67 4.32-57 14.61-76.71 30C13.7 174.83 0 203.56 0 237.6 0 305 55.92 352 136 352h104v144h32V352h124c72.64 0 116-34.24 116-91.6 0-30.05-13.59-54.57-39.3-70.9zM272 92.58 320.02 141l22.61-23L256 32l-86.63 86 22.61 23L240 92.58V160h32V92.58z"/></svg>`;
+      const iconUpload   = `<svg width="18" height="18" viewBox="0 0 512 512" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M504 256c0 136.967-111.033 248-248 248S8 392.967 8 256 119.033 8 256 8s248 111.033 248 248zM227.314 387.314l184-184c6.248-6.248 6.248-16.379 0-22.627l-22.627-22.627c-6.248-6.249-16.379-6.249-22.628 0L216 308.118l-70.059-70.059c-6.248-6.248-16.379-6.248-22.628 0l-22.627 22.627c-6.248 6.248-6.248 16.379 0 22.627l104 104c6.249 6.249 16.379 6.249 22.628.001z"/></svg>`;
 
       container.innerHTML = `
         <style>
@@ -297,7 +297,7 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
           .${p}-tbl-zone {
             margin-top: 16px;
             position: relative;
-            padding-bottom: 20px;
+            padding-bottom: 10px;
           }
           .${p}-tbl-meta {
             display: flex; align-items: center;
@@ -346,10 +346,7 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
 
           /* Add-row — subtle plus below table, visible on hover */
           .${p}-add-row {
-            position: absolute;
-            left: 50%;
-            bottom: 0;
-            transform: translate(-50%, 50%);
+            margin: 4px auto 0;
             width: 26px;
             height: 26px;
             border: 1.5px solid #d1d5db;
@@ -364,6 +361,7 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
             font-size: 18px;
             font-weight: 400;
             line-height: 1;
+            box-shadow: 0 1px 3px rgba(0,0,0,.05);
             opacity: 0; pointer-events: none;
             transition: opacity .16s, border-color .16s, color .16s, background .16s;
           }
@@ -376,6 +374,7 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
             border-color: var(--primary);
             background: var(--primary);
             color: #fff;
+            box-shadow: 0 2px 8px rgba(218,46,50,.22);
             outline: none;
           }
 
@@ -525,7 +524,7 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
           <!-- Submit -->
           <div style="margin-top:4px">
             <button type="button" class="${p}-btn ${p}-btn-primary" id="${p}-submit" disabled>
-              ${iconUpload} Update Staffbase
+              ${iconUpload} update your tasks
             </button>
           </div>
 
@@ -811,7 +810,7 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
             (tblSection as HTMLElement).style.display = "block";
             showStatus(
               "success",
-              `Pulled ${tasks.length} task${tasks.length !== 1 ? "s" : ""} — review and edit below, then click Update Staffbase.`
+              `Pulled ${tasks.length} task${tasks.length !== 1 ? "s" : ""} — review and edit below, then click update your tasks.`
             );
           }
         } catch (e: any) {
@@ -938,7 +937,7 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
         }
 
         submitBtn.disabled = false;
-        submitBtn.innerHTML = "&#10003; Update Staffbase";
+        submitBtn.innerHTML = `${iconUpload} update your tasks`;
         validate();
       });
 
