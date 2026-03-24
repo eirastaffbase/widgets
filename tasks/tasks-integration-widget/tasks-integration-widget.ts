@@ -139,18 +139,25 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
 
       const p = "tiw";
 
+      // SVG icons (inlined so no external deps needed)
+      const iconDownload = `<svg width="18" height="18" viewBox="0 0 512 512" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M472.7 189.5c-15.76-10-36.21-16.79-58.59-19.54-6.65-39.1-24.22-72.52-51.27-97.26C334.15 46.45 296.21 32 256 32c-35.35 0-68 11.08-94.37 32a149.7 149.7 0 0 0-45.29 60.42c-30.67 4.32-57 14.61-76.71 30C13.7 174.83 0 203.56 0 237.6 0 305 55.92 352 136 352h104V208h32v144h124c72.64 0 116-34.24 116-91.6 0-30.05-13.59-54.57-39.3-70.9zM240 419.42 191.98 371l-22.61 23L256 480l86.63-86-22.61-23L272 419.42V352h-32v67.42z"/></svg>`;
+      const iconAdd      = `<svg width="18" height="18" viewBox="0 0 512 512" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M256 48C141.125 48 48 141.125 48 256s93.125 208 208 208 208-93.125 208-208S370.875 48 256 48zm107 229h-86v86h-42v-86h-86v-42h86v-86h42v86h86v42z"/></svg>`;
+      const iconUpload   = `<svg width="18" height="18" viewBox="0 0 512 512" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M472.7 189.5c-15.76-10-36.21-16.79-58.59-19.54-6.65-39.1-24.22-72.52-51.27-97.26C334.15 46.45 296.21 32 256 32c-35.35 0-68 11.08-94.37 32a149.7 149.7 0 0 0-45.29 60.42c-30.67 4.32-57 14.61-76.71 30C13.7 174.83 0 203.56 0 237.6 0 305 55.92 352 136 352h104v144h32V352h124c72.64 0 116-34.24 116-91.6 0-30.05-13.59-54.57-39.3-70.9zM272 92.58 320.02 141l22.61-23L256 32l-86.63 86 22.61 23L240 92.58V160h32V92.58z"/></svg>`;
+
       container.innerHTML = `
         <style>
           .${p} {
             --primary: ${primaryColor};
             --accent:  ${accentColor};
-            --bg-dark: #f0e0d6;
             --dark:    #1A1A1A;
-            --gray:    #666;
+            --gray:    #6b7280;
+            --gray-lt: #9ca3af;
+            --border:  #e5e7eb;
             --success: #2E7D4A;
             --error:   #C41E3A;
-            --r-sm: 6px; --r-md: 10px; --r-lg: 16px;
-            --shadow: 0 4px 14px rgba(0,0,0,0.09);
+            --r-sm: 6px; --r-md: 10px; --r-lg: 14px;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+            --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             color: var(--dark);
             background: ${bgColor || "transparent"};
@@ -160,156 +167,217 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
             box-sizing: border-box; margin: 0; padding: 0;
           }
 
-          /* Cards */
+          /* ── Cards ─────────────────────────────────────────── */
           .${p}-card {
-            background: #fff; border-radius: var(--r-lg);
-            box-shadow: var(--shadow); padding: 20px;
-            margin-bottom: 16px;
-            border: 1px solid rgba(0,0,0,0.06);
+            background: #fff;
+            border-radius: var(--r-lg);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--primary);
+            margin-bottom: 12px;
+            overflow: hidden;
+          }
+          .${p}-card-head {
+            display: flex; align-items: center; gap: 10px;
+            padding: 14px 18px 12px;
+            border-bottom: 1px solid var(--border);
+          }
+          .${p}-step {
+            width: 22px; height: 22px; border-radius: 50%;
+            background: var(--primary); color: #fff;
+            font-size: 11px; font-weight: 800;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
           }
           .${p}-card-title {
-            font-size: 11px; font-weight: 800; letter-spacing: 1px;
-            text-transform: uppercase; color: var(--primary);
-            margin-bottom: 12px;
+            font-size: 12px; font-weight: 700; letter-spacing: .4px;
+            text-transform: uppercase; color: var(--dark);
           }
-          .${p}-label {
-            display: block; font-size: 13px; font-weight: 600;
-            color: var(--dark); margin-bottom: 6px;
-          }
-          .${p}-help { font-size: 12px; color: var(--gray); margin-top: 5px; }
+          .${p}-card-body { padding: 16px 18px; }
 
-          /* Text input */
+          /* ── Labels / inputs ───────────────────────────────── */
+          .${p}-label {
+            display: block; font-size: 12px; font-weight: 600;
+            color: var(--gray); text-transform: uppercase; letter-spacing: .4px;
+            margin-bottom: 6px;
+          }
+          .${p}-help { font-size: 12px; color: var(--gray-lt); margin-top: 5px; }
           .${p}-input {
             width: 100%; padding: 10px 13px;
-            border: 2px solid #e0e0e0; border-radius: var(--r-md);
-            font-size: 14px; font-family: inherit; transition: border-color .2s;
+            border: 1.5px solid var(--border); border-radius: var(--r-md);
+            font-size: 14px; font-family: inherit; color: var(--dark);
+            transition: border-color .15s, box-shadow .15s;
+            background: #fafafa;
           }
+          .${p}-input::placeholder { color: var(--gray-lt); }
           .${p}-input:focus {
-            outline: none; border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(214,35,0,.12);
+            outline: none; border-color: var(--primary); background: #fff;
+            box-shadow: 0 0 0 3px rgba(218,46,50,.1);
           }
 
-          /* Multi-select trigger */
+          /* ── Input + icon-button row ───────────────────────── */
+          .${p}-input-group { display: flex; gap: 8px; align-items: stretch; }
+          .${p}-input-group .${p}-input { flex: 1; }
+          .${p}-icon-btn {
+            width: 42px; border: none; border-radius: var(--r-md);
+            background: var(--primary); color: #fff; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(218,46,50,.35);
+            transition: filter .15s, transform .15s, box-shadow .15s;
+          }
+          .${p}-icon-btn:hover:not(:disabled) {
+            filter: brightness(.88); transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(218,46,50,.4);
+          }
+          .${p}-icon-btn:active:not(:disabled) { transform: translateY(0); }
+          .${p}-icon-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+          /* ── Multi-select ──────────────────────────────────── */
           .${p}-ms-wrap { position: relative; }
           .${p}-ms-trigger {
-            width: 100%; min-height: 46px; padding: 8px 38px 8px 11px;
-            border: 2px solid #e0e0e0; border-radius: var(--r-md);
-            background: #fff; cursor: pointer;
+            width: 100%; min-height: 44px; padding: 8px 36px 8px 11px;
+            border: 1.5px solid var(--border); border-radius: var(--r-md);
+            background: #fafafa; cursor: pointer;
             display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
-            position: relative; transition: border-color .2s;
+            position: relative; transition: border-color .15s;
           }
-          .${p}-ms-trigger:hover, .${p}-ms-trigger.open { border-color: var(--primary); }
+          .${p}-ms-trigger:hover, .${p}-ms-trigger.open {
+            border-color: var(--primary); background: #fff;
+          }
           .${p}-ms-trigger::after {
-            content: '▾'; position: absolute; right: 12px; top: 50%;
-            transform: translateY(-50%); color: var(--gray); pointer-events: none;
+            content: '▾'; position: absolute; right: 11px; top: 50%;
+            transform: translateY(-50%); color: var(--gray-lt); pointer-events: none;
+            font-size: 13px;
           }
-          .${p}-ms-ph { color: #aaa; font-size: 14px; }
+          .${p}-ms-ph { color: var(--gray-lt); font-size: 14px; }
           .${p}-tag {
             display: inline-flex; align-items: center; gap: 4px;
             background: var(--primary); color: #fff;
-            padding: 4px 9px; border-radius: 20px;
+            padding: 3px 8px; border-radius: 20px;
             font-size: 12px; font-weight: 600;
           }
-          .${p}-tag-x { cursor: pointer; font-size: 14px; opacity: .8; }
+          .${p}-tag-x { cursor: pointer; opacity: .75; line-height: 1; }
           .${p}-tag-x:hover { opacity: 1; }
-
-          /* Dropdown */
           .${p}-dropdown {
             display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0;
-            background: #fff; border: 2px solid var(--primary);
-            border-radius: var(--r-md); box-shadow: 0 8px 24px rgba(0,0,0,.13);
-            max-height: 280px; overflow: hidden; z-index: 200;
+            background: #fff; border: 1.5px solid var(--primary);
+            border-radius: var(--r-md); box-shadow: var(--shadow-md);
+            overflow: hidden; z-index: 200;
           }
-          .${p}-dropdown.show { display: block; }
-          .${p}-dd-search { padding: 10px; border-bottom: 1px solid #eee; }
+          .${p}-dropdown.show { display: block; animation: ${p}-fade .15s ease; }
+          @keyframes ${p}-fade { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+          .${p}-dd-search { padding: 9px 10px; border-bottom: 1px solid var(--border); }
           .${p}-dd-search input {
-            width: 100%; padding: 7px 11px; border: 1px solid #e0e0e0;
-            border-radius: var(--r-sm); font-size: 13px;
+            width: 100%; padding: 7px 10px; border: 1.5px solid var(--border);
+            border-radius: var(--r-sm); font-size: 13px; background: #fafafa;
           }
-          .${p}-dd-list { max-height: 220px; overflow-y: auto; }
+          .${p}-dd-search input:focus { outline: none; border-color: var(--primary); background: #fff; }
+          .${p}-dd-list { max-height: 210px; overflow-y: auto; }
           .${p}-dd-opt {
-            padding: 11px 13px; cursor: pointer;
+            padding: 10px 12px; cursor: pointer;
             display: flex; align-items: center; gap: 9px;
-            font-size: 13px; border-bottom: 1px solid #f5f5f5;
+            font-size: 13px; border-bottom: 1px solid #f3f4f6;
+            transition: background .1s;
           }
-          .${p}-dd-opt:hover { background: #fff5f0; }
-          .${p}-dd-opt.sel { background: rgba(214,35,0,.07); }
+          .${p}-dd-opt:last-child { border-bottom: none; }
+          .${p}-dd-opt:hover { background: #fef2f2; }
+          .${p}-dd-opt.sel { background: rgba(218,46,50,.06); }
           .${p}-check {
-            width: 17px; height: 17px; border: 2px solid #ccc;
-            border-radius: 3px; flex-shrink: 0; font-size: 11px;
+            width: 16px; height: 16px; border: 1.5px solid #d1d5db;
+            border-radius: 3px; flex-shrink: 0; font-size: 10px;
             display: flex; align-items: center; justify-content: center; color: transparent;
+            transition: all .1s;
           }
           .${p}-dd-opt.sel .${p}-check {
             background: var(--primary); border-color: var(--primary); color: #fff;
           }
-          .${p}-dd-msg { padding: 20px; text-align: center; color: var(--gray); font-size: 13px; }
+          .${p}-dd-msg { padding: 20px; text-align: center; color: var(--gray-lt); font-size: 13px; }
 
-          /* Editable table */
+          /* ── Task table ────────────────────────────────────── */
+          .${p}-tbl-zone { margin-top: 16px; }
+          .${p}-tbl-meta {
+            display: flex; align-items: center;
+            justify-content: space-between; margin-bottom: 8px;
+          }
+          .${p}-tbl-label {
+            font-size: 12px; font-weight: 700; color: var(--gray);
+            text-transform: uppercase; letter-spacing: .4px;
+          }
+          .${p}-badge-count {
+            background: var(--primary); color: #fff;
+            padding: 2px 9px; border-radius: 20px;
+            font-size: 11px; font-weight: 700;
+          }
           .${p}-tbl-wrap {
-            overflow-x: auto; margin-top: 12px;
-            border: 1px solid #e5e5e5; border-radius: var(--r-md);
+            border: 1.5px solid var(--border); border-radius: var(--r-md);
+            overflow: hidden;
           }
           .${p}-tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
           .${p}-tbl th {
-            background: var(--dark); color: #fff;
-            padding: 9px 11px; text-align: left; font-weight: 600;
+            background: #f9fafb; color: var(--gray);
+            padding: 9px 12px; text-align: left;
+            font-size: 11px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase;
+            border-bottom: 1.5px solid var(--border);
           }
-          .${p}-tbl td { padding: 5px 7px; border-bottom: 1px solid #f0f0f0; }
+          .${p}-tbl td { padding: 4px 6px; border-bottom: 1px solid #f3f4f6; }
           .${p}-tbl tr:last-child td { border-bottom: none; }
-          .${p}-tbl tr:hover td { background: #fff5f0; }
+          .${p}-tbl tr:hover td { background: #fef2f2; }
           .${p}-cell {
-            width: 100%; padding: 6px 8px; border: 1px solid transparent;
-            border-radius: 4px; font-size: 13px; font-family: inherit; background: transparent;
+            width: 100%; padding: 7px 9px;
+            border: 1.5px solid transparent; border-radius: var(--r-sm);
+            font-size: 13px; font-family: inherit; color: var(--dark);
+            background: transparent; transition: border-color .15s, background .15s;
           }
-          .${p}-cell:focus { outline: none; border-color: var(--accent); background: #fff; }
+          .${p}-cell::placeholder { color: #9ca3af; }
+          .${p}-cell:hover { border-color: var(--border); background: #f9fafb; }
+          .${p}-cell:focus { outline: none; border-color: var(--primary); background: #fff; }
           .${p}-del-row {
             width: 26px; height: 26px; border: none; background: none;
-            cursor: pointer; color: #ccc; font-size: 16px; border-radius: 4px;
+            cursor: pointer; border-radius: var(--r-sm);
             display: flex; align-items: center; justify-content: center;
+            color: #d1d5db; transition: all .15s;
           }
           .${p}-del-row:hover { background: #fee2e2; color: var(--error); }
+          .${p}-del-row svg { pointer-events: none; }
+
+          /* Add-row — dashed, visible only on zone hover */
           .${p}-add-row {
-            margin-top: 10px; background: none;
-            border: 2px dashed #d0d0d0; border-radius: var(--r-sm);
-            padding: 8px 14px; font-size: 13px; color: var(--gray);
-            cursor: pointer; width: 100%; transition: all .2s;
+            margin-top: 8px; width: 100%; padding: 9px;
+            background: none; cursor: pointer; font-family: inherit;
+            border: 2px dashed var(--border); border-radius: var(--r-md);
+            color: var(--gray-lt); font-size: 13px; font-weight: 600;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            opacity: 0; pointer-events: none;
+            transition: opacity .2s, border-color .2s, color .2s;
           }
-          .${p}-add-row:hover { border-color: var(--accent); color: var(--accent); }
-
-          /* Count badge */
-          .${p}-badge-count {
-            display: inline-block; background: var(--primary); color: #fff;
-            padding: 2px 9px; border-radius: 20px;
-            font-size: 11px; font-weight: 700; margin-left: 8px;
+          .${p}-tbl-zone:hover .${p}-add-row,
+          .${p}-add-row:focus {
+            opacity: 1; pointer-events: auto;
           }
+          .${p}-add-row:hover { border-color: var(--primary); color: var(--primary); }
 
-          /* Select */
+          /* ── Select ────────────────────────────────────────── */
           .${p}-select {
             width: 100%; padding: 10px 13px;
-            border: 2px solid #e0e0e0; border-radius: var(--r-md);
-            font-size: 14px; font-family: inherit; background: #fff;
+            border: 1.5px solid var(--border); border-radius: var(--r-md);
+            font-size: 14px; font-family: inherit; background: #fafafa; color: var(--dark);
           }
-          .${p}-select:focus { outline: none; border-color: var(--primary); }
+          .${p}-select:focus { outline: none; border-color: var(--primary); background: #fff; }
 
-          /* Buttons — fit content, never stretch */
-          .${p}-btn-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-start; }
+          /* ── Main buttons ──────────────────────────────────── */
           .${p}-btn {
             padding: 11px 20px; border: none; border-radius: var(--r-md);
             font-size: 14px; font-weight: 700; font-family: inherit;
             cursor: pointer; display: inline-flex; align-items: center;
-            gap: 8px; white-space: nowrap; width: auto; flex: 0 0 auto; transition: all .2s;
+            gap: 8px; white-space: nowrap; flex: 0 0 auto; transition: all .2s;
           }
-          .${p}-btn:disabled { opacity: .4; cursor: not-allowed !important; transform: none !important; }
+          .${p}-btn:disabled { opacity: .4; cursor: not-allowed !important; transform: none !important; box-shadow: none !important; }
           .${p}-btn-primary {
             background: var(--primary); color: #fff;
-            box-shadow: 0 3px 10px rgba(214,35,0,.3);
+            box-shadow: 0 3px 10px rgba(218,46,50,.3);
           }
-          .${p}-btn-primary:hover:not(:disabled) { filter: brightness(.88); transform: translateY(-1px); }
-          .${p}-btn-secondary {
-            background: var(--accent); color: #fff;
-            box-shadow: 0 3px 10px rgba(255,107,0,.3);
-          }
-          .${p}-btn-secondary:hover:not(:disabled) { filter: brightness(.9); transform: translateY(-1px); }
+          .${p}-btn-primary:hover:not(:disabled) { filter: brightness(.88); transform: translateY(-1px); box-shadow: 0 5px 16px rgba(218,46,50,.4); }
           .${p}-spin {
             width: 14px; height: 14px; border-radius: 50%;
             border: 2px solid rgba(255,255,255,.35); border-top-color: #fff;
@@ -317,52 +385,57 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
           }
           @keyframes ${p}-spin { to { transform: rotate(360deg); } }
 
-          /* Progress */
+          /* ── Progress ──────────────────────────────────────── */
           .${p}-progress {
             display: none; background: #fff; border-radius: var(--r-md);
-            padding: 15px; border: 1px solid #e5e5e5; margin-top: 14px;
+            padding: 14px 16px; border: 1px solid var(--border); margin-top: 12px;
           }
           .${p}-prog-meta {
             display: flex; justify-content: space-between;
-            font-size: 12px; color: var(--gray); margin-bottom: 6px;
+            font-size: 12px; color: var(--gray); margin-bottom: 7px;
           }
-          .${p}-prog-bar { height: 7px; background: #f0e0d6; border-radius: 4px; overflow: hidden; }
+          .${p}-prog-bar { height: 6px; background: #f3f4f6; border-radius: 3px; overflow: hidden; }
           .${p}-prog-fill {
             height: 100%; width: 0%;
-            background: linear-gradient(90deg, var(--primary), var(--accent));
-            border-radius: 4px; transition: width .3s ease;
+            background: linear-gradient(90deg, var(--primary), color-mix(in srgb, var(--primary) 60%, #ff6b00));
+            border-radius: 3px; transition: width .3s ease;
           }
           .${p}-prog-log { margin-top: 10px; max-height: 90px; overflow-y: auto; font-size: 12px; }
-          .${p}-log-item { padding: 3px 0; border-bottom: 1px solid #f5f5f5; }
+          .${p}-log-item { padding: 3px 0; border-bottom: 1px solid #f3f4f6; color: var(--gray); }
           .${p}-log-item.ok  { color: var(--success); }
           .${p}-log-item.err { color: var(--error); }
 
-          /* Status banner */
+          /* ── Status banner ─────────────────────────────────── */
           .${p}-status {
             display: none; padding: 11px 15px; border-radius: var(--r-md);
             margin-top: 12px; font-size: 13px; line-height: 1.5;
           }
-          .${p}-status.success { background: rgba(46,125,74,.1); border: 1px solid rgba(46,125,74,.3); color: var(--success); }
-          .${p}-status.error   { background: rgba(196,30,58,.1); border: 1px solid rgba(196,30,58,.3); color: var(--error); }
-          .${p}-status.info    { background: rgba(214,35,0,.07); border: 1px solid rgba(214,35,0,.2); color: var(--primary); }
+          .${p}-status.success { background: rgba(46,125,74,.08); border: 1px solid rgba(46,125,74,.25); color: var(--success); }
+          .${p}-status.error   { background: rgba(196,30,58,.08); border: 1px solid rgba(196,30,58,.25); color: var(--error); }
+          .${p}-status.info    { background: rgba(218,46,50,.06); border: 1px solid rgba(218,46,50,.2); color: var(--primary); }
         </style>
 
         <div class="${p}">
 
           <!-- 1. Target stores -->
           <div class="${p}-card">
-            <div class="${p}-card-title">1 — Target ${storeP}</div>
-            <label class="${p}-label">Find ${storeP}</label>
-            <div class="${p}-ms-wrap">
-              <div class="${p}-ms-trigger" id="${p}-trigger">
-                <span class="${p}-ms-ph">Loading ${storeP.toLowerCase()}…</span>
-              </div>
-              <div class="${p}-dropdown" id="${p}-dropdown">
-                <div class="${p}-dd-search">
-                  <input type="text" id="${p}-search" placeholder="Search ${storeP.toLowerCase()}…">
+            <div class="${p}-card-head">
+              <span class="${p}-step">1</span>
+              <span class="${p}-card-title">Target ${storeP}</span>
+            </div>
+            <div class="${p}-card-body">
+              <label class="${p}-label">Find ${storeP}</label>
+              <div class="${p}-ms-wrap">
+                <div class="${p}-ms-trigger" id="${p}-trigger">
+                  <span class="${p}-ms-ph">Loading ${storeP.toLowerCase()}…</span>
                 </div>
-                <div class="${p}-dd-list" id="${p}-opts">
-                  <div class="${p}-dd-msg">Loading…</div>
+                <div class="${p}-dropdown" id="${p}-dropdown">
+                  <div class="${p}-dd-search">
+                    <input type="text" id="${p}-search" placeholder="Search ${storeP.toLowerCase()}…">
+                  </div>
+                  <div class="${p}-dd-list" id="${p}-opts">
+                    <div class="${p}-dd-msg">Loading…</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -370,63 +443,67 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
 
           <!-- 2. Pull & review -->
           <div class="${p}-card">
-            <div class="${p}-card-title">2 — Pull &amp; Review Tasks</div>
-            <div style="margin-bottom:14px">
+            <div class="${p}-card-head">
+              <span class="${p}-step">2</span>
+              <span class="${p}-card-title">Pull &amp; Review Tasks</span>
+            </div>
+            <div class="${p}-card-body">
               <label class="${p}-label">Task List Name</label>
-              <input type="text" class="${p}-input" id="${p}-listname"
-                     placeholder="e.g., Q2 Store Checklist">
-            </div>
-            <div class="${p}-btn-row">
-              <button class="${p}-btn ${p}-btn-secondary" id="${p}-pull-btn">
-                &#8595; Pull from External Services
-              </button>
-            </div>
+              <div class="${p}-input-group">
+                <input type="text" class="${p}-input" id="${p}-listname"
+                       placeholder="e.g., Q2 Store Checklist">
+                <button class="${p}-icon-btn" id="${p}-pull-btn" title="Pull from External Services">
+                  ${iconDownload}
+                </button>
+              </div>
 
-            <!-- Editable preview table — shown after pull -->
-            <div id="${p}-tbl-section" style="display:none;margin-top:20px">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-                <span class="${p}-label" style="margin:0">Review &amp; Edit Tasks</span>
-                <span class="${p}-badge-count" id="${p}-task-count">0 tasks</span>
+              <!-- Editable task table — shown after pull -->
+              <div class="${p}-tbl-zone" id="${p}-tbl-section" style="display:none">
+                <div class="${p}-tbl-meta">
+                  <span class="${p}-tbl-label">Review &amp; Edit Tasks</span>
+                  <span class="${p}-badge-count" id="${p}-task-count">0 tasks</span>
+                </div>
+                <div class="${p}-tbl-wrap">
+                  <table class="${p}-tbl">
+                    <thead>
+                      <tr>
+                        <th style="width:30%">Title</th>
+                        <th>Description</th>
+                        <th style="width:140px">Due Date</th>
+                        <th style="width:36px"></th>
+                      </tr>
+                    </thead>
+                    <tbody id="${p}-tbody"></tbody>
+                  </table>
+                </div>
+                <button class="${p}-add-row" id="${p}-add-row">
+                  ${iconAdd} Add a task
+                </button>
               </div>
-              <div class="${p}-tbl-wrap">
-                <table class="${p}-tbl">
-                  <thead>
-                    <tr>
-                      <th style="width:30%">Title</th>
-                      <th>Description</th>
-                      <th style="width:140px">Due Date</th>
-                      <th style="width:36px"></th>
-                    </tr>
-                  </thead>
-                  <tbody id="${p}-tbody"></tbody>
-                </table>
-              </div>
-              <button class="${p}-add-row" id="${p}-add-row">+ Add row</button>
             </div>
           </div>
 
           <!-- 3. Optional: update existing list -->
           ${enableUpdating ? `
           <div class="${p}-card">
-            <div class="${p}-card-title">
-              3 — Update Existing List
-              <span style="font-weight:400;text-transform:none;font-size:11px;color:var(--gray)">&nbsp;(optional)</span>
+            <div class="${p}-card-head">
+              <span class="${p}-step">3</span>
+              <span class="${p}-card-title">Update Existing List <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:#9ca3af">(optional)</span></span>
             </div>
-            <label class="${p}-label">Select an existing task list to update</label>
-            <select class="${p}-select" id="${p}-existing">
-              <option value="">— Create a new list —</option>
-            </select>
-            <p class="${p}-help">
-              If selected, all tasks in that list are replaced with the tasks above.
-              Leave blank to always create a new list.
-            </p>
+            <div class="${p}-card-body">
+              <label class="${p}-label">Select a list to update</label>
+              <select class="${p}-select" id="${p}-existing">
+                <option value="">— Create a new list —</option>
+              </select>
+              <p class="${p}-help">If selected, all tasks in that list are replaced. Leave blank to create a new list.</p>
+            </div>
           </div>
           ` : ""}
 
           <!-- Submit -->
-          <div class="${p}-btn-row" style="margin-top:4px">
+          <div style="margin-top:4px">
             <button class="${p}-btn ${p}-btn-primary" id="${p}-submit" disabled>
-              &#10003; Update Staffbase
+              ${iconUpload} Update Staffbase
             </button>
           </div>
 
@@ -522,7 +599,7 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
           <td><input class="${p}-cell" type="text" value="${esc(title)}"  placeholder="Task title"></td>
           <td><input class="${p}-cell" type="text" value="${esc(desc)}"   placeholder="Description"></td>
           <td><input class="${p}-cell" type="date" value="${datePart}"></td>
-          <td><button class="${p}-del-row" title="Remove">&times;</button></td>
+          <td><button class="${p}-del-row" title="Remove"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button></td>
         `;
         tr.querySelector(`.${p}-del-row`)!.addEventListener("click", () => {
           tr.remove(); refreshCount(); validate();
@@ -680,7 +757,7 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
       // ── Pull from sheet ───────────────────────────────────────────────
       pullBtn.addEventListener("click", async () => {
         pullBtn.disabled = true;
-        pullBtn.innerHTML = `<span class="${p}-spin"></span> Pulling…`;
+        pullBtn.innerHTML = `<span class="${p}-spin"></span>`;
         (statusEl as HTMLElement).style.display = "none";
 
         try {
@@ -720,7 +797,7 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
         }
 
         pullBtn.disabled = false;
-        pullBtn.innerHTML = "&#8595; Pull from External Services";
+        pullBtn.innerHTML = iconDownload;
         validate();
       });
 
