@@ -15,8 +15,8 @@ const DEFAULT_APPS_SCRIPT_URL =
 const DEFAULT_API_TOKEN =
   "NjljMjU3N2JjZmFjZWYxMzc4MzIzYTNkOkp6VEpkaGlfclRyRDk4bjlBZ2pIdXFkcmI3UjQhdl1LTm1RV1hwOHBIdUd+Unl3clk7MjYhSS1JdiprLGdOaVI=";
 const DEFAULT_BASE_URL = "https://app.staffbase.com/api";
-const DEFAULT_PRIMARY_COLOR = "#D62300"; // Panda Express red
-const DEFAULT_ACCENT_COLOR  = "#FF6B00"; // Panda Express orange
+const DEFAULT_PRIMARY_COLOR = "#da2e32";
+const DEFAULT_ACCENT_COLOR  = "#da2e32";
 
 // ── Config schema ─────────────────────────────────────────────────────────────
 
@@ -291,13 +291,13 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
           }
           .${p}-select:focus { outline: none; border-color: var(--primary); }
 
-          /* Buttons — natural width, don't stretch */
-          .${p}-btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+          /* Buttons — fit content, never stretch */
+          .${p}-btn-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-start; }
           .${p}-btn {
-            padding: 11px 22px; border: none; border-radius: var(--r-md);
+            padding: 11px 20px; border: none; border-radius: var(--r-md);
             font-size: 14px; font-weight: 700; font-family: inherit;
             cursor: pointer; display: inline-flex; align-items: center;
-            gap: 8px; white-space: nowrap; transition: all .2s;
+            gap: 8px; white-space: nowrap; width: auto; flex: 0 0 auto; transition: all .2s;
           }
           .${p}-btn:disabled { opacity: .4; cursor: not-allowed !important; transform: none !important; }
           .${p}-btn-primary {
@@ -684,18 +684,21 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
         (statusEl as HTMLElement).style.display = "none";
 
         try {
-          const res = await fetch(appsScriptUrl);
+          // Apps Script 302-redirects to googleusercontent.com.
+          // Fetching the redirect URL directly avoids the cross-origin
+          // redirect CORS failure that can occur inside sandboxed iframes.
+          const redirect = await fetch(appsScriptUrl, { redirect: "manual" });
+          const finalUrl =
+            redirect.headers.get("location") || appsScriptUrl;
+          const res = await fetch(finalUrl);
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-          // Guard against getting an HTML error page instead of JSON
-          const contentType = res.headers.get("content-type") || "";
-          if (!contentType.includes("json")) {
-            throw new Error(
-              "Response was not JSON — check that your Apps Script is deployed with 'Who has access: Anyone' and that doGet returns valid JSON"
-            );
+          let data: any;
+          try {
+            data = await res.json();
+          } catch (_) {
+            throw new Error("Response was not valid JSON — check Apps Script logs for errors");
           }
-
-          const data = await res.json();
 
           if (data.error) {
             throw new Error(`Apps Script error: ${data.error}`);
