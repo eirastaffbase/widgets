@@ -141,7 +141,6 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
 
       // SVG icons (inlined so no external deps needed)
       const iconDownload = `<svg width="18" height="18" viewBox="0 0 512 512" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M472.7 189.5c-15.76-10-36.21-16.79-58.59-19.54-6.65-39.1-24.22-72.52-51.27-97.26C334.15 46.45 296.21 32 256 32c-35.35 0-68 11.08-94.37 32a149.7 149.7 0 0 0-45.29 60.42c-30.67 4.32-57 14.61-76.71 30C13.7 174.83 0 203.56 0 237.6 0 305 55.92 352 136 352h104V208h32v144h124c72.64 0 116-34.24 116-91.6 0-30.05-13.59-54.57-39.3-70.9zM240 419.42 191.98 371l-22.61 23L256 480l86.63-86-22.61-23L272 419.42V352h-32v67.42z"/></svg>`;
-      const iconAdd      = `<svg width="18" height="18" viewBox="0 0 512 512" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M256 48C141.125 48 48 141.125 48 256s93.125 208 208 208 208-93.125 208-208S370.875 48 256 48zm107 229h-86v86h-42v-86h-86v-42h86v-86h42v86h86v42z"/></svg>`;
       const iconUpload   = `<svg width="18" height="18" viewBox="0 0 512 512" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M472.7 189.5c-15.76-10-36.21-16.79-58.59-19.54-6.65-39.1-24.22-72.52-51.27-97.26C334.15 46.45 296.21 32 256 32c-35.35 0-68 11.08-94.37 32a149.7 149.7 0 0 0-45.29 60.42c-30.67 4.32-57 14.61-76.71 30C13.7 174.83 0 203.56 0 237.6 0 305 55.92 352 136 352h104v144h32V352h124c72.64 0 116-34.24 116-91.6 0-30.05-13.59-54.57-39.3-70.9zM272 92.58 320.02 141l22.61-23L256 32l-86.63 86 22.61 23L240 92.58V160h32V92.58z"/></svg>`;
 
       container.innerHTML = `
@@ -175,7 +174,7 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
             border: 1px solid var(--border);
             border-left: 3px solid var(--primary);
             margin-bottom: 12px;
-            overflow: hidden;
+            overflow: visible;
           }
           .${p}-card-head {
             display: flex; align-items: center; gap: 10px;
@@ -295,7 +294,11 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
           .${p}-dd-msg { padding: 20px; text-align: center; color: var(--gray-lt); font-size: 13px; }
 
           /* ── Task table ────────────────────────────────────── */
-          .${p}-tbl-zone { margin-top: 16px; }
+          .${p}-tbl-zone {
+            margin-top: 16px;
+            position: relative;
+            padding-bottom: 20px;
+          }
           .${p}-tbl-meta {
             display: flex; align-items: center;
             justify-content: space-between; margin-bottom: 8px;
@@ -341,21 +344,40 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
           .${p}-del-row:hover { background: #fee2e2; color: var(--error); }
           .${p}-del-row svg { pointer-events: none; }
 
-          /* Add-row — dashed, visible only on zone hover */
+          /* Add-row — subtle plus below table, visible on hover */
           .${p}-add-row {
-            margin-top: 8px; width: 100%; padding: 9px;
-            background: none; cursor: pointer; font-family: inherit;
-            border: 2px dashed var(--border); border-radius: var(--r-md);
-            color: var(--gray-lt); font-size: 13px; font-weight: 600;
-            display: flex; align-items: center; justify-content: center; gap: 6px;
+            position: absolute;
+            left: 50%;
+            bottom: 0;
+            transform: translate(-50%, 50%);
+            width: 26px;
+            height: 26px;
+            border: 1.5px solid #d1d5db;
+            border-radius: 999px;
+            background: #fff;
+            color: #9ca3af;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-family: inherit;
+            font-size: 18px;
+            font-weight: 400;
+            line-height: 1;
             opacity: 0; pointer-events: none;
-            transition: opacity .2s, border-color .2s, color .2s;
+            transition: opacity .16s, border-color .16s, color .16s, background .16s;
           }
           .${p}-tbl-zone:hover .${p}-add-row,
-          .${p}-add-row:focus {
+          .${p}-add-row:focus-visible {
             opacity: 1; pointer-events: auto;
           }
-          .${p}-add-row:hover { border-color: var(--primary); color: var(--primary); }
+          .${p}-add-row:hover,
+          .${p}-add-row:focus-visible {
+            border-color: var(--primary);
+            background: var(--primary);
+            color: #fff;
+            outline: none;
+          }
 
           /* ── Select ────────────────────────────────────────── */
           .${p}-select {
@@ -367,11 +389,13 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
 
           /* ── Main buttons ──────────────────────────────────── */
           .${p}-btn {
-            padding: 11px 20px; border: none; border-radius: var(--r-md);
-            font-size: 14px; font-weight: 700; font-family: inherit;
+            width: auto !important;
+            padding: 9px 14px; border: none; border-radius: var(--r-md);
+            font-size: 13px; font-weight: 600; font-family: inherit;
             cursor: pointer; display: inline-flex; align-items: center;
-            gap: 8px; white-space: nowrap; flex: 0 0 auto; transition: all .2s;
+            gap: 6px; white-space: nowrap; flex: 0 0 auto; transition: all .2s;
           }
+          .${p}-btn svg { width: 16px; height: 16px; }
           .${p}-btn:disabled { opacity: .4; cursor: not-allowed !important; transform: none !important; box-shadow: none !important; }
           .${p}-btn-primary {
             background: var(--primary); color: #fff;
@@ -452,7 +476,7 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
               <div class="${p}-input-group">
                 <input type="text" class="${p}-input" id="${p}-listname"
                        placeholder="e.g., Q2 Store Checklist">
-                <button class="${p}-icon-btn" id="${p}-pull-btn" title="Pull from External Services">
+                <button type="button" class="${p}-icon-btn" id="${p}-pull-btn" title="Pull from External Services">
                   ${iconDownload}
                 </button>
               </div>
@@ -476,9 +500,7 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
                     <tbody id="${p}-tbody"></tbody>
                   </table>
                 </div>
-                <button class="${p}-add-row" id="${p}-add-row">
-                  ${iconAdd} Add a task
-                </button>
+                <button type="button" class="${p}-add-row" id="${p}-add-row" aria-label="Add task">+</button>
               </div>
             </div>
           </div>
@@ -502,7 +524,7 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
 
           <!-- Submit -->
           <div style="margin-top:4px">
-            <button class="${p}-btn ${p}-btn-primary" id="${p}-submit" disabled>
+            <button type="button" class="${p}-btn ${p}-btn-primary" id="${p}-submit" disabled>
               ${iconUpload} Update Staffbase
             </button>
           </div>
