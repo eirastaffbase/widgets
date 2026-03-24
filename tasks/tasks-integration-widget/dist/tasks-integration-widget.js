@@ -10,7 +10,7 @@ var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _argume
     });
 };
 // ── Defaults ──────────────────────────────────────────────────────────────────
-const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbytx8eg-33bq7lCfK7FM0DzbnL2jSBW7j2i6LDbhs5Rjd2Iqy8BHxstqJf1IRFaXaIa/exec";
+const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwhJDxf4hgE_zIfZjvedGmqQnH8_nJ2UIEwMtcQ8Hbk2RBNXnslyqSV718k3k0RYXy1/exec";
 const DEFAULT_API_TOKEN = "NjljMjU3N2JjZmFjZWYxMzc4MzIzYTNkOkp6VEpkaGlfclRyRDk4bjlBZ2pIdXFkcmI3UjQhdl1LTm1RV1hwOHBIdUd+Unl3clk7MjYhSS1JdiprLGdOaVI=";
 const DEFAULT_BASE_URL = "https://app.staffbase.com/api";
 const DEFAULT_PRIMARY_COLOR = "#da2e32";
@@ -654,12 +654,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
                     pullBtn.innerHTML = `<span class="${p}-spin"></span> Pulling…`;
                     statusEl.style.display = "none";
                     try {
-                        // Apps Script 302-redirects to googleusercontent.com.
-                        // Fetching the redirect URL directly avoids the cross-origin
-                        // redirect CORS failure that can occur inside sandboxed iframes.
-                        const redirect = yield fetch(appsScriptUrl, { redirect: "manual" });
-                        const finalUrl = redirect.headers.get("location") || appsScriptUrl;
-                        const res = yield fetch(finalUrl);
+                        const res = yield fetch(appsScriptUrl);
                         if (!res.ok)
                             throw new Error(`HTTP ${res.status}`);
                         let data;

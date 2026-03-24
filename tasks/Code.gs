@@ -7,6 +7,14 @@
 var SPREADSHEET_ID = "15yCFmBWYenoCAf_Ku3bbfaHjgE_pHQ8teUcDw04eX4A";
 var SHEET_NAME = "Sheet1"; // update if your sheet tab has a different name
 
+// Handles the CORS preflight OPTIONS request that Chrome sends
+// when custom x-browser-* headers are present on the request
+function doOptions(e) {
+  return ContentService
+    .createTextOutput(JSON.stringify({ status: "ok" }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
 function doGet(e) {
   var lock = LockService.getScriptLock();
   lock.tryLock(10000);

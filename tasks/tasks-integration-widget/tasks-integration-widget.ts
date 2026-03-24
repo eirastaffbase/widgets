@@ -11,7 +11,7 @@ import { UiSchema } from "@rjsf/utils";
 // ── Defaults ──────────────────────────────────────────────────────────────────
 
 const DEFAULT_APPS_SCRIPT_URL =
-  "https://script.google.com/macros/s/AKfycbytx8eg-33bq7lCfK7FM0DzbnL2jSBW7j2i6LDbhs5Rjd2Iqy8BHxstqJf1IRFaXaIa/exec";
+  "https://script.google.com/macros/s/AKfycbwhJDxf4hgE_zIfZjvedGmqQnH8_nJ2UIEwMtcQ8Hbk2RBNXnslyqSV718k3k0RYXy1/exec";
 const DEFAULT_API_TOKEN =
   "NjljMjU3N2JjZmFjZWYxMzc4MzIzYTNkOkp6VEpkaGlfclRyRDk4bjlBZ2pIdXFkcmI3UjQhdl1LTm1RV1hwOHBIdUd+Unl3clk7MjYhSS1JdiprLGdOaVI=";
 const DEFAULT_BASE_URL = "https://app.staffbase.com/api";
@@ -684,13 +684,7 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
         (statusEl as HTMLElement).style.display = "none";
 
         try {
-          // Apps Script 302-redirects to googleusercontent.com.
-          // Fetching the redirect URL directly avoids the cross-origin
-          // redirect CORS failure that can occur inside sandboxed iframes.
-          const redirect = await fetch(appsScriptUrl, { redirect: "manual" });
-          const finalUrl =
-            redirect.headers.get("location") || appsScriptUrl;
-          const res = await fetch(finalUrl);
+          const res = await fetch(appsScriptUrl);
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
           let data: any;
