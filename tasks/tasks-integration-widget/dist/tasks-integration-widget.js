@@ -10,7 +10,7 @@ var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _argume
     });
 };
 // ── Defaults ──────────────────────────────────────────────────────────────────
-const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxiV5oKFkH5bY1phraUdZ9rNEOfgYPdwMiKNdfPh0Oua4WzTU4XjgpofaDdqQM8Ggky/exec";
+const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxiunQ-t6in4UpkA11rH5_o1D9QH_jX79J-3FoqVT47DuMp1HmsY7-A_MrVhlLFr-L_/exec";
 const DEFAULT_API_TOKEN = "NjljMjU3N2JjZmFjZWYxMzc4MzIzYTNkOkp6VEpkaGlfclRyRDk4bjlBZ2pIdXFkcmI3UjQhdl1LTm1RV1hwOHBIdUd+Unl3clk7MjYhSS1JdiprLGdOaVI=";
 const DEFAULT_BASE_URL = "https://app.staffbase.com/api";
 const DEFAULT_PRIMARY_COLOR = "#D62300"; // Panda Express red
