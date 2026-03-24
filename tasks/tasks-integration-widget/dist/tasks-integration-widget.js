@@ -10,12 +10,12 @@ var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _argume
     });
 };
 // ── Defaults ──────────────────────────────────────────────────────────────────
-const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxiunQ-t6in4UpkA11rH5_o1D9QH_jX79J-3FoqVT47DuMp1HmsY7-A_MrVhlLFr-L_/exec";
+const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbytx8eg-33bq7lCfK7FM0DzbnL2jSBW7j2i6LDbhs5Rjd2Iqy8BHxstqJf1IRFaXaIa/exec";
 const DEFAULT_API_TOKEN = "NjljMjU3N2JjZmFjZWYxMzc4MzIzYTNkOkp6VEpkaGlfclRyRDk4bjlBZ2pIdXFkcmI3UjQhdl1LTm1RV1hwOHBIdUd+Unl3clk7MjYhSS1JdiprLGdOaVI=";
 const DEFAULT_BASE_URL = "https://app.staffbase.com/api";
 const DEFAULT_PRIMARY_COLOR = "#D62300"; // Panda Express red
 const DEFAULT_ACCENT_COLOR = "#FF6B00"; // Panda Express orange
-// ── Config schema (all keys must be lowercase for Staffbase) ─────────────────
+// ── Config schema ─────────────────────────────────────────────────────────────
 const configurationSchema = {
     properties: {
         appsscripturl: {
@@ -43,6 +43,21 @@ const configurationSchema = {
             title: "Accent Color",
             default: DEFAULT_ACCENT_COLOR,
         },
+        backgroundcolor: {
+            type: "string",
+            title: "Background Color",
+            default: "",
+        },
+        storelabelsingular: {
+            type: "string",
+            title: "Store Label (singular)",
+            default: "Store",
+        },
+        storelabelplural: {
+            type: "string",
+            title: "Store Label (plural)",
+            default: "Stores",
+        },
         enabletasklistupdating: {
             type: "boolean",
             title: "Enable Task List Updating",
@@ -56,7 +71,7 @@ const uiSchema = {
         "ui:help": "Staffbase Basic auth token",
     },
     appsscripturl: {
-        "ui:help": "Deployed Google Apps Script web app URL",
+        "ui:help": "Deployed Google Apps Script web app URL (deploy as Anyone)",
     },
     baseurl: {
         "ui:help": "Staffbase API base URL",
@@ -69,8 +84,18 @@ const uiSchema = {
         "ui:widget": "color",
         "ui:help": "Accent / secondary color (default: Panda Express orange)",
     },
+    backgroundcolor: {
+        "ui:widget": "color",
+        "ui:help": "Widget background color — leave blank for transparent",
+    },
+    storelabelsingular: {
+        "ui:help": "e.g. Store, Location, Branch",
+    },
+    storelabelplural: {
+        "ui:help": "e.g. Stores, Locations, Branches",
+    },
     enabletasklistupdating: {
-        "ui:help": "When enabled, you can select an existing task list to update instead of always creating a new one",
+        "ui:help": "When enabled, select an existing task list to update instead of always creating a new one",
     },
 };
 // ── Widget factory ────────────────────────────────────────────────────────────
@@ -81,25 +106,23 @@ const factory = (BaseBlockClass, _widgetApi) => {
         }
         renderBlock(container) {
             return __awaiter(this, void 0, void 0, function* () {
-                // Read config attributes — fall back to defaults when not set
                 const appsScriptUrl = this.getAttribute("appsscripturl") || DEFAULT_APPS_SCRIPT_URL;
                 const apiToken = this.getAttribute("apitoken") || DEFAULT_API_TOKEN;
                 const baseUrl = (this.getAttribute("baseurl") || DEFAULT_BASE_URL).replace(/\/$/, "");
                 const primaryColor = this.getAttribute("primarycolor") || DEFAULT_PRIMARY_COLOR;
                 const accentColor = this.getAttribute("accentcolor") || DEFAULT_ACCENT_COLOR;
+                const bgColor = this.getAttribute("backgroundcolor") || "";
+                const storeS = this.getAttribute("storelabelsingular") || "Store";
+                const storeP = this.getAttribute("storelabelplural") || "Stores";
                 const enableUpdating = this.getAttribute("enabletasklistupdating") === "true";
-                // Runtime state
                 let storeProjects = [];
                 let selectedStores = [];
-                // Short CSS namespace prefix so our styles don't bleed into the host page
                 const p = "tiw";
-                // ── HTML ────────────────────────────────────────────────────────────
                 container.innerHTML = `
         <style>
           .${p} {
             --primary: ${primaryColor};
             --accent:  ${accentColor};
-            --bg:      #FFF5F0;
             --bg-dark: #f0e0d6;
             --dark:    #1A1A1A;
             --gray:    #666;
@@ -109,37 +132,24 @@ const factory = (BaseBlockClass, _widgetApi) => {
             --shadow: 0 4px 14px rgba(0,0,0,0.09);
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             color: var(--dark);
-            background: var(--bg);
-            padding: 24px;
+            background: ${bgColor || "transparent"};
+            padding: 20px;
           }
           .${p} *, .${p} *::before, .${p} *::after {
             box-sizing: border-box; margin: 0; padding: 0;
           }
 
-          /* Header */
-          .${p}-header {
-            display: flex; align-items: center; gap: 12px;
-            margin-bottom: 24px; padding-bottom: 14px;
-            border-bottom: 3px solid var(--primary);
-          }
-          .${p}-badge {
-            background: var(--primary); color: #fff;
-            padding: 7px 13px; border-radius: var(--r-sm);
-            font-size: 12px; font-weight: 800; letter-spacing: 1px;
-          }
-          .${p}-title { font-size: 19px; font-weight: 700; }
-
           /* Cards */
           .${p}-card {
             background: #fff; border-radius: var(--r-lg);
-            box-shadow: var(--shadow); padding: 22px;
-            margin-bottom: 18px;
+            box-shadow: var(--shadow); padding: 20px;
+            margin-bottom: 16px;
             border: 1px solid rgba(0,0,0,0.06);
           }
           .${p}-card-title {
             font-size: 11px; font-weight: 800; letter-spacing: 1px;
             text-transform: uppercase; color: var(--primary);
-            margin-bottom: 14px;
+            margin-bottom: 12px;
           }
           .${p}-label {
             display: block; font-size: 13px; font-weight: 600;
@@ -201,7 +211,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
             display: flex; align-items: center; gap: 9px;
             font-size: 13px; border-bottom: 1px solid #f5f5f5;
           }
-          .${p}-dd-opt:hover { background: var(--bg); }
+          .${p}-dd-opt:hover { background: #fff5f0; }
           .${p}-dd-opt.sel { background: rgba(214,35,0,.07); }
           .${p}-check {
             width: 17px; height: 17px; border: 2px solid #ccc;
@@ -215,7 +225,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
 
           /* Editable table */
           .${p}-tbl-wrap {
-            overflow-x: auto; margin-top: 14px;
+            overflow-x: auto; margin-top: 12px;
             border: 1px solid #e5e5e5; border-radius: var(--r-md);
           }
           .${p}-tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -225,7 +235,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
           }
           .${p}-tbl td { padding: 5px 7px; border-bottom: 1px solid #f0f0f0; }
           .${p}-tbl tr:last-child td { border-bottom: none; }
-          .${p}-tbl tr:hover td { background: var(--bg); }
+          .${p}-tbl tr:hover td { background: #fff5f0; }
           .${p}-cell {
             width: 100%; padding: 6px 8px; border: 1px solid transparent;
             border-radius: 4px; font-size: 13px; font-family: inherit; background: transparent;
@@ -260,28 +270,27 @@ const factory = (BaseBlockClass, _widgetApi) => {
           }
           .${p}-select:focus { outline: none; border-color: var(--primary); }
 
-          /* Buttons */
+          /* Buttons — natural width, don't stretch */
           .${p}-btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
           .${p}-btn {
-            flex: 1; min-width: 150px; padding: 13px 18px;
-            border: none; border-radius: var(--r-md);
+            padding: 11px 22px; border: none; border-radius: var(--r-md);
             font-size: 14px; font-weight: 700; font-family: inherit;
-            cursor: pointer; display: flex; align-items: center;
-            justify-content: center; gap: 8px; transition: all .2s;
+            cursor: pointer; display: inline-flex; align-items: center;
+            gap: 8px; white-space: nowrap; transition: all .2s;
           }
           .${p}-btn:disabled { opacity: .4; cursor: not-allowed !important; transform: none !important; }
           .${p}-btn-primary {
             background: var(--primary); color: #fff;
-            box-shadow: 0 4px 12px rgba(214,35,0,.35);
+            box-shadow: 0 3px 10px rgba(214,35,0,.3);
           }
           .${p}-btn-primary:hover:not(:disabled) { filter: brightness(.88); transform: translateY(-1px); }
           .${p}-btn-secondary {
             background: var(--accent); color: #fff;
-            box-shadow: 0 4px 12px rgba(255,107,0,.35);
+            box-shadow: 0 3px 10px rgba(255,107,0,.3);
           }
           .${p}-btn-secondary:hover:not(:disabled) { filter: brightness(.9); transform: translateY(-1px); }
           .${p}-spin {
-            width: 15px; height: 15px; border-radius: 50%;
+            width: 14px; height: 14px; border-radius: 50%;
             border: 2px solid rgba(255,255,255,.35); border-top-color: #fff;
             animation: ${p}-spin .7s linear infinite; flex-shrink: 0;
           }
@@ -296,7 +305,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
             display: flex; justify-content: space-between;
             font-size: 12px; color: var(--gray); margin-bottom: 6px;
           }
-          .${p}-prog-bar { height: 7px; background: var(--bg-dark); border-radius: 4px; overflow: hidden; }
+          .${p}-prog-bar { height: 7px; background: #f0e0d6; border-radius: 4px; overflow: hidden; }
           .${p}-prog-fill {
             height: 100%; width: 0%;
             background: linear-gradient(90deg, var(--primary), var(--accent));
@@ -310,7 +319,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
           /* Status banner */
           .${p}-status {
             display: none; padding: 11px 15px; border-radius: var(--r-md);
-            margin-top: 12px; font-size: 13px;
+            margin-top: 12px; font-size: 13px; line-height: 1.5;
           }
           .${p}-status.success { background: rgba(46,125,74,.1); border: 1px solid rgba(46,125,74,.3); color: var(--success); }
           .${p}-status.error   { background: rgba(196,30,58,.1); border: 1px solid rgba(196,30,58,.3); color: var(--error); }
@@ -319,22 +328,17 @@ const factory = (BaseBlockClass, _widgetApi) => {
 
         <div class="${p}">
 
-          <div class="${p}-header">
-            <span class="${p}-badge">TASKS</span>
-            <span class="${p}-title">Google Sheets Integration</span>
-          </div>
-
-          <!-- 1. Target installations -->
+          <!-- 1. Target stores -->
           <div class="${p}-card">
-            <div class="${p}-card-title">1 — Target Installations</div>
-            <label class="${p}-label">Select Task Installations</label>
+            <div class="${p}-card-title">1 — Target ${storeP}</div>
+            <label class="${p}-label">Find ${storeP}</label>
             <div class="${p}-ms-wrap">
               <div class="${p}-ms-trigger" id="${p}-trigger">
-                <span class="${p}-ms-ph">Loading installations…</span>
+                <span class="${p}-ms-ph">Loading ${storeP.toLowerCase()}…</span>
               </div>
               <div class="${p}-dropdown" id="${p}-dropdown">
                 <div class="${p}-dd-search">
-                  <input type="text" id="${p}-search" placeholder="Search…">
+                  <input type="text" id="${p}-search" placeholder="Search ${storeP.toLowerCase()}…">
                 </div>
                 <div class="${p}-dd-list" id="${p}-opts">
                   <div class="${p}-dd-msg">Loading…</div>
@@ -478,21 +482,21 @@ const factory = (BaseBlockClass, _widgetApi) => {
                             selectedStores.length === 0 ||
                             listName.value.trim().length === 0;
                 }
-                // ── Editable row helpers ──────────────────────────────────────────
+                // ── Editable rows ─────────────────────────────────────────────────
                 function addRow(title = "", desc = "", dueDate = "") {
                     const datePart = dueDate
                         ? (() => { try {
                             return new Date(dueDate).toISOString().split("T")[0];
                         }
-                        catch (_a) {
+                        catch (_) {
                             return "";
                         } })()
                         : "";
                     const tr = document.createElement("tr");
                     tr.innerHTML = `
-          <td><input class="${p}-cell" type="text"  value="${esc(title)}" placeholder="Task title"></td>
-          <td><input class="${p}-cell" type="text"  value="${esc(desc)}"  placeholder="Description"></td>
-          <td><input class="${p}-cell" type="date"  value="${datePart}"></td>
+          <td><input class="${p}-cell" type="text" value="${esc(title)}"  placeholder="Task title"></td>
+          <td><input class="${p}-cell" type="text" value="${esc(desc)}"   placeholder="Description"></td>
+          <td><input class="${p}-cell" type="date" value="${datePart}"></td>
           <td><button class="${p}-del-row" title="Remove">&times;</button></td>
         `;
                     tr.querySelector(`.${p}-del-row`).addEventListener("click", () => {
@@ -525,7 +529,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
                 function renderOpts(filter = "") {
                     const matches = storeProjects.filter(s => s.title.toLowerCase().includes(filter.toLowerCase()));
                     if (!matches.length) {
-                        optsList.innerHTML = `<div class="${p}-dd-msg">No results</div>`;
+                        optsList.innerHTML = `<div class="${p}-dd-msg">No ${storeP.toLowerCase()} found</div>`;
                         return;
                     }
                     optsList.innerHTML = matches.map(s => {
@@ -554,7 +558,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
                 }
                 function renderTrigger() {
                     if (!selectedStores.length) {
-                        trigger.innerHTML = `<span class="${p}-ms-ph">Select installations…</span>`;
+                        trigger.innerHTML = `<span class="${p}-ms-ph">Select a ${storeS}…</span>`;
                         return;
                     }
                     trigger.innerHTML = selectedStores.map(s => `<span class="${p}-tag">${esc(s.title)}
@@ -605,16 +609,16 @@ const factory = (BaseBlockClass, _widgetApi) => {
                             })
                                 .sort((a, b) => a.title.localeCompare(b.title));
                             if (!storeProjects.length) {
-                                optsList.innerHTML = `<div class="${p}-dd-msg">No Tasks installations found</div>`;
-                                trigger.innerHTML = `<span class="${p}-ms-ph">No installations found</span>`;
+                                optsList.innerHTML = `<div class="${p}-dd-msg">No ${storeP.toLowerCase()} found</div>`;
+                                trigger.innerHTML = `<span class="${p}-ms-ph">No ${storeP.toLowerCase()} found</span>`;
                             }
                             else {
-                                trigger.innerHTML = `<span class="${p}-ms-ph">Select installations…</span>`;
+                                trigger.innerHTML = `<span class="${p}-ms-ph">Select a ${storeS}…</span>`;
                                 renderOpts();
                             }
                         }
                         catch (_) {
-                            optsList.innerHTML = `<div class="${p}-dd-msg">Failed to load installations</div>`;
+                            optsList.innerHTML = `<div class="${p}-dd-msg">Failed to load ${storeP.toLowerCase()}</div>`;
                             trigger.innerHTML = `<span class="${p}-ms-ph">Error loading</span>`;
                         }
                     });
@@ -653,7 +657,15 @@ const factory = (BaseBlockClass, _widgetApi) => {
                         const res = yield fetch(appsScriptUrl);
                         if (!res.ok)
                             throw new Error(`HTTP ${res.status}`);
+                        // Guard against getting an HTML error page instead of JSON
+                        const contentType = res.headers.get("content-type") || "";
+                        if (!contentType.includes("json")) {
+                            throw new Error("Response was not JSON — check that your Apps Script is deployed with 'Who has access: Anyone' and that doGet returns valid JSON");
+                        }
                         const data = yield res.json();
+                        if (data.error) {
+                            throw new Error(`Apps Script error: ${data.error}`);
+                        }
                         const tasks = data.tasks || [];
                         if (!tasks.length) {
                             showStatus("info", "No tasks found in the sheet.");
@@ -698,7 +710,6 @@ const factory = (BaseBlockClass, _widgetApi) => {
                         try {
                             let listId;
                             if (updateTarget) {
-                                // Update mode: wipe tasks then recreate
                                 const [, targetListId] = updateTarget.split("::");
                                 listId = targetListId;
                                 setProgress(Math.round((doneOps / totalOps) * 100), `Clearing ${store.title}…`);
@@ -709,7 +720,6 @@ const factory = (BaseBlockClass, _widgetApi) => {
                                 doneOps++;
                             }
                             else {
-                                // Create a fresh list
                                 setProgress(Math.round((doneOps / totalOps) * 100), `Creating list in ${store.title}…`);
                                 const listRes = yield fetch(`${baseUrl}/tasks/${store.id}/lists`, {
                                     method: "POST",
@@ -724,7 +734,6 @@ const factory = (BaseBlockClass, _widgetApi) => {
                                     throw new Error("No list ID in response");
                                 doneOps++;
                             }
-                            // Add each task to the list
                             let created = 0;
                             for (let j = 0; j < tasks.length; j++) {
                                 const t = tasks[j];
@@ -749,7 +758,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
                                 }
                                 catch (_) { /* non-fatal */ }
                                 doneOps++;
-                                yield new Promise(r => setTimeout(r, 50)); // gentle rate-limiting
+                                yield new Promise(r => setTimeout(r, 50));
                             }
                             logLine(`\u2713 ${store.title}: ${created} task${created !== 1 ? "s" : ""} added`, "ok");
                             okCount++;
@@ -762,13 +771,13 @@ const factory = (BaseBlockClass, _widgetApi) => {
                     }
                     setProgress(100, "Done!");
                     if (failCount === 0) {
-                        showStatus("success", `All done! "${name}" with ${tasks.length} tasks pushed to ${okCount} installation${okCount !== 1 ? "s" : ""}.`);
+                        showStatus("success", `All done! "${name}" with ${tasks.length} tasks pushed to ${okCount} ${okCount === 1 ? storeS : storeP}.`);
                     }
                     else if (okCount > 0) {
                         showStatus("info", `Partial success: ${okCount} succeeded, ${failCount} failed.`);
                     }
                     else {
-                        showStatus("error", "All installations failed. Check your API token and installation IDs.");
+                        showStatus("error", "All failed. Check your API token and installation IDs.");
                     }
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = "&#10003; Update Staffbase";
@@ -785,6 +794,9 @@ const factory = (BaseBlockClass, _widgetApi) => {
                 "baseurl",
                 "primarycolor",
                 "accentcolor",
+                "backgroundcolor",
+                "storelabelsingular",
+                "storelabelplural",
                 "enabletasklistupdating",
             ];
         }
@@ -800,6 +812,9 @@ const blockDefinition = {
         "baseurl",
         "primarycolor",
         "accentcolor",
+        "backgroundcolor",
+        "storelabelsingular",
+        "storelabelplural",
         "enabletasklistupdating",
     ],
     factory,
