@@ -339,7 +339,7 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
             background: transparent; transition: border-color .15s, background .15s;
           }
           .${p}-cell-desc {
-            min-height: 34px;
+            min-height: 52px;
             line-height: 1.35;
             resize: none;
             overflow: hidden;
@@ -626,7 +626,7 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
 
       function fitDescCell(el: HTMLTextAreaElement) {
         el.style.height = "0";
-        el.style.height = `${Math.max(34, el.scrollHeight)}px`;
+        el.style.height = `${Math.max(52, el.scrollHeight)}px`;
       }
 
       // ── Editable rows ─────────────────────────────────────────────────
@@ -647,12 +647,12 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
         tr.querySelectorAll(`.${p}-cell`).forEach(i =>
           i.addEventListener("input", validate)
         );
+        tbody.appendChild(tr);
         const descCell = tr.querySelector(`.${p}-cell-description`) as HTMLTextAreaElement | null;
         if (descCell) {
-          fitDescCell(descCell);
+          requestAnimationFrame(() => fitDescCell(descCell));
           descCell.addEventListener("input", () => fitDescCell(descCell));
         }
-        tbody.appendChild(tr);
         refreshCount();
         validate();
       }
