@@ -175,6 +175,12 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
             border-left: 3px solid var(--primary);
             margin-bottom: 12px;
             overflow: visible;
+            transition: background-color .18s ease, box-shadow .18s ease;
+          }
+          .${p}-card:hover,
+          .${p}-card:focus-within {
+            background: rgba(218,46,50,.015);
+            box-shadow: 0 2px 8px rgba(0,0,0,.06);
           }
           .${p}-card-head {
             display: flex; align-items: center; gap: 10px;
@@ -331,6 +337,14 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
             border: 1.5px solid transparent; border-radius: var(--r-sm);
             font-size: 13px; font-family: inherit; color: var(--dark);
             background: transparent; transition: border-color .15s, background .15s;
+          }
+          .${p}-cell-desc {
+            min-height: 34px;
+            line-height: 1.35;
+            resize: none;
+            overflow: hidden;
+            white-space: pre-wrap;
+            word-break: break-word;
           }
           .${p}-cell::placeholder { color: #9ca3af; }
           .${p}-cell:hover { border-color: var(--border); background: #f9fafb; }
@@ -524,7 +538,7 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
           <!-- Submit -->
           <div style="margin-top:4px">
             <button type="button" class="${p}-btn ${p}-btn-primary" id="${p}-submit" disabled>
-              ${iconUpload} update your tasks
+              ${iconUpload} Update your Tasks
             </button>
           </div>
 
@@ -610,6 +624,11 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
           listName.value.trim().length === 0;
       }
 
+      function fitDescCell(el: HTMLTextAreaElement) {
+        el.style.height = "0";
+        el.style.height = `${Math.max(34, el.scrollHeight)}px`;
+      }
+
       // ── Editable rows ─────────────────────────────────────────────────
       function addRow(title = "", desc = "", dueDate = "") {
         const datePart = dueDate
@@ -617,9 +636,9 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
           : "";
         const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td><input class="${p}-cell" type="text" value="${esc(title)}"  placeholder="Task title"></td>
-          <td><input class="${p}-cell" type="text" value="${esc(desc)}"   placeholder="Description"></td>
-          <td><input class="${p}-cell" type="date" value="${datePart}"></td>
+          <td><input class="${p}-cell ${p}-cell-title" type="text" value="${esc(title)}" placeholder="Task title"></td>
+          <td><textarea class="${p}-cell ${p}-cell-desc ${p}-cell-description" rows="1" placeholder="Description">${esc(desc)}</textarea></td>
+          <td><input class="${p}-cell ${p}-cell-date" type="date" value="${datePart}"></td>
           <td><button class="${p}-del-row" title="Remove"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button></td>
         `;
         tr.querySelector(`.${p}-del-row`)!.addEventListener("click", () => {
@@ -628,6 +647,11 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
         tr.querySelectorAll(`.${p}-cell`).forEach(i =>
           i.addEventListener("input", validate)
         );
+        const descCell = tr.querySelector(`.${p}-cell-description`) as HTMLTextAreaElement | null;
+        if (descCell) {
+          fitDescCell(descCell);
+          descCell.addEventListener("input", () => fitDescCell(descCell));
+        }
         tbody.appendChild(tr);
         refreshCount();
         validate();
@@ -637,12 +661,14 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
         return Array.from((tbody as HTMLElement).querySelectorAll("tr"))
           .map(row => {
             const tr = row as HTMLTableRowElement;
-            const inputs = tr.querySelectorAll<HTMLInputElement>(`.${p}-cell`);
+            const titleInput = tr.querySelector(`.${p}-cell-title`) as HTMLInputElement | null;
+            const descInput = tr.querySelector(`.${p}-cell-description`) as HTMLTextAreaElement | null;
+            const dueInput = tr.querySelector(`.${p}-cell-date`) as HTMLInputElement | null;
             return {
-              title:       inputs[0]?.value.trim() ?? "",
-              description: inputs[1]?.value.trim() ?? "",
-              dueDate:     inputs[2]?.value
-                ? new Date(inputs[2].value).toISOString()
+              title:       titleInput?.value.trim() ?? "",
+              description: descInput?.value.trim() ?? "",
+              dueDate:     dueInput?.value
+                ? new Date(dueInput.value).toISOString()
                 : null,
             };
           })
@@ -810,7 +836,7 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
             (tblSection as HTMLElement).style.display = "block";
             showStatus(
               "success",
-              `Pulled ${tasks.length} task${tasks.length !== 1 ? "s" : ""} — review and edit below, then click update your tasks.`
+              `Pulled ${tasks.length} task${tasks.length !== 1 ? "s" : ""} — review and edit below, then click Update your Tasks.`
             );
           }
         } catch (e: any) {
@@ -937,7 +963,7 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
         }
 
         submitBtn.disabled = false;
-        submitBtn.innerHTML = `${iconUpload} update your tasks`;
+        submitBtn.innerHTML = `${iconUpload} Update your Tasks`;
         validate();
       });
 
