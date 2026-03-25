@@ -540,6 +540,7 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
             <button type="button" class="${p}-btn ${p}-btn-primary" id="${p}-submit" disabled>
               ${iconUpload} Update your Tasks
             </button>
+            <p id="${p}-hint" style="margin-top:8px;font-size:12px;color:var(--gray-lt);min-height:16px"></p>
           </div>
 
           <div class="${p}-progress" id="${p}-progress">
@@ -586,6 +587,16 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
         "Content-Type": "application/json",
       });
 
+      // Widget runs on app.staffbase.com, so API calls are same-origin and
+      // the browser auto-attaches the user's session cookie. That causes
+      // Staffbase to auth via the session (which may lack write permissions)
+      // instead of the API token. 'omit' forces token-only auth.
+      const apiOpts = (extra?: RequestInit): RequestInit => ({
+        ...extra,
+        credentials: "omit",
+        headers: authHeaders(),
+      });
+
       function esc(s: string) {
         return s
           .replace(/&/g, "&amp;").replace(/"/g, "&quot;")
@@ -618,10 +629,17 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
       }
 
       function validate() {
-        submitBtn.disabled =
-          tbody.querySelectorAll("tr").length === 0 ||
-          selectedStores.length === 0 ||
-          listName.value.trim().length === 0;
+        const noStores = selectedStores.length === 0;
+        const noTasks  = tbody.querySelectorAll("tr").length === 0;
+        const noName   = listName.value.trim().length === 0;
+        submitBtn.disabled = noStores || noTasks || noName;
+        const hintEl = container.querySelector(`#${p}-hint`) as HTMLElement;
+        if (!hintEl) return;
+        const missing: string[] = [];
+        if (noStores) missing.push(`select a ${storeS.toLowerCase()}`);
+        if (noTasks)  missing.push("pull tasks");
+        if (noName)   missing.push("enter a list name");
+        hintEl.textContent = missing.length ? `Still needed: ${missing.join(", ")}` : "";
       }
 
       function fitDescCell(el: HTMLTextAreaElement) {
@@ -753,7 +771,7 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
       async function fetchInstallations() {
         try {
           const res = await fetch(`${baseUrl}/installations?limit=200`, {
-            headers: authHeaders(),
+            ...apiOpts(),
           });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const data = await res.json();
@@ -787,7 +805,7 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
         for (const store of selectedStores) {
           try {
             const res = await fetch(`${baseUrl}/tasks/${store.id}/lists`, {
-              headers: authHeaders(),
+              ...apiOpts(),
             });
             if (!res.ok) continue;
             const lists: Array<{ id: string; name: string }> = await res.json();
@@ -886,12 +904,12 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
               );
               const existing: any[] = await fetch(
                 `${baseUrl}/tasks/${store.id}/task?listId=${listId}`,
-                { headers: authHeaders() }
+                apiOpts()
               ).then(r => (r.ok ? r.json() : [])).catch(() => []);
               for (const et of existing) {
                 await fetch(
                   `${baseUrl}/tasks/${store.id}/task/${et.id}`,
-                  { method: "DELETE", headers: authHeaders() }
+                  apiOpts({ method: "DELETE" })
                 ).catch(() => {});
               }
               doneOps++;
@@ -902,7 +920,7 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
               );
               const listRes = await fetch(`${baseUrl}/tasks/${store.id}/lists`, {
                 method: "POST",
-                headers: authHeaders(),
+                ...apiOpts(),
                 body: JSON.stringify({ name, color }),
               });
               if (!listRes.ok)
@@ -931,7 +949,7 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
                 if (t.dueDate) body.dueDate = t.dueDate;
                 const r = await fetch(`${baseUrl}/tasks/${store.id}/task`, {
                   method: "POST",
-                  headers: authHeaders(),
+                  ...apiOpts(),
                   body: JSON.stringify(body),
                 });
                 if (r.ok) created++;
@@ -968,6 +986,9 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
       });
 
       // ── Init ──────────────────────────────────────────────────────────
+      // Pre-fill list name with today's date so it's one less thing to do
+      listName.value = `Tasks – ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`;
+      validate();
       fetchInstallations();
     }
 

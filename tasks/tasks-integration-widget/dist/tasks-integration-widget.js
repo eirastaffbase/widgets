@@ -518,6 +518,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
             <button type="button" class="${p}-btn ${p}-btn-primary" id="${p}-submit" disabled>
               ${iconUpload} Update your Tasks
             </button>
+            <p id="${p}-hint" style="margin-top:8px;font-size:12px;color:var(--gray-lt);min-height:16px"></p>
           </div>
 
           <div class="${p}-progress" id="${p}-progress">
@@ -561,6 +562,11 @@ const factory = (BaseBlockClass, _widgetApi) => {
                     Authorization: `Basic ${apiToken}`,
                     "Content-Type": "application/json",
                 });
+                // Widget runs on app.staffbase.com, so API calls are same-origin and
+                // the browser auto-attaches the user's session cookie. That causes
+                // Staffbase to auth via the session (which may lack write permissions)
+                // instead of the API token. 'omit' forces token-only auth.
+                const apiOpts = (extra) => (Object.assign(Object.assign({}, extra), { credentials: "omit", headers: authHeaders() }));
                 function esc(s) {
                     return s
                         .replace(/&/g, "&amp;").replace(/"/g, "&quot;")
@@ -588,10 +594,21 @@ const factory = (BaseBlockClass, _widgetApi) => {
                     taskCount.textContent = `${n} task${n !== 1 ? "s" : ""}`;
                 }
                 function validate() {
-                    submitBtn.disabled =
-                        tbody.querySelectorAll("tr").length === 0 ||
-                            selectedStores.length === 0 ||
-                            listName.value.trim().length === 0;
+                    const noStores = selectedStores.length === 0;
+                    const noTasks = tbody.querySelectorAll("tr").length === 0;
+                    const noName = listName.value.trim().length === 0;
+                    submitBtn.disabled = noStores || noTasks || noName;
+                    const hintEl = container.querySelector(`#${p}-hint`);
+                    if (!hintEl)
+                        return;
+                    const missing = [];
+                    if (noStores)
+                        missing.push(`select a ${storeS.toLowerCase()}`);
+                    if (noTasks)
+                        missing.push("pull tasks");
+                    if (noName)
+                        missing.push("enter a list name");
+                    hintEl.textContent = missing.length ? `Still needed: ${missing.join(", ")}` : "";
                 }
                 function fitDescCell(el) {
                     el.style.height = "0";
@@ -713,9 +730,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
                 function fetchInstallations() {
                     return __awaiter(this, void 0, void 0, function* () {
                         try {
-                            const res = yield fetch(`${baseUrl}/installations?limit=200`, {
-                                headers: authHeaders(),
-                            });
+                            const res = yield fetch(`${baseUrl}/installations?limit=200`, Object.assign({}, apiOpts()));
                             if (!res.ok)
                                 throw new Error(`HTTP ${res.status}`);
                             const data = yield res.json();
@@ -753,9 +768,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
                         existingSel.innerHTML = `<option value="">— Create a new list —</option>`;
                         for (const store of selectedStores) {
                             try {
-                                const res = yield fetch(`${baseUrl}/tasks/${store.id}/lists`, {
-                                    headers: authHeaders(),
-                                });
+                                const res = yield fetch(`${baseUrl}/tasks/${store.id}/lists`, Object.assign({}, apiOpts()));
                                 if (!res.ok)
                                     continue;
                                 const lists = yield res.json();
@@ -836,19 +849,15 @@ const factory = (BaseBlockClass, _widgetApi) => {
                                 const [, targetListId] = updateTarget.split("::");
                                 listId = targetListId;
                                 setProgress(Math.round((doneOps / totalOps) * 100), `Clearing ${store.title}…`);
-                                const existing = yield fetch(`${baseUrl}/tasks/${store.id}/task?listId=${listId}`, { headers: authHeaders() }).then(r => (r.ok ? r.json() : [])).catch(() => []);
+                                const existing = yield fetch(`${baseUrl}/tasks/${store.id}/task?listId=${listId}`, apiOpts()).then(r => (r.ok ? r.json() : [])).catch(() => []);
                                 for (const et of existing) {
-                                    yield fetch(`${baseUrl}/tasks/${store.id}/task/${et.id}`, { method: "DELETE", headers: authHeaders() }).catch(() => { });
+                                    yield fetch(`${baseUrl}/tasks/${store.id}/task/${et.id}`, apiOpts({ method: "DELETE" })).catch(() => { });
                                 }
                                 doneOps++;
                             }
                             else {
                                 setProgress(Math.round((doneOps / totalOps) * 100), `Creating list in ${store.title}…`);
-                                const listRes = yield fetch(`${baseUrl}/tasks/${store.id}/lists`, {
-                                    method: "POST",
-                                    headers: authHeaders(),
-                                    body: JSON.stringify({ name, color }),
-                                });
+                                const listRes = yield fetch(`${baseUrl}/tasks/${store.id}/lists`, Object.assign(Object.assign({ method: "POST" }, apiOpts()), { body: JSON.stringify({ name, color }) }));
                                 if (!listRes.ok)
                                     throw new Error(`List creation failed (${listRes.status})`);
                                 const listData = yield listRes.json();
@@ -871,11 +880,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
                                     };
                                     if (t.dueDate)
                                         body.dueDate = t.dueDate;
-                                    const r = yield fetch(`${baseUrl}/tasks/${store.id}/task`, {
-                                        method: "POST",
-                                        headers: authHeaders(),
-                                        body: JSON.stringify(body),
-                                    });
+                                    const r = yield fetch(`${baseUrl}/tasks/${store.id}/task`, Object.assign(Object.assign({ method: "POST" }, apiOpts()), { body: JSON.stringify(body) }));
                                     if (r.ok)
                                         created++;
                                 }
@@ -907,6 +912,9 @@ const factory = (BaseBlockClass, _widgetApi) => {
                     validate();
                 }));
                 // ── Init ──────────────────────────────────────────────────────────
+                // Pre-fill list name with today's date so it's one less thing to do
+                listName.value = `Tasks – ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`;
+                validate();
                 fetchInstallations();
             });
         }
