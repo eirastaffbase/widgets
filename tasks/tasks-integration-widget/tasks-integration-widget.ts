@@ -136,6 +136,9 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
 
       let storeProjects: Array<{ id: string; title: string }> = [];
       let selectedStores: Array<{ id: string; title: string }> = [];
+      let allUsers:  Array<{ id: string; name: string; avatar: string }> = [];
+      let allGroups: Array<{ id: string; name: string }> = [];
+      let selectedAssignees: Array<{ id: string; name: string; avatar: string; type: "user" | "group" }> = [];
 
       const p = "tiw";
 
@@ -450,6 +453,64 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
           .${p}-status.success { background: rgba(46,125,74,.08); border: 1px solid rgba(46,125,74,.25); color: var(--success); }
           .${p}-status.error   { background: rgba(196,30,58,.08); border: 1px solid rgba(196,30,58,.25); color: var(--error); }
           .${p}-status.info    { background: rgba(218,46,50,.06); border: 1px solid rgba(218,46,50,.2); color: var(--primary); }
+
+          /* ── Assignee picker ───────────────────────────────────── */
+          .${p}-assign-chips { display: flex; flex-wrap: wrap; gap: 6px; min-height: 0; margin-bottom: 10px; }
+          .${p}-assign-chip {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 3px 8px 3px 4px; border-radius: 20px;
+            background: rgba(218,46,50,.07); border: 1px solid rgba(218,46,50,.2);
+            font-size: 12px; font-weight: 500; color: var(--dark);
+          }
+          .${p}-assign-chip-av {
+            width: 20px; height: 20px; border-radius: 50%; overflow: hidden;
+            background: var(--primary); color: #fff;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 9px; font-weight: 700; flex-shrink: 0;
+          }
+          .${p}-assign-chip-av img { width: 100%; height: 100%; object-fit: cover; }
+          .${p}-assign-chip-x { cursor: pointer; color: var(--gray); font-size: 14px; line-height: 1; margin-left: 2px; opacity: .6; }
+          .${p}-assign-chip-x:hover { opacity: 1; }
+          .${p}-assign-search input {
+            width: 100%; box-sizing: border-box; padding: 8px 10px;
+            border: 1px solid var(--border); border-radius: var(--r-sm);
+            font-size: 13px; font-family: inherit; outline: none; background: #fafafa;
+          }
+          .${p}-assign-search input:focus { border-color: var(--primary); background: #fff; }
+          .${p}-assign-tabs { display: flex; gap: 4px; margin: 8px 0; }
+          .${p}-assign-tab {
+            flex: 1; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--r-sm);
+            font-size: 12px; font-weight: 600; background: #f9fafb; color: var(--gray);
+            cursor: pointer; text-align: center; transition: all .15s; font-family: inherit;
+          }
+          .${p}-assign-tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+          .${p}-assign-list {
+            max-height: 200px; overflow-y: auto;
+            border: 1px solid var(--border); border-radius: var(--r-sm); background: #fff;
+          }
+          .${p}-assign-opt {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 12px; cursor: pointer; transition: background .1s;
+            border-bottom: 1px solid #f3f4f6;
+          }
+          .${p}-assign-opt:last-child { border-bottom: none; }
+          .${p}-assign-opt:hover { background: #f9fafb; }
+          .${p}-assign-opt.sel { background: rgba(218,46,50,.04); }
+          .${p}-assign-avatar {
+            width: 30px; height: 30px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
+            background: var(--primary); color: #fff;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 11px; font-weight: 700;
+          }
+          .${p}-assign-avatar img { width: 100%; height: 100%; object-fit: cover; }
+          .${p}-assign-name { font-size: 13px; color: var(--dark); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+          .${p}-assign-chk {
+            width: 16px; height: 16px; border-radius: 4px; border: 2px solid var(--border);
+            background: #fff; display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0; transition: all .15s; font-size: 11px; color: transparent;
+          }
+          .${p}-assign-opt.sel .${p}-assign-chk { background: var(--primary); border-color: var(--primary); color: #fff; }
+          .${p}-assign-empty { padding: 20px; text-align: center; font-size: 13px; color: var(--gray-lt); }
         </style>
 
         <div class="${p}">
@@ -494,8 +555,8 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
                 </button>
               </div>
 
-              <!-- Editable task table — shown after pull -->
-              <div class="${p}-tbl-zone" id="${p}-tbl-section" style="display:none">
+              <!-- Editable task table -->
+              <div class="${p}-tbl-zone" id="${p}-tbl-section" style="margin-top:16px">
                 <div class="${p}-tbl-meta">
                   <span class="${p}-tbl-label">Review &amp; Edit Tasks</span>
                   <span class="${p}-badge-count" id="${p}-task-count">0 tasks</span>
@@ -518,11 +579,32 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
             </div>
           </div>
 
-          <!-- 3. Optional: update existing list -->
-          ${enableUpdating ? `
+          <!-- 3. Assign to users / groups -->
           <div class="${p}-card">
             <div class="${p}-card-head">
               <span class="${p}-step">3</span>
+              <span class="${p}-card-title">Assign To <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:#9ca3af">(optional)</span></span>
+            </div>
+            <div class="${p}-card-body">
+              <div class="${p}-assign-chips" id="${p}-assign-chips"></div>
+              <div class="${p}-assign-search">
+                <input type="text" id="${p}-assign-search" placeholder="Search users and groups…">
+              </div>
+              <div class="${p}-assign-tabs">
+                <button type="button" class="${p}-assign-tab active" id="${p}-tab-users">Users</button>
+                <button type="button" class="${p}-assign-tab" id="${p}-tab-groups">Groups</button>
+              </div>
+              <div class="${p}-assign-list" id="${p}-assign-list">
+                <div class="${p}-assign-empty">Loading…</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. Optional: update existing list -->
+          ${enableUpdating ? `
+          <div class="${p}-card">
+            <div class="${p}-card-head">
+              <span class="${p}-step">4</span>
               <span class="${p}-card-title">Update Existing List <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:#9ca3af">(optional)</span></span>
             </div>
             <div class="${p}-card-body">
@@ -566,8 +648,7 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
       const optsList   = container.querySelector(`#${p}-opts`)!;
       const listName   = container.querySelector(`#${p}-listname`) as HTMLInputElement;
       const pullBtn    = container.querySelector(`#${p}-pull-btn`) as HTMLButtonElement;
-      const tblSection = container.querySelector(`#${p}-tbl-section`)!;
-      const tbody      = container.querySelector(`#${p}-tbody`)!;
+const tbody      = container.querySelector(`#${p}-tbody`)!;
       const taskCount  = container.querySelector(`#${p}-task-count`)!;
       const addRowBtn  = container.querySelector(`#${p}-add-row`) as HTMLButtonElement;
       const submitBtn  = container.querySelector(`#${p}-submit`) as HTMLButtonElement;
@@ -580,6 +661,11 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
       const existingSel = enableUpdating
         ? (container.querySelector(`#${p}-existing`) as HTMLSelectElement)
         : null;
+      const assignChipsEl   = container.querySelector(`#${p}-assign-chips`)!;
+      const assignListEl    = container.querySelector(`#${p}-assign-list`)!;
+      const assignSearchInp = container.querySelector(`#${p}-assign-search`) as HTMLInputElement;
+      const tabUsersBtn     = container.querySelector(`#${p}-tab-users`) as HTMLButtonElement;
+      const tabGroupsBtn    = container.querySelector(`#${p}-tab-groups`) as HTMLButtonElement;
 
       // ── Helpers ───────────────────────────────────────────────────────
       const authHeaders = () => ({
@@ -819,6 +905,136 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
         }
       }
 
+      // ── Fetch users & groups ──────────────────────────────────────────
+      let assignTab: "user" | "group" = "user";
+
+      async function fetchUsersAndGroups() {
+        try {
+          const [uRes, gRes] = await Promise.all([
+            fetch(`${baseUrl}/users?limit=200`, apiOpts()),
+            fetch(`${baseUrl}/groups?limit=200`, apiOpts()),
+          ]);
+          if (uRes.ok) {
+            const ud = await uRes.json();
+            allUsers = (ud.data || [])
+              .map((u: any) => ({
+                id:     u.id,
+                name:   `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.id,
+                avatar: u.avatar?.icon?.url || "",
+              }))
+              .sort((a: any, b: any) => a.name.localeCompare(b.name));
+          }
+          if (gRes.ok) {
+            const gd = await gRes.json();
+            allGroups = (gd.data || [])
+              .map((g: any) => ({
+                id:   g.id,
+                name: g.config?.localization?.en_US?.title || g.name || g.id,
+              }))
+              .sort((a: any, b: any) => a.name.localeCompare(b.name));
+          }
+          renderAssignList();
+        } catch (_) {
+          assignListEl.innerHTML = `<div class="${p}-assign-empty">Failed to load</div>`;
+        }
+      }
+
+      function renderAssignList(filter = "") {
+        const fl = filter.toLowerCase();
+        if (assignTab === "user") {
+          const matches = allUsers.filter(u => u.name.toLowerCase().includes(fl));
+          if (!matches.length) {
+            assignListEl.innerHTML = `<div class="${p}-assign-empty">No users found</div>`;
+            return;
+          }
+          assignListEl.innerHTML = matches.map(u => {
+            const sel = selectedAssignees.some(a => a.id === u.id);
+            const initials = u.name.split(" ").map((n: string) => n[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+            const avHtml = u.avatar
+              ? `<div class="${p}-assign-avatar"><img src="${esc(u.avatar)}" alt=""></div>`
+              : `<div class="${p}-assign-avatar">${initials}</div>`;
+            return `
+              <div class="${p}-assign-opt ${sel ? "sel" : ""}" data-id="${u.id}" data-type="user" data-name="${esc(u.name)}" data-avatar="${esc(u.avatar)}">
+                ${avHtml}
+                <span class="${p}-assign-name">${esc(u.name)}</span>
+                <span class="${p}-assign-chk">${sel ? "&#10003;" : ""}</span>
+              </div>`;
+          }).join("");
+        } else {
+          const matches = allGroups.filter(g => g.name.toLowerCase().includes(fl));
+          if (!matches.length) {
+            assignListEl.innerHTML = `<div class="${p}-assign-empty">No groups found</div>`;
+            return;
+          }
+          assignListEl.innerHTML = matches.map(g => {
+            const sel = selectedAssignees.some(a => a.id === g.id);
+            const initials = g.name.split(" ").map((n: string) => n[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+            return `
+              <div class="${p}-assign-opt ${sel ? "sel" : ""}" data-id="${g.id}" data-type="group" data-name="${esc(g.name)}" data-avatar="">
+                <div class="${p}-assign-avatar" style="background:var(--gray)">${initials}</div>
+                <span class="${p}-assign-name">${esc(g.name)}</span>
+                <span class="${p}-assign-chk">${sel ? "&#10003;" : ""}</span>
+              </div>`;
+          }).join("");
+        }
+        assignListEl.querySelectorAll(`.${p}-assign-opt`).forEach((opt: Element) =>
+          opt.addEventListener("click", () => toggleAssignee(opt as HTMLElement))
+        );
+      }
+
+      function toggleAssignee(opt: HTMLElement) {
+        const { id, type, name, avatar } = opt.dataset as { id: string; type: "user" | "group"; name: string; avatar: string };
+        const idx = selectedAssignees.findIndex(a => a.id === id);
+        if (idx >= 0) {
+          selectedAssignees.splice(idx, 1);
+        } else {
+          selectedAssignees.push({ id, name, avatar: avatar || "", type });
+        }
+        renderAssignChips();
+        renderAssignList(assignSearchInp.value);
+      }
+
+      function renderAssignChips() {
+        if (!selectedAssignees.length) {
+          assignChipsEl.innerHTML = "";
+          return;
+        }
+        assignChipsEl.innerHTML = selectedAssignees.map(a => {
+          const initials = a.name.split(" ").map((n: string) => n[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+          const bgStyle = a.type === "group" ? "style=\"background:var(--gray)\"" : "";
+          const avHtml = a.avatar
+            ? `<div class="${p}-assign-chip-av"><img src="${esc(a.avatar)}" alt=""></div>`
+            : `<div class="${p}-assign-chip-av" ${bgStyle}>${initials}</div>`;
+          return `
+            <span class="${p}-assign-chip">
+              ${avHtml}
+              ${esc(a.name)}
+              <span class="${p}-assign-chip-x" data-id="${a.id}">&times;</span>
+            </span>`;
+        }).join("");
+        assignChipsEl.querySelectorAll(`.${p}-assign-chip-x`).forEach((btn: Element) =>
+          btn.addEventListener("click", () => {
+            selectedAssignees = selectedAssignees.filter(a => a.id !== (btn as HTMLElement).dataset.id);
+            renderAssignChips();
+            renderAssignList(assignSearchInp.value);
+          })
+        );
+      }
+
+      tabUsersBtn.addEventListener("click", () => {
+        assignTab = "user";
+        tabUsersBtn.classList.add("active");
+        tabGroupsBtn.classList.remove("active");
+        renderAssignList(assignSearchInp.value);
+      });
+      tabGroupsBtn.addEventListener("click", () => {
+        assignTab = "group";
+        tabGroupsBtn.classList.add("active");
+        tabUsersBtn.classList.remove("active");
+        renderAssignList(assignSearchInp.value);
+      });
+      assignSearchInp.addEventListener("input", () => renderAssignList(assignSearchInp.value));
+
       // ── Pull from sheet ───────────────────────────────────────────────
       pullBtn.addEventListener("click", async () => {
         pullBtn.disabled = true;
@@ -851,10 +1067,9 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
           } else {
             tbody.innerHTML = "";
             tasks.forEach(t => addRow(t.title, t.description, t.dueDate ?? ""));
-            (tblSection as HTMLElement).style.display = "block";
             showStatus(
               "success",
-              `Pulled ${tasks.length} task${tasks.length !== 1 ? "s" : ""} — review and edit below, then click Update your Tasks.`
+              `Pulled ${tasks.length} task${tasks.length !== 1 ? "s" : ""} — any existing tasks were replaced. Review and edit below, then click Update your Tasks.`
             );
           }
         } catch (e: any) {
@@ -868,7 +1083,6 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
 
       // ── Add blank row ─────────────────────────────────────────────────
       addRowBtn.addEventListener("click", () => {
-        (tblSection as HTMLElement).style.display = "block";
         addRow();
       });
 
@@ -945,6 +1159,8 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
                   status:      "OPEN",
                   priority:    "Priority_3",
                   taskListId:  listId,
+                  assigneeIds: selectedAssignees.filter(a => a.type === "user").map(a => a.id),
+                  groupIds:    selectedAssignees.filter(a => a.type === "group").map(a => a.id),
                 };
                 if (t.dueDate) body.dueDate = t.dueDate;
                 const r = await fetch(`${baseUrl}/tasks/${store.id}/task`, {
@@ -990,6 +1206,7 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
       listName.value = `Tasks – ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`;
       validate();
       fetchInstallations();
+      fetchUsersAndGroups();
     }
 
     static get observedAttributes() {
