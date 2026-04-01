@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Attestation Widget — Local Preview</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 600px;
+      margin: 40px auto;
+      padding: 0 20px;
+      background: #f5f5f5;
+    }
+    h1 { font-size: 18px; margin-bottom: 24px; color: #333; }
+    .controls {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    .controls label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      color: #444;
+    }
+    .controls input {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 14px;
+      box-sizing: border-box;
+      margin-bottom: 14px;
+    }
+    .controls input:focus {
+      outline: none;
+      border-color: #007bff;
+    }
+    button#render-btn {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 9px 20px;
+      border-radius: 5px;
+      font-size: 14px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button#render-btn:hover { background: #0056b3; }
+    .hint {
+      font-size: 12px;
+      color: #888;
+      margin-top: -10px;
+      margin-bottom: 14px;
+    }
+    #widget-container {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 16px;
+      min-height: 100px;
+    }
+    .status-bar {
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 8px;
+    }
+    .status-bar span { font-weight: 600; color: #333; }
+  </style>
+</head>
+<body>
+  <h1>Attestation Widget — Local Preview</h1>
+
+  <div class="controls">
+    <label>Mock User ID</label>
+    <input id="user-id" type="text" value="preview-user-001" />
+    <p class="hint">Simulates widgetApi.getUserInformation() — use a real Staffbase user ID to hit the actual Google Sheet.</p>
+
+    <label>Resource ID</label>
+    <input id="resourceid" type="text" value="preview-resource-001" />
+    <p class="hint">The resource/post ID users are attesting to.</p>
+
+    <label>Script URL (optional)</label>
+    <input id="scripturl" type="text" placeholder="Leave blank to use the default Google Apps Script URL" />
+
+    <button id="render-btn">Render Widget</button>
+  </div>
+
+  <div class="status-bar" id="status-bar"></div>
+  <div id="widget-container"></div>
+
+  <script>
+    // -------------------------------------------------------------------------
+    // Mock Staffbase widget harness
+    // -------------------------------------------------------------------------
+    window.defineBlock = (externalDef) => {
+      const { factory } = externalDef.blockDefinition;
+
+      // Mock widgetApi — getUserInformation returns whatever is in the input
+      const widgetApi = {
+        getUserInformation: () =>
+          Promise.resolve({
+            id: document.getElementById('user-id').value.trim() || 'mock-user',
+            groupIDs: [],
+          }),
+      };
+
+      // Minimal BaseBlockClass — provides getAttribute/setAttribute like HTMLElement
+      class BaseBlockClass {
+        constructor() {
+          this._attrs = {};
+        }
+        getAttribute(name) {
+          return Object.prototype.hasOwnProperty.call(this._attrs, name)
+            ? this._attrs[name]
+            : null;
+        }
+        setAttribute(name, val) {
+          this._attrs[name] = val;
+        }
+      }
+
+      const WidgetClass = factory(BaseBlockClass, widgetApi);
+
+      document.getElementById('render-btn').addEventListener('click', () => {
+        const instance = new WidgetClass();
+
+        // Push config inputs into the instance as attributes
+        instance._attrs['resourceid'] = document.getElementById('resourceid').value.trim();
+        instance._attrs['scripturl'] = document.getElementById('scripturl').value.trim();
+
+        const container = document.getElementById('widget-container');
+        container.innerHTML = '';
+
+        const bar = document.getElementById('status-bar');
+        bar.innerHTML =
+          'Rendering as user <span>' +
+          (document.getElementById('user-id').value.trim() || 'mock-user') +
+          '</span> · resource <span>' +
+          (document.getElementById('resourceid').value.trim() || '(none)') +
+          '</span>';
+
+        instance.renderBlock(container);
+      });
+
+      // Auto-render on load
+      document.getElementById('render-btn').click();
+    };
+  </script>
+
+  <!-- Load the built widget -->
+  <script src="dist/attestation-widget.js"></script>
+</body>
+</html>
