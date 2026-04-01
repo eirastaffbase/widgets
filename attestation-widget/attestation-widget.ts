@@ -20,6 +20,7 @@ const configurationSchema: JSONSchema7 = {
     scripturl: {
       type: "string",
       title: "Google Apps Script URL",
+      default: "https://script.google.com/macros/s/AKfycbzjRX4XgKyPk4mW0QeaaHjd5Xp5yaFtUsaVmNi0H0IGEOHIeht4PpRmh5zrTlMx2LQ50w/exec",
     },
   },
 };
@@ -571,6 +572,12 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         saveBtn.textContent = "Saving...";
         saveBtn.disabled = true;
         clearBtn.disabled = true;
+
+        // In offline/fallback mode simulate a successful save for demo purposes
+        if (!googleSheetOnline) {
+          setTimeout(() => this.renderResultView(container, svgString, false), 800);
+          return;
+        }
 
         fetch(scriptUrl, {
           method: "POST",
