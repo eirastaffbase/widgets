@@ -40,9 +40,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 var _a;
                 const resourceId = this.getAttribute("resourceid") || "";
                 const scriptUrl = ((_a = this.getAttribute("scripturl")) === null || _a === void 0 ? void 0 : _a.trim()) || DEFAULT_SCRIPT_URL;
-                container.innerHTML =
-                    this.buildStyles() +
-                        `<div class="att-wrap"><h2>Checking for signature...</h2></div>`;
+                container.innerHTML = this.buildStyles() + this.buildLoadingHTML();
                 // Get the logged-in user via the widget SDK (same approach as industry-switcher)
                 let userId = "";
                 try {
@@ -90,63 +88,242 @@ const factory = (BaseBlockClass, widgetApi) => {
             });
         }
         buildStyles() {
-            return `<style>
-        .att-wrap {
-          font-family: Helvetica, Arial, sans-serif;
-          text-align: center;
-          padding: 10px;
-          box-sizing: border-box;
-          overflow: hidden;
+            return `
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+        <style>
+          .att-wrap {
+            font-family: 'Outfit', sans-serif;
+            max-width: 480px;
+            padding: 28px 24px 24px;
+            box-sizing: border-box;
+          }
+
+          /* ── Loading ── */
+          .att-loading {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0;
+            color: #8C8880;
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+          }
+          .att-loading-dots {
+            display: flex;
+            gap: 4px;
+          }
+          .att-loading-dots span {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: #C4BFB8;
+            animation: att-pulse 1.2s ease-in-out infinite;
+          }
+          .att-loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+          .att-loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+          @keyframes att-pulse {
+            0%, 80%, 100% { opacity: 0.3; transform: scale(0.9); }
+            40% { opacity: 1; transform: scale(1); }
+          }
+
+          /* ── Header ── */
+          .att-header {
+            margin-bottom: 20px;
+          }
+          .att-eyebrow {
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: #8C8880;
+            margin: 0 0 6px;
+          }
+          .att-heading {
+            font-family: 'Instrument Serif', serif;
+            font-size: 24px;
+            font-weight: 400;
+            color: #1C1B19;
+            margin: 0;
+            line-height: 1.25;
+          }
+          .att-subtext {
+            font-size: 13px;
+            color: #8C8880;
+            margin: 6px 0 0;
+            font-weight: 300;
+            line-height: 1.5;
+          }
+
+          /* ── Signature pad area ── */
+          .att-pad-wrap {
+            margin-top: 18px;
+            border-radius: 6px;
+            overflow: hidden;
+            transition: box-shadow 0.25s ease;
+          }
+          /* Green = Google Sheet reachable */
+          .att-pad-wrap.online {
+            border: 1.5px solid #2D5A3D;
+            box-shadow: 0 0 0 3px rgba(45, 90, 61, 0.07);
+          }
+          /* Blue = offline / fallback */
+          .att-pad-wrap.offline {
+            border: 1.5px dashed #2B4B7A;
+            box-shadow: 0 0 0 3px rgba(43, 75, 122, 0.07);
+          }
+          .att-pad-inner {
+            position: relative;
+            background: #F8F7F5;
+          }
+          .att-pad-watermark {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            user-select: none;
+          }
+          .att-pad-watermark span {
+            font-family: 'Instrument Serif', serif;
+            font-style: italic;
+            font-size: 15px;
+            color: rgba(0,0,0,0.08);
+            letter-spacing: 0.04em;
+          }
+          #att-signature-pad {
+            display: block;
+            width: 100%;
+            max-width: 100%;
+            cursor: crosshair;
+            touch-action: none;
+          }
+          .att-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            margin-top: 8px;
+            font-size: 10px;
+            font-weight: 500;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+          }
+          .att-status-badge .att-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            flex-shrink: 0;
+          }
+          .att-status-badge.online  { color: #2D5A3D; }
+          .att-status-badge.online  .att-dot { background: #2D5A3D; }
+          .att-status-badge.offline { color: #2B4B7A; }
+          .att-status-badge.offline .att-dot { background: #2B4B7A; }
+
+          /* ── Buttons ── */
+          .att-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 18px;
+          }
+          .att-btn {
+            font-family: 'Outfit', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            padding: 10px 20px;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+            letter-spacing: 0.02em;
+            transition: opacity 0.15s, background 0.15s;
+            white-space: nowrap;
+          }
+          .att-btn:active { opacity: 0.8; }
+          #att-clear-btn {
+            background: transparent;
+            color: #8C8880;
+            border: 1px solid #DDD9D3;
+            flex-shrink: 0;
+          }
+          #att-clear-btn:hover { border-color: #C4BFB8; color: #5A5750; }
+          #att-save-btn {
+            background: #1C1B19;
+            color: #F8F7F5;
+            flex: 1;
+          }
+          #att-save-btn:hover { background: #2E2D2A; }
+          #att-save-btn:disabled {
+            background: #E5E2DB;
+            color: #B0ADA8;
+            cursor: default;
+          }
+
+          /* ── Result / already-signed view ── */
+          .att-result-card {
+            margin-top: 16px;
+            border: 1px solid #E5E2DB;
+            border-radius: 6px;
+            overflow: hidden;
+            background: #F8F7F5;
+          }
+          .att-result-sig {
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 120px;
+          }
+          .att-result-sig svg {
+            max-width: 100%;
+            max-height: 140px;
+          }
+          .att-result-footer {
+            padding: 10px 16px;
+            border-top: 1px solid #E5E2DB;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 12px;
+            color: #8C8880;
+            font-weight: 400;
+          }
+          .att-check-icon {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #2D5A3D;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+          }
+          .att-check-icon svg {
+            width: 9px;
+            height: 9px;
+          }
+
+          /* ── Fade-in on state change ── */
+          @keyframes att-fadein {
+            from { opacity: 0; transform: translateY(4px); }
+            to   { opacity: 1; transform: translateY(0); }
+          }
+          .att-animate {
+            animation: att-fadein 0.3s ease forwards;
+          }
+        </style>`;
         }
-        .att-wrap h2, .att-wrap h3 {
-          word-break: break-word;
-          max-width: 100%;
-        }
-        .att-signature-container {
-          display: inline-block;
-          border-radius: 5px;
-          margin-top: 10px;
-          max-width: 100%;
-        }
-        /* Green outline = Google Sheet is reachable */
-        .att-signature-container.online  { border: 2px dashed #28a745; }
-        /* Blue outline  = Google Sheet unavailable (fallback mode) */
-        .att-signature-container.offline { border: 2px dashed #007bff; }
-        #att-signature-pad {
-          background-color: #fff;
-          cursor: crosshair;
-          display: block;
-          max-width: 100%;
-        }
-        .att-button-container { margin-top: 15px; }
-        .att-btn {
-          font-size: 1rem;
-          padding: 10px 15px;
-          border: none;
-          border-radius: 5px;
-          cursor: pointer;
-          margin: 0 5px;
-        }
-        #att-clear-btn { background-color: #dc3545; color: white; }
-        #att-save-btn  { background-color: #28a745; color: white; }
-        #att-save-btn:disabled { background-color: #ccc; color: #666; cursor: default; }
-        #att-signature-display {
-          max-width: 100%;
-          min-height: 200px;
-          background-color: #fff;
-          color: #333;
-          text-align: center;
-          padding: 10px;
-          border-radius: 5px;
-          border: 1px solid #ddd;
-          box-sizing: border-box;
-          display: grid;
-          place-items: center;
-          margin-top: 10px;
-          overflow-y: auto;
-        }
-        #att-signature-display svg { max-width: 100%; }
-      </style>`;
+        buildLoadingHTML() {
+            return `<div class="att-wrap">
+        <div class="att-loading">
+          <div class="att-loading-dots">
+            <span></span><span></span><span></span>
+          </div>
+          Verifying
+        </div>
+      </div>`;
         }
         // ---------------------------------------------------------------------------
         // View renderers
@@ -155,16 +332,27 @@ const factory = (BaseBlockClass, widgetApi) => {
             const borderClass = googleSheetOnline ? "online" : "offline";
             // Disable save if we don't have both IDs (nothing to save against)
             const canSave = !!(userId && resourceId);
+            const statusLabel = googleSheetOnline ? "Connected" : "Offline mode";
             container.innerHTML =
                 this.buildStyles() +
-                    `<div class="att-wrap">
-          <h2>Please sign below:</h2>
-          <div class="att-signature-container ${borderClass}">
-            <svg id="att-signature-pad" width="400" height="200"></svg>
+                    `<div class="att-wrap att-animate">
+          <div class="att-header">
+            <p class="att-eyebrow">Attestation</p>
+            <h2 class="att-heading">Sign below</h2>
+            <p class="att-subtext">Draw your signature to confirm your attestation.</p>
           </div>
-          <div class="att-button-container">
+          <div class="att-pad-wrap ${borderClass}">
+            <div class="att-pad-inner">
+              <div class="att-pad-watermark"><span>Sign here</span></div>
+              <svg id="att-signature-pad" width="400" height="180" viewBox="0 0 400 180"></svg>
+            </div>
+          </div>
+          <div class="att-status-badge ${borderClass}">
+            <span class="att-dot"></span>${statusLabel}
+          </div>
+          <div class="att-actions">
             <button class="att-btn" id="att-clear-btn">Clear</button>
-            <button class="att-btn" id="att-save-btn"${!canSave ? ' disabled style="background-color:#ccc;color:#666"' : ""}>Save signature</button>
+            <button class="att-btn" id="att-save-btn"${!canSave ? " disabled" : ""}>Save signature</button>
           </div>
         </div>`;
             this.attachPadHandlers(container, userId, resourceId, scriptUrl, googleSheetOnline);
@@ -176,13 +364,29 @@ const factory = (BaseBlockClass, widgetApi) => {
                 fixedSvg = fixedSvg.replace("<svg", '<svg viewBox="0 0 400 200"');
             }
             const heading = alreadySigned
-                ? "Welcome back! You have already signed for this resource."
-                : "Signature saved!";
+                ? "Already on file"
+                : "Attestation recorded";
+            const subtext = alreadySigned
+                ? "Your signature has been recorded for this resource."
+                : "Your signature has been saved successfully.";
+            const checkIcon = `<svg viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M2 5.2L4.1 7.5L8 3" stroke="white" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`;
             container.innerHTML =
                 this.buildStyles() +
-                    `<div class="att-wrap">
-          <h3>${heading}</h3>
-          <div id="att-signature-display">${fixedSvg}</div>
+                    `<div class="att-wrap att-animate">
+          <div class="att-header">
+            <p class="att-eyebrow">Attestation</p>
+            <h2 class="att-heading">${heading}</h2>
+            <p class="att-subtext">${subtext}</p>
+          </div>
+          <div class="att-result-card">
+            <div class="att-result-sig">${fixedSvg}</div>
+            <div class="att-result-footer">
+              <span class="att-check-icon">${checkIcon}</span>
+              Signature on record
+            </div>
+          </div>
         </div>`;
         }
         // ---------------------------------------------------------------------------
