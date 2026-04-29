@@ -15,6 +15,18 @@ const DEFAULT_API_TOKEN = "NjljMjU3N2JjZmFjZWYxMzc4MzIzYTNkOkp6VEpkaGlfclRyRDk4b
 const DEFAULT_BASE_URL = "https://app.staffbase.com/api";
 const DEFAULT_PRIMARY_COLOR = "#da2e32";
 const DEFAULT_ACCENT_COLOR = "#da2e32";
+// ── Color utilities ───────────────────────────────────────────────────────────
+function hexToRgb(hex) {
+    const h = (hex.replace("#", "") + "000000").slice(0, 6);
+    return `${parseInt(h.slice(0, 2), 16) || 0},${parseInt(h.slice(2, 4), 16) || 0},${parseInt(h.slice(4, 6), 16) || 0}`;
+}
+function contrastColor(hex) {
+    const h = (hex.replace("#", "") + "000000").slice(0, 6);
+    const r = parseInt(h.slice(0, 2), 16) / 255, g = parseInt(h.slice(2, 4), 16) / 255, b = parseInt(h.slice(4, 6), 16) / 255;
+    const lin = (c) => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+    return L > 0.179 ? "#1a1a1a" : "#ffffff";
+}
 // ── Config schema ─────────────────────────────────────────────────────────────
 const configurationSchema = {
     properties: {
@@ -135,6 +147,8 @@ const factory = (BaseBlockClass, _widgetApi) => {
                 const baseUrl = (this.getAttribute("baseurl") || DEFAULT_BASE_URL).replace(/\/$/, "");
                 const primaryColor = this.getAttribute("primarycolor") || DEFAULT_PRIMARY_COLOR;
                 const accentColor = this.getAttribute("accentcolor") || DEFAULT_ACCENT_COLOR;
+                const primaryRgb = hexToRgb(primaryColor);
+                const primaryText = contrastColor(primaryColor);
                 const bgColor = this.getAttribute("backgroundcolor") || "";
                 const storeS = this.getAttribute("storelabelsingular") || "Store";
                 const storeP = this.getAttribute("storelabelplural") || "Stores";
@@ -157,8 +171,10 @@ const factory = (BaseBlockClass, _widgetApi) => {
                 container.innerHTML = `
         <style>
           .${p} {
-            --primary: ${primaryColor};
-            --accent:  ${accentColor};
+            --primary:      ${primaryColor};
+            --primary-rgb:  ${primaryRgb};
+            --primary-text: ${primaryText};
+            --accent:       ${accentColor};
             --dark:    #1A1A1A;
             --gray:    #6b7280;
             --gray-lt: #9ca3af;
@@ -190,7 +206,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
           }
           .${p}-card:hover,
           .${p}-card:focus-within {
-            background: rgba(218,46,50,.015);
+            background: rgba(var(--primary-rgb),.015);
             box-shadow: 0 2px 8px rgba(0,0,0,.06);
           }
           .${p}-card-head {
@@ -200,7 +216,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
           }
           .${p}-step {
             width: 22px; height: 22px; border-radius: 50%;
-            background: var(--primary); color: #fff;
+            background: var(--primary); color: var(--primary-text);
             font-size: 11px; font-weight: 800;
             display: flex; align-items: center; justify-content: center;
             flex-shrink: 0;
@@ -228,7 +244,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
           .${p}-input::placeholder { color: var(--gray-lt); }
           .${p}-input:focus {
             outline: none; border-color: var(--primary); background: #fff;
-            box-shadow: 0 0 0 3px rgba(218,46,50,.1);
+            box-shadow: 0 0 0 3px rgba(var(--primary-rgb),.1);
           }
 
           /* ── Input + icon-button row ───────────────────────── */
@@ -236,15 +252,15 @@ const factory = (BaseBlockClass, _widgetApi) => {
           .${p}-input-group .${p}-input { flex: 1; }
           .${p}-icon-btn {
             width: 42px; border: none; border-radius: var(--r-md);
-            background: var(--primary); color: #fff; cursor: pointer;
+            background: var(--primary); color: var(--primary-text); cursor: pointer;
             display: flex; align-items: center; justify-content: center;
             flex-shrink: 0;
-            box-shadow: 0 2px 8px rgba(218,46,50,.35);
+            box-shadow: 0 2px 8px rgba(var(--primary-rgb),.35);
             transition: filter .15s, transform .15s, box-shadow .15s;
           }
           .${p}-icon-btn:hover:not(:disabled) {
             filter: brightness(.88); transform: translateY(-1px);
-            box-shadow: 0 4px 14px rgba(218,46,50,.4);
+            box-shadow: 0 4px 14px rgba(var(--primary-rgb),.4);
           }
           .${p}-icon-btn:active:not(:disabled) { transform: translateY(0); }
           .${p}-icon-btn:disabled { opacity: .4; cursor: not-allowed; }
@@ -269,7 +285,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
           .${p}-ms-ph { color: var(--gray-lt); font-size: 14px; }
           .${p}-tag {
             display: inline-flex; align-items: center; gap: 4px;
-            background: var(--primary); color: #fff;
+            background: var(--primary); color: var(--primary-text);
             padding: 3px 8px; border-radius: 20px;
             font-size: 12px; font-weight: 600;
           }
@@ -298,7 +314,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
           }
           .${p}-dd-opt:last-child { border-bottom: none; }
           .${p}-dd-opt:hover { background: #fef2f2; }
-          .${p}-dd-opt.sel { background: rgba(218,46,50,.06); }
+          .${p}-dd-opt.sel { background: rgba(var(--primary-rgb),.06); }
           .${p}-check {
             width: 16px; height: 16px; border: 1.5px solid #d1d5db;
             border-radius: 3px; flex-shrink: 0; font-size: 10px;
@@ -325,7 +341,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
             text-transform: uppercase; letter-spacing: .4px;
           }
           .${p}-badge-count {
-            background: var(--primary); color: #fff;
+            background: var(--primary); color: var(--primary-text);
             padding: 2px 9px; border-radius: 20px;
             font-size: 11px; font-weight: 700;
           }
@@ -399,7 +415,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
             border-color: var(--primary);
             background: var(--primary);
             color: #fff;
-            box-shadow: 0 2px 8px rgba(218,46,50,.22);
+            box-shadow: 0 2px 8px rgba(var(--primary-rgb),.22);
             outline: none;
           }
 
@@ -422,10 +438,10 @@ const factory = (BaseBlockClass, _widgetApi) => {
           .${p}-btn svg { width: 16px; height: 16px; }
           .${p}-btn:disabled { opacity: .4; cursor: not-allowed !important; transform: none !important; box-shadow: none !important; }
           .${p}-btn-primary {
-            background: var(--primary); color: #fff;
-            box-shadow: 0 3px 10px rgba(218,46,50,.3);
+            background: var(--primary); color: var(--primary-text);
+            box-shadow: 0 3px 10px rgba(var(--primary-rgb),.3);
           }
-          .${p}-btn-primary:hover:not(:disabled) { filter: brightness(.88); transform: translateY(-1px); box-shadow: 0 5px 16px rgba(218,46,50,.4); }
+          .${p}-btn-primary:hover:not(:disabled) { filter: brightness(.88); transform: translateY(-1px); box-shadow: 0 5px 16px rgba(var(--primary-rgb),.4); }
           .${p}-spin {
             width: 14px; height: 14px; border-radius: 50%;
             border: 2px solid rgba(255,255,255,.35); border-top-color: #fff;
@@ -460,19 +476,19 @@ const factory = (BaseBlockClass, _widgetApi) => {
           }
           .${p}-status.success { background: rgba(46,125,74,.08); border: 1px solid rgba(46,125,74,.25); color: var(--success); }
           .${p}-status.error   { background: rgba(196,30,58,.08); border: 1px solid rgba(196,30,58,.25); color: var(--error); }
-          .${p}-status.info    { background: rgba(218,46,50,.06); border: 1px solid rgba(218,46,50,.2); color: var(--primary); }
+          .${p}-status.info    { background: rgba(var(--primary-rgb),.06); border: 1px solid rgba(var(--primary-rgb),.2); color: var(--primary); }
 
           /* ── Assignee picker ───────────────────────────────────── */
           .${p}-assign-chips { display: flex; flex-wrap: wrap; gap: 6px; min-height: 0; margin-bottom: 10px; }
           .${p}-assign-chip {
             display: inline-flex; align-items: center; gap: 5px;
             padding: 3px 8px 3px 4px; border-radius: 20px;
-            background: rgba(218,46,50,.07); border: 1px solid rgba(218,46,50,.2);
+            background: rgba(var(--primary-rgb),.07); border: 1px solid rgba(var(--primary-rgb),.2);
             font-size: 12px; font-weight: 500; color: var(--dark);
           }
           .${p}-assign-chip-av {
             width: 20px; height: 20px; border-radius: 50%; overflow: hidden;
-            background: var(--primary); color: #fff;
+            background: var(--primary); color: var(--primary-text);
             display: flex; align-items: center; justify-content: center;
             font-size: 9px; font-weight: 700; flex-shrink: 0;
           }
@@ -491,7 +507,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
             font-size: 12px; font-weight: 600; background: #f9fafb; color: var(--gray);
             cursor: pointer; text-align: center; transition: all .15s; font-family: inherit;
           }
-          .${p}-assign-tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+          .${p}-assign-tab.active { background: var(--primary); color: var(--primary-text); border-color: var(--primary); }
           .${p}-assign-list {
             max-height: 200px; overflow-y: auto;
             border: 1px solid var(--border); border-radius: var(--r-sm); background: #fff;
@@ -503,10 +519,10 @@ const factory = (BaseBlockClass, _widgetApi) => {
           }
           .${p}-assign-opt:last-child { border-bottom: none; }
           .${p}-assign-opt:hover { background: #f9fafb; }
-          .${p}-assign-opt.sel { background: rgba(218,46,50,.04); }
+          .${p}-assign-opt.sel { background: rgba(var(--primary-rgb),.04); }
           .${p}-assign-avatar {
             width: 30px; height: 30px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
-            background: var(--primary); color: #fff;
+            background: var(--primary); color: var(--primary-text);
             display: flex; align-items: center; justify-content: center;
             font-size: 11px; font-weight: 700;
           }

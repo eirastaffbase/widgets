@@ -102,6 +102,21 @@ const uiSchema: UiSchema = {
   },
 };
 
+// ── Color utilities ───────────────────────────────────────────────────────────
+
+function hexToRgb(hex: string): string {
+  const h = (hex.replace("#", "") + "000000").slice(0, 6);
+  return `${parseInt(h.slice(0,2),16)||0},${parseInt(h.slice(2,4),16)||0},${parseInt(h.slice(4,6),16)||0}`;
+}
+
+function contrastColor(hex: string): string {
+  const h = (hex.replace("#", "") + "000000").slice(0, 6);
+  const r = parseInt(h.slice(0,2),16)/255, g = parseInt(h.slice(2,4),16)/255, b = parseInt(h.slice(4,6),16)/255;
+  const lin = (c: number) => c <= 0.03928 ? c/12.92 : Math.pow((c+0.055)/1.055, 2.4);
+  const L = 0.2126*lin(r) + 0.7152*lin(g) + 0.0722*lin(b);
+  return L > 0.179 ? "#1a1a1a" : "#ffffff";
+}
+
 // ── Task type parsing ─────────────────────────────────────────────────────────
 
 const TYPE_REGEX = /\[type:\s*([^\]]+)\]/i;
@@ -167,6 +182,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const showAll      = this.getAttribute("showalltasks") === "true";
       const showDone     = this.getAttribute("showdonetasks") !== "false";
 
+      const primaryRgb  = hexToRgb(primaryColor);
+      const primaryText = contrastColor(primaryColor);
+
       const p = "mtw";
 
       // ── State ──────────────────────────────────────────────────────────
@@ -192,8 +210,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       container.innerHTML = `
         <style>
           .${p} {
-            --primary: ${primaryColor};
-            --accent:  ${accentColor};
+            --primary:      ${primaryColor};
+            --primary-rgb:  ${primaryRgb};
+            --primary-text: ${primaryText};
+            --accent:       ${accentColor};
             --dark:    #1A1A1A;
             --gray:    #6b7280;
             --gray-lt: #9ca3af;
@@ -226,7 +246,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             background: var(--primary); flex-shrink: 0;
           }
           .${p}-badge-count {
-            background: var(--primary); color: #fff;
+            background: var(--primary); color: var(--primary-text);
             padding: 2px 9px; border-radius: 20px;
             font-size: 11px; font-weight: 700;
           }
@@ -236,30 +256,33 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             display: flex; align-items: center; justify-content: center;
             color: var(--gray); transition: all .15s;
           }
-          .${p}-refresh-btn:hover { border-color: var(--primary); color: var(--primary); background: rgba(218,46,50,.05); }
+          .${p}-refresh-btn:hover { border-color: var(--primary); color: var(--primary); background: rgba(var(--primary-rgb),.05); }
           .${p}-refresh-btn:disabled { opacity: .4; cursor: not-allowed; }
           .${p}-spin {
             width: 14px; height: 14px; border-radius: 50%;
-            border: 2px solid rgba(218,46,50,.25); border-top-color: var(--primary);
+            border: 2px solid rgba(var(--primary-rgb),.25); border-top-color: var(--primary);
             animation: ${p}-spin .7s linear infinite; flex-shrink: 0; display: inline-block;
           }
           @keyframes ${p}-spin { to { transform: rotate(360deg); } }
 
-          /* ── Store tabs (real tab bar) ──────────────────────── */
+          /* ── Store tabs ─────────────────────────────────────── */
           .${p}-store-tabs {
-            display: flex; overflow-x: auto; scrollbar-width: none;
-            border-bottom: 2px solid var(--border); margin-bottom: 14px; gap: 0;
+            display: flex; flex-wrap: wrap; gap: 4px;
+            margin-bottom: 14px;
           }
-          .${p}-store-tabs::-webkit-scrollbar { display: none; }
           .${p}-store-tab {
-            padding: 7px 16px; border: none; background: none;
-            border-bottom: 2px solid transparent; margin-bottom: -2px;
-            font-size: 13px; font-weight: 600; color: var(--gray);
+            display: inline-flex; align-items: center; width: auto;
+            padding: 5px 12px; border-radius: 20px;
+            border: 1.5px solid var(--border); background: #fff;
+            font-size: 12px; font-weight: 600; color: var(--gray);
             cursor: pointer; font-family: inherit; transition: all .15s;
             white-space: nowrap; flex-shrink: 0;
           }
-          .${p}-store-tab:hover { color: var(--dark); }
-          .${p}-store-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+          .${p}-store-tab:hover { border-color: var(--primary); color: var(--primary); }
+          .${p}-store-tab.active {
+            background: var(--primary); border-color: var(--primary);
+            color: var(--primary-text);
+          }
 
           /* ── Filter bar ────────────────────────────────────── */
           .${p}-filters {
@@ -295,7 +318,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             cursor: pointer; font-family: inherit; text-align: left; transition: background .1s;
           }
           .${p}-type-opt:hover { background: rgba(0,0,0,.04); color: var(--dark); }
-          .${p}-type-opt.active { font-weight: 700; color: var(--dark); background: rgba(218,46,50,.06); }
+          .${p}-type-opt.active { font-weight: 700; color: var(--dark); background: rgba(var(--primary-rgb),.06); }
           .${p}-type-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 
           /* Status toggle */
@@ -309,7 +332,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             cursor: pointer; color: var(--gray); font-family: inherit;
             border: none; background: none; transition: all .15s;
           }
-          .${p}-status-opt.active { background: var(--primary); color: #fff; }
+          .${p}-status-opt.active { background: var(--primary); color: var(--primary-text); }
 
           /* ── Task cards ────────────────────────────────────── */
           .${p}-list { display: flex; flex-direction: column; gap: 8px; }
@@ -345,7 +368,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             cursor: pointer; display: flex; align-items: center;
             justify-content: center; transition: all .15s; flex-shrink: 0;
           }
-          .${p}-check:hover { border-color: var(--primary); background: rgba(218,46,50,.05); }
+          .${p}-check:hover { border-color: var(--primary); background: rgba(var(--primary-rgb),.05); }
           .${p}-check.checked { background: var(--success); border-color: var(--success); }
           .${p}-check-icon { display: none; }
           .${p}-check.checked .${p}-check-icon { display: block; }
@@ -406,7 +429,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             margin-bottom: 12px; font-size: 13px; line-height: 1.5;
           }
           .${p}-banner.error { background: rgba(196,30,58,.08); border: 1px solid rgba(196,30,58,.25); color: var(--error); }
-          .${p}-banner.info  { background: rgba(218,46,50,.06); border: 1px solid rgba(218,46,50,.2); color: var(--primary); }
+          .${p}-banner.info  { background: rgba(var(--primary-rgb),.06); border: 1px solid rgba(var(--primary-rgb),.2); color: var(--primary); }
 
           /* ── Section divider ────────────────────────────────── */
           .${p}-section-label {
@@ -712,11 +735,12 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         const isDone  = task.status === "DONE" || task.status === "done";
         const dueInfo = formatDate(task.dueDate);
         const desc    = task.description ? esc(stripTypeTag(task.description)) : "";
-        const typeCol = task.taskType ? typeColor(task.taskType) : "";
-        const prioCol = priorityColor(task.priority);
+        const typeCol  = task.taskType ? typeColor(task.taskType) : "";
+        const typeText = task.taskType ? contrastColor(typeCol) : "";
+        const prioCol  = priorityColor(task.priority);
 
         const typeBadge = task.taskType
-          ? `<span class="${p}-type-badge" style="background:${typeCol}">${esc(task.taskType)}</span>`
+          ? `<span class="${p}-type-badge" style="background:${typeCol};color:${typeText}">${esc(task.taskType)}</span>`
           : "";
         const prioBadge = task.priority && task.priority !== "Priority_3"
           ? `<span class="${p}-prio-badge" style="color:${prioCol};border-color:${prioCol}">${priorityLabel(task.priority)}</span>`

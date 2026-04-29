@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Widget Preview</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f3f4f6; min-height: 100vh;
+  }
+
+  /* ── Toolbar ─────────────────────────────────────────── */
+  #toolbar {
+    position: sticky; top: 0; z-index: 999;
+    background: #1a1a1a; color: #fff;
+    padding: 10px 24px; display: flex; align-items: center; gap: 16px;
+    flex-wrap: wrap; box-shadow: 0 2px 8px rgba(0,0,0,.35);
+  }
+  #toolbar h1 { font-size: 14px; font-weight: 700; margin-right: 8px; white-space: nowrap; }
+  .ctrl { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #d1d5db; white-space: nowrap; }
+  .ctrl input[type=color] {
+    width: 30px; height: 30px; border: 2px solid #374151; border-radius: 6px;
+    cursor: pointer; background: none; padding: 0;
+  }
+  #bg-toggle {
+    display: flex; gap: 4px;
+  }
+  #bg-toggle button {
+    padding: 5px 10px; border-radius: 5px; border: 1.5px solid #374151;
+    background: none; color: #9ca3af; font-size: 11px; font-weight: 600;
+    cursor: pointer; font-family: inherit; transition: all .15s;
+  }
+  #bg-toggle button.active { background: #374151; color: #fff; }
+  #apply-btn {
+    padding: 7px 16px; border-radius: 7px; border: none;
+    background: #da2e32; color: #fff; font-size: 12px; font-weight: 700;
+    cursor: pointer; font-family: inherit; margin-left: auto;
+    transition: filter .15s;
+  }
+  #apply-btn:hover { filter: brightness(.88); }
+
+  /* ── Layout ──────────────────────────────────────────── */
+  #stage {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 24px; padding: 24px; max-width: 1400px; margin: 0 auto;
+  }
+  @media (max-width: 900px) { #stage { grid-template-columns: 1fr; } }
+
+  .widget-panel {
+    background: #fff; border-radius: 14px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.07);
+    overflow: hidden;
+  }
+  .widget-panel-label {
+    background: #f9fafb; border-bottom: 1px solid #e5e7eb;
+    padding: 10px 16px; font-size: 11px; font-weight: 700;
+    letter-spacing: .5px; text-transform: uppercase; color: #6b7280;
+  }
+  .widget-inner { padding: 0; }
+
+  #status-bar {
+    position: fixed; bottom: 16px; right: 16px;
+    background: #1a1a1a; color: #fff; font-size: 12px;
+    padding: 8px 14px; border-radius: 8px;
+    display: none; z-index: 9999;
+  }
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+  <h1>Widget Preview</h1>
+
+  <div class="ctrl">
+    <label>Primary</label>
+    <input type="color" id="c-primary" value="#da2e32">
+  </div>
+  <div class="ctrl">
+    <label>Accent</label>
+    <input type="color" id="c-accent" value="#da2e32">
+  </div>
+  <div class="ctrl">
+    <label>Background</label>
+    <div id="bg-toggle">
+      <button class="active" data-bg="">None</button>
+      <button data-bg="#ffffff">White</button>
+      <button data-bg="#f3f4f6">Gray</button>
+      <button data-bg="#1a1a1a">Dark</button>
+    </div>
+  </div>
+
+  <button id="apply-btn">Apply Colors</button>
+</div>
+
+<div id="stage">
+  <div class="widget-panel">
+    <div class="widget-panel-label">My Tasks Widget</div>
+    <div class="widget-inner" id="mtw-host"></div>
+  </div>
+  <div class="widget-panel">
+    <div class="widget-panel-label">Tasks Integration Widget</div>
+    <div class="widget-inner" id="tiw-host"></div>
+  </div>
+</div>
+
+<div id="status-bar"></div>
+
+<script>
+// ── Mock SDK ─────────────────────────────────────────────────────────────────
+
+const MOCK_USER_ID    = "preview-user-001";
+const MOCK_GROUP_ID   = "preview-group-cv";
+
+const mockWidgetApi = {
+  getUserInformation: async (id) => ({
+    id: MOCK_USER_ID,
+    firstName: "Nicole",
+    lastName: "Preview",
+    groupIDs: [MOCK_GROUP_ID],
+  }),
+  getLegacyAppTheme: () => ({
+    bgColor: "#da2e32", textColor: "#fff",
+    colors: { clientPrimary: "#da2e32", clientSecondary: "#fff" },
+  }),
+  getBranchInformation: () => ({ slug: "preview", branchId: "preview", webUrl: "", flags: [] }),
+};
+
+class MockBaseBlock {
+  constructor() { this._attrs = {}; }
+  getAttribute(n) { return this._attrs.hasOwnProperty(n) ? this._attrs[n] : null; }
+  setAttribute(n, v) { this._attrs[n] = String(v); }
+}
+
+const registeredBlocks = {};
+window.defineBlock = (def) => { registeredBlocks[def.blockDefinition.name] = def; };
+
+// ── Mock task data ────────────────────────────────────────────────────────────
+
+const MOCK_TASKS_INST1 = [
+  {
+    id: "t1", title: "EOM Inventory Count",
+    description: "Complete full store inventory count for April. [type: Finance]",
+    status: "OPEN", dueDate: "2026-04-30T00:00:00Z",
+    priority: "Priority_1", taskListId: "list1",
+    assigneeIds: [MOCK_USER_ID], groupIds: [],
+  },
+  {
+    id: "t2", title: "Drive-Thru Speed of Service Focus",
+    description: "Review April drive-thru times with shift leads. [type: Operations]",
+    status: "OPEN", dueDate: "2026-05-06T00:00:00Z",
+    priority: "Priority_2", taskListId: "list1",
+    assigneeIds: [MOCK_USER_ID], groupIds: [],
+  },
+  {
+    id: "t3", title: "Q2 Food Safety Certification",
+    description: "Ensure all shift leads have completed ServSafe. [type: Compliance]",
+    status: "OPEN", dueDate: "2026-05-15T00:00:00Z",
+    priority: "Priority_3", taskListId: "list1",
+    assigneeIds: [MOCK_USER_ID], groupIds: [],
+  },
+  {
+    id: "t4", title: '"Guest Love" Training Module',
+    description: 'Complete the 15-min customer interaction refresher. [type: Training]',
+    status: "DONE", dueDate: "2026-05-20T00:00:00Z",
+    priority: "Priority_3", taskListId: "list1",
+    assigneeIds: [MOCK_USER_ID], groupIds: [],
+  },
+  {
+    id: "t5", title: "Walk-In Cooler Deep Clean",
+    description: "Execute quarterly cooler cleaning checklist.",
+    status: "OPEN", dueDate: "2026-05-25T00:00:00Z",
+    priority: "Priority_3", taskListId: "list1",
+    assigneeIds: [MOCK_USER_ID], groupIds: [],
+  },
+];
+
+const MOCK_TASKS_INST2 = [
+  {
+    id: "t6", title: "Community Volunteering Day",
+    description: "Coordinate team for the local food bank event.",
+    status: "OPEN", dueDate: "2026-05-10T00:00:00Z",
+    priority: "Priority_2", taskListId: "list2",
+    assigneeIds: [], groupIds: [MOCK_GROUP_ID],
+  },
+];
+
+// ── Mock fetch ────────────────────────────────────────────────────────────────
+
+const _realFetch = window.fetch.bind(window);
+window.fetch = async (url, opts) => {
+  const u = String(url);
+
+  // Staffbase API mocks
+  if (u.includes("app.staffbase.com") || u.includes("/api/")) {
+    await new Promise(r => setTimeout(r, 180)); // tiny fake delay
+
+    if (u.includes("/installations")) {
+      return mockJson({ data: [
+        { id: "inst1", pluginID: "tasks", config: { localization: { en_US: { title: "Panda Express #1234" } } } },
+        { id: "inst2", pluginID: "tasks", config: { localization: { en_US: { title: "Panda Express HQ" } } } },
+      ]});
+    }
+    if (u.includes("/tasks/inst1/lists")) return mockJson([{ id: "list1", name: "April Tasks" }]);
+    if (u.includes("/tasks/inst2/lists")) return mockJson([{ id: "list2", name: "Company Values" }]);
+    if (u.includes("/tasks/inst1/task")) return mockJson(MOCK_TASKS_INST1);
+    if (u.includes("/tasks/inst2/task")) return mockJson(MOCK_TASKS_INST2);
+    if (u.includes("/users")) return mockJson({ data: [] });
+    if (u.includes("/groups")) return mockJson({ data: [] });
+    return mockJson({});
+  }
+
+  // Google Apps Script mock
+  if (u.includes("script.google.com")) {
+    await new Promise(r => setTimeout(r, 300));
+    return mockJson({ tasks: [
+      { title: "Oil Management Audit", description: "Review daily fryer oil filtering logs.", dueDate: new Date("2026-05-08").toISOString(), taskType: "Compliance" },
+      { title: "Summer Uniform Transition", description: "Distribute new summer uniforms to all staff.", dueDate: new Date("2026-05-12").toISOString(), taskType: "Operations" },
+      { title: "BOH Deep Cleaning Event", description: "Execute thorough deep clean of back of house.", dueDate: new Date("2026-05-25").toISOString(), taskType: "Operations" },
+    ]});
+  }
+
+  return _realFetch(url, opts);
+};
+
+function mockJson(data) {
+  return { ok: true, status: 200, json: async () => data };
+}
+
+// ── Render helpers ────────────────────────────────────────────────────────────
+
+function getColors() {
+  return {
+    primary:    document.getElementById("c-primary").value,
+    accent:     document.getElementById("c-accent").value,
+    background: currentBg,
+  };
+}
+
+let currentBg = "";
+
+function renderMTW(colors) {
+  const host = document.getElementById("mtw-host");
+  host.innerHTML = "";
+  const def = registeredBlocks["my-tasks-widget"];
+  if (!def) { host.textContent = "my-tasks-widget not loaded"; return; }
+
+  const WidgetClass = def.blockDefinition.factory(MockBaseBlock, mockWidgetApi);
+  const widget = new WidgetClass();
+  widget._attrs = {
+    primarycolor:     colors.primary,
+    accentcolor:      colors.accent,
+    backgroundcolor:  colors.background,
+    showalltasks:     "false",
+    showdonetasks:    "true",
+    apitoken:         "preview",
+    baseurl:          "https://app.staffbase.com/api",
+  };
+  widget.renderBlock(host);
+}
+
+function renderTIW(colors) {
+  const host = document.getElementById("tiw-host");
+  host.innerHTML = "";
+  const def = registeredBlocks["tasks-integration-widget"];
+  if (!def) { host.textContent = "tasks-integration-widget not loaded"; return; }
+
+  const WidgetClass = def.blockDefinition.factory(MockBaseBlock, mockWidgetApi);
+  const widget = new WidgetClass();
+  widget._attrs = {
+    primarycolor:         colors.primary,
+    accentcolor:          colors.accent,
+    backgroundcolor:      colors.background,
+    apitoken:             "preview",
+    baseurl:              "https://app.staffbase.com/api",
+    appsscripturl:        "https://script.google.com/macros/s/preview/exec",
+    storelabelsingular:   "Store",
+    storelabelplural:     "Stores",
+    enabletasktypes:      "true",
+    tasktypes:            "Finance,Operations,Training,Compliance,Safety",
+    enabletasklistupdating: "false",
+    sheetname:            "",
+  };
+  widget.renderBlock(host);
+}
+
+function renderAll() {
+  const colors = getColors();
+  renderMTW(colors);
+  renderTIW(colors);
+}
+
+// ── Controls ──────────────────────────────────────────────────────────────────
+
+document.getElementById("apply-btn").addEventListener("click", renderAll);
+
+document.querySelectorAll("#bg-toggle button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#bg-toggle button").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentBg = btn.dataset.bg;
+  });
+});
+
+// Live color update (no need to click Apply)
+["c-primary", "c-accent"].forEach(id => {
+  document.getElementById(id).addEventListener("input", renderAll);
+});
+</script>
+
+<!-- Load widgets AFTER mock SDK is set up -->
+<script src="my-tasks-widget/dist/my-tasks-widget.js"></script>
+<script src="tasks-integration-widget/dist/tasks-integration-widget.js"></script>
+
+<script>
+  // Initial render once both widgets are registered
+  renderAll();
+</script>
+</body>
+</html>
