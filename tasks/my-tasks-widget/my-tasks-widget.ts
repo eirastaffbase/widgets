@@ -183,10 +183,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         listName: string;
       };
 
-      let allTasks: Task[]    = [];
-      let activeTypeFilter    = "all";
-      let activeStatusFilter  = "open";
-      let activeInstallFilter = "all";
+      let allTasks: Task[]          = [];
+      let activeTypeFilters         = new Set<string>(); // empty = "All"
+      let activeStatusFilter        = "open";
+      let activeInstallFilter       = "all";
 
       // ── Render skeleton ────────────────────────────────────────────────
       container.innerHTML = `
@@ -245,31 +245,67 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           }
           @keyframes ${p}-spin { to { transform: rotate(360deg); } }
 
+          /* ── Store tabs (real tab bar) ──────────────────────── */
+          .${p}-store-tabs {
+            display: flex; overflow-x: auto; scrollbar-width: none;
+            border-bottom: 2px solid var(--border); margin-bottom: 14px; gap: 0;
+          }
+          .${p}-store-tabs::-webkit-scrollbar { display: none; }
+          .${p}-store-tab {
+            padding: 7px 16px; border: none; background: none;
+            border-bottom: 2px solid transparent; margin-bottom: -2px;
+            font-size: 13px; font-weight: 600; color: var(--gray);
+            cursor: pointer; font-family: inherit; transition: all .15s;
+            white-space: nowrap; flex-shrink: 0;
+          }
+          .${p}-store-tab:hover { color: var(--dark); }
+          .${p}-store-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
           /* ── Filter bar ────────────────────────────────────── */
           .${p}-filters {
-            display: flex; flex-wrap: wrap; gap: 6px;
-            margin-bottom: 16px; align-items: center;
+            display: flex; gap: 8px; margin-bottom: 16px; align-items: center;
           }
-          .${p}-filter-group { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
-          .${p}-pill {
-            padding: 5px 12px; border-radius: 20px;
-            border: 1.5px solid var(--border); background: #fff;
-            font-size: 12px; font-weight: 600; cursor: pointer;
-            color: var(--gray); transition: all .15s; font-family: inherit;
-            white-space: nowrap;
+
+          /* Type dropdown */
+          .${p}-type-wrap { position: relative; flex: 1; min-width: 0; }
+          .${p}-type-btn {
+            width: 100%; display: flex; align-items: center;
+            justify-content: space-between; gap: 6px;
+            padding: 7px 11px; border: 1.5px solid var(--border);
+            border-radius: var(--r-md); background: #fff;
+            font-size: 12px; font-weight: 600; color: var(--gray);
+            cursor: pointer; font-family: inherit; transition: all .15s; text-align: left;
           }
-          .${p}-pill:hover { border-color: var(--primary); color: var(--primary); }
-          .${p}-pill.active {
-            background: var(--primary); border-color: var(--primary);
-            color: #fff; box-shadow: 0 2px 8px rgba(218,46,50,.25);
+          .${p}-type-btn:hover, .${p}-type-btn.open {
+            border-color: var(--primary); color: var(--primary);
           }
+          .${p}-type-btn svg { flex-shrink: 0; transition: transform .15s; }
+          .${p}-type-btn.open svg { transform: rotate(180deg); }
+          .${p}-type-menu {
+            display: none; position: absolute; top: calc(100% + 4px);
+            left: 0; right: 0; background: #fff;
+            border: 1.5px solid var(--border); border-radius: var(--r-md);
+            box-shadow: var(--shadow-md); z-index: 100; overflow: hidden;
+          }
+          .${p}-type-menu.open { display: block; }
+          .${p}-type-opt {
+            display: flex; align-items: center; gap: 8px;
+            width: 100%; padding: 8px 12px; border: none; background: none;
+            font-size: 12px; font-weight: 500; color: var(--gray);
+            cursor: pointer; font-family: inherit; text-align: left; transition: background .1s;
+          }
+          .${p}-type-opt:hover { background: rgba(0,0,0,.04); color: var(--dark); }
+          .${p}-type-opt.active { font-weight: 700; color: var(--dark); background: rgba(218,46,50,.06); }
+          .${p}-type-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+          /* Status toggle */
           .${p}-status-toggle {
             display: flex; border: 1.5px solid var(--border);
-            border-radius: 20px; overflow: hidden; background: #fff;
+            border-radius: var(--r-md); overflow: hidden; background: #fff;
             flex-shrink: 0;
           }
           .${p}-status-opt {
-            padding: 5px 13px; font-size: 12px; font-weight: 600;
+            padding: 7px 13px; font-size: 12px; font-weight: 600;
             cursor: pointer; color: var(--gray); font-family: inherit;
             border: none; background: none; transition: all .15s;
           }
@@ -379,24 +415,6 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             padding: 4px 0 8px; margin-top: 4px;
           }
 
-          /* ── Store tabs ─────────────────────────────────────── */
-          .${p}-store-tabs {
-            display: flex; flex-wrap: wrap; gap: 4px;
-            margin-bottom: 14px; border-bottom: 1.5px solid var(--border);
-            padding-bottom: 10px;
-          }
-          .${p}-store-tab {
-            padding: 5px 14px; border-radius: var(--r-sm);
-            border: 1.5px solid transparent; background: none;
-            font-size: 12px; font-weight: 600; cursor: pointer;
-            color: var(--gray); font-family: inherit; transition: all .15s;
-            white-space: nowrap;
-          }
-          .${p}-store-tab:hover { color: var(--primary); background: rgba(218,46,50,.05); }
-          .${p}-store-tab.active {
-            background: rgba(218,46,50,.08); border-color: rgba(218,46,50,.25);
-            color: var(--primary);
-          }
         </style>
 
         <div class="${p}">
@@ -419,8 +437,12 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           <div class="${p}-banner" id="${p}-banner"></div>
 
           <div class="${p}-filters">
-            <div class="${p}-filter-group" id="${p}-type-filters">
-              <button type="button" class="${p}-pill active" data-type="all">All</button>
+            <div class="${p}-type-wrap" id="${p}-type-wrap">
+              <button type="button" class="${p}-type-btn" id="${p}-type-btn">
+                <span id="${p}-type-label">All Types</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="${p}-type-menu" id="${p}-type-menu"></div>
             </div>
             <div class="${p}-status-toggle">
               <button type="button" class="${p}-status-opt active" data-status="open">Open</button>
@@ -443,7 +465,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const bannerEl     = container.querySelector(`#${p}-banner`) as HTMLElement;
       const storeTabs    = container.querySelector(`#${p}-store-tabs`) as HTMLElement;
       const listWrap     = container.querySelector(`#${p}-list-wrap`)!;
-      const typeFilters  = container.querySelector(`#${p}-type-filters`)!;
+      const typeBtn      = container.querySelector(`#${p}-type-btn`) as HTMLButtonElement;
+      const typeLabelEl  = container.querySelector(`#${p}-type-label`) as HTMLElement;
+      const typeMenu     = container.querySelector(`#${p}-type-menu`) as HTMLElement;
       const refreshBtn   = container.querySelector(`#${p}-refresh`) as HTMLButtonElement;
 
       // ── Helpers ───────────────────────────────────────────────────────
@@ -488,20 +512,28 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         return { text, overdue };
       }
 
-      // ── Distinct task types across loaded tasks ────────────────────────
-      function getTypes(): string[] {
+      // ── Distinct task types for visible install ───────────────────────
+      function getTypes(): { key: string; label: string }[] {
         const types = new Set<string>();
+        let hasUntyped = false;
         for (const t of allTasks) {
+          if (activeInstallFilter !== "all" && t.installationId !== activeInstallFilter) continue;
           if (t.taskType) types.add(t.taskType);
+          else hasUntyped = true;
         }
-        return Array.from(types).sort();
+        const sorted = Array.from(types).sort().map(k => ({ key: k, label: k }));
+        if (hasUntyped) sorted.push({ key: "__none__", label: "No Type" });
+        return sorted;
       }
 
       // ── Filtered view ─────────────────────────────────────────────────
       function filteredTasks(): Task[] {
         return allTasks.filter(t => {
           if (activeInstallFilter !== "all" && t.installationId !== activeInstallFilter) return false;
-          if (activeTypeFilter !== "all" && t.taskType !== activeTypeFilter) return false;
+          if (activeTypeFilters.size > 0) {
+            const key = t.taskType || "__none__";
+            if (!activeTypeFilters.has(key)) return false;
+          }
           const isDone = t.status === "DONE" || t.status === "done";
           if (activeStatusFilter === "open" && isDone) return false;
           if (activeStatusFilter === "done" && !isDone) return false;
@@ -542,6 +574,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         storeTabs.querySelectorAll(`.${p}-store-tab`).forEach((btn: Element) => {
           btn.addEventListener("click", () => {
             activeInstallFilter = (btn as HTMLElement).dataset.inst || "all";
+            activeTypeFilters.clear();
+            dropdownOpen = false;
             renderStoreTabs();
             renderTypeFilters();
             renderList();
@@ -549,28 +583,76 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         });
       }
 
-      // ── Render type filter pills ──────────────────────────────────────
+      // ── Type dropdown (multi-select) ──────────────────────────────────
+      let dropdownOpen = false;
+
+      function typeDropdownLabel(): string {
+        if (activeTypeFilters.size === 0) return "All Types";
+        const types = getTypes();
+        const selected = types.filter(t => activeTypeFilters.has(t.key));
+        if (selected.length === 1) return selected[0].label;
+        return `${selected.length} types`;
+      }
+
       function renderTypeFilters() {
         const types = getTypes();
-        typeFilters.innerHTML = `
-          <button type="button" class="${p}-pill ${activeTypeFilter === "all" ? "active" : ""}" data-type="all">All</button>
-          ${types.map(type => `
-            <button type="button"
-              class="${p}-pill ${activeTypeFilter === type ? "active" : ""}"
-              data-type="${esc(type)}"
-              style="${activeTypeFilter === type ? `background:${typeColor(type)};border-color:${typeColor(type)}` : ""}">
-              ${esc(type)}
-            </button>
-          `).join("")}
+
+        // Update button label + open state
+        typeLabelEl.textContent = typeDropdownLabel();
+        typeBtn.classList.toggle("open", dropdownOpen);
+        typeMenu.classList.toggle("open", dropdownOpen);
+
+        const iconCheck = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+
+        // Rebuild menu
+        const allActive = activeTypeFilters.size === 0;
+        typeMenu.innerHTML = `
+          <button type="button" class="${p}-type-opt ${allActive ? "active" : ""}" data-key="__all__">
+            <span style="width:12px;display:flex;align-items:center;justify-content:center">${allActive ? iconCheck : ""}</span>
+            All Types
+          </button>
+          <div style="height:1px;background:var(--border);margin:2px 0"></div>
+          ${types.map(({ key, label }) => {
+            const checked = activeTypeFilters.has(key);
+            const dot = key !== "__none__"
+              ? `<span class="${p}-type-dot" style="background:${typeColor(key)}"></span>`
+              : `<span class="${p}-type-dot" style="background:var(--border)"></span>`;
+            return `
+              <button type="button" class="${p}-type-opt ${checked ? "active" : ""}" data-key="${esc(key)}">
+                <span style="width:12px;display:flex;align-items:center;justify-content:center">${checked ? iconCheck : ""}</span>
+                ${dot}
+                ${esc(label)}
+              </button>`;
+          }).join("")}
         `;
-        typeFilters.querySelectorAll(`.${p}-pill`).forEach((btn: Element) => {
-          btn.addEventListener("click", () => {
-            activeTypeFilter = (btn as HTMLElement).dataset.type || "all";
+
+        typeMenu.querySelectorAll(`.${p}-type-opt`).forEach((btn: Element) => {
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const key = (btn as HTMLElement).dataset.key!;
+            if (key === "__all__") {
+              activeTypeFilters.clear();
+            } else if (activeTypeFilters.has(key)) {
+              activeTypeFilters.delete(key);
+            } else {
+              activeTypeFilters.add(key);
+            }
             renderTypeFilters();
             renderList();
           });
         });
       }
+
+      // Toggle dropdown open/close
+      typeBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        dropdownOpen = !dropdownOpen;
+        renderTypeFilters();
+      });
+      // Close on outside click
+      document.addEventListener("click", () => {
+        if (dropdownOpen) { dropdownOpen = false; renderTypeFilters(); }
+      });
 
       // ── Render task list ──────────────────────────────────────────────
       function renderList() {
@@ -610,11 +692,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         let html = `<div class="${p}-list">`;
         for (const key of orderedKeys) {
           const group = grouped.get(key)!;
-          if (orderedKeys.length > 1 || key !== "__none__") {
-            const label = key === "__none__" ? "Untagged" : key;
-            const color = key === "__none__" ? "var(--gray-lt)" : typeColor(key);
-            html += `<div class="${p}-section-label" style="color:${color}">${esc(label)} <span style="font-weight:400">(${group.length})</span></div>`;
-          }
+          const label = key === "__none__" ? "No Type" : key;
+          const color = key === "__none__" ? "var(--gray-lt)" : typeColor(key);
+          html += `<div class="${p}-section-label" style="color:${color}">${esc(label)} <span style="font-weight:400">(${group.length})</span></div>`;
           for (const task of group) {
             html += renderTaskCard(task);
           }
@@ -732,6 +812,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         hideBanner();
         allTasks = [];
         activeInstallFilter = "all";
+        activeTypeFilters.clear();
+        dropdownOpen = false;
         listWrap.innerHTML = `<div class="${p}-state"><span class="${p}-spin" style="width:24px;height:24px;border-width:3px;margin:0 auto 12px;display:block"></span>Loading your tasks…</div>`;
 
         try {
