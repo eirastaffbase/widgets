@@ -234,6 +234,113 @@ const factory = (BaseBlockClass, widgetApi) => {
           }
           @keyframes ${p}-spin { to { transform: rotate(360deg); } }
 
+          /* ── Detail panel ──────────────────────────────────── */
+          .${p}-overlay {
+            position: fixed; inset: 0; z-index: 1000;
+            background: rgba(0,0,0,.45);
+            opacity: 0; pointer-events: none;
+            transition: opacity .25s ease;
+          }
+          .${p}-overlay.open { opacity: 1; pointer-events: auto; }
+
+          /* bottom-sheet (default / narrow) */
+          .${p}-detail {
+            position: fixed; left: 0; right: 0; bottom: 0; z-index: 1001;
+            background: #fff; border-radius: 20px 20px 0 0;
+            max-height: 88vh; display: flex; flex-direction: column;
+            transform: translateY(102%);
+            transition: transform .32s cubic-bezier(.32,.72,0,1);
+            overflow: hidden;
+          }
+          .${p}-detail.open { transform: translateY(0); }
+
+          /* side-panel (wide) */
+          .${p}-detail.side {
+            left: auto; top: 0; right: 0; bottom: 0;
+            width: min(420px, 92vw); max-height: none;
+            border-radius: 20px 0 0 20px;
+            transform: translateX(102%);
+          }
+          .${p}-detail.side.open { transform: translateX(0); }
+
+          /* drag handle (bottom-sheet only) */
+          .${p}-detail-handle {
+            width: 36px; height: 4px; border-radius: 2px;
+            background: var(--border); margin: 10px auto 0; flex-shrink: 0;
+          }
+          .${p}-detail.side .${p}-detail-handle { display: none; }
+
+          /* header */
+          .${p}-detail-head {
+            display: flex; align-items: flex-start; gap: 10px;
+            padding: 16px 20px 12px; flex-shrink: 0;
+            border-bottom: 1px solid var(--border);
+          }
+          .${p}-detail-head-badges { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
+          .${p}-detail-close {
+            width: 28px; height: 28px; border-radius: 50%;
+            border: none; background: #f3f4f6; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--gray); flex-shrink: 0; font-size: 14px;
+            transition: background .15s, color .15s; font-family: inherit;
+          }
+          .${p}-detail-close:hover { background: var(--border); color: var(--dark); }
+
+          /* scrollable body */
+          .${p}-detail-body { flex: 1; overflow-y: auto; padding: 20px; }
+          .${p}-detail-title {
+            font-size: 18px; font-weight: 800; color: var(--dark);
+            line-height: 1.3; margin-bottom: 14px; word-break: break-word;
+          }
+          .${p}-detail-title.done {
+            text-decoration: line-through; color: var(--gray);
+          }
+          .${p}-detail-meta {
+            display: flex; flex-direction: column; gap: 8px;
+            margin-bottom: 18px;
+          }
+          .${p}-detail-meta-row {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 13px; color: var(--gray);
+          }
+          .${p}-detail-meta-row svg { flex-shrink: 0; color: var(--gray-lt); }
+          .${p}-detail-meta-row.overdue { color: var(--error); font-weight: 600; }
+          .${p}-detail-desc-label {
+            font-size: 11px; font-weight: 700; letter-spacing: .5px;
+            text-transform: uppercase; color: var(--gray-lt); margin-bottom: 6px;
+          }
+          .${p}-detail-desc {
+            font-size: 13px; color: var(--gray); line-height: 1.65;
+            white-space: pre-wrap; word-break: break-word;
+          }
+          .${p}-detail-desc.empty { font-style: italic; color: var(--gray-lt); }
+
+          /* footer */
+          .${p}-detail-foot {
+            padding: 14px 20px; border-top: 1px solid var(--border);
+            flex-shrink: 0;
+          }
+          .${p}-detail-toggle-btn {
+            width: 100%; padding: 11px; border-radius: var(--r-md);
+            border: none; font-size: 13px; font-weight: 700;
+            cursor: pointer; font-family: inherit; transition: all .15s;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+          }
+          .${p}-detail-toggle-btn.done-btn {
+            background: rgba(var(--primary-rgb),.08);
+            border: 1.5px solid rgba(var(--primary-rgb),.2);
+            color: var(--primary);
+          }
+          .${p}-detail-toggle-btn.done-btn:hover {
+            background: var(--primary); color: var(--primary-text);
+          }
+          .${p}-detail-toggle-btn.open-btn {
+            background: #f3f4f6; border: 1.5px solid var(--border); color: var(--gray);
+          }
+          .${p}-detail-toggle-btn.open-btn:hover {
+            background: var(--border); color: var(--dark);
+          }
+
           /* ── Store tabs ─────────────────────────────────────── */
           .${p}-store-tabs {
             display: flex; flex-wrap: wrap; gap: 4px;
@@ -315,6 +422,7 @@ const factory = (BaseBlockClass, widgetApi) => {
             overflow: hidden;
             transition: box-shadow .18s ease, background .18s ease;
           }
+          .${p}-card { cursor: pointer; }
           .${p}-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.07); }
           .${p}-card.done {
             border-left-color: var(--border);
@@ -486,6 +594,22 @@ const factory = (BaseBlockClass, widgetApi) => {
             </div>
           </div>
         </div>
+
+        <!-- Detail panel (outside widget padding, fixed to viewport) -->
+        <div class="${p}-overlay" id="${p}-overlay"></div>
+        <div class="${p}-detail" id="${p}-detail">
+          <div class="${p}-detail-handle"></div>
+          <div class="${p}-detail-head">
+            <div class="${p}-detail-head-badges" id="${p}-detail-badges"></div>
+            <button type="button" class="${p}-detail-close" id="${p}-detail-close">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <div class="${p}-detail-body" id="${p}-detail-body"></div>
+          <div class="${p}-detail-foot">
+            <button type="button" class="${p}-detail-toggle-btn" id="${p}-detail-toggle"></button>
+          </div>
+        </div>
       `;
                 // ── DOM refs ──────────────────────────────────────────────────────
                 const countEl = container.querySelector(`#${p}-count`);
@@ -496,6 +620,12 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const typeLabelEl = container.querySelector(`#${p}-type-label`);
                 const typeMenu = container.querySelector(`#${p}-type-menu`);
                 const refreshBtn = container.querySelector(`#${p}-refresh`);
+                const overlayEl = container.querySelector(`#${p}-overlay`);
+                const detailEl = container.querySelector(`#${p}-detail`);
+                const detailBadges = container.querySelector(`#${p}-detail-badges`);
+                const detailBody = container.querySelector(`#${p}-detail-body`);
+                const detailToggle = container.querySelector(`#${p}-detail-toggle`);
+                const detailClose = container.querySelector(`#${p}-detail-close`);
                 // ── Helpers ───────────────────────────────────────────────────────
                 const apiOpts = (extra) => (Object.assign(Object.assign({}, extra), { credentials: "omit", headers: {
                         Authorization: `Basic ${apiToken}`,
@@ -726,6 +856,17 @@ const factory = (BaseBlockClass, widgetApi) => {
                     listWrap.querySelectorAll(`.${p}-check`).forEach((btn) => {
                         btn.addEventListener("click", () => toggleTask(btn));
                     });
+                    // Bind card click → detail panel
+                    listWrap.querySelectorAll(`.${p}-card`).forEach((card) => {
+                        card.addEventListener("click", (e) => {
+                            if (e.target.closest(`.${p}-check-wrap`))
+                                return;
+                            const taskId = card.dataset.taskId;
+                            const task = allTasks.find(t => t.id === taskId);
+                            if (task)
+                                openDetail(task);
+                        });
+                    });
                 }
                 function renderTaskCard(task) {
                     const isDone = task.status === "DONE" || task.status === "done" || task.status === "CLOSED";
@@ -781,6 +922,100 @@ const factory = (BaseBlockClass, widgetApi) => {
             </div>
           </div>`;
                 }
+                // ── Detail panel ─────────────────────────────────────────────────
+                let detailTask = null;
+                function openDetail(task) {
+                    detailTask = task;
+                    const isWide = container.offsetWidth >= 520;
+                    detailEl.classList.toggle("side", isWide);
+                    renderDetailContent(task);
+                    overlayEl.classList.add("open");
+                    requestAnimationFrame(() => detailEl.classList.add("open"));
+                }
+                function closeDetail() {
+                    overlayEl.classList.remove("open");
+                    detailEl.classList.remove("open");
+                    detailTask = null;
+                }
+                function renderDetailContent(task) {
+                    const isDone = task.status === "DONE" || task.status === "done" || task.status === "CLOSED";
+                    const dueInfo = formatDate(task.dueDate);
+                    const typeCol = task.taskType ? typeColor(task.taskType) : "";
+                    const typeText = task.taskType ? contrastColor(typeCol) : "";
+                    const prioCol = priorityColor(task.priority);
+                    // Badges in header
+                    detailBadges.innerHTML = `
+          ${task.taskType ? `<span class="${p}-type-badge" style="background:${typeCol};color:${typeText}">${esc(task.taskType)}</span>` : ""}
+          ${task.priority && task.priority !== "Priority_3"
+                        ? `<span class="${p}-prio-badge" style="color:${prioCol};border-color:${prioCol}">${priorityLabel(task.priority)}</span>`
+                        : ""}
+        `;
+                    // Icons
+                    const iCal = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+                    const iStore = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`;
+                    const iList = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`;
+                    const cleanDesc = task.description ? stripTypeTag(task.description).trim() : "";
+                    detailBody.innerHTML = `
+          <div class="${p}-detail-title ${isDone ? "done" : ""}">${esc(task.title)}</div>
+          <div class="${p}-detail-meta">
+            ${dueInfo.text ? `
+              <div class="${p}-detail-meta-row ${dueInfo.overdue && !isDone ? "overdue" : ""}">
+                ${iCal}
+                ${dueInfo.overdue && !isDone ? "Overdue · " : "Due "}${dueInfo.text}
+              </div>` : ""}
+            ${task.installationTitle ? `
+              <div class="${p}-detail-meta-row">${iStore} ${esc(task.installationTitle)}</div>` : ""}
+            ${task.listName ? `
+              <div class="${p}-detail-meta-row">${iList} ${esc(task.listName)}</div>` : ""}
+          </div>
+          ${cleanDesc ? `
+            <div class="${p}-detail-desc-label">Description</div>
+            <div class="${p}-detail-desc">${esc(cleanDesc)}</div>
+          ` : `<div class="${p}-detail-desc empty">No description</div>`}
+        `;
+                    // Toggle button
+                    const iconCheck = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+                    const iconUndo = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>`;
+                    if (isDone) {
+                        detailToggle.className = `${p}-detail-toggle-btn open-btn`;
+                        detailToggle.innerHTML = `${iconUndo} Reopen task`;
+                    }
+                    else {
+                        detailToggle.className = `${p}-detail-toggle-btn done-btn`;
+                        detailToggle.innerHTML = `${iconCheck} Mark as done`;
+                    }
+                }
+                // Wire detail close
+                overlayEl.addEventListener("click", closeDetail);
+                detailClose.addEventListener("click", closeDetail);
+                detailToggle.addEventListener("click", () => __awaiter(this, void 0, void 0, function* () {
+                    if (!detailTask)
+                        return;
+                    const task = detailTask;
+                    const isDone = task.status === "DONE" || task.status === "done" || task.status === "CLOSED";
+                    const newStatus = isDone ? "OPEN" : "CLOSED";
+                    detailToggle.disabled = true;
+                    try {
+                        const res = yield fetch(`${baseUrl}/tasks/${task.installationId}/task/${task.id}`, Object.assign(Object.assign({ method: "PATCH" }, apiOpts()), { body: JSON.stringify({ status: newStatus }) }));
+                        if (!res.ok)
+                            throw new Error(`HTTP ${res.status}`);
+                        task.status = newStatus;
+                        renderDetailContent(task);
+                        // Also animate the card in the list if visible
+                        const cardEl = listWrap.querySelector(`[data-task-id="${task.id}"]`);
+                        if (cardEl) {
+                            if (!isDone)
+                                cardEl.classList.add("done");
+                            else
+                                cardEl.classList.remove("done");
+                        }
+                        setTimeout(() => { renderTypeFilters(); renderList(); }, 380);
+                    }
+                    catch (e) {
+                        showBanner("error", `Could not update: ${e.message}`);
+                    }
+                    detailToggle.disabled = false;
+                }));
                 // ── Sparkle burst ─────────────────────────────────────────────────
                 function spawnSparks(wrap, color) {
                     const angles = [0, 45, 90, 135, 180, 225, 270, 315];
