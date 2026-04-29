@@ -142,7 +142,7 @@ function priorityColor(p) {
     return "#6b7280";
 }
 // ── Widget factory ────────────────────────────────────────────────────────────
-const factory = (BaseBlockClass, _widgetApi) => {
+const factory = (BaseBlockClass, widgetApi) => {
     return class MyTasksWidget extends BaseBlockClass {
         constructor() {
             super();
@@ -154,14 +154,13 @@ const factory = (BaseBlockClass, _widgetApi) => {
                 const primaryColor = this.getAttribute("primarycolor") || DEFAULT_PRIMARY_COLOR;
                 const accentColor = this.getAttribute("accentcolor") || DEFAULT_ACCENT_COLOR;
                 const bgColor = this.getAttribute("backgroundcolor") || "";
-                const storeS = this.getAttribute("storelabelsingular") || "Store";
                 const showAll = this.getAttribute("showalltasks") === "true";
                 const showDone = this.getAttribute("showdonetasks") !== "false";
                 const p = "mtw";
                 let allTasks = [];
-                let currentUserId = "";
                 let activeTypeFilter = "all";
                 let activeStatusFilter = "open";
+                let activeInstallFilter = "all";
                 // ── Render skeleton ────────────────────────────────────────────────
                 container.innerHTML = `
         <style>
@@ -352,6 +351,25 @@ const factory = (BaseBlockClass, _widgetApi) => {
             text-transform: uppercase; color: var(--gray-lt);
             padding: 4px 0 8px; margin-top: 4px;
           }
+
+          /* ── Store tabs ─────────────────────────────────────── */
+          .${p}-store-tabs {
+            display: flex; flex-wrap: wrap; gap: 4px;
+            margin-bottom: 14px; border-bottom: 1.5px solid var(--border);
+            padding-bottom: 10px;
+          }
+          .${p}-store-tab {
+            padding: 5px 14px; border-radius: var(--r-sm);
+            border: 1.5px solid transparent; background: none;
+            font-size: 12px; font-weight: 600; cursor: pointer;
+            color: var(--gray); font-family: inherit; transition: all .15s;
+            white-space: nowrap;
+          }
+          .${p}-store-tab:hover { color: var(--primary); background: rgba(218,46,50,.05); }
+          .${p}-store-tab.active {
+            background: rgba(218,46,50,.08); border-color: rgba(218,46,50,.25);
+            color: var(--primary);
+          }
         </style>
 
         <div class="${p}">
@@ -368,6 +386,8 @@ const factory = (BaseBlockClass, _widgetApi) => {
               </svg>
             </button>
           </div>
+
+          <div class="${p}-store-tabs" id="${p}-store-tabs" style="display:none"></div>
 
           <div class="${p}-banner" id="${p}-banner"></div>
 
@@ -393,6 +413,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
                 // ── DOM refs ──────────────────────────────────────────────────────
                 const countEl = container.querySelector(`#${p}-count`);
                 const bannerEl = container.querySelector(`#${p}-banner`);
+                const storeTabs = container.querySelector(`#${p}-store-tabs`);
                 const listWrap = container.querySelector(`#${p}-list-wrap`);
                 const typeFilters = container.querySelector(`#${p}-type-filters`);
                 const refreshBtn = container.querySelector(`#${p}-refresh`);
@@ -444,6 +465,8 @@ const factory = (BaseBlockClass, _widgetApi) => {
                 // ── Filtered view ─────────────────────────────────────────────────
                 function filteredTasks() {
                     return allTasks.filter(t => {
+                        if (activeInstallFilter !== "all" && t.installationId !== activeInstallFilter)
+                            return false;
                         if (activeTypeFilter !== "all" && t.taskType !== activeTypeFilter)
                             return false;
                         const isDone = t.status === "DONE" || t.status === "done";
@@ -452,6 +475,43 @@ const factory = (BaseBlockClass, _widgetApi) => {
                         if (activeStatusFilter === "done" && !isDone)
                             return false;
                         return true;
+                    });
+                }
+                // ── Store tab rendering ───────────────────────────────────────────
+                function renderStoreTabs() {
+                    // Collect installs that actually have tasks
+                    const instMap = new Map();
+                    for (const t of allTasks) {
+                        if (!instMap.has(t.installationId)) {
+                            instMap.set(t.installationId, { title: t.installationTitle, count: 0 });
+                        }
+                        instMap.get(t.installationId).count++;
+                    }
+                    if (instMap.size <= 1) {
+                        storeTabs.style.display = "none";
+                        return;
+                    }
+                    storeTabs.style.display = "flex";
+                    const total = allTasks.length;
+                    storeTabs.innerHTML = `
+          <button type="button" class="${p}-store-tab ${activeInstallFilter === "all" ? "active" : ""}" data-inst="all">
+            All <span style="opacity:.6;font-weight:400">(${total})</span>
+          </button>
+          ${Array.from(instMap.entries()).map(([id, info]) => `
+            <button type="button"
+              class="${p}-store-tab ${activeInstallFilter === id ? "active" : ""}"
+              data-inst="${esc(id)}">
+              ${esc(info.title || id)} <span style="opacity:.6;font-weight:400">(${info.count})</span>
+            </button>
+          `).join("")}
+        `;
+                    storeTabs.querySelectorAll(`.${p}-store-tab`).forEach((btn) => {
+                        btn.addEventListener("click", () => {
+                            activeInstallFilter = btn.dataset.inst || "all";
+                            renderStoreTabs();
+                            renderTypeFilters();
+                            renderList();
+                        });
                     });
                 }
                 // ── Render type filter pills ──────────────────────────────────────
@@ -622,28 +682,14 @@ const factory = (BaseBlockClass, _widgetApi) => {
                 // ── Load data ─────────────────────────────────────────────────────
                 function load() {
                     return __awaiter(this, void 0, void 0, function* () {
-                        var _a;
                         refreshBtn.disabled = true;
                         refreshBtn.innerHTML = `<span class="${p}-spin" style="width:14px;height:14px;border-width:2px"></span>`;
                         hideBanner();
                         allTasks = [];
+                        activeInstallFilter = "all";
                         listWrap.innerHTML = `<div class="${p}-state"><span class="${p}-spin" style="width:24px;height:24px;border-width:3px;margin:0 auto 12px;display:block"></span>Loading your tasks…</div>`;
                         try {
-                            // 1. Identify current user (optional — used to filter assignees)
-                            if (!showAll) {
-                                try {
-                                    const meRes = yield fetch(`${baseUrl}/users/me`, {
-                                        credentials: "include",
-                                        headers: { "Content-Type": "application/json" },
-                                    });
-                                    if (meRes.ok) {
-                                        const me = yield meRes.json();
-                                        currentUserId = me.id || ((_a = me.data) === null || _a === void 0 ? void 0 : _a.id) || "";
-                                    }
-                                }
-                                catch (_) { /* not fatal — will show all if user ID unknown */ }
-                            }
-                            // 2. Fetch task installations
+                            // 1. Fetch task installations (token auth works fine for this)
                             const instRes = yield fetch(`${baseUrl}/installations?limit=200`, apiOpts());
                             if (!instRes.ok)
                                 throw new Error(`Could not load installations (HTTP ${instRes.status})`);
@@ -662,47 +708,71 @@ const factory = (BaseBlockClass, _widgetApi) => {
                                 listWrap.innerHTML = `<div class="${p}-state"><span class="${p}-state-icon">📋</span><strong>No task spaces found</strong>Make sure at least one Tasks installation exists.</div>`;
                                 return;
                             }
-                            // 3. For each installation, fetch tasks + lists
+                            // 2. Get current user ID + group IDs from widget SDK.
+                            //    Used to filter tasks by direct assignment or group membership when showAll=false.
+                            let currentUserId = "";
+                            let userGroupIds = [];
+                            if (!showAll) {
+                                try {
+                                    const profile = yield widgetApi.getUserInformation();
+                                    currentUserId = profile.id;
+                                    userGroupIds = profile.groupIDs || [];
+                                }
+                                catch (_) { /* proceed without filtering */ }
+                            }
+                            // 3. Per-installation: fetch lists, then tasks per list via /task?listId=
+                            //    (bare /task?limit=200 → HTTP 500; /task/my-tasks requires session auth)
                             for (const inst of installations) {
                                 try {
-                                    const [taskRes, listRes] = yield Promise.all([
-                                        fetch(`${baseUrl}/tasks/${inst.id}/task?limit=200`, apiOpts()),
-                                        fetch(`${baseUrl}/tasks/${inst.id}/lists`, apiOpts()),
-                                    ]);
-                                    // Build list ID → name map
+                                    const listRes = yield fetch(`${baseUrl}/tasks/${inst.id}/lists`, apiOpts());
                                     const listMap = new Map();
+                                    const listIds = [];
                                     if (listRes.ok) {
                                         const listsRaw = yield listRes.json();
                                         const lists = Array.isArray(listsRaw) ? listsRaw : (listsRaw.data || []);
                                         for (const l of lists) {
                                             listMap.set(l.id, l.name || "");
+                                            if (l.id)
+                                                listIds.push(l.id);
                                         }
                                     }
-                                    if (!taskRes.ok)
-                                        continue;
-                                    const taskData = yield taskRes.json();
-                                    const raw = Array.isArray(taskData) ? taskData : (taskData.data || []);
-                                    for (const t of raw) {
-                                        // Filter to current user's tasks when possible
-                                        if (!showAll && currentUserId) {
-                                            const assignees = t.assigneeIds || [];
-                                            if (!assignees.includes(currentUserId))
+                                    const perList = yield Promise.all(listIds.map(lid => fetch(`${baseUrl}/tasks/${inst.id}/task?listId=${lid}`, apiOpts())
+                                        .then(r => r.ok ? r.json() : null)
+                                        .catch(() => null)));
+                                    const seen = new Set();
+                                    for (const result of perList) {
+                                        if (!result)
+                                            continue;
+                                        const arr = Array.isArray(result) ? result : (result.data || []);
+                                        for (const t of arr) {
+                                            if (!t.id || seen.has(t.id))
                                                 continue;
+                                            // When not showing all, only include tasks assigned to the current user
+                                            // (directly via assigneeIds, or via a group the user belongs to)
+                                            if (!showAll && currentUserId) {
+                                                const assigneeIds = t.assigneeIds || [];
+                                                const taskGroupIds = t.groupIds || [];
+                                                const directMatch = assigneeIds.indexOf(currentUserId) !== -1;
+                                                const groupMatch = taskGroupIds.some((gid) => userGroupIds.indexOf(gid) !== -1);
+                                                if (!directMatch && !groupMatch)
+                                                    continue;
+                                            }
+                                            seen.add(t.id);
+                                            const desc = t.description || "";
+                                            const taskType = parseTaskType(t.title || "") || parseTaskType(desc);
+                                            allTasks.push({
+                                                id: t.id,
+                                                title: t.title || "(no title)",
+                                                description: desc,
+                                                status: t.status || "OPEN",
+                                                priority: t.priority || "Priority_3",
+                                                dueDate: t.dueDate || null,
+                                                taskType,
+                                                installationId: inst.id,
+                                                installationTitle: inst.title,
+                                                listName: t.taskListId ? (listMap.get(t.taskListId) || "") : "",
+                                            });
                                         }
-                                        const desc = t.description || "";
-                                        const taskType = parseTaskType(t.title || "") || parseTaskType(desc);
-                                        allTasks.push({
-                                            id: t.id,
-                                            title: t.title || "(no title)",
-                                            description: desc,
-                                            status: t.status || "OPEN",
-                                            priority: t.priority || "Priority_3",
-                                            dueDate: t.dueDate || null,
-                                            taskType,
-                                            installationId: inst.id,
-                                            installationTitle: inst.title,
-                                            listName: t.taskListId ? (listMap.get(t.taskListId) || "") : "",
-                                        });
                                     }
                                 }
                                 catch (_) { /* skip failed installation */ }
@@ -721,10 +791,11 @@ const factory = (BaseBlockClass, _widgetApi) => {
                                     return 1;
                                 return 0;
                             });
+                            renderStoreTabs();
                             renderTypeFilters();
                             renderList();
-                            if (allTasks.length === 0 && !showAll) {
-                                showBanner("info", "No tasks assigned to you were found. Your manager can also enable \"Show All Tasks\" to see the full list.");
+                            if (allTasks.length === 0) {
+                                showBanner("info", "No tasks found. Your manager can enable \"Show All Tasks\" to see all store tasks.");
                             }
                         }
                         catch (e) {
