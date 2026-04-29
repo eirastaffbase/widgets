@@ -267,7 +267,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
           /* ── Detail panel ──────────────────────────────────── */
           .${p}-overlay {
-            position: fixed; inset: 0; z-index: 1000;
+            position: fixed; inset: 0; z-index: 99998;
             background: rgba(0,0,0,.45);
             opacity: 0; pointer-events: none;
             transition: opacity .25s ease;
@@ -276,7 +276,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
           /* bottom-sheet (default / narrow) */
           .${p}-detail {
-            position: fixed; left: 0; right: 0; bottom: 0; z-index: 1001;
+            position: fixed; left: 0; right: 0; bottom: 0; z-index: 99999;
             background: #fff; border-radius: 20px 20px 0 0;
             max-height: 88vh; display: flex; flex-direction: column;
             transform: translateY(102%);
@@ -318,7 +318,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-detail-close:hover { background: var(--border); color: var(--dark); }
 
           /* scrollable body */
-          .${p}-detail-body { flex: 1; overflow-y: auto; padding: 20px; }
+          .${p}-detail-body { flex: 1; overflow-y: auto; padding: 20px; min-height: 0; }
           .${p}-detail-title {
             font-size: 18px; font-weight: 800; color: var(--dark);
             line-height: 1.3; margin-bottom: 14px; word-break: break-word;
@@ -451,10 +451,15 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             border: 1px solid var(--border);
             border-left: 3px solid var(--primary);
             overflow: hidden;
-            transition: box-shadow .18s ease, background .18s ease;
+            cursor: pointer;
+            transition: transform .15s ease, box-shadow .15s ease, border-left-color .35s ease, opacity .35s ease;
           }
-          .${p}-card { cursor: pointer; }
-          .${p}-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.07); }
+          .${p}-card:hover:not(.done) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(0,0,0,.09);
+            border-left-color: var(--accent);
+          }
+          .${p}-card:active:not(.done) { transform: translateY(0); box-shadow: var(--shadow-sm); }
           .${p}-card.done {
             border-left-color: var(--border);
             opacity: .72;
@@ -502,18 +507,18 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             line-height: 1.3; word-break: break-word;
           }
           /* done state & animations */
-          .${p}-card { transition: opacity .35s ease, border-left-color .35s ease, box-shadow .18s ease; }
           .${p}-card.done { border-left-color: var(--border); opacity: .68; }
-          .${p}-card.done:hover { opacity: .84; }
-          .${p}-card-title { position: relative; transition: color .3s ease; }
+          .${p}-card.done:hover { opacity: .84; transform: none !important; box-shadow: var(--shadow-sm) !important; }
+          .${p}-card-title { transition: color .3s ease; }
           .${p}-card.done .${p}-card-title { color: var(--gray); }
-          .${p}-card-title::after {
+          .${p}-card-title > span { position: relative; display: inline; }
+          .${p}-card-title > span::after {
             content: ""; position: absolute;
             left: 0; top: 50%; height: 1.5px;
             background: var(--gray); width: 0; transform: translateY(-50%);
-            transition: width .35s ease;
+            transition: width .35s ease; display: block;
           }
-          .${p}-card.done .${p}-card-title::after { width: 100%; }
+          .${p}-card.done .${p}-card-title > span::after { width: 100%; }
 
           /* check animation */
           @keyframes ${p}-check-pop {
@@ -626,21 +631,6 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           </div>
         </div>
 
-        <!-- Detail panel (outside widget padding, fixed to viewport) -->
-        <div class="${p}-overlay" id="${p}-overlay"></div>
-        <div class="${p}-detail" id="${p}-detail">
-          <div class="${p}-detail-handle"></div>
-          <div class="${p}-detail-head">
-            <div class="${p}-detail-head-badges" id="${p}-detail-badges"></div>
-            <button type="button" class="${p}-detail-close" id="${p}-detail-close">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-          </div>
-          <div class="${p}-detail-body" id="${p}-detail-body"></div>
-          <div class="${p}-detail-foot">
-            <button type="button" class="${p}-detail-toggle-btn" id="${p}-detail-toggle"></button>
-          </div>
-        </div>
       `;
 
       // ── DOM refs ──────────────────────────────────────────────────────
@@ -652,12 +642,40 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const typeLabelEl  = container.querySelector(`#${p}-type-label`) as HTMLElement;
       const typeMenu     = container.querySelector(`#${p}-type-menu`) as HTMLElement;
       const refreshBtn   = container.querySelector(`#${p}-refresh`) as HTMLButtonElement;
-      const overlayEl    = container.querySelector(`#${p}-overlay`) as HTMLElement;
-      const detailEl     = container.querySelector(`#${p}-detail`) as HTMLElement;
-      const detailBadges = container.querySelector(`#${p}-detail-badges`) as HTMLElement;
-      const detailBody   = container.querySelector(`#${p}-detail-body`) as HTMLElement;
-      const detailToggle = container.querySelector(`#${p}-detail-toggle`) as HTMLButtonElement;
-      const detailClose  = container.querySelector(`#${p}-detail-close`) as HTMLButtonElement;
+      // Overlay and detail panel live on document.body so position:fixed works
+      // regardless of any CSS transform/overflow on ancestor elements in Staffbase.
+      // Remove any stale panels from previous renders of this widget instance.
+      document.querySelectorAll(`[data-mtw-inst="${container.dataset.mtwInst || ""}"]`).forEach(el => el.remove());
+      const instId = Math.random().toString(36).slice(2);
+      container.dataset.mtwInst = instId;
+
+      const overlayEl = document.createElement("div");
+      overlayEl.className = `${p}-overlay`;
+      overlayEl.dataset.mtwInst = instId;
+      document.body.appendChild(overlayEl);
+
+      const detailEl = document.createElement("div");
+      detailEl.className = `${p}-detail`;
+      detailEl.dataset.mtwInst = instId;
+      detailEl.innerHTML = `
+        <div class="${p}-detail-handle"></div>
+        <div class="${p}-detail-head">
+          <div class="${p}-detail-head-badges" id="${p}-detail-badges-${instId}"></div>
+          <button type="button" class="${p}-detail-close" id="${p}-detail-close-${instId}">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="${p}-detail-body" id="${p}-detail-body-${instId}"></div>
+        <div class="${p}-detail-foot">
+          <button type="button" class="${p}-detail-toggle-btn" id="${p}-detail-toggle-${instId}"></button>
+        </div>
+      `;
+      document.body.appendChild(detailEl);
+
+      const detailBadges = detailEl.querySelector(`#${p}-detail-badges-${instId}`) as HTMLElement;
+      const detailBody   = detailEl.querySelector(`#${p}-detail-body-${instId}`) as HTMLElement;
+      const detailToggle = detailEl.querySelector(`#${p}-detail-toggle-${instId}`) as HTMLButtonElement;
+      const detailClose  = detailEl.querySelector(`#${p}-detail-close-${instId}`) as HTMLButtonElement;
 
       // ── Helpers ───────────────────────────────────────────────────────
       const apiOpts = (extra?: RequestInit): RequestInit => ({
@@ -944,7 +962,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
                   ${typeBadge}
                   ${prioBadge}
                 </div>
-                <div class="${p}-card-title">${esc(task.title)}</div>
+                <div class="${p}-card-title"><span>${esc(task.title)}</span></div>
                 ${desc ? `<div class="${p}-card-desc">${desc}</div>` : ""}
                 <div class="${p}-card-meta">
                   ${dueInfo.text ? `
@@ -982,6 +1000,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         detailEl.classList.remove("open");
         detailTask = null;
       }
+
+      // Stop panel clicks from bubbling to overlay / document handlers
+      detailEl.addEventListener("click", (e) => e.stopPropagation());
 
       function renderDetailContent(task: Task) {
         const isDone  = task.status === "DONE" || task.status === "done" || task.status === "CLOSED";
@@ -1036,9 +1057,12 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         }
       }
 
-      // Wire detail close
+      // Wire detail close — overlay click, X button, and Escape key
       overlayEl.addEventListener("click", closeDetail);
-      detailClose.addEventListener("click", closeDetail);
+      detailClose.addEventListener("click", (e) => { e.stopPropagation(); closeDetail(); });
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && detailTask) closeDetail();
+      });
       detailToggle.addEventListener("click", async () => {
         if (!detailTask) return;
         const task = detailTask;
