@@ -163,7 +163,7 @@ const MOCK_TASKS_INST1 = [
   {
     id: "t4", title: '"Guest Love" Training Module',
     description: 'Complete the 15-min customer interaction refresher. [type: Training]',
-    status: "DONE", dueDate: "2026-05-20T00:00:00Z",
+    status: "CLOSED", dueDate: "2026-05-20T00:00:00Z",
     priority: "Priority_3", taskListId: "list1",
     assigneeIds: [MOCK_USER_ID], groupIds: [],
   },
@@ -204,8 +204,19 @@ window.fetch = async (url, opts) => {
     }
     if (u.includes("/tasks/inst1/lists")) return mockJson([{ id: "list1", name: "April Tasks" }]);
     if (u.includes("/tasks/inst2/lists")) return mockJson([{ id: "list2", name: "Company Values" }]);
-    if (u.includes("/tasks/inst1/task")) return mockJson(MOCK_TASKS_INST1);
-    if (u.includes("/tasks/inst2/task")) return mockJson(MOCK_TASKS_INST2);
+    if (u.includes("/tasks/inst1/task") || u.includes("/tasks/inst2/task")) {
+      const allMock = [...MOCK_TASKS_INST1, ...MOCK_TASKS_INST2];
+      // PATCH — toggle status
+      if (opts && opts.method === "PATCH") {
+        const body = JSON.parse(opts.body || "{}");
+        const taskId = u.split("/task/")[1];
+        const t = allMock.find(x => x.id === taskId);
+        if (t) t.status = body.status || t.status;
+        return mockJson(t || {});
+      }
+      if (u.includes("inst1")) return mockJson(MOCK_TASKS_INST1);
+      return mockJson(MOCK_TASKS_INST2);
+    }
     if (u.includes("/users")) return mockJson({ data: [] });
     if (u.includes("/groups")) return mockJson({ data: [] });
     return mockJson({});

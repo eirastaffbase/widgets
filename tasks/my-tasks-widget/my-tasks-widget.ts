@@ -360,7 +360,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
           /* Checkbox area */
           .${p}-check-wrap {
-            flex-shrink: 0; padding-top: 2px;
+            flex-shrink: 0; padding-top: 2px; position: relative;
           }
           .${p}-check {
             width: 18px; height: 18px; border-radius: 50%;
@@ -393,8 +393,44 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             font-size: 14px; font-weight: 700; color: var(--dark);
             line-height: 1.3; word-break: break-word;
           }
-          .${p}-card.done .${p}-card-title {
-            text-decoration: line-through; color: var(--gray);
+          /* done state & animations */
+          .${p}-card { transition: opacity .35s ease, border-left-color .35s ease, box-shadow .18s ease; }
+          .${p}-card.done { border-left-color: var(--border); opacity: .68; }
+          .${p}-card.done:hover { opacity: .84; }
+          .${p}-card-title { position: relative; transition: color .3s ease; }
+          .${p}-card.done .${p}-card-title { color: var(--gray); }
+          .${p}-card-title::after {
+            content: ""; position: absolute;
+            left: 0; top: 50%; height: 1.5px;
+            background: var(--gray); width: 0; transform: translateY(-50%);
+            transition: width .35s ease;
+          }
+          .${p}-card.done .${p}-card-title::after { width: 100%; }
+
+          /* check animation */
+          @keyframes ${p}-check-pop {
+            0%   { transform: scale(1); }
+            35%  { transform: scale(1.35); box-shadow: 0 0 0 6px rgba(var(--primary-rgb),.12); }
+            65%  { transform: scale(.88); }
+            100% { transform: scale(1); box-shadow: none; }
+          }
+          @keyframes ${p}-uncheck-pop {
+            0%   { transform: scale(1); }
+            40%  { transform: scale(1.2); }
+            100% { transform: scale(1); }
+          }
+          .${p}-check.pop-done    { animation: ${p}-check-pop   .38s cubic-bezier(.34,1.56,.64,1) forwards; }
+          .${p}-check.pop-undone  { animation: ${p}-uncheck-pop .28s cubic-bezier(.34,1.56,.64,1) forwards; }
+
+          /* sparkle burst on completion */
+          @keyframes ${p}-spark {
+            0%   { transform: scale(0) translate(0,0); opacity: 1; }
+            100% { transform: scale(1) translate(var(--tx), var(--ty)); opacity: 0; }
+          }
+          .${p}-spark {
+            position: absolute; width: 5px; height: 5px;
+            border-radius: 50%; pointer-events: none;
+            animation: ${p}-spark .5s ease-out forwards;
           }
           .${p}-card-desc {
             font-size: 12px; color: var(--gray); margin-top: 3px;
@@ -557,7 +593,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             const key = t.taskType || "__none__";
             if (!activeTypeFilters.has(key)) return false;
           }
-          const isDone = t.status === "DONE" || t.status === "done";
+          const isDone = t.status === "DONE" || t.status === "done" || t.status === "CLOSED";
           if (activeStatusFilter === "open" && isDone) return false;
           if (activeStatusFilter === "done" && !isDone) return false;
           return true;
@@ -732,7 +768,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       }
 
       function renderTaskCard(task: Task): string {
-        const isDone  = task.status === "DONE" || task.status === "done";
+        const isDone  = task.status === "DONE" || task.status === "done" || task.status === "CLOSED";
         const dueInfo = formatDate(task.dueDate);
         const desc    = task.description ? esc(stripTypeTag(task.description)) : "";
         const typeCol  = task.taskType ? typeColor(task.taskType) : "";
@@ -789,16 +825,50 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           </div>`;
       }
 
+      // ── Sparkle burst ─────────────────────────────────────────────────
+      function spawnSparks(wrap: HTMLElement, color: string) {
+        const angles = [0, 45, 90, 135, 180, 225, 270, 315];
+        angles.forEach(deg => {
+          const spark = document.createElement("div");
+          spark.className = `${p}-spark`;
+          const rad = (deg * Math.PI) / 180;
+          const dist = 14 + Math.random() * 8;
+          spark.style.cssText = `
+            background:${color};
+            left:50%; top:50%; margin:-2.5px;
+            --tx:${Math.cos(rad)*dist}px;
+            --ty:${Math.sin(rad)*dist}px;
+          `;
+          wrap.appendChild(spark);
+          spark.addEventListener("animationend", () => spark.remove());
+        });
+      }
+
       // ── Toggle task status ────────────────────────────────────────────
       async function toggleTask(checkEl: HTMLElement) {
-        const taskId      = checkEl.dataset.taskId!;
-        const installId   = checkEl.dataset.installId!;
+        const taskId        = checkEl.dataset.taskId!;
+        const installId     = checkEl.dataset.installId!;
         const currentStatus = checkEl.dataset.status!;
-        const isDone      = currentStatus === "DONE" || currentStatus === "done";
-        const newStatus   = isDone ? "OPEN" : "DONE";
+        const isDone        = currentStatus === "DONE" || currentStatus === "done" || currentStatus === "CLOSED";
+        const newStatus     = isDone ? "OPEN" : "CLOSED";
 
+        const cardEl = checkEl.closest(`.${p}-card`) as HTMLElement | null;
+        const wrap   = checkEl.closest(`.${p}-check-wrap`) as HTMLElement | null;
+
+        // Immediate visual feedback — animate check, flip card state
         checkEl.style.pointerEvents = "none";
-        checkEl.style.opacity = "0.5";
+        checkEl.classList.remove("pop-done", "pop-undone");
+        void checkEl.offsetWidth; // force reflow to restart animation
+        checkEl.classList.add(isDone ? "pop-undone" : "pop-done");
+
+        if (!isDone) {
+          checkEl.classList.add("checked");
+          if (cardEl) cardEl.classList.add("done");
+          if (wrap) spawnSparks(wrap, primaryColor);
+        } else {
+          checkEl.classList.remove("checked");
+          if (cardEl) cardEl.classList.remove("done");
+        }
 
         try {
           const res = await fetch(`${baseUrl}/tasks/${installId}/task/${taskId}`, {
@@ -807,15 +877,21 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             body: JSON.stringify({ status: newStatus }),
           });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          // Update local state
           const task = allTasks.find(t => t.id === taskId);
           if (task) task.status = newStatus;
-          renderTypeFilters();
-          renderList();
+          // Delay re-render slightly so the animation is visible
+          setTimeout(() => { renderTypeFilters(); renderList(); }, 420);
         } catch (e: any) {
-          showBanner("error", `Could not update task: ${e.message}`);
+          // Revert visual state on error
+          if (!isDone) {
+            checkEl.classList.remove("checked");
+            if (cardEl) cardEl.classList.remove("done");
+          } else {
+            checkEl.classList.add("checked");
+            if (cardEl) cardEl.classList.add("done");
+          }
+          showBanner("error", `Could not update task: ${(e as any).message}`);
           checkEl.style.pointerEvents = "";
-          checkEl.style.opacity = "";
         }
       }
 
@@ -934,8 +1010,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
           // Sort: open first, then by due date ascending
           allTasks.sort((a, b) => {
-            const aDone = a.status === "DONE" || a.status === "done";
-            const bDone = b.status === "DONE" || b.status === "done";
+            const aDone = a.status === "DONE" || a.status === "done" || a.status === "CLOSED";
+            const bDone = b.status === "DONE" || b.status === "done" || b.status === "CLOSED";
             if (aDone !== bDone) return aDone ? 1 : -1;
             if (a.dueDate && b.dueDate) return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
             if (a.dueDate) return -1;
