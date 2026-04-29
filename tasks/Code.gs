@@ -1,11 +1,14 @@
 // ============================================================
 // Google Sheets → Staffbase Tasks Integration
-// Sheet columns (row 1 is header): title | description | due date
+// Sheet columns (row 1 is header): title | description | due date [| type]
 // Deploy as: Web app | Execute as: Me | Who has access: Anyone
+//
+// Query params:
+//   ?sheet=SheetName  — use a specific tab (default: SHEET_NAME below)
 // ============================================================
 
 var SPREADSHEET_ID = "15yCFmBWYenoCAf_Ku3bbfaHjgE_pHQ8teUcDw04eX4A";
-var SHEET_NAME = "Sheet1"; // update if your sheet tab has a different name
+var SHEET_NAME = "Sheet1"; // default sheet tab; override with ?sheet=Panda
 
 // Handles the CORS preflight OPTIONS request that Chrome sends
 // when custom x-browser-* headers are present on the request
@@ -21,20 +24,35 @@ function doGet(e) {
 
   try {
     var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    var sheet = ss.getSheetByName(SHEET_NAME) || ss.getSheets()[0];
+
+    // Allow the caller to specify a sheet tab via ?sheet=Name
+    var sheetName = (e && e.parameter && e.parameter.sheet)
+      ? e.parameter.sheet
+      : SHEET_NAME;
+    var sheet = ss.getSheetByName(sheetName) || ss.getSheets()[0];
     var data = sheet.getDataRange().getValues();
 
     var tasks = [];
-    // Row 0 is the header (title | description | due date), start at 1
+    // Row 0 is the header, start at 1
+    // Columns: title | description | due date | type (optional 4th column)
     for (var i = 1; i < data.length; i++) {
       var row = data[i];
       var title = String(row[0] || '').trim();
       if (!title) continue; // skip blank rows
-      tasks.push({
+
+      var task = {
         title:       title,
         description: String(row[1] || '').trim(),
         dueDate:     formatDate(row[2])
-      });
+      };
+
+      // Include task type if a 4th column exists and has a value
+      if (row.length >= 4) {
+        var taskType = String(row[3] || '').trim();
+        if (taskType) task.taskType = taskType;
+      }
+
+      tasks.push(task);
     }
 
     return ContentService

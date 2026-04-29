@@ -67,6 +67,21 @@ const configurationSchema: JSONSchema7 = {
       title: "Enable Task List Updating",
       default: false,
     },
+    sheetname: {
+      type: "string",
+      title: "Sheet Name",
+      default: "",
+    },
+    enabletasktypes: {
+      type: "boolean",
+      title: "Enable Task Types",
+      default: false,
+    },
+    tasktypes: {
+      type: "string",
+      title: "Task Types (comma-separated)",
+      default: "Finance,Operations,Training,Compliance,Safety",
+    },
   },
 };
 
@@ -103,6 +118,15 @@ const uiSchema: UiSchema = {
     "ui:help":
       "When enabled, select an existing task list to update instead of always creating a new one",
   },
+  sheetname: {
+    "ui:help": "Override which Google Sheet tab to pull from (e.g. Panda). Leave blank to use the default tab in the Apps Script.",
+  },
+  enabletasktypes: {
+    "ui:help": "When enabled, a Type column appears in the task table and the selected type is embedded in the task description",
+  },
+  tasktypes: {
+    "ui:help": "Comma-separated list of task type options shown in the Type dropdown",
+  },
 };
 
 // ── Widget factory ────────────────────────────────────────────────────────────
@@ -133,6 +157,14 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
         this.getAttribute("storelabelplural") || "Stores";
       const enableUpdating =
         this.getAttribute("enabletasklistupdating") === "true";
+      const sheetName =
+        this.getAttribute("sheetname") || "";
+      const enableTypes =
+        this.getAttribute("enabletasktypes") === "true";
+      const typeList = (this.getAttribute("tasktypes") || "Finance,Operations,Training,Compliance,Safety")
+        .split(",")
+        .map(s => s.trim())
+        .filter(Boolean);
 
       let storeProjects: Array<{ id: string; title: string }> = [];
       let selectedStores: Array<{ id: string; title: string }> = [];
@@ -567,6 +599,7 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
                       <tr>
                         <th style="width:30%">Title</th>
                         <th>Description</th>
+                        ${enableTypes ? `<th style="width:130px">Type</th>` : ""}
                         <th style="width:140px">Due Date</th>
                         <th style="width:36px"></th>
                       </tr>
@@ -734,14 +767,20 @@ const tbody      = container.querySelector(`#${p}-tbody`)!;
       }
 
       // ── Editable rows ─────────────────────────────────────────────────
-      function addRow(title = "", desc = "", dueDate = "") {
-        const datePart = dueDate
-          ? (() => { try { return new Date(dueDate).toISOString().split("T")[0]; } catch (_) { return ""; } })()
+      function addRow(title = "", desc = "", dueDate = "", taskType = "") {
+        // Extract date part from ISO string directly to avoid timezone shift
+        const datePart = dueDate ? dueDate.split("T")[0] : "";
+        const typeOptions = enableTypes
+          ? `<td><select class="${p}-cell ${p}-cell-type" style="padding:7px 6px">
+               <option value="">— none —</option>
+               ${typeList.map(t => `<option value="${esc(t)}"${t === taskType ? " selected" : ""}>${esc(t)}</option>`).join("")}
+             </select></td>`
           : "";
         const tr = document.createElement("tr");
         tr.innerHTML = `
           <td><input class="${p}-cell ${p}-cell-title" type="text" value="${esc(title)}" placeholder="Task title"></td>
           <td><textarea class="${p}-cell ${p}-cell-desc ${p}-cell-description" rows="1" placeholder="Description">${esc(desc)}</textarea></td>
+          ${typeOptions}
           <td><input class="${p}-cell ${p}-cell-date" type="date" value="${datePart}"></td>
           <td><button class="${p}-del-row" title="Remove"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button></td>
         `;
@@ -766,14 +805,22 @@ const tbody      = container.querySelector(`#${p}-tbody`)!;
           .map(row => {
             const tr = row as HTMLTableRowElement;
             const titleInput = tr.querySelector(`.${p}-cell-title`) as HTMLInputElement | null;
-            const descInput = tr.querySelector(`.${p}-cell-description`) as HTMLTextAreaElement | null;
-            const dueInput = tr.querySelector(`.${p}-cell-date`) as HTMLInputElement | null;
+            const descInput  = tr.querySelector(`.${p}-cell-description`) as HTMLTextAreaElement | null;
+            const dueInput   = tr.querySelector(`.${p}-cell-date`) as HTMLInputElement | null;
+            const typeSelect = enableTypes
+              ? tr.querySelector(`.${p}-cell-type`) as HTMLSelectElement | null
+              : null;
+
+            let description = descInput?.value.trim() ?? "";
+            const taskType  = typeSelect?.value ?? "";
+            // Embed type tag at end of description so my-tasks-widget can parse it
+            if (taskType) description = description ? `${description} [type: ${taskType}]` : `[type: ${taskType}]`;
+
             return {
               title:       titleInput?.value.trim() ?? "",
-              description: descInput?.value.trim() ?? "",
-              dueDate:     dueInput?.value
-                ? new Date(dueInput.value).toISOString()
-                : null,
+              description,
+              // Append T00:00:00.000Z to date-only value — the API requires full ISO format
+              dueDate:     dueInput?.value ? `${dueInput.value}T00:00:00.000Z` : null,
             };
           })
           .filter(t => t.title.length > 0);
@@ -1042,7 +1089,11 @@ const tbody      = container.querySelector(`#${p}-tbody`)!;
         (statusEl as HTMLElement).style.display = "none";
 
         try {
-          const res = await fetch(appsScriptUrl);
+          // Append ?sheet=Name if a sheet name is configured
+          const pullUrl = sheetName
+            ? `${appsScriptUrl}${appsScriptUrl.includes("?") ? "&" : "?"}sheet=${encodeURIComponent(sheetName)}`
+            : appsScriptUrl;
+          const res = await fetch(pullUrl);
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
           let data: any;
@@ -1066,7 +1117,7 @@ const tbody      = container.querySelector(`#${p}-tbody`)!;
             showStatus("info", "No tasks found in the sheet.");
           } else {
             tbody.innerHTML = "";
-            tasks.forEach(t => addRow(t.title, t.description, t.dueDate ?? ""));
+            tasks.forEach((t: any) => addRow(t.title, t.description, t.dueDate ?? "", t.taskType ?? ""));
             showStatus(
               "success",
               `Pulled ${tasks.length} task${tasks.length !== 1 ? "s" : ""} — any existing tasks were replaced. Review and edit below, then click Update your Tasks.`
@@ -1220,6 +1271,9 @@ const tbody      = container.querySelector(`#${p}-tbody`)!;
         "storelabelsingular",
         "storelabelplural",
         "enabletasklistupdating",
+        "sheetname",
+        "enabletasktypes",
+        "tasktypes",
       ];
     }
   };
@@ -1240,6 +1294,9 @@ const blockDefinition: BlockDefinition = {
     "storelabelsingular",
     "storelabelplural",
     "enabletasklistupdating",
+    "sheetname",
+    "enabletasktypes",
+    "tasktypes",
   ],
   factory,
   configurationSchema,

@@ -63,6 +63,21 @@ const configurationSchema = {
             title: "Enable Task List Updating",
             default: false,
         },
+        sheetname: {
+            type: "string",
+            title: "Sheet Name",
+            default: "",
+        },
+        enabletasktypes: {
+            type: "boolean",
+            title: "Enable Task Types",
+            default: false,
+        },
+        tasktypes: {
+            type: "string",
+            title: "Task Types (comma-separated)",
+            default: "Finance,Operations,Training,Compliance,Safety",
+        },
     },
 };
 const uiSchema = {
@@ -97,6 +112,15 @@ const uiSchema = {
     enabletasklistupdating: {
         "ui:help": "When enabled, select an existing task list to update instead of always creating a new one",
     },
+    sheetname: {
+        "ui:help": "Override which Google Sheet tab to pull from (e.g. Panda). Leave blank to use the default tab in the Apps Script.",
+    },
+    enabletasktypes: {
+        "ui:help": "When enabled, a Type column appears in the task table and the selected type is embedded in the task description",
+    },
+    tasktypes: {
+        "ui:help": "Comma-separated list of task type options shown in the Type dropdown",
+    },
 };
 // ── Widget factory ────────────────────────────────────────────────────────────
 const factory = (BaseBlockClass, _widgetApi) => {
@@ -115,6 +139,12 @@ const factory = (BaseBlockClass, _widgetApi) => {
                 const storeS = this.getAttribute("storelabelsingular") || "Store";
                 const storeP = this.getAttribute("storelabelplural") || "Stores";
                 const enableUpdating = this.getAttribute("enabletasklistupdating") === "true";
+                const sheetName = this.getAttribute("sheetname") || "";
+                const enableTypes = this.getAttribute("enabletasktypes") === "true";
+                const typeList = (this.getAttribute("tasktypes") || "Finance,Operations,Training,Compliance,Safety")
+                    .split(",")
+                    .map(s => s.trim())
+                    .filter(Boolean);
                 let storeProjects = [];
                 let selectedStores = [];
                 let allUsers = [];
@@ -545,6 +575,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
                       <tr>
                         <th style="width:30%">Title</th>
                         <th>Description</th>
+                        ${enableTypes ? `<th style="width:130px">Type</th>` : ""}
                         <th style="width:140px">Due Date</th>
                         <th style="width:36px"></th>
                       </tr>
@@ -701,19 +732,20 @@ const factory = (BaseBlockClass, _widgetApi) => {
                     el.style.height = `${Math.max(52, el.scrollHeight)}px`;
                 }
                 // ── Editable rows ─────────────────────────────────────────────────
-                function addRow(title = "", desc = "", dueDate = "") {
-                    const datePart = dueDate
-                        ? (() => { try {
-                            return new Date(dueDate).toISOString().split("T")[0];
-                        }
-                        catch (_) {
-                            return "";
-                        } })()
+                function addRow(title = "", desc = "", dueDate = "", taskType = "") {
+                    // Extract date part from ISO string directly to avoid timezone shift
+                    const datePart = dueDate ? dueDate.split("T")[0] : "";
+                    const typeOptions = enableTypes
+                        ? `<td><select class="${p}-cell ${p}-cell-type" style="padding:7px 6px">
+               <option value="">— none —</option>
+               ${typeList.map(t => `<option value="${esc(t)}"${t === taskType ? " selected" : ""}>${esc(t)}</option>`).join("")}
+             </select></td>`
                         : "";
                     const tr = document.createElement("tr");
                     tr.innerHTML = `
           <td><input class="${p}-cell ${p}-cell-title" type="text" value="${esc(title)}" placeholder="Task title"></td>
           <td><textarea class="${p}-cell ${p}-cell-desc ${p}-cell-description" rows="1" placeholder="Description">${esc(desc)}</textarea></td>
+          ${typeOptions}
           <td><input class="${p}-cell ${p}-cell-date" type="date" value="${datePart}"></td>
           <td><button class="${p}-del-row" title="Remove"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button></td>
         `;
@@ -735,17 +767,24 @@ const factory = (BaseBlockClass, _widgetApi) => {
                 function collectTasks() {
                     return Array.from(tbody.querySelectorAll("tr"))
                         .map(row => {
-                        var _a, _b;
+                        var _a, _b, _c;
                         const tr = row;
                         const titleInput = tr.querySelector(`.${p}-cell-title`);
                         const descInput = tr.querySelector(`.${p}-cell-description`);
                         const dueInput = tr.querySelector(`.${p}-cell-date`);
+                        const typeSelect = enableTypes
+                            ? tr.querySelector(`.${p}-cell-type`)
+                            : null;
+                        let description = (_a = descInput === null || descInput === void 0 ? void 0 : descInput.value.trim()) !== null && _a !== void 0 ? _a : "";
+                        const taskType = (_b = typeSelect === null || typeSelect === void 0 ? void 0 : typeSelect.value) !== null && _b !== void 0 ? _b : "";
+                        // Embed type tag at end of description so my-tasks-widget can parse it
+                        if (taskType)
+                            description = description ? `${description} [type: ${taskType}]` : `[type: ${taskType}]`;
                         return {
-                            title: (_a = titleInput === null || titleInput === void 0 ? void 0 : titleInput.value.trim()) !== null && _a !== void 0 ? _a : "",
-                            description: (_b = descInput === null || descInput === void 0 ? void 0 : descInput.value.trim()) !== null && _b !== void 0 ? _b : "",
-                            dueDate: (dueInput === null || dueInput === void 0 ? void 0 : dueInput.value)
-                                ? new Date(dueInput.value).toISOString()
-                                : null,
+                            title: (_c = titleInput === null || titleInput === void 0 ? void 0 : titleInput.value.trim()) !== null && _c !== void 0 ? _c : "",
+                            description,
+                            // Append T00:00:00.000Z to date-only value — the API requires full ISO format
+                            dueDate: (dueInput === null || dueInput === void 0 ? void 0 : dueInput.value) ? `${dueInput.value}T00:00:00.000Z` : null,
                         };
                     })
                         .filter(t => t.title.length > 0);
@@ -1006,7 +1045,11 @@ const factory = (BaseBlockClass, _widgetApi) => {
                     pullBtn.innerHTML = `<span class="${p}-spin"></span>`;
                     statusEl.style.display = "none";
                     try {
-                        const res = yield fetch(appsScriptUrl);
+                        // Append ?sheet=Name if a sheet name is configured
+                        const pullUrl = sheetName
+                            ? `${appsScriptUrl}${appsScriptUrl.includes("?") ? "&" : "?"}sheet=${encodeURIComponent(sheetName)}`
+                            : appsScriptUrl;
+                        const res = yield fetch(pullUrl);
                         if (!res.ok)
                             throw new Error(`HTTP ${res.status}`);
                         let data;
@@ -1025,7 +1068,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
                         }
                         else {
                             tbody.innerHTML = "";
-                            tasks.forEach(t => { var _a; return addRow(t.title, t.description, (_a = t.dueDate) !== null && _a !== void 0 ? _a : ""); });
+                            tasks.forEach((t) => { var _a, _b; return addRow(t.title, t.description, (_a = t.dueDate) !== null && _a !== void 0 ? _a : "", (_b = t.taskType) !== null && _b !== void 0 ? _b : ""); });
                             showStatus("success", `Pulled ${tasks.length} task${tasks.length !== 1 ? "s" : ""} — any existing tasks were replaced. Review and edit below, then click Update your Tasks.`);
                         }
                     }
@@ -1147,6 +1190,9 @@ const factory = (BaseBlockClass, _widgetApi) => {
                 "storelabelsingular",
                 "storelabelplural",
                 "enabletasklistupdating",
+                "sheetname",
+                "enabletasktypes",
+                "tasktypes",
             ];
         }
     };
@@ -1165,6 +1211,9 @@ const blockDefinition = {
         "storelabelsingular",
         "storelabelplural",
         "enabletasklistupdating",
+        "sheetname",
+        "enabletasktypes",
+        "tasktypes",
     ],
     factory,
     configurationSchema,

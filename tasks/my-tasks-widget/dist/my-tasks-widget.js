@@ -417,7 +417,13 @@ const factory = (BaseBlockClass, _widgetApi) => {
                 function formatDate(iso) {
                     if (!iso)
                         return { text: "", overdue: false };
-                    const d = new Date(iso);
+                    // Extract YYYY-MM-DD directly from the ISO string to avoid timezone shifts
+                    // (new Date("2026-05-01T00:00:00Z") renders as Apr 30 in negative-offset zones)
+                    const datePart = iso.split("T")[0];
+                    if (!datePart || !/^\d{4}-\d{2}-\d{2}$/.test(datePart))
+                        return { text: "", overdue: false };
+                    const [year, month, day] = datePart.split("-").map(Number);
+                    const d = new Date(year, month - 1, day); // local midnight — correct for overdue comparison
                     if (isNaN(d.getTime()))
                         return { text: "", overdue: false };
                     const now = new Date();
