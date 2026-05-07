@@ -2085,6 +2085,8 @@ function BroadcastOpsWidget() {
     const widgetStyle = {
         background: "#f5f3ee",
         fontFamily: "'Source Sans Pro', -apple-system, system-ui, sans-serif",
+        maxWidth: "100%",
+        overflowX: "hidden",
     };
     if (loading)
         return ((0,jsx_runtime.jsx)("div", { className: "w-full py-24 flex items-center justify-center", style: widgetStyle, children: (0,jsx_runtime.jsxs)("div", { className: "text-center", children: [(0,jsx_runtime.jsx)("div", { className: "w-12 h-12 rounded-sm flex items-center justify-center mx-auto mb-4", style: { background: "#1a2744" }, children: (0,jsx_runtime.jsx)(Radio, { className: "w-6 h-6 text-white" }) }), (0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-lg mb-1", style: { color: "#1a2744" }, children: "Loading Schedule" }), (0,jsx_runtime.jsx)("div", { className: "text-sm", style: { color: "#6b6a63" }, children: "Fetching live data from Staffbase\u2026" })] }) }));

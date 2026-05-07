@@ -38,12 +38,27 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
     }
 
     async renderBlock(container: any) {
-      // Inject Tailwind CSS CDN if not already present
+      // Inject Tailwind CSS CDN if not already present.
+      // We wait for it to load and then disable Preflight — the global CSS reset
+      // Tailwind ships by default. Without this, injecting Tailwind into Staffbase's
+      // <head> overrides their page styles (box-sizing, margins, display values, etc.)
+      // and causes the widget container to render at an unexpected width.
       if (!document.getElementById("tailwind-cdn")) {
-        const script = document.createElement("script");
-        script.id = "tailwind-cdn";
-        script.src = "https://cdn.tailwindcss.com";
-        document.head.appendChild(script);
+        await new Promise<void>((resolve) => {
+          const script = document.createElement("script");
+          script.id = "tailwind-cdn";
+          script.src = "https://cdn.tailwindcss.com";
+          script.onload = () => {
+            const tw = (window as any).tailwind;
+            if (tw) {
+              tw.config = { corePlugins: { preflight: false } };
+            }
+            resolve();
+          };
+          // Resolve anyway if script fails so renderBlock doesn't hang
+          script.onerror = () => resolve();
+          document.head.appendChild(script);
+        });
       }
 
       this.root = ReactDOM.createRoot(container);

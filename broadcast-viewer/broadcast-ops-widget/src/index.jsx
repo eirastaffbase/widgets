@@ -105,6 +105,8 @@ export default function BroadcastOpsWidget() {
   const widgetStyle = {
     background: "#f5f3ee",
     fontFamily: "'Source Sans Pro', -apple-system, system-ui, sans-serif",
+    maxWidth: "100%",
+    overflowX: "hidden",
   };
 
   if (loading) return (

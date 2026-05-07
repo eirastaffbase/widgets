@@ -2084,6 +2084,8 @@ function BroadcastOpsWidget() {
     const widgetStyle = {
         background: "#f5f3ee",
         fontFamily: "'Source Sans Pro', -apple-system, system-ui, sans-serif",
+        maxWidth: "100%",
+        overflowX: "hidden",
     };
     if (loading)
         return ((0,jsx_runtime.jsx)("div", { className: "w-full py-24 flex items-center justify-center", style: widgetStyle, children: (0,jsx_runtime.jsxs)("div", { className: "text-center", children: [(0,jsx_runtime.jsx)("div", { className: "w-12 h-12 rounded-sm flex items-center justify-center mx-auto mb-4", style: { background: "#1a2744" }, children: (0,jsx_runtime.jsx)(Radio, { className: "w-6 h-6 text-white" }) }), (0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-lg mb-1", style: { color: "#1a2744" }, children: "Loading Schedule" }), (0,jsx_runtime.jsx)("div", { className: "text-sm", style: { color: "#6b6a63" }, children: "Fetching live data from Staffbase\u2026" })] }) }));
@@ -2163,12 +2165,27 @@ const factory = (BaseBlockClass, _widgetApi) => {
         }
         renderBlock(container) {
             return broadcast_ops_widget_awaiter(this, void 0, void 0, function* () {
-                // Inject Tailwind CSS CDN if not already present
+                // Inject Tailwind CSS CDN if not already present.
+                // We wait for it to load and then disable Preflight — the global CSS reset
+                // Tailwind ships by default. Without this, injecting Tailwind into Staffbase's
+                // <head> overrides their page styles (box-sizing, margins, display values, etc.)
+                // and causes the widget container to render at an unexpected width.
                 if (!document.getElementById("tailwind-cdn")) {
-                    const script = document.createElement("script");
-                    script.id = "tailwind-cdn";
-                    script.src = "https://cdn.tailwindcss.com";
-                    document.head.appendChild(script);
+                    yield new Promise((resolve) => {
+                        const script = document.createElement("script");
+                        script.id = "tailwind-cdn";
+                        script.src = "https://cdn.tailwindcss.com";
+                        script.onload = () => {
+                            const tw = window.tailwind;
+                            if (tw) {
+                                tw.config = { corePlugins: { preflight: false } };
+                            }
+                            resolve();
+                        };
+                        // Resolve anyway if script fails so renderBlock doesn't hang
+                        script.onerror = () => resolve();
+                        document.head.appendChild(script);
+                    });
                 }
                 this.root = client.createRoot(container);
                 this.root.render(react.createElement(BroadcastOpsWidget));
