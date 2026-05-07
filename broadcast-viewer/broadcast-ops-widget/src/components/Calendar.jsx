@@ -120,16 +120,16 @@ function WeekGrid({ currentWeek, weekSchedule, onDayClick }) {
                 {dayItems.slice(0, 9).map((s) => {
                   const ch = CHANNELS.find((c) => c.id === s.channel);
                   return (
-                    <div key={s.id} className="rounded px-2.5 py-1.5 text-[11px] leading-tight overflow-hidden" style={{ background: `${ch.color}12`, borderLeft: `3px solid ${ch.color}` }}>
-                      <div className="font-bold truncate" style={{ color: "#1a2744" }}>{s.time} · {s.episode}</div>
-                      <div className="text-[10px] mt-0.5 truncate" style={{ color: "#6b6a63" }}>{ch.label} · {s.duration}m</div>
+                    <div key={s.id} className="rounded px-2.5 py-1.5 text-xs leading-tight overflow-hidden" style={{ background: `${ch.color}12`, borderLeft: `3px solid ${ch.color}` }}>
+                      <div className="font-bold truncate" style={{ color: "#1a2744" }}>{s.time} · {ch.label}</div>
+                      <div className="text-[11px] mt-0.5 truncate" style={{ color: "#6b6a63" }}>{s.duration}m</div>
                     </div>
                   );
                 })}
-                {dayItems.length > 9 && <div className="text-[11px] font-semibold mt-1" style={{ color: "#f5a623" }}>+{dayItems.length - 9} more</div>}
+                {dayItems.length > 9 && <div className="text-xs font-semibold mt-1" style={{ color: "#f5a623" }}>+{dayItems.length - 9} more</div>}
                 {dayItems.length === 0 && <div className="text-xs italic" style={{ color: "#a8a59a" }}>No programming</div>}
               </div>
-              <div className="text-[11px] mt-3 pt-3 flex items-center gap-1 font-semibold" style={{ color: "#1a2744", borderTop: "1px solid #e5e2d8" }}>
+              <div className="text-xs mt-3 pt-3 flex items-center gap-1 font-semibold" style={{ color: "#1a2744", borderTop: "1px solid #e5e2d8" }}>
                 <CalendarDays className="w-3 h-3" /> View day timeline
               </div>
             </button>
@@ -140,17 +140,53 @@ function WeekGrid({ currentWeek, weekSchedule, onDayClick }) {
   );
 }
 
+const HOUR_PX = 80; // pixels per hour
+
+function layoutShows(shows) {
+  const timed = shows.map((s) => ({
+    ...s,
+    startMin: s.hour * 60 + s.minute,
+    endMin:   s.hour * 60 + s.minute + s.duration,
+    col: 0,
+    totalCols: 1,
+  })).sort((a, b) => a.startMin - b.startMin);
+
+  const cols = [];
+  for (const s of timed) {
+    let placed = false;
+    for (let c = 0; c < cols.length; c++) {
+      if (cols[c][cols[c].length - 1].endMin <= s.startMin) {
+        cols[c].push(s); s.col = c; placed = true; break;
+      }
+    }
+    if (!placed) { s.col = cols.length; cols.push([s]); }
+  }
+
+  for (const s of timed) {
+    let max = s.col + 1;
+    for (const o of timed) {
+      if (o !== s && o.startMin < s.endMin && s.startMin < o.endMin) max = Math.max(max, o.col + 1);
+    }
+    s.totalCols = max;
+  }
+  return timed;
+}
+
 function DayTimeline({ selectedDate, daySchedule, onViewShow, onReportIssue, role }) {
   const HOURS   = Array.from({ length: 19 }, (_, i) => i + 5);
+  const MIN_HOUR = HOURS[0];
   const isToday = isSameDay(selectedDate, TODAY);
 
-  const scheduleByHour = useMemo(() => {
-    const m = {};
-    daySchedule.forEach((s) => { if (!m[s.hour]) m[s.hour] = []; m[s.hour].push(s); });
-    return m;
-  }, [daySchedule]);
+  const nowET     = new Date(Date.now() - 4 * 3600 * 1000);
+  const nowHour   = isToday ? nowET.getUTCHours() : -1;
+  const nowMinute = isToday ? nowET.getUTCMinutes() : 0;
 
   const fmtHour = (h) => h === 0 ? "12 AM" : h === 12 ? "12 PM" : h < 12 ? `${h} AM` : `${h - 12} PM`;
+  const nowLabel = `${fmtHour(nowHour)}${nowMinute > 0 ? `:${String(nowMinute).padStart(2, "0")}` : ""}`;
+
+  const laidOut  = useMemo(() => layoutShows(daySchedule), [daySchedule]);
+  const totalH   = HOURS.length * HOUR_PX;
+  const nowTop   = isToday ? ((nowHour - MIN_HOUR) + nowMinute / 60) * HOUR_PX : null;
 
   return (
     <div className="rounded-lg overflow-hidden" style={{ background: "white", border: "1px solid #e5e2d8" }}>
@@ -167,48 +203,62 @@ function DayTimeline({ selectedDate, daySchedule, onViewShow, onReportIssue, rol
         </div>
       </div>
 
-      <div className="divide-y" style={{ borderColor: "#e5e2d8" }}>
-        {HOURS.map((h) => {
-          const items = scheduleByHour[h] || [];
-          return (
-            <div key={h} className="flex">
-              <div className="w-20 px-4 py-3 text-xs font-semibold flex-shrink-0" style={{ background: "#faf8f3", color: "#6b6a63", borderRight: "1px solid #e5e2d8" }}>
-                {fmtHour(h)}
-              </div>
-              <div className="flex-1 py-3 px-3 space-y-2">
-                {items.length === 0 ? (
-                  <div className="text-xs italic py-1" style={{ color: "#cbc9c0" }}>—</div>
-                ) : items.map((s) => {
-                  const ch         = CHANNELS.find((c) => c.id === s.channel);
-                  const hasDetails = !!SHOW_DETAILS[s.show];
-                  return (
-                    <div key={s.id} className="rounded-lg p-3 flex items-center gap-3 transition-shadow hover:shadow-sm" style={{ background: `${ch.color}08`, border: `1px solid ${ch.color}30`, borderLeft: `3px solid ${ch.color}` }}>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: ch.color, color: "white" }}>{ch.label}</span>
-                          <span className="text-xs font-bold" style={{ color: "#1a2744" }}>{s.time}</span>
-                          <span className="text-xs" style={{ color: "#6b6a63" }}>· {s.duration} min</span>
-                        </div>
-                        <div className="font-display font-bold text-sm mt-0.5" style={{ color: "#1a2744" }}>{s.episode}</div>
-                        {s.teaser && <div className="text-[11px] mt-0.5 line-clamp-2" style={{ color: "#6b6a63" }}>{s.teaser}</div>}
-                      </div>
-                      <div className="flex gap-1.5 flex-shrink-0">
-                        <button onClick={() => onViewShow(s)} disabled={!hasDetails} className="text-[11px] font-semibold px-2.5 py-1.5 rounded flex items-center gap-1" style={{ background: "white", color: hasDetails ? "#1a2744" : "#a8a59a", border: "1px solid #e5e2d8", cursor: hasDetails ? "pointer" : "not-allowed" }}>
-                          Details <ChevronRight className="w-3 h-3" />
-                        </button>
-                        {role === "station" && (
-                          <button onClick={() => onReportIssue(s)} className="text-[11px] font-semibold px-2.5 py-1.5 rounded flex items-center gap-1" style={{ background: "#fef3c7", color: "#92400e", border: "1px solid #fde68a" }}>
-                            <Flag className="w-3 h-3" /> Report
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+      <div className="flex" style={{ minHeight: totalH }}>
+        {/* Hour labels */}
+        <div className="w-20 flex-shrink-0 relative" style={{ borderRight: "1px solid #e5e2d8" }}>
+          {HOURS.map((h) => (
+            <div key={h} className="px-3 text-sm font-semibold flex items-start pt-1" style={{ height: HOUR_PX, color: h === nowHour && isToday ? "#dc2626" : "#6b6a63", background: h === nowHour && isToday ? "#fff5f5" : "transparent", borderBottom: "1px solid #e5e2d8", boxSizing: "border-box" }}>
+              {fmtHour(h)}
             </div>
-          );
-        })}
+          ))}
+        </div>
+
+        {/* Timeline body */}
+        <div className="flex-1 relative" style={{ height: totalH }}>
+          {/* Hour grid lines */}
+          {HOURS.map((h, i) => (
+            <div key={h} style={{ position: "absolute", top: i * HOUR_PX, left: 0, right: 0, height: HOUR_PX, borderBottom: "1px solid #e5e2d8", boxSizing: "border-box", background: h === nowHour && isToday ? "#fff5f5" : "transparent" }} />
+          ))}
+
+          {/* NOW line */}
+          {nowTop !== null && nowTop >= 0 && nowTop <= totalH && (
+            <div style={{ position: "absolute", top: nowTop, left: 0, right: 0, zIndex: 10, display: "flex", alignItems: "center" }}>
+              <div style={{ height: 2, flex: 1, background: "#dc2626" }} />
+              <div className="px-2 text-xs font-bold flex-shrink-0" style={{ color: "#dc2626", background: "white" }}>{nowLabel}</div>
+            </div>
+          )}
+
+          {/* Show cards */}
+          {laidOut.map((s) => {
+            const ch         = CHANNELS.find((c) => c.id === s.channel);
+            const hasDetails = !!SHOW_DETAILS[s.show];
+            const top    = ((s.hour - MIN_HOUR) + s.minute / 60) * HOUR_PX;
+            const height = (s.duration / 60) * HOUR_PX;
+            const colW   = 1 / s.totalCols;
+            return (
+              <div key={s.id} style={{ position: "absolute", top: top + 2, left: `calc(${s.col * colW * 100}% + 4px)`, width: `calc(${colW * 100}% - 8px)`, height: height - 4, borderRadius: 6, background: `${ch.color}10`, border: `1px solid ${ch.color}40`, borderLeft: `4px solid ${ch.color}`, boxSizing: "border-box", zIndex: 5, overflow: "hidden", display: "flex", flexDirection: "column", padding: "6px 8px" }}>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded flex-shrink-0" style={{ background: ch.color, color: "white" }}>{ch.label}</span>
+                  <span className="text-xs font-bold" style={{ color: "#1a2744" }}>{s.time}</span>
+                  <span className="text-xs" style={{ color: "#6b6a63" }}>· {s.duration}m</span>
+                </div>
+                {height > 36 && <div className="text-xs mt-0.5 truncate" style={{ color: "#3a3833" }}>{s.episode}</div>}
+                {height > 56 && (
+                  <div className="flex gap-1.5 mt-auto pt-1 flex-wrap">
+                    <button onClick={() => onViewShow(s)} disabled={!hasDetails} className="text-[11px] font-semibold px-2 py-1 rounded flex items-center gap-0.5" style={{ background: "white", color: hasDetails ? "#1a2744" : "#a8a59a", border: "1px solid #e5e2d8", cursor: hasDetails ? "pointer" : "not-allowed" }}>
+                      Details <ChevronRight className="w-2.5 h-2.5" />
+                    </button>
+                    {role === "station" && (
+                      <button onClick={() => onReportIssue(s)} className="text-[11px] font-semibold px-2 py-1 rounded flex items-center gap-0.5" style={{ background: "#fef3c7", color: "#92400e", border: "1px solid #fde68a" }}>
+                        <Flag className="w-2.5 h-2.5" /> Report
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

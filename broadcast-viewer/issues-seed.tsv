@@ -1,0 +1,4 @@
+id	show	episode	station	author	type	tags	description	status	timestamp	replies
+i1	Finding Your Roots	Roots: Icons of Hollywood	New Mexico Station	K. Ortiz	Accessibility	No closed captioning, Visual description missing	Episode arrived without closed captioning track. Visual description audio also not present on the SAP channel.	Open	2 hours ago
+i2	Frontline	Frontline: The Plastics Trap	Boston Station	T. Nguyen	Video	Flicker, Visual discrepancy	Visible flicker around the 14:32 mark, approximately 3 seconds. Appears to be a compression artifact.	In Review	Yesterday	Operations Team: Confirmed on master. Re-encoding now — new file ETA 6 hours.
+i3	NOVA	NOVA: The Planets—Mars Revisited	Chicago Station	R. Patel	Audio	Sync issue	Audio drifts out of sync by ~200ms starting at 22:15. Happens through the end of the episode.	Open	4 hours ago

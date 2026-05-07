@@ -1,5 +1,5 @@
-import React from "react";
-import { Layers, AlertTriangle, Eye, Heart, AlertCircle, Flag, Sparkles, FileText, X, Plus } from "lucide-react";
+import React, { useState } from "react";
+import { Layers, AlertTriangle, Eye, Heart, AlertCircle, Flag, Sparkles, FileText, X, Plus, ChevronRight } from "lucide-react";
 import { SHOW_DETAILS } from "../constants.js";
 import { SectionHeader, ModalCard, InfoBlock } from "./Shared.jsx";
 
@@ -136,9 +136,47 @@ export function Show360Browser({ selected, setSelected, role, schedule }) {
 
 // ========== SHOW 360° MODAL (opened from schedule cards) ==========
 export function Show360Content({ show, role, onClose, onReportIssue, schedule }) {
-  const details    = SHOW_DETAILS[show];
-  const nextAiring = schedule.find((s) => s.show === show);
+  const [pickingEpisode, setPickingEpisode] = useState(false);
+  const details  = SHOW_DETAILS[show];
+  const airings  = schedule.filter((s) => s.show === show);
+  const nextAiring = airings[0];
   if (!details) return null;
+
+  if (pickingEpisode) {
+    return (
+      <>
+        <div className="relative px-6 py-5 flex items-start justify-between flex-shrink-0" style={{ background: "linear-gradient(135deg, #1a2744 0%, #2d3f6b 100%)" }}>
+          <div className="relative flex-1 min-w-0">
+            <div className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: "#f5a623" }}>
+              <Flag className="w-3 h-3 inline mr-1" /> Report Issue · Choose Episode
+            </div>
+            <h2 className="font-display font-black text-2xl text-white leading-tight">{details.title}</h2>
+            <p className="text-sm mt-1" style={{ color: "#a8b4cc" }}>Select the specific episode you're reporting an issue with.</p>
+          </div>
+          <button onClick={onClose} className="relative p-1.5 rounded hover:bg-white/10 transition-colors ml-4">
+            <X className="w-5 h-5 text-white" />
+          </button>
+        </div>
+        <div className="overflow-y-auto scrollbar-thin flex-1 px-6 py-4 space-y-2">
+          {airings.length === 0 && (
+            <p className="text-sm text-center py-8" style={{ color: "#6b6a63" }}>No upcoming airings found for this show.</p>
+          )}
+          {airings.map((ep) => (
+            <button key={ep.id} onClick={() => onReportIssue(ep)} className="w-full text-left rounded-lg p-4 flex items-center gap-3 transition-all hover:shadow-md" style={{ background: "white", border: "1px solid #e5e2d8" }}>
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold text-sm" style={{ color: "#1a2744" }}>{ep.episode}</div>
+                <div className="text-xs mt-0.5" style={{ color: "#6b6a63" }}>{ep.date} · {ep.time} · {ep.duration} min</div>
+              </div>
+              <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: "#a8a59a" }} />
+            </button>
+          ))}
+        </div>
+        <div className="px-6 py-4 flex-shrink-0" style={{ background: "white", borderTop: "1px solid #e5e2d8" }}>
+          <button onClick={() => setPickingEpisode(false)} className="text-sm font-semibold" style={{ color: "#6b6a63" }}>← Back to show details</button>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -172,8 +210,8 @@ export function Show360Content({ show, role, onClose, onReportIssue, schedule })
         <div className="text-xs" style={{ color: "#6b6a63" }}>Data aggregated from Staffbase scheduling, rights, and CMS systems.</div>
         <div className="flex gap-2">
           <button onClick={onClose} className="px-4 py-2 text-sm font-semibold rounded-lg transition-colors hover:bg-gray-100" style={{ color: "#6b6a63" }}>Close</button>
-          {role === "station" && nextAiring && (
-            <button onClick={onReportIssue} className="px-4 py-2 text-sm font-bold rounded-lg flex items-center gap-2 transition-all" style={{ background: "#f5a623", color: "#1a2744" }}>
+          {role === "station" && airings.length > 0 && (
+            <button onClick={() => setPickingEpisode(true)} className="px-4 py-2 text-sm font-bold rounded-lg flex items-center gap-2 transition-all" style={{ background: "#f5a623", color: "#1a2744" }}>
               <Flag className="w-3.5 h-3.5" /> Report Issue
             </button>
           )}

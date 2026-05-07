@@ -1,16 +1,52 @@
 export const CHANNELS = [
-  { id: "frontline",    label: "Frontline",           color: "#7b1d1d" },
-  { id: "findingroots", label: "Finding Your Roots",  color: "#166534" },
-  { id: "amanpour",    label: "Amanpour & Co.",       color: "#1e3a8a" },
+  { id: "newshour",    label: "PBS NewsHour",        color: "#1e3a5f" },
+  { id: "sesame",      label: "Sesame Street",        color: "#c2410c" },
+  { id: "frontline",   label: "Frontline",            color: "#7b1d1d" },
+  { id: "nova",        label: "NOVA",                 color: "#5b21b6" },
+  { id: "amanpour",   label: "Amanpour & Co.",        color: "#0f766e" },
+  { id: "nature",      label: "Nature",               color: "#166534" },
+  { id: "greatperf",  label: "Great Performances",    color: "#9a3412" },
+  { id: "findingroots",label: "Finding Your Roots",   color: "#1e3a8a" },
 ];
 
 export const CHANNEL_SB = {
+  newshour:     { sbId: "69f441cc1d5cee4e8095222c", duration: 60 },
+  sesame:       { sbId: "69f43fc41d5cee4e80950d45", duration: 30 },
   frontline:    { sbId: "69f2c4d055eb276693d0a6ca", duration: 60 },
-  findingroots: { sbId: "69f2c4db6783920c5e0a8218", duration: 60 },
+  nova:         { sbId: "69f440a2cd46db2e153447b0", duration: 60 },
   amanpour:     { sbId: "69f2c4f455eb276693d0a870", duration: 60 },
+  nature:       { sbId: "69f44168a44f816f97691844", duration: 60 },
+  greatperf:    { sbId: "69f44057cd46db2e153444a9", duration: 120 },
+  findingroots: { sbId: "69f2c4db6783920c5e0a8218", duration: 60 },
 };
 
 export const SHOW_DETAILS = {
+  "PBS NewsHour": {
+    title: "PBS NewsHour",
+    tagline: "In-depth reporting on the issues that matter most",
+    season: "Season 2026",
+    episodes: 220,
+    genre: "News & Public Affairs",
+    rights: { window: "Jan 1, 2026 – Dec 31, 2026", territory: "US, all platforms", clearances: "Broadcast + Streaming" },
+    funding: ["Corporation for Public Broadcasting", "Viewer Support", "Ford Foundation"],
+    contributors: [
+      { name: "Dana Reyes", role: "Scheduling Lead", note: "All April/May episodes cleared for same-day streaming." },
+    ],
+    flags: [],
+  },
+  "Sesame Street": {
+    title: "Sesame Street",
+    tagline: "Fun and learning for the youngest viewers",
+    season: "Season 56",
+    episodes: 35,
+    genre: "Children's Education",
+    rights: { window: "Jan 1, 2026 – Jun 30, 2027", territory: "US, broadcast only", clearances: "Broadcast" },
+    funding: ["Joan Ganz Cooney Center", "Viewer Support"],
+    contributors: [
+      { name: "T. Morales", role: "Rights Coordinator", note: "S56 episodes require 24-hour embargo before streaming." },
+    ],
+    flags: [],
+  },
   "Frontline": {
     title: "Frontline",
     tagline: "Investigative journalism that exposes injustice",
@@ -23,23 +59,22 @@ export const SHOW_DETAILS = {
       { name: "Alex Rivera", role: "Series Producer", note: "E08 contains archival footage — pre-cleared for broadcast." },
     ],
     flags: [
-      { kind: "Mature Themes",     level: "Strong",   auto: true },
+      { kind: "Mature Themes",      level: "Strong",   auto: true },
       { kind: "Disturbing Content", level: "Moderate", auto: true },
     ],
   },
-  "Finding Your Roots": {
-    title: "Finding Your Roots",
-    tagline: "Henry Louis Gates Jr. reveals the surprising family histories of prominent Americans",
-    season: "Season 11",
-    episodes: 10,
-    genre: "Documentary",
-    rights: { window: "Mar 1, 2026 – Feb 28, 2029", territory: "US, all platforms", clearances: "Broadcast + Streaming" },
-    funding: ["Bank of America", "Ancestry", "Viewer Support"],
+  "NOVA": {
+    title: "NOVA",
+    tagline: "America's most-watched science series",
+    season: "Season 53",
+    episodes: 20,
+    genre: "Science Documentary",
+    rights: { window: "Feb 1, 2026 – Jan 31, 2028", territory: "US, all platforms", clearances: "Broadcast + Streaming" },
+    funding: ["David H. Koch Fund", "Draper Richards Kaplan Foundation", "Viewer Support"],
     contributors: [
-      { name: "Sarah Kim",    role: "Digital Lead",       note: "Companion articles published on pbs.org same day as broadcast." },
-      { name: "Marcus Webb",  role: "Rights Coordinator", note: "Streaming window confirmed for all S11 episodes." },
+      { name: "Priya Nair", role: "Science Advisor", note: "All S53 episodes include educator guides on pbs.org." },
     ],
-    flags: [{ kind: "Mature Themes", level: "Some", auto: true }],
+    flags: [],
   },
   "Amanpour & Co.": {
     title: "Amanpour & Co.",
@@ -50,10 +85,51 @@ export const SHOW_DETAILS = {
     rights: { window: "Feb 1, 2026 – Jan 31, 2027", territory: "US, all platforms", clearances: "Cleared for VOD + Streaming" },
     funding: ["Rosalind P. Walter", "Mutual of America", "Viewer Support"],
     contributors: [
-      { name: "Maria Chen",   role: "Scheduling Lead",    note: "Confirmed 60-min cutdowns available for weekend slots." },
+      { name: "Maria Chen",    role: "Scheduling Lead",    note: "Confirmed 60-min cutdowns available for weekend slots." },
       { name: "Jordan Fields", role: "Rights Coordinator", note: "Streaming extension approved through FY27." },
     ],
     flags: [],
+  },
+  "Nature": {
+    title: "Nature",
+    tagline: "Breathtaking wildlife documentaries from around the globe",
+    season: "Season 44",
+    episodes: 14,
+    genre: "Documentary",
+    rights: { window: "Jan 1, 2026 – Dec 31, 2028", territory: "US, all platforms", clearances: "Broadcast + Streaming" },
+    funding: ["Arnhold Foundation", "Sue and Edgar Wachenheim III", "Viewer Support"],
+    contributors: [
+      { name: "James O'Brien", role: "Series Editor", note: "The Serengeti episode is Part 1 of 2 — Part 2 airs following week." },
+    ],
+    flags: [],
+  },
+  "Great Performances": {
+    title: "Great Performances",
+    tagline: "The best in theater, opera, dance, and music from the world's greatest stages",
+    season: "Season 51",
+    episodes: 12,
+    genre: "Arts & Performance",
+    rights: { window: "Mar 1, 2026 – Feb 28, 2027", territory: "US, broadcast only", clearances: "Broadcast (streaming rights per-title)" },
+    funding: ["The Agnes Varis Trust", "Virginia B. Toulmin Foundation", "Viewer Support"],
+    contributors: [
+      { name: "Claire Dubois", role: "Rights Coordinator", note: "Magic Flute streaming rights NOT cleared — broadcast only." },
+      { name: "Sam Park",      role: "Scheduling Lead",    note: "Romeo & Juliet runtime is 2h30m — confirm with traffic." },
+    ],
+    flags: [],
+  },
+  "Finding Your Roots": {
+    title: "Finding Your Roots",
+    tagline: "Henry Louis Gates Jr. reveals the surprising family histories of prominent Americans",
+    season: "Season 11",
+    episodes: 10,
+    genre: "Documentary",
+    rights: { window: "Mar 1, 2026 – Feb 28, 2029", territory: "US, all platforms", clearances: "Broadcast + Streaming" },
+    funding: ["Bank of America", "Ancestry", "Viewer Support"],
+    contributors: [
+      { name: "Sarah Kim",   role: "Digital Lead",       note: "Companion articles published on pbs.org same day as broadcast." },
+      { name: "Marcus Webb", role: "Rights Coordinator", note: "Streaming window confirmed for all S11 episodes." },
+    ],
+    flags: [{ kind: "Mature Themes", level: "Some", auto: true }],
   },
 };
 
@@ -88,8 +164,8 @@ export const INITIAL_ISSUES = [
   },
   {
     id: "i3",
-    show: "Finding Your Roots",
-    episode: "Roots: The Writers' Room",
+    show: "NOVA",
+    episode: "NOVA: The Planets—Mars Revisited",
     station: "Chicago Station",
     author: "R. Patel",
     type: "Audio",

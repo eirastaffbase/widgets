@@ -835,6 +835,25 @@ const Bell = createLucideIcon("bell", bell_iconNode);
 
 //# sourceMappingURL=bell.js.map
 
+;// ./node_modules/lucide-react/dist/esm/icons/x.js
+/**
+ * @license lucide-react v0.511.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+
+
+
+const x_iconNode = [
+  ["path", { d: "M18 6 6 18", key: "1bl5f8" }],
+  ["path", { d: "m6 6 12 12", key: "d8bk6v" }]
+];
+const X = createLucideIcon("x", x_iconNode);
+
+
+//# sourceMappingURL=x.js.map
+
 ;// ./node_modules/lucide-react/dist/esm/icons/user.js
 /**
  * @license lucide-react v0.511.0 - ISC
@@ -875,37 +894,54 @@ const Users = createLucideIcon("users", users_iconNode);
 
 //# sourceMappingURL=users.js.map
 
-;// ./node_modules/lucide-react/dist/esm/icons/x.js
-/**
- * @license lucide-react v0.511.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */
-
-
-
-const x_iconNode = [
-  ["path", { d: "M18 6 6 18", key: "1bl5f8" }],
-  ["path", { d: "m6 6 12 12", key: "d8bk6v" }]
-];
-const X = createLucideIcon("x", x_iconNode);
-
-
-//# sourceMappingURL=x.js.map
-
 ;// ./src/constants.js
 const CHANNELS = [
+    { id: "newshour", label: "PBS NewsHour", color: "#1e3a5f" },
+    { id: "sesame", label: "Sesame Street", color: "#c2410c" },
     { id: "frontline", label: "Frontline", color: "#7b1d1d" },
-    { id: "findingroots", label: "Finding Your Roots", color: "#166534" },
-    { id: "amanpour", label: "Amanpour & Co.", color: "#1e3a8a" },
+    { id: "nova", label: "NOVA", color: "#5b21b6" },
+    { id: "amanpour", label: "Amanpour & Co.", color: "#0f766e" },
+    { id: "nature", label: "Nature", color: "#166534" },
+    { id: "greatperf", label: "Great Performances", color: "#9a3412" },
+    { id: "findingroots", label: "Finding Your Roots", color: "#1e3a8a" },
 ];
 const CHANNEL_SB = {
+    newshour: { sbId: "69f441cc1d5cee4e8095222c", duration: 60 },
+    sesame: { sbId: "69f43fc41d5cee4e80950d45", duration: 30 },
     frontline: { sbId: "69f2c4d055eb276693d0a6ca", duration: 60 },
-    findingroots: { sbId: "69f2c4db6783920c5e0a8218", duration: 60 },
+    nova: { sbId: "69f440a2cd46db2e153447b0", duration: 60 },
     amanpour: { sbId: "69f2c4f455eb276693d0a870", duration: 60 },
+    nature: { sbId: "69f44168a44f816f97691844", duration: 60 },
+    greatperf: { sbId: "69f44057cd46db2e153444a9", duration: 120 },
+    findingroots: { sbId: "69f2c4db6783920c5e0a8218", duration: 60 },
 };
 const SHOW_DETAILS = {
+    "PBS NewsHour": {
+        title: "PBS NewsHour",
+        tagline: "In-depth reporting on the issues that matter most",
+        season: "Season 2026",
+        episodes: 220,
+        genre: "News & Public Affairs",
+        rights: { window: "Jan 1, 2026 – Dec 31, 2026", territory: "US, all platforms", clearances: "Broadcast + Streaming" },
+        funding: ["Corporation for Public Broadcasting", "Viewer Support", "Ford Foundation"],
+        contributors: [
+            { name: "Dana Reyes", role: "Scheduling Lead", note: "All April/May episodes cleared for same-day streaming." },
+        ],
+        flags: [],
+    },
+    "Sesame Street": {
+        title: "Sesame Street",
+        tagline: "Fun and learning for the youngest viewers",
+        season: "Season 56",
+        episodes: 35,
+        genre: "Children's Education",
+        rights: { window: "Jan 1, 2026 – Jun 30, 2027", territory: "US, broadcast only", clearances: "Broadcast" },
+        funding: ["Joan Ganz Cooney Center", "Viewer Support"],
+        contributors: [
+            { name: "T. Morales", role: "Rights Coordinator", note: "S56 episodes require 24-hour embargo before streaming." },
+        ],
+        flags: [],
+    },
     "Frontline": {
         title: "Frontline",
         tagline: "Investigative journalism that exposes injustice",
@@ -922,19 +958,18 @@ const SHOW_DETAILS = {
             { kind: "Disturbing Content", level: "Moderate", auto: true },
         ],
     },
-    "Finding Your Roots": {
-        title: "Finding Your Roots",
-        tagline: "Henry Louis Gates Jr. reveals the surprising family histories of prominent Americans",
-        season: "Season 11",
-        episodes: 10,
-        genre: "Documentary",
-        rights: { window: "Mar 1, 2026 – Feb 28, 2029", territory: "US, all platforms", clearances: "Broadcast + Streaming" },
-        funding: ["Bank of America", "Ancestry", "Viewer Support"],
+    "NOVA": {
+        title: "NOVA",
+        tagline: "America's most-watched science series",
+        season: "Season 53",
+        episodes: 20,
+        genre: "Science Documentary",
+        rights: { window: "Feb 1, 2026 – Jan 31, 2028", territory: "US, all platforms", clearances: "Broadcast + Streaming" },
+        funding: ["David H. Koch Fund", "Draper Richards Kaplan Foundation", "Viewer Support"],
         contributors: [
-            { name: "Sarah Kim", role: "Digital Lead", note: "Companion articles published on pbs.org same day as broadcast." },
-            { name: "Marcus Webb", role: "Rights Coordinator", note: "Streaming window confirmed for all S11 episodes." },
+            { name: "Priya Nair", role: "Science Advisor", note: "All S53 episodes include educator guides on pbs.org." },
         ],
-        flags: [{ kind: "Mature Themes", level: "Some", auto: true }],
+        flags: [],
     },
     "Amanpour & Co.": {
         title: "Amanpour & Co.",
@@ -949,6 +984,47 @@ const SHOW_DETAILS = {
             { name: "Jordan Fields", role: "Rights Coordinator", note: "Streaming extension approved through FY27." },
         ],
         flags: [],
+    },
+    "Nature": {
+        title: "Nature",
+        tagline: "Breathtaking wildlife documentaries from around the globe",
+        season: "Season 44",
+        episodes: 14,
+        genre: "Documentary",
+        rights: { window: "Jan 1, 2026 – Dec 31, 2028", territory: "US, all platforms", clearances: "Broadcast + Streaming" },
+        funding: ["Arnhold Foundation", "Sue and Edgar Wachenheim III", "Viewer Support"],
+        contributors: [
+            { name: "James O'Brien", role: "Series Editor", note: "The Serengeti episode is Part 1 of 2 — Part 2 airs following week." },
+        ],
+        flags: [],
+    },
+    "Great Performances": {
+        title: "Great Performances",
+        tagline: "The best in theater, opera, dance, and music from the world's greatest stages",
+        season: "Season 51",
+        episodes: 12,
+        genre: "Arts & Performance",
+        rights: { window: "Mar 1, 2026 – Feb 28, 2027", territory: "US, broadcast only", clearances: "Broadcast (streaming rights per-title)" },
+        funding: ["The Agnes Varis Trust", "Virginia B. Toulmin Foundation", "Viewer Support"],
+        contributors: [
+            { name: "Claire Dubois", role: "Rights Coordinator", note: "Magic Flute streaming rights NOT cleared — broadcast only." },
+            { name: "Sam Park", role: "Scheduling Lead", note: "Romeo & Juliet runtime is 2h30m — confirm with traffic." },
+        ],
+        flags: [],
+    },
+    "Finding Your Roots": {
+        title: "Finding Your Roots",
+        tagline: "Henry Louis Gates Jr. reveals the surprising family histories of prominent Americans",
+        season: "Season 11",
+        episodes: 10,
+        genre: "Documentary",
+        rights: { window: "Mar 1, 2026 – Feb 28, 2029", territory: "US, all platforms", clearances: "Broadcast + Streaming" },
+        funding: ["Bank of America", "Ancestry", "Viewer Support"],
+        contributors: [
+            { name: "Sarah Kim", role: "Digital Lead", note: "Companion articles published on pbs.org same day as broadcast." },
+            { name: "Marcus Webb", role: "Rights Coordinator", note: "Streaming window confirmed for all S11 episodes." },
+        ],
+        flags: [{ kind: "Mature Themes", level: "Some", auto: true }],
     },
 };
 const INITIAL_ISSUES = [
@@ -982,8 +1058,8 @@ const INITIAL_ISSUES = [
     },
     {
         id: "i3",
-        show: "Finding Your Roots",
-        episode: "Roots: The Writers' Room",
+        show: "NOVA",
+        episode: "NOVA: The Planets—Mars Revisited",
         station: "Chicago Station",
         author: "R. Patel",
         type: "Audio",
@@ -1084,27 +1160,49 @@ var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _argume
 
 const SB_API = "https://app.staffbase.com/api";
 const SB_KEY = "NjlmYjIzODZkMjBiNGE3NzZlODJmZmNkOi5NakImMkFha05hdUMxd1F0KVR9fWYycUp7ZVljQWczLktBN1oySmpOOCQ0XTlpK35zRFJ4IV5KYi1pfmlbTUM=";
+const ISSUES_URL = "https://script.google.com/macros/s/AKfycbz_Q7qpr87EXGaGS8XBNNaBllwvNTO9nIASAYUlaDF1gfeszd3R2yqwBDMWRlJzJcuMmA/exec";
+function parseDuration(content, defaultDuration) {
+    const m = content.match(/duration:(\d+)/);
+    return m ? parseInt(m[1], 10) : defaultDuration;
+}
+function fetchChannelPosts(sbId) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a;
+        const headers = { authorization: `Basic ${SB_KEY}`, accept: "application/json" };
+        for (const url of [
+            `${SB_API}/channels/${sbId}/posts?limit=50`,
+            `${SB_API}/branch/channels/${sbId}/posts?limit=50`,
+        ]) {
+            try {
+                const res = yield fetch(url, { headers });
+                if (!res.ok)
+                    continue;
+                const data = yield res.json();
+                if (((_a = data.data) === null || _a === void 0 ? void 0 : _a.length) > 0)
+                    return data.data;
+            }
+            catch (_) { }
+        }
+        return [];
+    });
+}
 function fetchScheduleFromStaffbase() {
     return __awaiter(this, void 0, void 0, function* () {
         var _a, _b, _c, _d, _e, _f;
-        const headers = { authorization: `Basic ${SB_KEY}`, accept: "application/json" };
         const rangeKeys = new Set(DATE_RANGE.map(dateKey));
         const items = [];
         for (const ch of CHANNELS) {
             const cfg = CHANNEL_SB[ch.id];
             try {
-                const res = yield fetch(`${SB_API}/channels/${cfg.sbId}/posts?limit=30`, { headers });
-                if (!res.ok)
-                    continue;
-                const data = yield res.json();
-                for (const post of data.data || []) {
+                const posts = yield fetchChannelPosts(cfg.sbId);
+                for (const post of posts) {
                     const title = (_b = (_a = post.contents) === null || _a === void 0 ? void 0 : _a.en_US) === null || _b === void 0 ? void 0 : _b.title;
                     if (!title || title === "Summary")
                         continue;
                     const content = ((_d = (_c = post.contents) === null || _c === void 0 ? void 0 : _c.en_US) === null || _d === void 0 ? void 0 : _d.content) || "";
                     const teaser = ((_f = (_e = post.contents) === null || _e === void 0 ? void 0 : _e.en_US) === null || _f === void 0 ? void 0 : _f.teaser) || "";
-                    const timestamps = parseTimestamps(content);
-                    for (const ts of timestamps) {
+                    const duration = parseDuration(content, cfg.duration);
+                    for (const ts of parseTimestamps(content)) {
                         const dk = tsDateKey(ts);
                         if (!rangeKeys.has(dk))
                             continue;
@@ -1121,18 +1219,37 @@ function fetchScheduleFromStaffbase() {
                             dateKey: dk,
                             date: tsShortDate(ts),
                             daypart: getDaypart(hour),
-                            duration: cfg.duration,
+                            duration,
                         });
                     }
                 }
             }
-            catch (_) {
-                // non-fatal — channel simply won't appear in schedule
-            }
+            catch (_) { }
         }
         return items.sort((a, b) => a.dateKey !== b.dateKey ? a.dateKey.localeCompare(b.dateKey) :
             a.hour !== b.hour ? a.hour - b.hour :
                 a.minute - b.minute);
+    });
+}
+function fetchIssues() {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            const res = yield fetch(ISSUES_URL);
+            const data = yield res.json();
+            return data.issues || [];
+        }
+        catch (_) {
+            return [];
+        }
+    });
+}
+function api_submitIssue(issue) {
+    return __awaiter(this, void 0, void 0, function* () {
+        yield fetch(ISSUES_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: "payload=" + encodeURIComponent(JSON.stringify(issue)),
+        });
     });
 }
 
@@ -1479,28 +1596,59 @@ function WeekGrid({ currentWeek, weekSchedule, onDayClick }) {
                 const dayItems = scheduleByDay[dateKey(d)] || [];
                 return ((0,jsx_runtime.jsxs)("button", { onClick: () => onDayClick(d), className: "text-left p-4 transition-colors hover:bg-gray-50 flex flex-col min-w-0", style: { borderRight: "1px solid #e5e2d8", borderBottom: "1px solid #e5e2d8", minHeight: 420, background: isToday ? "#fef9e7" : isWeekend ? "#faf8f3" : "white" }, children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-baseline justify-between mb-3", children: [(0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "text-[11px] font-bold uppercase tracking-wider", style: { color: "#6b6a63" }, children: formatDayName(d) }), (0,jsx_runtime.jsx)("div", { className: "font-display font-black text-3xl leading-none", style: { color: isToday ? "#f5a623" : "#1a2744" }, children: formatDayNumber(d) })] }), isToday && (0,jsx_runtime.jsx)("span", { className: "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded", style: { background: "#f5a623", color: "#1a2744" }, children: "Today" })] }), (0,jsx_runtime.jsxs)("div", { className: "space-y-1.5 flex-1 overflow-hidden", children: [dayItems.slice(0, 9).map((s) => {
                                     const ch = CHANNELS.find((c) => c.id === s.channel);
-                                    return ((0,jsx_runtime.jsxs)("div", { className: "rounded px-2.5 py-1.5 text-[11px] leading-tight overflow-hidden", style: { background: `${ch.color}12`, borderLeft: `3px solid ${ch.color}` }, children: [(0,jsx_runtime.jsxs)("div", { className: "font-bold truncate", style: { color: "#1a2744" }, children: [s.time, " \u00B7 ", s.episode] }), (0,jsx_runtime.jsxs)("div", { className: "text-[10px] mt-0.5 truncate", style: { color: "#6b6a63" }, children: [ch.label, " \u00B7 ", s.duration, "m"] })] }, s.id));
-                                }), dayItems.length > 9 && (0,jsx_runtime.jsxs)("div", { className: "text-[11px] font-semibold mt-1", style: { color: "#f5a623" }, children: ["+", dayItems.length - 9, " more"] }), dayItems.length === 0 && (0,jsx_runtime.jsx)("div", { className: "text-xs italic", style: { color: "#a8a59a" }, children: "No programming" })] }), (0,jsx_runtime.jsxs)("div", { className: "text-[11px] mt-3 pt-3 flex items-center gap-1 font-semibold", style: { color: "#1a2744", borderTop: "1px solid #e5e2d8" }, children: [(0,jsx_runtime.jsx)(CalendarDays, { className: "w-3 h-3" }), " View day timeline"] })] }, dateKey(d)));
+                                    return ((0,jsx_runtime.jsxs)("div", { className: "rounded px-2.5 py-1.5 text-xs leading-tight overflow-hidden", style: { background: `${ch.color}12`, borderLeft: `3px solid ${ch.color}` }, children: [(0,jsx_runtime.jsxs)("div", { className: "font-bold truncate", style: { color: "#1a2744" }, children: [s.time, " \u00B7 ", ch.label] }), (0,jsx_runtime.jsxs)("div", { className: "text-[11px] mt-0.5 truncate", style: { color: "#6b6a63" }, children: [s.duration, "m"] })] }, s.id));
+                                }), dayItems.length > 9 && (0,jsx_runtime.jsxs)("div", { className: "text-xs font-semibold mt-1", style: { color: "#f5a623" }, children: ["+", dayItems.length - 9, " more"] }), dayItems.length === 0 && (0,jsx_runtime.jsx)("div", { className: "text-xs italic", style: { color: "#a8a59a" }, children: "No programming" })] }), (0,jsx_runtime.jsxs)("div", { className: "text-xs mt-3 pt-3 flex items-center gap-1 font-semibold", style: { color: "#1a2744", borderTop: "1px solid #e5e2d8" }, children: [(0,jsx_runtime.jsx)(CalendarDays, { className: "w-3 h-3" }), " View day timeline"] })] }, dateKey(d)));
             }) }) }));
+}
+const HOUR_PX = 80; // pixels per hour
+function layoutShows(shows) {
+    const timed = shows.map((s) => (Object.assign(Object.assign({}, s), { startMin: s.hour * 60 + s.minute, endMin: s.hour * 60 + s.minute + s.duration, col: 0, totalCols: 1 }))).sort((a, b) => a.startMin - b.startMin);
+    const cols = [];
+    for (const s of timed) {
+        let placed = false;
+        for (let c = 0; c < cols.length; c++) {
+            if (cols[c][cols[c].length - 1].endMin <= s.startMin) {
+                cols[c].push(s);
+                s.col = c;
+                placed = true;
+                break;
+            }
+        }
+        if (!placed) {
+            s.col = cols.length;
+            cols.push([s]);
+        }
+    }
+    for (const s of timed) {
+        let max = s.col + 1;
+        for (const o of timed) {
+            if (o !== s && o.startMin < s.endMin && s.startMin < o.endMin)
+                max = Math.max(max, o.col + 1);
+        }
+        s.totalCols = max;
+    }
+    return timed;
 }
 function DayTimeline({ selectedDate, daySchedule, onViewShow, onReportIssue, role }) {
     const HOURS = Array.from({ length: 19 }, (_, i) => i + 5);
+    const MIN_HOUR = HOURS[0];
     const isToday = isSameDay(selectedDate, TODAY);
-    const scheduleByHour = (0,react.useMemo)(() => {
-        const m = {};
-        daySchedule.forEach((s) => { if (!m[s.hour])
-            m[s.hour] = []; m[s.hour].push(s); });
-        return m;
-    }, [daySchedule]);
+    const nowET = new Date(Date.now() - 4 * 3600 * 1000);
+    const nowHour = isToday ? nowET.getUTCHours() : -1;
+    const nowMinute = isToday ? nowET.getUTCMinutes() : 0;
     const fmtHour = (h) => h === 0 ? "12 AM" : h === 12 ? "12 PM" : h < 12 ? `${h} AM` : `${h - 12} PM`;
-    return ((0,jsx_runtime.jsxs)("div", { className: "rounded-lg overflow-hidden", style: { background: "white", border: "1px solid #e5e2d8" }, children: [(0,jsx_runtime.jsx)("div", { className: "px-5 py-4", style: { background: isToday ? "#fef9e7" : "#f5f3ee", borderBottom: "1px solid #e5e2d8" }, children: (0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-3", children: [(0,jsx_runtime.jsxs)("div", { className: "w-14 h-14 rounded-lg flex flex-col items-center justify-center flex-shrink-0", style: { background: isToday ? "#f5a623" : "#1a2744" }, children: [(0,jsx_runtime.jsx)("div", { className: "text-[9px] font-bold uppercase tracking-wider", style: { color: isToday ? "#1a2744" : "#f5a623" }, children: formatDayName(selectedDate) }), (0,jsx_runtime.jsx)("div", { className: "font-display font-black text-xl leading-none", style: { color: isToday ? "#1a2744" : "white" }, children: formatDayNumber(selectedDate) })] }), (0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-lg", style: { color: "#1a2744" }, children: formatFullDate(selectedDate) }), (0,jsx_runtime.jsxs)("div", { className: "text-xs", style: { color: "#6b6a63" }, children: [daySchedule.length, " program", daySchedule.length === 1 ? "" : "s", " scheduled"] })] })] }) }), (0,jsx_runtime.jsx)("div", { className: "divide-y", style: { borderColor: "#e5e2d8" }, children: HOURS.map((h) => {
-                    const items = scheduleByHour[h] || [];
-                    return ((0,jsx_runtime.jsxs)("div", { className: "flex", children: [(0,jsx_runtime.jsx)("div", { className: "w-20 px-4 py-3 text-xs font-semibold flex-shrink-0", style: { background: "#faf8f3", color: "#6b6a63", borderRight: "1px solid #e5e2d8" }, children: fmtHour(h) }), (0,jsx_runtime.jsx)("div", { className: "flex-1 py-3 px-3 space-y-2", children: items.length === 0 ? ((0,jsx_runtime.jsx)("div", { className: "text-xs italic py-1", style: { color: "#cbc9c0" }, children: "\u2014" })) : items.map((s) => {
-                                    const ch = CHANNELS.find((c) => c.id === s.channel);
-                                    const hasDetails = !!SHOW_DETAILS[s.show];
-                                    return ((0,jsx_runtime.jsxs)("div", { className: "rounded-lg p-3 flex items-center gap-3 transition-shadow hover:shadow-sm", style: { background: `${ch.color}08`, border: `1px solid ${ch.color}30`, borderLeft: `3px solid ${ch.color}` }, children: [(0,jsx_runtime.jsxs)("div", { className: "flex-1 min-w-0", children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-2 flex-wrap", children: [(0,jsx_runtime.jsx)("span", { className: "text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded", style: { background: ch.color, color: "white" }, children: ch.label }), (0,jsx_runtime.jsx)("span", { className: "text-xs font-bold", style: { color: "#1a2744" }, children: s.time }), (0,jsx_runtime.jsxs)("span", { className: "text-xs", style: { color: "#6b6a63" }, children: ["\u00B7 ", s.duration, " min"] })] }), (0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-sm mt-0.5", style: { color: "#1a2744" }, children: s.episode }), s.teaser && (0,jsx_runtime.jsx)("div", { className: "text-[11px] mt-0.5 line-clamp-2", style: { color: "#6b6a63" }, children: s.teaser })] }), (0,jsx_runtime.jsxs)("div", { className: "flex gap-1.5 flex-shrink-0", children: [(0,jsx_runtime.jsxs)("button", { onClick: () => onViewShow(s), disabled: !hasDetails, className: "text-[11px] font-semibold px-2.5 py-1.5 rounded flex items-center gap-1", style: { background: "white", color: hasDetails ? "#1a2744" : "#a8a59a", border: "1px solid #e5e2d8", cursor: hasDetails ? "pointer" : "not-allowed" }, children: ["Details ", (0,jsx_runtime.jsx)(ChevronRight, { className: "w-3 h-3" })] }), role === "station" && ((0,jsx_runtime.jsxs)("button", { onClick: () => onReportIssue(s), className: "text-[11px] font-semibold px-2.5 py-1.5 rounded flex items-center gap-1", style: { background: "#fef3c7", color: "#92400e", border: "1px solid #fde68a" }, children: [(0,jsx_runtime.jsx)(Flag, { className: "w-3 h-3" }), " Report"] }))] })] }, s.id));
-                                }) })] }, h));
-                }) })] }));
+    const nowLabel = `${fmtHour(nowHour)}${nowMinute > 0 ? `:${String(nowMinute).padStart(2, "0")}` : ""}`;
+    const laidOut = (0,react.useMemo)(() => layoutShows(daySchedule), [daySchedule]);
+    const totalH = HOURS.length * HOUR_PX;
+    const nowTop = isToday ? ((nowHour - MIN_HOUR) + nowMinute / 60) * HOUR_PX : null;
+    return ((0,jsx_runtime.jsxs)("div", { className: "rounded-lg overflow-hidden", style: { background: "white", border: "1px solid #e5e2d8" }, children: [(0,jsx_runtime.jsx)("div", { className: "px-5 py-4", style: { background: isToday ? "#fef9e7" : "#f5f3ee", borderBottom: "1px solid #e5e2d8" }, children: (0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-3", children: [(0,jsx_runtime.jsxs)("div", { className: "w-14 h-14 rounded-lg flex flex-col items-center justify-center flex-shrink-0", style: { background: isToday ? "#f5a623" : "#1a2744" }, children: [(0,jsx_runtime.jsx)("div", { className: "text-[9px] font-bold uppercase tracking-wider", style: { color: isToday ? "#1a2744" : "#f5a623" }, children: formatDayName(selectedDate) }), (0,jsx_runtime.jsx)("div", { className: "font-display font-black text-xl leading-none", style: { color: isToday ? "#1a2744" : "white" }, children: formatDayNumber(selectedDate) })] }), (0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-lg", style: { color: "#1a2744" }, children: formatFullDate(selectedDate) }), (0,jsx_runtime.jsxs)("div", { className: "text-xs", style: { color: "#6b6a63" }, children: [daySchedule.length, " program", daySchedule.length === 1 ? "" : "s", " scheduled"] })] })] }) }), (0,jsx_runtime.jsxs)("div", { className: "flex", style: { minHeight: totalH }, children: [(0,jsx_runtime.jsx)("div", { className: "w-20 flex-shrink-0 relative", style: { borderRight: "1px solid #e5e2d8" }, children: HOURS.map((h) => ((0,jsx_runtime.jsx)("div", { className: "px-3 text-sm font-semibold flex items-start pt-1", style: { height: HOUR_PX, color: h === nowHour && isToday ? "#dc2626" : "#6b6a63", background: h === nowHour && isToday ? "#fff5f5" : "transparent", borderBottom: "1px solid #e5e2d8", boxSizing: "border-box" }, children: fmtHour(h) }, h))) }), (0,jsx_runtime.jsxs)("div", { className: "flex-1 relative", style: { height: totalH }, children: [HOURS.map((h, i) => ((0,jsx_runtime.jsx)("div", { style: { position: "absolute", top: i * HOUR_PX, left: 0, right: 0, height: HOUR_PX, borderBottom: "1px solid #e5e2d8", boxSizing: "border-box", background: h === nowHour && isToday ? "#fff5f5" : "transparent" } }, h))), nowTop !== null && nowTop >= 0 && nowTop <= totalH && ((0,jsx_runtime.jsxs)("div", { style: { position: "absolute", top: nowTop, left: 0, right: 0, zIndex: 10, display: "flex", alignItems: "center" }, children: [(0,jsx_runtime.jsx)("div", { style: { height: 2, flex: 1, background: "#dc2626" } }), (0,jsx_runtime.jsx)("div", { className: "px-2 text-xs font-bold flex-shrink-0", style: { color: "#dc2626", background: "white" }, children: nowLabel })] })), laidOut.map((s) => {
+                                const ch = CHANNELS.find((c) => c.id === s.channel);
+                                const hasDetails = !!SHOW_DETAILS[s.show];
+                                const top = ((s.hour - MIN_HOUR) + s.minute / 60) * HOUR_PX;
+                                const height = (s.duration / 60) * HOUR_PX;
+                                const colW = 1 / s.totalCols;
+                                return ((0,jsx_runtime.jsxs)("div", { style: { position: "absolute", top: top + 2, left: `calc(${s.col * colW * 100}% + 4px)`, width: `calc(${colW * 100}% - 8px)`, height: height - 4, borderRadius: 6, background: `${ch.color}10`, border: `1px solid ${ch.color}40`, borderLeft: `4px solid ${ch.color}`, boxSizing: "border-box", zIndex: 5, overflow: "hidden", display: "flex", flexDirection: "column", padding: "6px 8px" }, children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-1.5 flex-wrap", children: [(0,jsx_runtime.jsx)("span", { className: "text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded flex-shrink-0", style: { background: ch.color, color: "white" }, children: ch.label }), (0,jsx_runtime.jsx)("span", { className: "text-xs font-bold", style: { color: "#1a2744" }, children: s.time }), (0,jsx_runtime.jsxs)("span", { className: "text-xs", style: { color: "#6b6a63" }, children: ["\u00B7 ", s.duration, "m"] })] }), height > 36 && (0,jsx_runtime.jsx)("div", { className: "text-xs mt-0.5 truncate", style: { color: "#3a3833" }, children: s.episode }), height > 56 && ((0,jsx_runtime.jsxs)("div", { className: "flex gap-1.5 mt-auto pt-1 flex-wrap", children: [(0,jsx_runtime.jsxs)("button", { onClick: () => onViewShow(s), disabled: !hasDetails, className: "text-[11px] font-semibold px-2 py-1 rounded flex items-center gap-0.5", style: { background: "white", color: hasDetails ? "#1a2744" : "#a8a59a", border: "1px solid #e5e2d8", cursor: hasDetails ? "pointer" : "not-allowed" }, children: ["Details ", (0,jsx_runtime.jsx)(ChevronRight, { className: "w-2.5 h-2.5" })] }), role === "station" && ((0,jsx_runtime.jsxs)("button", { onClick: () => onReportIssue(s), className: "text-[11px] font-semibold px-2 py-1 rounded flex items-center gap-0.5", style: { background: "#fef3c7", color: "#92400e", border: "1px solid #fde68a" }, children: [(0,jsx_runtime.jsx)(Flag, { className: "w-2.5 h-2.5" }), " Report"] }))] }))] }, s.id));
+                            })] })] })] }));
 }
 
 ;// ./node_modules/lucide-react/dist/esm/icons/message-square.js
@@ -1713,11 +1861,16 @@ function Show360Browser({ selected, setSelected, role, schedule }) {
 }
 // ========== SHOW 360° MODAL (opened from schedule cards) ==========
 function Show360Content({ show, role, onClose, onReportIssue, schedule }) {
+    const [pickingEpisode, setPickingEpisode] = (0,react.useState)(false);
     const details = SHOW_DETAILS[show];
-    const nextAiring = schedule.find((s) => s.show === show);
+    const airings = schedule.filter((s) => s.show === show);
+    const nextAiring = airings[0];
     if (!details)
         return null;
-    return ((0,jsx_runtime.jsxs)(jsx_runtime.Fragment, { children: [(0,jsx_runtime.jsxs)("div", { className: "relative px-6 py-6 flex items-start justify-between flex-shrink-0", style: { background: "linear-gradient(135deg, #1a2744 0%, #2d3f6b 100%)" }, children: [(0,jsx_runtime.jsx)("div", { className: "absolute top-0 right-0 w-96 h-full opacity-10 pointer-events-none", style: { background: "radial-gradient(circle at top right, #f5a623 0%, transparent 60%)" } }), (0,jsx_runtime.jsxs)("div", { className: "relative flex-1 min-w-0", children: [(0,jsx_runtime.jsxs)("div", { className: "text-xs font-bold uppercase tracking-widest mb-2", style: { color: "#f5a623" }, children: [(0,jsx_runtime.jsx)(Layers, { className: "w-3 h-3 inline mr-1" }), " Show 360\u00B0 \u00B7 ", details.genre] }), (0,jsx_runtime.jsx)("h2", { className: "font-display font-black text-3xl text-white leading-tight mb-1", children: details.title }), (0,jsx_runtime.jsx)("p", { className: "text-sm", style: { color: "#a8b4cc" }, children: details.tagline }), (0,jsx_runtime.jsxs)("div", { className: "flex gap-6 mt-4 text-xs", style: { color: "#a8b4cc" }, children: [(0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "uppercase tracking-wider opacity-70", children: "Episodes" }), (0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-white text-lg", children: details.episodes })] }), (0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "uppercase tracking-wider opacity-70", children: "Season" }), (0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-white text-lg", children: details.season })] }), nextAiring && (0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "uppercase tracking-wider opacity-70", children: "Next Airing" }), (0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-white text-lg", children: nextAiring.time })] })] })] }), (0,jsx_runtime.jsx)("button", { onClick: onClose, className: "relative p-1.5 rounded hover:bg-white/10 transition-colors ml-4", children: (0,jsx_runtime.jsx)(X, { className: "w-5 h-5 text-white" }) })] }), (0,jsx_runtime.jsxs)("div", { className: "overflow-y-auto scrollbar-thin flex-1 px-6 py-5 space-y-4", children: [(0,jsx_runtime.jsx)(FlagsCard, { flags: details.flags }), (0,jsx_runtime.jsx)(RightsCard, { rights: details.rights }), (0,jsx_runtime.jsx)(FundingCard, { funding: details.funding }), (0,jsx_runtime.jsx)(ContributorsCard, { contributors: details.contributors, role: role })] }), (0,jsx_runtime.jsxs)("div", { className: "px-6 py-4 flex items-center justify-between flex-shrink-0", style: { background: "white", borderTop: "1px solid #e5e2d8" }, children: [(0,jsx_runtime.jsx)("div", { className: "text-xs", style: { color: "#6b6a63" }, children: "Data aggregated from Staffbase scheduling, rights, and CMS systems." }), (0,jsx_runtime.jsxs)("div", { className: "flex gap-2", children: [(0,jsx_runtime.jsx)("button", { onClick: onClose, className: "px-4 py-2 text-sm font-semibold rounded-lg transition-colors hover:bg-gray-100", style: { color: "#6b6a63" }, children: "Close" }), role === "station" && nextAiring && ((0,jsx_runtime.jsxs)("button", { onClick: onReportIssue, className: "px-4 py-2 text-sm font-bold rounded-lg flex items-center gap-2 transition-all", style: { background: "#f5a623", color: "#1a2744" }, children: [(0,jsx_runtime.jsx)(Flag, { className: "w-3.5 h-3.5" }), " Report Issue"] }))] })] })] }));
+    if (pickingEpisode) {
+        return ((0,jsx_runtime.jsxs)(jsx_runtime.Fragment, { children: [(0,jsx_runtime.jsxs)("div", { className: "relative px-6 py-5 flex items-start justify-between flex-shrink-0", style: { background: "linear-gradient(135deg, #1a2744 0%, #2d3f6b 100%)" }, children: [(0,jsx_runtime.jsxs)("div", { className: "relative flex-1 min-w-0", children: [(0,jsx_runtime.jsxs)("div", { className: "text-xs font-bold uppercase tracking-widest mb-1", style: { color: "#f5a623" }, children: [(0,jsx_runtime.jsx)(Flag, { className: "w-3 h-3 inline mr-1" }), " Report Issue \u00B7 Choose Episode"] }), (0,jsx_runtime.jsx)("h2", { className: "font-display font-black text-2xl text-white leading-tight", children: details.title }), (0,jsx_runtime.jsx)("p", { className: "text-sm mt-1", style: { color: "#a8b4cc" }, children: "Select the specific episode you're reporting an issue with." })] }), (0,jsx_runtime.jsx)("button", { onClick: onClose, className: "relative p-1.5 rounded hover:bg-white/10 transition-colors ml-4", children: (0,jsx_runtime.jsx)(X, { className: "w-5 h-5 text-white" }) })] }), (0,jsx_runtime.jsxs)("div", { className: "overflow-y-auto scrollbar-thin flex-1 px-6 py-4 space-y-2", children: [airings.length === 0 && ((0,jsx_runtime.jsx)("p", { className: "text-sm text-center py-8", style: { color: "#6b6a63" }, children: "No upcoming airings found for this show." })), airings.map((ep) => ((0,jsx_runtime.jsxs)("button", { onClick: () => onReportIssue(ep), className: "w-full text-left rounded-lg p-4 flex items-center gap-3 transition-all hover:shadow-md", style: { background: "white", border: "1px solid #e5e2d8" }, children: [(0,jsx_runtime.jsxs)("div", { className: "flex-1 min-w-0", children: [(0,jsx_runtime.jsx)("div", { className: "font-semibold text-sm", style: { color: "#1a2744" }, children: ep.episode }), (0,jsx_runtime.jsxs)("div", { className: "text-xs mt-0.5", style: { color: "#6b6a63" }, children: [ep.date, " \u00B7 ", ep.time, " \u00B7 ", ep.duration, " min"] })] }), (0,jsx_runtime.jsx)(ChevronRight, { className: "w-4 h-4 flex-shrink-0", style: { color: "#a8a59a" } })] }, ep.id)))] }), (0,jsx_runtime.jsx)("div", { className: "px-6 py-4 flex-shrink-0", style: { background: "white", borderTop: "1px solid #e5e2d8" }, children: (0,jsx_runtime.jsx)("button", { onClick: () => setPickingEpisode(false), className: "text-sm font-semibold", style: { color: "#6b6a63" }, children: "\u2190 Back to show details" }) })] }));
+    }
+    return ((0,jsx_runtime.jsxs)(jsx_runtime.Fragment, { children: [(0,jsx_runtime.jsxs)("div", { className: "relative px-6 py-6 flex items-start justify-between flex-shrink-0", style: { background: "linear-gradient(135deg, #1a2744 0%, #2d3f6b 100%)" }, children: [(0,jsx_runtime.jsx)("div", { className: "absolute top-0 right-0 w-96 h-full opacity-10 pointer-events-none", style: { background: "radial-gradient(circle at top right, #f5a623 0%, transparent 60%)" } }), (0,jsx_runtime.jsxs)("div", { className: "relative flex-1 min-w-0", children: [(0,jsx_runtime.jsxs)("div", { className: "text-xs font-bold uppercase tracking-widest mb-2", style: { color: "#f5a623" }, children: [(0,jsx_runtime.jsx)(Layers, { className: "w-3 h-3 inline mr-1" }), " Show 360\u00B0 \u00B7 ", details.genre] }), (0,jsx_runtime.jsx)("h2", { className: "font-display font-black text-3xl text-white leading-tight mb-1", children: details.title }), (0,jsx_runtime.jsx)("p", { className: "text-sm", style: { color: "#a8b4cc" }, children: details.tagline }), (0,jsx_runtime.jsxs)("div", { className: "flex gap-6 mt-4 text-xs", style: { color: "#a8b4cc" }, children: [(0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "uppercase tracking-wider opacity-70", children: "Episodes" }), (0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-white text-lg", children: details.episodes })] }), (0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "uppercase tracking-wider opacity-70", children: "Season" }), (0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-white text-lg", children: details.season })] }), nextAiring && (0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "uppercase tracking-wider opacity-70", children: "Next Airing" }), (0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-white text-lg", children: nextAiring.time })] })] })] }), (0,jsx_runtime.jsx)("button", { onClick: onClose, className: "relative p-1.5 rounded hover:bg-white/10 transition-colors ml-4", children: (0,jsx_runtime.jsx)(X, { className: "w-5 h-5 text-white" }) })] }), (0,jsx_runtime.jsxs)("div", { className: "overflow-y-auto scrollbar-thin flex-1 px-6 py-5 space-y-4", children: [(0,jsx_runtime.jsx)(FlagsCard, { flags: details.flags }), (0,jsx_runtime.jsx)(RightsCard, { rights: details.rights }), (0,jsx_runtime.jsx)(FundingCard, { funding: details.funding }), (0,jsx_runtime.jsx)(ContributorsCard, { contributors: details.contributors, role: role })] }), (0,jsx_runtime.jsxs)("div", { className: "px-6 py-4 flex items-center justify-between flex-shrink-0", style: { background: "white", borderTop: "1px solid #e5e2d8" }, children: [(0,jsx_runtime.jsx)("div", { className: "text-xs", style: { color: "#6b6a63" }, children: "Data aggregated from Staffbase scheduling, rights, and CMS systems." }), (0,jsx_runtime.jsxs)("div", { className: "flex gap-2", children: [(0,jsx_runtime.jsx)("button", { onClick: onClose, className: "px-4 py-2 text-sm font-semibold rounded-lg transition-colors hover:bg-gray-100", style: { color: "#6b6a63" }, children: "Close" }), role === "station" && airings.length > 0 && ((0,jsx_runtime.jsxs)("button", { onClick: () => setPickingEpisode(true), className: "px-4 py-2 text-sm font-bold rounded-lg flex items-center gap-2 transition-all", style: { background: "#f5a623", color: "#1a2744" }, children: [(0,jsx_runtime.jsx)(Flag, { className: "w-3.5 h-3.5" }), " Report Issue"] }))] })] })] }));
 }
 
 ;// ./node_modules/lucide-react/dist/esm/icons/calendar.js
@@ -1804,6 +1957,15 @@ function ActivityItem({ topic, title, detail, time }) {
 }
 
 ;// ./src/index.jsx
+var src_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 
 
 
@@ -1827,7 +1989,7 @@ function BroadcastOpsWidget() {
     const [selectedDateKey, setSelectedDateKey] = (0,react.useState)(dateKey(TODAY));
     const [selectedChannels, setSelectedChannels] = (0,react.useState)(CHANNELS.map((c) => c.id));
     const [searchQuery, setSearchQuery] = (0,react.useState)("");
-    const [issues, setIssues] = (0,react.useState)(INITIAL_ISSUES);
+    const [issues, setIssues] = (0,react.useState)([]);
     const [selectedShow360, setSelectedShow360] = (0,react.useState)("Frontline");
     const [subscriptions, setSubscriptions] = (0,react.useState)(["bugs", "rights"]);
     const [notifDelivery, setNotifDelivery] = (0,react.useState)({ email: true, inApp: true });
@@ -1839,6 +2001,7 @@ function BroadcastOpsWidget() {
         fetchScheduleFromStaffbase()
             .then((items) => { setSchedule(items); setLoading(false); })
             .catch((err) => { setLoadError(err.message || "Failed to load"); setLoading(false); });
+        fetchIssues().then(setIssues);
     }, []);
     const currentWeek = (0,react.useMemo)(() => DATE_RANGE.slice(weekStartIndex, weekStartIndex + 4), [weekStartIndex]);
     const selectedDate = (0,react.useMemo)(() => DATE_RANGE.find((d) => dateKey(d) === selectedDateKey) || TODAY, [selectedDateKey]);
@@ -1860,15 +2023,23 @@ function BroadcastOpsWidget() {
     }, [searchQuery, schedule]);
     const toggleChannel = (id) => setSelectedChannels((p) => p.includes(id) ? p.filter((c) => c !== id) : [...p, id]);
     const toggleSubscription = (id) => setSubscriptions((p) => p.includes(id) ? p.filter((s) => s !== id) : [...p, id]);
-    const submitIssue = (show, draft) => {
-        setIssues((prev) => [{
-                id: `i${Date.now()}`, show: show.show, episode: show.episode,
-                station: "Your Station", author: "You", type: draft.type, tags: draft.tags,
-                description: draft.description, status: "Open", timestamp: "Just now", replies: [],
-            }, ...prev]);
+    const submitIssue = (show, draft) => src_awaiter(this, void 0, void 0, function* () {
+        const newIssue = {
+            show: show.show, episode: show.episode,
+            station: "Your Station", author: "You",
+            type: draft.type, tags: draft.tags, description: draft.description,
+        };
         setReportModalShow(null);
         setActiveTab("issues");
-    };
+        try {
+            yield api_submitIssue(newIssue);
+            const updated = yield fetchIssues();
+            setIssues(updated);
+        }
+        catch (_) {
+            setIssues((prev) => [Object.assign(Object.assign({ id: `i${Date.now()}` }, newIssue), { status: "Open", timestamp: "Just now", replies: [] }), ...prev]);
+        }
+    });
     const submitReply = (issueId) => {
         const text = replyDraft[issueId];
         if (!(text === null || text === void 0 ? void 0 : text.trim()))
@@ -1881,11 +2052,14 @@ function BroadcastOpsWidget() {
     const openReport = (item) => setReportModalShow(item);
     const openDayView = (d) => { setSelectedDateKey(dateKey(d)); setViewMode("day"); };
     const unreadCount = subscriptions.length * 2;
-    // ── Loading / error states ──────────────────────────────────────────────
+    const widgetStyle = {
+        background: "#f5f3ee",
+        fontFamily: "'Source Sans Pro', -apple-system, system-ui, sans-serif",
+    };
     if (loading)
-        return ((0,jsx_runtime.jsx)("div", { className: "min-h-screen w-full flex items-center justify-center", style: { background: "#f5f3ee" }, children: (0,jsx_runtime.jsxs)("div", { className: "text-center", children: [(0,jsx_runtime.jsx)("div", { className: "w-12 h-12 rounded-sm flex items-center justify-center mx-auto mb-4", style: { background: "#1a2744" }, children: (0,jsx_runtime.jsx)(Radio, { className: "w-6 h-6 text-white" }) }), (0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-lg mb-1", style: { color: "#1a2744" }, children: "Loading Schedule" }), (0,jsx_runtime.jsx)("div", { className: "text-sm", style: { color: "#6b6a63" }, children: "Fetching live data from Staffbase\u2026" })] }) }));
+        return ((0,jsx_runtime.jsx)("div", { className: "w-full py-24 flex items-center justify-center", style: widgetStyle, children: (0,jsx_runtime.jsxs)("div", { className: "text-center", children: [(0,jsx_runtime.jsx)("div", { className: "w-12 h-12 rounded-sm flex items-center justify-center mx-auto mb-4", style: { background: "#1a2744" }, children: (0,jsx_runtime.jsx)(Radio, { className: "w-6 h-6 text-white" }) }), (0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-lg mb-1", style: { color: "#1a2744" }, children: "Loading Schedule" }), (0,jsx_runtime.jsx)("div", { className: "text-sm", style: { color: "#6b6a63" }, children: "Fetching live data from Staffbase\u2026" })] }) }));
     if (loadError)
-        return ((0,jsx_runtime.jsx)("div", { className: "min-h-screen w-full flex items-center justify-center", style: { background: "#f5f3ee" }, children: (0,jsx_runtime.jsxs)("div", { className: "text-center max-w-sm", children: [(0,jsx_runtime.jsx)(CircleAlert, { className: "w-10 h-10 mx-auto mb-3", style: { color: "#be123c" } }), (0,jsx_runtime.jsx)("div", { className: "font-bold mb-1", style: { color: "#1a2744" }, children: "Could not load schedule" }), (0,jsx_runtime.jsx)("div", { className: "text-sm", style: { color: "#6b6a63" }, children: loadError }), (0,jsx_runtime.jsx)("div", { className: "text-xs mt-3", style: { color: "#a8a59a" }, children: "This widget requires access to app.staffbase.com. Try opening it inside Staffbase." })] }) }));
+        return ((0,jsx_runtime.jsx)("div", { className: "w-full py-24 flex items-center justify-center", style: widgetStyle, children: (0,jsx_runtime.jsxs)("div", { className: "text-center max-w-sm", children: [(0,jsx_runtime.jsx)(CircleAlert, { className: "w-10 h-10 mx-auto mb-3", style: { color: "#be123c" } }), (0,jsx_runtime.jsx)("div", { className: "font-bold mb-1", style: { color: "#1a2744" }, children: "Could not load schedule" }), (0,jsx_runtime.jsx)("div", { className: "text-sm", style: { color: "#6b6a63" }, children: loadError }), (0,jsx_runtime.jsx)("div", { className: "text-xs mt-3", style: { color: "#a8a59a" }, children: "This widget requires access to app.staffbase.com. Try opening it inside Staffbase." })] }) }));
     const TABS = [
         { id: "guide", label: "TV Guide", icon: Tv },
         { id: "issues", label: "Media Issues", icon: CircleAlert, badge: issues.filter((i) => i.status === "Open").length },
@@ -1893,7 +2067,7 @@ function BroadcastOpsWidget() {
         { id: "show360", label: "Show 360°", icon: Layers },
         { id: "activity", label: "Activity Stream", icon: BellRing, badge: subscriptions.length },
     ];
-    return ((0,jsx_runtime.jsxs)("div", { className: "min-h-screen w-full", style: { background: "#f5f3ee", fontFamily: "'Source Sans Pro', -apple-system, system-ui, sans-serif" }, children: [(0,jsx_runtime.jsx)("style", { children: `
+    return ((0,jsx_runtime.jsxs)("div", { className: "w-full", style: widgetStyle, children: [(0,jsx_runtime.jsx)("style", { children: `
         @import url('https://fonts.googleapis.com/css2?family=Source+Serif+Pro:wght@400;600;700;900&family=Source+Sans+Pro:wght@300;400;600;700&display=swap');
         .font-display { font-family: 'Source Serif Pro', Georgia, serif; }
         .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -1905,10 +2079,10 @@ function BroadcastOpsWidget() {
         .fade-in-up { animation: fadeInUp 0.3s ease-out; }
         .modal-backdrop { animation: backdropIn 0.2s ease-out; }
         .modal-content { animation: modalIn 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
-      ` }), (0,jsx_runtime.jsxs)("header", { className: "sticky top-0 z-40 border-b", style: { background: "#1a2744", borderColor: "#0f1a30" }, children: [(0,jsx_runtime.jsxs)("div", { className: "max-w-7xl mx-auto px-6 py-4 flex items-center justify-between", children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-3", children: [(0,jsx_runtime.jsx)("div", { className: "w-10 h-10 rounded-sm flex items-center justify-center", style: { background: "#f5a623" }, children: (0,jsx_runtime.jsx)(Radio, { className: "w-5 h-5", style: { color: "#1a2744" }, strokeWidth: 2.5 }) }), (0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-white text-lg leading-tight tracking-tight", children: "Broadcast Operations" }), (0,jsx_runtime.jsx)("div", { className: "text-xs tracking-widest uppercase", style: { color: "#a8b4cc" }, children: "Programming & Delivery Hub" })] })] }), (0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-3", children: [(0,jsx_runtime.jsxs)("button", { onClick: () => setShowNotifPanel(!showNotifPanel), className: "relative p-2 rounded-md transition-colors", style: { background: showNotifPanel ? "#f5a623" : "rgba(255,255,255,0.08)" }, children: [(0,jsx_runtime.jsx)(Bell, { className: "w-5 h-5", style: { color: showNotifPanel ? "#1a2744" : "white" } }), unreadCount > 0 && ((0,jsx_runtime.jsx)("span", { className: "absolute -top-1 -right-1 text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center", style: { background: "#f5a623", color: "#1a2744" }, children: unreadCount }))] }), (0,jsx_runtime.jsx)("div", { className: "flex items-center rounded-md p-1", style: { background: "rgba(255,255,255,0.08)" }, children: [{ val: "station", label: "Station", Icon: User }, { val: "hq", label: "HQ Staff", Icon: Users }].map(({ val, label, Icon }) => ((0,jsx_runtime.jsxs)("button", { onClick: () => setRole(val), className: "flex items-center gap-2 px-3 py-1.5 rounded text-xs font-semibold transition-all", style: { background: role === val ? "#f5a623" : "transparent", color: role === val ? "#1a2744" : "#a8b4cc" }, children: [(0,jsx_runtime.jsx)(Icon, { className: "w-3.5 h-3.5" }), " ", label] }, val))) })] })] }), (0,jsx_runtime.jsx)("nav", { className: "max-w-7xl mx-auto px-6 flex gap-1 overflow-x-auto scrollbar-thin", children: TABS.map(({ id, label, icon: Icon, badge }) => {
+      ` }), (0,jsx_runtime.jsxs)("header", { className: "border-b", style: { background: "#1a2744", borderColor: "#0f1a30" }, children: [(0,jsx_runtime.jsxs)("div", { className: "px-4 sm:px-6 py-4 flex items-center justify-between", children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-3", children: [(0,jsx_runtime.jsx)("div", { className: "w-10 h-10 rounded-sm flex items-center justify-center flex-shrink-0", style: { background: "#f5a623" }, children: (0,jsx_runtime.jsx)(Radio, { className: "w-5 h-5", style: { color: "#1a2744" }, strokeWidth: 2.5 }) }), (0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-white text-lg leading-tight tracking-tight", children: "Broadcast Operations" }), (0,jsx_runtime.jsx)("div", { className: "text-xs tracking-widest uppercase hidden sm:block", style: { color: "#a8b4cc" }, children: "Programming & Delivery Hub" })] })] }), (0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-2 sm:gap-3", children: [(0,jsx_runtime.jsxs)("div", { className: "relative", children: [(0,jsx_runtime.jsxs)("button", { onClick: () => setShowNotifPanel(!showNotifPanel), className: "relative p-2 rounded-md transition-colors", style: { background: showNotifPanel ? "#f5a623" : "rgba(255,255,255,0.08)" }, children: [(0,jsx_runtime.jsx)(Bell, { className: "w-5 h-5", style: { color: showNotifPanel ? "#1a2744" : "white" } }), unreadCount > 0 && ((0,jsx_runtime.jsx)("span", { className: "absolute -top-1 -right-1 text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center", style: { background: "#f5a623", color: "#1a2744" }, children: unreadCount }))] }), showNotifPanel && ((0,jsx_runtime.jsxs)("div", { className: "absolute top-full right-0 mt-2 z-50 w-80 sm:w-96 rounded-lg shadow-2xl border fade-in-up", style: { background: "white", borderColor: "#e5e2d8" }, children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-center justify-between p-4 border-b", style: { borderColor: "#e5e2d8" }, children: [(0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-base", style: { color: "#1a2744" }, children: "Recent Activity" }), (0,jsx_runtime.jsx)("button", { onClick: () => setShowNotifPanel(false), children: (0,jsx_runtime.jsx)(X, { className: "w-4 h-4", style: { color: "#6b6a63" } }) })] }), (0,jsx_runtime.jsxs)("div", { className: "max-h-80 overflow-y-auto scrollbar-thin", children: [(0,jsx_runtime.jsx)(NotifItem, { title: "New media issue reported", detail: "K. Ortiz flagged Roots: Icons of Hollywood", time: "2h ago", topic: "Media Issues" }), (0,jsx_runtime.jsx)(NotifItem, { title: "Rights window extended", detail: "Frontline streaming approved through end of season", time: "5h ago", topic: "Rights & Clearances" }), (0,jsx_runtime.jsx)(NotifItem, { title: "Schedule change", detail: "Roots: Off the Charts added to Saturday 10am", time: "Yesterday", topic: "Schedule Updates" }), (0,jsx_runtime.jsx)(NotifItem, { title: "New contributor note", detail: "Finding Your Roots S11 streaming window confirmed", time: "2 days ago", topic: "Show Metadata" })] })] }))] }), (0,jsx_runtime.jsx)("div", { className: "flex items-center rounded-md p-1", style: { background: "rgba(255,255,255,0.08)" }, children: [{ val: "station", label: "Station", Icon: User }, { val: "hq", label: "HQ Staff", Icon: Users }].map(({ val, label, Icon }) => ((0,jsx_runtime.jsxs)("button", { onClick: () => setRole(val), className: "flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded text-xs font-semibold transition-all", style: { background: role === val ? "#f5a623" : "transparent", color: role === val ? "#1a2744" : "#a8b4cc" }, children: [(0,jsx_runtime.jsx)(Icon, { className: "w-3.5 h-3.5" }), " ", (0,jsx_runtime.jsx)("span", { className: "hidden sm:inline", children: label })] }, val))) })] })] }), (0,jsx_runtime.jsx)("nav", { className: "px-4 sm:px-6 flex gap-0.5 overflow-x-auto scrollbar-thin", children: TABS.map(({ id, label, icon: Icon, badge }) => {
                             const active = activeTab === id;
-                            return ((0,jsx_runtime.jsxs)("button", { onClick: () => setActiveTab(id), className: "flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap", style: { borderColor: active ? "#f5a623" : "transparent", color: active ? "white" : "#a8b4cc" }, children: [(0,jsx_runtime.jsx)(Icon, { className: "w-4 h-4" }), label, badge > 0 && ((0,jsx_runtime.jsx)("span", { className: "text-[10px] font-bold px-1.5 py-0.5 rounded-full", style: { background: active ? "#f5a623" : "#3a4866", color: active ? "#1a2744" : "white" }, children: badge }))] }, id));
-                        }) })] }), showNotifPanel && ((0,jsx_runtime.jsxs)("div", { className: "fixed top-20 right-6 z-50 w-96 rounded-lg shadow-2xl border fade-in-up", style: { background: "white", borderColor: "#e5e2d8" }, children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-center justify-between p-4 border-b", style: { borderColor: "#e5e2d8" }, children: [(0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-base", style: { color: "#1a2744" }, children: "Recent Activity" }), (0,jsx_runtime.jsx)("button", { onClick: () => setShowNotifPanel(false), children: (0,jsx_runtime.jsx)(X, { className: "w-4 h-4", style: { color: "#6b6a63" } }) })] }), (0,jsx_runtime.jsxs)("div", { className: "max-h-96 overflow-y-auto scrollbar-thin", children: [(0,jsx_runtime.jsx)(NotifItem, { title: "New media issue reported", detail: "K. Ortiz flagged Roots: Icons of Hollywood", time: "2h ago", topic: "Media Issues" }), (0,jsx_runtime.jsx)(NotifItem, { title: "Rights window extended", detail: "Frontline streaming approved through end of season", time: "5h ago", topic: "Rights & Clearances" }), (0,jsx_runtime.jsx)(NotifItem, { title: "Schedule change", detail: "Roots: Off the Charts added to Saturday 10am", time: "Yesterday", topic: "Schedule Updates" }), (0,jsx_runtime.jsx)(NotifItem, { title: "New contributor note", detail: "Finding Your Roots S11 streaming window confirmed", time: "2 days ago", topic: "Show Metadata" })] })] })), (0,jsx_runtime.jsxs)("main", { className: "max-w-7xl mx-auto px-6 py-8", children: [activeTab === "guide" && ((0,jsx_runtime.jsx)(Calendar360, { viewMode: viewMode, setViewMode: setViewMode, currentWeek: currentWeek, weekStartIndex: weekStartIndex, setWeekStartIndex: setWeekStartIndex, selectedDate: selectedDate, selectedDateKey: selectedDateKey, setSelectedDateKey: setSelectedDateKey, selectedChannels: selectedChannels, toggleChannel: toggleChannel, weekSchedule: weekSchedule, daySchedule: daySchedule, role: role, onReportIssue: openReport, onViewShow: (s) => openDetails(s.show), onDayClick: openDayView })), activeTab === "issues" && ((0,jsx_runtime.jsx)(MediaIssues, { issues: issues, role: role, replyDraft: replyDraft, setReplyDraft: setReplyDraft, submitReply: submitReply, onOpenDetails: openDetails })), activeTab === "search" && ((0,jsx_runtime.jsx)(SearchView, { query: searchQuery, setQuery: setSearchQuery, results: searchResults, onSelectShow: openDetails })), activeTab === "show360" && ((0,jsx_runtime.jsx)(Show360Browser, { selected: selectedShow360, setSelected: setSelectedShow360, role: role, schedule: schedule })), activeTab === "activity" && ((0,jsx_runtime.jsx)(ActivityStream, { subscriptions: subscriptions, toggleSubscription: toggleSubscription, notifDelivery: notifDelivery, setNotifDelivery: setNotifDelivery }))] }), (0,jsx_runtime.jsxs)("footer", { className: "max-w-7xl mx-auto px-6 py-6 text-xs flex items-center justify-between", style: { color: "#6b6a63" }, children: [(0,jsx_runtime.jsxs)("div", { children: ["Signed in as ", role === "station" ? "Station User" : "HQ Operations"] }), (0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-4", children: [(0,jsx_runtime.jsx)("span", { children: "All times Eastern (ET)" }), (0,jsx_runtime.jsx)("span", { children: "Live \u00B7 Staffbase" })] })] }), detailsModalShow && ((0,jsx_runtime.jsx)(Modal, { onClose: () => setDetailsModalShow(null), size: "lg", children: (0,jsx_runtime.jsx)(Show360Content, { show: detailsModalShow, role: role, schedule: schedule, onClose: () => setDetailsModalShow(null), onReportIssue: () => {
+                            return ((0,jsx_runtime.jsxs)("button", { onClick: () => setActiveTab(id), className: "flex items-center gap-2 px-3 sm:px-4 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap", style: { borderColor: active ? "#f5a623" : "transparent", color: active ? "white" : "#a8b4cc" }, children: [(0,jsx_runtime.jsx)(Icon, { className: "w-4 h-4" }), label, badge > 0 && ((0,jsx_runtime.jsx)("span", { className: "text-[10px] font-bold px-1.5 py-0.5 rounded-full", style: { background: active ? "#f5a623" : "#3a4866", color: active ? "#1a2744" : "white" }, children: badge }))] }, id));
+                        }) })] }), (0,jsx_runtime.jsxs)("main", { className: "px-4 sm:px-6 py-6", children: [activeTab === "guide" && ((0,jsx_runtime.jsx)(Calendar360, { viewMode: viewMode, setViewMode: setViewMode, currentWeek: currentWeek, weekStartIndex: weekStartIndex, setWeekStartIndex: setWeekStartIndex, selectedDate: selectedDate, selectedDateKey: selectedDateKey, setSelectedDateKey: setSelectedDateKey, selectedChannels: selectedChannels, toggleChannel: toggleChannel, weekSchedule: weekSchedule, daySchedule: daySchedule, role: role, onReportIssue: openReport, onViewShow: (s) => openDetails(s.show), onDayClick: openDayView })), activeTab === "issues" && ((0,jsx_runtime.jsx)(MediaIssues, { issues: issues, role: role, replyDraft: replyDraft, setReplyDraft: setReplyDraft, submitReply: submitReply, onOpenDetails: openDetails })), activeTab === "search" && ((0,jsx_runtime.jsx)(SearchView, { query: searchQuery, setQuery: setSearchQuery, results: searchResults, onSelectShow: openDetails })), activeTab === "show360" && ((0,jsx_runtime.jsx)(Show360Browser, { selected: selectedShow360, setSelected: setSelectedShow360, role: role, schedule: schedule })), activeTab === "activity" && ((0,jsx_runtime.jsx)(ActivityStream, { subscriptions: subscriptions, toggleSubscription: toggleSubscription, notifDelivery: notifDelivery, setNotifDelivery: setNotifDelivery }))] }), (0,jsx_runtime.jsxs)("footer", { className: "px-4 sm:px-6 py-4 text-xs flex items-center justify-between border-t", style: { color: "#6b6a63", borderColor: "#e5e2d8" }, children: [(0,jsx_runtime.jsxs)("div", { children: ["Signed in as ", role === "station" ? "Station User" : "HQ Operations"] }), (0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-4", children: [(0,jsx_runtime.jsx)("span", { children: "All times Eastern (ET)" }), (0,jsx_runtime.jsx)("span", { children: "Live \u00B7 Staffbase" })] })] }), detailsModalShow && ((0,jsx_runtime.jsx)(Modal, { onClose: () => setDetailsModalShow(null), size: "lg", children: (0,jsx_runtime.jsx)(Show360Content, { show: detailsModalShow, role: role, schedule: schedule, onClose: () => setDetailsModalShow(null), onReportIssue: () => {
                         const item = schedule.find((s) => s.show === detailsModalShow);
                         if (item) {
                             setDetailsModalShow(null);
