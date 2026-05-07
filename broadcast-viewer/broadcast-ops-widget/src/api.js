@@ -74,7 +74,9 @@ export async function fetchIssues() {
   try {
     const res  = await fetch(ISSUES_URL);
     const data = await res.json();
-    return data.issues || [];
+    const issues = data.issues || [];
+    const ts = (i) => { const d = new Date(i.timestamp); return isNaN(d) ? 0 : d.getTime(); };
+    return issues.sort((a, b) => ts(b) - ts(a));
   } catch (_) {
     return [];
   }

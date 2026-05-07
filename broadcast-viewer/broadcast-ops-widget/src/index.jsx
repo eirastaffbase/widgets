@@ -132,7 +132,7 @@ export default function BroadcastOpsWidget() {
 
   const TABS = [
     { id: "guide",    label: "TV Guide",        icon: Tv },
-    { id: "issues",   label: "Media Issues",    icon: AlertCircle, badge: issues.filter((i) => i.status === "Open").length },
+    { id: "issues",   label: "Media Issues",    icon: AlertCircle, badge: issues.length },
     { id: "search",   label: "Search Shows",    icon: Search },
     { id: "show360",  label: "Show 360°",       icon: Layers },
     { id: "activity", label: "Activity Stream", icon: BellRing, badge: subscriptions.length },

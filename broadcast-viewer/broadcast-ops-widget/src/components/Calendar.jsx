@@ -140,7 +140,7 @@ function WeekGrid({ currentWeek, weekSchedule, onDayClick }) {
   );
 }
 
-const HOUR_PX = 80; // pixels per hour
+const HOUR_PX = 96; // pixels per hour
 
 function layoutShows(shows) {
   const timed = shows.map((s) => ({
@@ -182,7 +182,11 @@ function DayTimeline({ selectedDate, daySchedule, onViewShow, onReportIssue, rol
   const nowMinute = isToday ? nowET.getUTCMinutes() : 0;
 
   const fmtHour = (h) => h === 0 ? "12 AM" : h === 12 ? "12 PM" : h < 12 ? `${h} AM` : `${h - 12} PM`;
-  const nowLabel = `${fmtHour(nowHour)}${nowMinute > 0 ? `:${String(nowMinute).padStart(2, "0")}` : ""}`;
+  const nowLabel = (() => {
+    const ampm = nowHour < 12 ? "AM" : "PM";
+    const h12  = nowHour === 0 ? 12 : nowHour > 12 ? nowHour - 12 : nowHour;
+    return nowMinute > 0 ? `${h12}:${String(nowMinute).padStart(2, "0")} ${ampm}` : `${h12} ${ampm}`;
+  })();
 
   const laidOut  = useMemo(() => layoutShows(daySchedule), [daySchedule]);
   const totalH   = HOURS.length * HOUR_PX;
@@ -236,14 +240,15 @@ function DayTimeline({ selectedDate, daySchedule, onViewShow, onReportIssue, rol
             const height = (s.duration / 60) * HOUR_PX;
             const colW   = 1 / s.totalCols;
             return (
-              <div key={s.id} style={{ position: "absolute", top: top + 2, left: `calc(${s.col * colW * 100}% + 4px)`, width: `calc(${colW * 100}% - 8px)`, height: height - 4, borderRadius: 6, background: `${ch.color}10`, border: `1px solid ${ch.color}40`, borderLeft: `4px solid ${ch.color}`, boxSizing: "border-box", zIndex: 5, overflow: "hidden", display: "flex", flexDirection: "column", padding: "6px 8px" }}>
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded flex-shrink-0" style={{ background: ch.color, color: "white" }}>{ch.label}</span>
-                  <span className="text-xs font-bold" style={{ color: "#1a2744" }}>{s.time}</span>
-                  <span className="text-xs" style={{ color: "#6b6a63" }}>· {s.duration}m</span>
-                </div>
-                {height > 36 && <div className="text-xs mt-0.5 truncate" style={{ color: "#3a3833" }}>{s.episode}</div>}
-                {height > 56 && (
+              <div key={s.id} style={{ position: "absolute", top: top + 2, left: `calc(${s.col * colW * 100}% + 4px)`, width: `calc(${colW * 100}% - 8px)`, height: height - 4, borderRadius: 6, background: `${ch.color}10`, border: `1px solid ${ch.color}40`, borderLeft: `4px solid ${ch.color}`, boxSizing: "border-box", zIndex: 5, overflow: "hidden", display: "flex", flexDirection: "column", padding: height - 4 < 28 ? "2px 6px" : "6px 8px" }}>
+                {height - 4 >= 20 && (
+                  <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded flex-shrink-0 leading-none" style={{ background: ch.color, color: "white" }}>{ch.label}</span>
+                    {height - 4 >= 26 && <span className="text-[11px] font-bold truncate" style={{ color: "#1a2744" }}>{s.time} · {s.duration}m</span>}
+                  </div>
+                )}
+                {height - 4 >= 52 && <div className="text-[11px] mt-0.5 truncate" style={{ color: "#3a3833" }}>{s.episode}</div>}
+                {height - 4 >= 80 && (
                   <div className="flex gap-1.5 mt-auto pt-1 flex-wrap">
                     <button onClick={() => onViewShow(s)} disabled={!hasDetails} className="text-[11px] font-semibold px-2 py-1 rounded flex items-center gap-0.5" style={{ background: "white", color: hasDetails ? "#1a2744" : "#a8a59a", border: "1px solid #e5e2d8", cursor: hasDetails ? "pointer" : "not-allowed" }}>
                       Details <ChevronRight className="w-2.5 h-2.5" />

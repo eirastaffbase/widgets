@@ -3,6 +3,22 @@ import { User, MessageSquare, Send } from "lucide-react";
 import { SHOW_DETAILS } from "../constants.js";
 import { SectionHeader } from "./Shared.jsx";
 
+function fmtTimestamp(ts) {
+  if (!ts || ts === "Just now") return ts || "Just now";
+  try {
+    const d = new Date(ts);
+    if (isNaN(d)) return ts;
+    const diffMin = Math.floor((Date.now() - d) / 60000);
+    if (diffMin < 1)  return "Just now";
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffH = Math.floor(diffMin / 60);
+    if (diffH < 24)   return `${diffH}h ago`;
+    const diffD = Math.floor(diffH / 24);
+    if (diffD < 7)    return `${diffD}d ago`;
+    return d.toLocaleDateString();
+  } catch (_) { return ts; }
+}
+
 export function MediaIssues({ issues, role, replyDraft, setReplyDraft, submitReply, onOpenDetails }) {
   return (
     <div className="space-y-6 fade-in-up">
@@ -58,7 +74,7 @@ function IssueCard({ issue, role, replyDraft, setReplyDraft, submitReply, onOpen
           </div>
           <div className="flex items-center gap-3 text-xs" style={{ color: "#6b6a63" }}>
             <span className="flex items-center gap-1"><User className="w-3 h-3" />{issue.author} · {issue.station}</span>
-            <span>{issue.timestamp}</span>
+            <span>{fmtTimestamp(issue.timestamp)}</span>
           </div>
         </div>
         <span className="text-[11px] font-bold px-2.5 py-1 rounded uppercase tracking-wider flex-shrink-0" style={{ background: status.bg, color: status.fg, border: `1px solid ${status.border}` }}>
