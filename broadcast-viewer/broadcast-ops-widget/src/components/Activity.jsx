@@ -21,7 +21,7 @@ export function ActivityStream({ subscriptions, toggleSubscription, notifDeliver
       <ModalCard title="Delivery Preferences" eyebrow="How you want to hear about it" icon={Bell} iconColor="#1a2744">
         <div style={{ display: "flex", gap: "12px" }}>
           {[{ key: "email", Icon: Mail, label: "Email" }, { key: "inApp", Icon: BellRing, label: "In-app" }].map(({ key, Icon, label }) => (
-            <button key={key} onClick={() => setNotifDelivery({ ...notifDelivery, [key]: !notifDelivery[key] })} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 16px", borderRadius: "6px", fontSize: "14px", fontWeight: 600, background: notifDelivery[key] ? "#1a2744" : "#f5f3ee", color: notifDelivery[key] ? "white" : "#1a2744", border: `1px solid ${notifDelivery[key] ? "#1a2744" : "#e5e2d8"}`, cursor: "pointer" }}>
+            <button key={key} onClick={() => setNotifDelivery({ ...notifDelivery, [key]: !notifDelivery[key] })} style={{ display: "inline-flex", alignItems: "center", gap: "8px", padding: "10px 20px", borderRadius: "6px", fontSize: "14px", fontWeight: 600, minWidth: "120px", justifyContent: "center", background: notifDelivery[key] ? "#1a2744" : "#f5f3ee", color: notifDelivery[key] ? "white" : "#1a2744", border: `1px solid ${notifDelivery[key] ? "#1a2744" : "#e5e2d8"}`, cursor: "pointer" }}>
               <Icon style={{ width: "16px", height: "16px" }} /> {label} {notifDelivery[key] && <CheckCircle2 style={{ width: "16px", height: "16px" }} />}
             </button>
           ))}
@@ -35,7 +35,7 @@ export function ActivityStream({ subscriptions, toggleSubscription, notifDeliver
             const Icon = t.icon;
             const sub  = subscriptions.includes(t.id);
             return (
-              <button key={t.id} onClick={() => toggleSubscription(t.id)} style={{ borderRadius: "8px", padding: "16px", textAlign: "left", background: sub ? "#1a2744" : "white", border: `2px solid ${sub ? "#f5a623" : "#e5e2d8"}`, cursor: "pointer" }}>
+              <button key={t.id} onClick={() => toggleSubscription(t.id)} className="bow-full" style={{ borderRadius: "8px", padding: "16px", textAlign: "left", background: sub ? "#1a2744" : "white", border: `2px solid ${sub ? "#f5a623" : "#e5e2d8"}`, cursor: "pointer" }}>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
                   <div style={{ width: "40px", height: "40px", borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: sub ? "#f5a623" : "#f5f3ee" }}>
                     <Icon style={{ width: "20px", height: "20px", color: "#1a2744" }} />

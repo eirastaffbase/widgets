@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   X, Send, Plus, CheckCircle2, Flag, Film, Radio, Eye, FileText, AlertCircle,
   ArrowUpRight,
@@ -16,10 +17,12 @@ export function Modal({ children, onClose, size = "lg" }) {
     };
   }, [onClose]);
 
-  return (
+  // Render into document.body via portal so position:fixed escapes any
+  // Staffbase container that has overflow:hidden or CSS transforms applied.
+  return createPortal(
     <div
-      className="modal-backdrop"
-      style={{ position: "fixed", top: 0, right: 0, bottom: 0, left: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px", background: "rgba(15,26,48,0.65)", backdropFilter: "blur(4px)" }}
+      className="bow-portal modal-backdrop"
+      style={{ position: "fixed", top: 0, right: 0, bottom: 0, left: 0, zIndex: 999999, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px", background: "rgba(15,26,48,0.65)", backdropFilter: "blur(4px)" }}
       onClick={onClose}
     >
       <div
@@ -29,7 +32,8 @@ export function Modal({ children, onClose, size = "lg" }) {
       >
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -92,7 +96,7 @@ export function ReportForm({ scheduleItem, onSubmit, onClose, onViewDetails }) {
             {issueTypes.map(({ id, icon: Icon, desc }) => {
               const active = draft.type === id;
               return (
-                <button key={id} onClick={() => setDraft({ ...draft, type: id, tags: [] })} style={{ borderRadius: "8px", padding: "12px", textAlign: "left", background: active ? "#1a2744" : "white", border: `2px solid ${active ? "#f5a623" : "#e5e2d8"}`, cursor: "pointer" }}>
+                <button key={id} onClick={() => setDraft({ ...draft, type: id, tags: [] })} className="bow-full" style={{ borderRadius: "8px", padding: "12px", textAlign: "left", background: active ? "#1a2744" : "white", border: `2px solid ${active ? "#f5a623" : "#e5e2d8"}`, cursor: "pointer" }}>
                   <Icon style={{ width: "16px", height: "16px", marginBottom: "6px", color: active ? "#f5a623" : "#1a2744" }} />
                   <div style={{ fontSize: "12px", fontWeight: 700, color: active ? "white" : "#1a2744" }}>{id}</div>
                   <div style={{ fontSize: "10px", marginTop: "2px", lineHeight: "1.3", color: active ? "#a8b4cc" : "#6b6a63" }}>{desc}</div>

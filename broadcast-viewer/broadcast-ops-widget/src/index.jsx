@@ -160,13 +160,26 @@ export default function BroadcastOpsWidget() {
         .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
         .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
         .scrollbar-thin::-webkit-scrollbar-thumb { background: #cbc9c0; border-radius: 3px; }
-        /* Staffbase forces display:block + width:100% on all buttons.
-           Override with !important scoped to our widget root so nothing leaks out.
-           .bow-full is used for the handful of genuinely full-width buttons (episode
-           picker rows, etc.) that need to span their container. */
+        /* Staffbase forces display:block + width:100% on all buttons, and sometimes
+           injects text-align:center on the widget container. Override everything
+           scoped to our root so nothing leaks out.
+           .bow-full = buttons that genuinely need to span their container.
+           .bow-day-cell = 4-day grid column cells (flex-column, full-width). */
+        #bow-root { text-align: left !important; }
         #bow-root button { display: inline-flex !important; align-items: center !important; width: auto !important; }
         #bow-root button.bow-full { display: flex !important; width: 100% !important; }
         #bow-root button.bow-day-cell { display: flex !important; flex-direction: column !important; width: 100% !important; align-items: stretch !important; }
+
+        /* .bow-portal is the wrapper div for modals rendered via ReactDOM.createPortal
+           into document.body (outside #bow-root). We duplicate the key overrides here
+           so the modal gets the same CSS protections as the main widget. */
+        .bow-portal { font-family: 'Source Sans Pro', -apple-system, system-ui, sans-serif; text-align: left !important; color: #1a2744; }
+        .bow-portal button { display: inline-flex !important; align-items: center !important; width: auto !important; transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease !important; }
+        .bow-portal button.bow-full { display: flex !important; width: 100% !important; }
+        .bow-portal .font-display { font-family: 'Source Serif Pro', Georgia, serif; }
+        .bow-portal .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+        .bow-portal .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .bow-portal .scrollbar-thin::-webkit-scrollbar-thumb { background: #cbc9c0; border-radius: 3px; }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes modalIn { from { opacity: 0; transform: translateY(16px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
         @keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }
