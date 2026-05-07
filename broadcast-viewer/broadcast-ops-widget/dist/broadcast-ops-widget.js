@@ -664,91 +664,6 @@ const createLucideIcon = (iconName, iconNode) => {
 
 //# sourceMappingURL=createLucideIcon.js.map
 
-;// ./node_modules/lucide-react/dist/esm/icons/circle-alert.js
-/**
- * @license lucide-react v0.511.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */
-
-
-
-const __iconNode = [
-  ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
-  ["line", { x1: "12", x2: "12", y1: "8", y2: "12", key: "1pkeuh" }],
-  ["line", { x1: "12", x2: "12.01", y1: "16", y2: "16", key: "4dfq90" }]
-];
-const CircleAlert = createLucideIcon("circle-alert", __iconNode);
-
-
-//# sourceMappingURL=circle-alert.js.map
-
-;// ./node_modules/lucide-react/dist/esm/icons/calendar.js
-/**
- * @license lucide-react v0.511.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */
-
-
-
-const calendar_iconNode = [
-  ["path", { d: "M8 2v4", key: "1cmpym" }],
-  ["path", { d: "M16 2v4", key: "4m81vk" }],
-  ["rect", { width: "18", height: "18", x: "3", y: "4", rx: "2", key: "1hopcy" }],
-  ["path", { d: "M3 10h18", key: "8toen8" }]
-];
-const Calendar = createLucideIcon("calendar", calendar_iconNode);
-
-
-//# sourceMappingURL=calendar.js.map
-
-;// ./node_modules/lucide-react/dist/esm/icons/flag.js
-/**
- * @license lucide-react v0.511.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */
-
-
-
-const flag_iconNode = [
-  ["path", { d: "M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z", key: "i9b6wo" }],
-  ["line", { x1: "4", x2: "4", y1: "22", y2: "15", key: "1cm3nv" }]
-];
-const Flag = createLucideIcon("flag", flag_iconNode);
-
-
-//# sourceMappingURL=flag.js.map
-
-;// ./node_modules/lucide-react/dist/esm/icons/film.js
-/**
- * @license lucide-react v0.511.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */
-
-
-
-const film_iconNode = [
-  ["rect", { width: "18", height: "18", x: "3", y: "3", rx: "2", key: "afitv7" }],
-  ["path", { d: "M7 3v18", key: "bbkbws" }],
-  ["path", { d: "M3 7.5h4", key: "zfgn84" }],
-  ["path", { d: "M3 12h18", key: "1i2n21" }],
-  ["path", { d: "M3 16.5h4", key: "1230mu" }],
-  ["path", { d: "M17 3v18", key: "in4fa5" }],
-  ["path", { d: "M17 7.5h4", key: "myr1c1" }],
-  ["path", { d: "M17 16.5h4", key: "go4c1d" }]
-];
-const Film = createLucideIcon("film", film_iconNode);
-
-
-//# sourceMappingURL=film.js.map
-
 ;// ./node_modules/lucide-react/dist/esm/icons/radio.js
 /**
  * @license lucide-react v0.511.0 - ISC
@@ -759,19 +674,19 @@ const Film = createLucideIcon("film", film_iconNode);
 
 
 
-const radio_iconNode = [
+const __iconNode = [
   ["path", { d: "M4.9 19.1C1 15.2 1 8.8 4.9 4.9", key: "1vaf9d" }],
   ["path", { d: "M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5", key: "u1ii0m" }],
   ["circle", { cx: "12", cy: "12", r: "2", key: "1c9p78" }],
   ["path", { d: "M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5", key: "1j5fej" }],
   ["path", { d: "M19.1 4.9C23 8.8 23 15.1 19.1 19", key: "10b0cb" }]
 ];
-const Radio = createLucideIcon("radio", radio_iconNode);
+const Radio = createLucideIcon("radio", __iconNode);
 
 
 //# sourceMappingURL=radio.js.map
 
-;// ./node_modules/lucide-react/dist/esm/icons/bell.js
+;// ./node_modules/lucide-react/dist/esm/icons/circle-alert.js
 /**
  * @license lucide-react v0.511.0 - ISC
  *
@@ -781,60 +696,15 @@ const Radio = createLucideIcon("radio", radio_iconNode);
 
 
 
-const bell_iconNode = [
-  ["path", { d: "M10.268 21a2 2 0 0 0 3.464 0", key: "vwvbt9" }],
-  [
-    "path",
-    {
-      d: "M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326",
-      key: "11g9vi"
-    }
-  ]
+const circle_alert_iconNode = [
+  ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
+  ["line", { x1: "12", x2: "12", y1: "8", y2: "12", key: "1pkeuh" }],
+  ["line", { x1: "12", x2: "12.01", y1: "16", y2: "16", key: "4dfq90" }]
 ];
-const Bell = createLucideIcon("bell", bell_iconNode);
+const CircleAlert = createLucideIcon("circle-alert", circle_alert_iconNode);
 
 
-//# sourceMappingURL=bell.js.map
-
-;// ./node_modules/lucide-react/dist/esm/icons/user.js
-/**
- * @license lucide-react v0.511.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */
-
-
-
-const user_iconNode = [
-  ["path", { d: "M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2", key: "975kel" }],
-  ["circle", { cx: "12", cy: "7", r: "4", key: "17ys0d" }]
-];
-const User = createLucideIcon("user", user_iconNode);
-
-
-//# sourceMappingURL=user.js.map
-
-;// ./node_modules/lucide-react/dist/esm/icons/users.js
-/**
- * @license lucide-react v0.511.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */
-
-
-
-const users_iconNode = [
-  ["path", { d: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", key: "1yyitq" }],
-  ["path", { d: "M16 3.128a4 4 0 0 1 0 7.744", key: "16gr8j" }],
-  ["path", { d: "M22 21v-2a4 4 0 0 0-3-3.87", key: "kshegd" }],
-  ["circle", { cx: "9", cy: "7", r: "4", key: "nufk8" }]
-];
-const Users = createLucideIcon("users", users_iconNode);
-
-
-//# sourceMappingURL=users.js.map
+//# sourceMappingURL=circle-alert.js.map
 
 ;// ./node_modules/lucide-react/dist/esm/icons/tv.js
 /**
@@ -939,6 +809,71 @@ const BellRing = createLucideIcon("bell-ring", bell_ring_iconNode);
 
 //# sourceMappingURL=bell-ring.js.map
 
+;// ./node_modules/lucide-react/dist/esm/icons/bell.js
+/**
+ * @license lucide-react v0.511.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+
+
+
+const bell_iconNode = [
+  ["path", { d: "M10.268 21a2 2 0 0 0 3.464 0", key: "vwvbt9" }],
+  [
+    "path",
+    {
+      d: "M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326",
+      key: "11g9vi"
+    }
+  ]
+];
+const Bell = createLucideIcon("bell", bell_iconNode);
+
+
+//# sourceMappingURL=bell.js.map
+
+;// ./node_modules/lucide-react/dist/esm/icons/user.js
+/**
+ * @license lucide-react v0.511.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+
+
+
+const user_iconNode = [
+  ["path", { d: "M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2", key: "975kel" }],
+  ["circle", { cx: "12", cy: "7", r: "4", key: "17ys0d" }]
+];
+const User = createLucideIcon("user", user_iconNode);
+
+
+//# sourceMappingURL=user.js.map
+
+;// ./node_modules/lucide-react/dist/esm/icons/users.js
+/**
+ * @license lucide-react v0.511.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+
+
+
+const users_iconNode = [
+  ["path", { d: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", key: "1yyitq" }],
+  ["path", { d: "M16 3.128a4 4 0 0 1 0 7.744", key: "16gr8j" }],
+  ["path", { d: "M22 21v-2a4 4 0 0 0-3-3.87", key: "kshegd" }],
+  ["circle", { cx: "9", cy: "7", r: "4", key: "nufk8" }]
+];
+const Users = createLucideIcon("users", users_iconNode);
+
+
+//# sourceMappingURL=users.js.map
+
 ;// ./node_modules/lucide-react/dist/esm/icons/x.js
 /**
  * @license lucide-react v0.511.0 - ISC
@@ -957,6 +892,248 @@ const X = createLucideIcon("x", x_iconNode);
 
 
 //# sourceMappingURL=x.js.map
+
+;// ../broadcast_ops_widget/constants.js
+const CHANNELS = [
+    { id: "frontline", label: "Frontline", color: "#7b1d1d" },
+    { id: "findingroots", label: "Finding Your Roots", color: "#166534" },
+    { id: "amanpour", label: "Amanpour & Co.", color: "#1e3a8a" },
+];
+const CHANNEL_SB = {
+    frontline: { sbId: "69f2c4d055eb276693d0a6ca", duration: 60 },
+    findingroots: { sbId: "69f2c4db6783920c5e0a8218", duration: 60 },
+    amanpour: { sbId: "69f2c4f455eb276693d0a870", duration: 60 },
+};
+const SHOW_DETAILS = {
+    "Frontline": {
+        title: "Frontline",
+        tagline: "Investigative journalism that exposes injustice",
+        season: "Season 44",
+        episodes: 24,
+        genre: "Documentary",
+        rights: { window: "Ongoing", territory: "US, all platforms", clearances: "Broadcast + Digital" },
+        funding: ["Public Broadcasting Fund", "Ford Foundation", "Park Foundation"],
+        contributors: [
+            { name: "Alex Rivera", role: "Series Producer", note: "E08 contains archival footage — pre-cleared for broadcast." },
+        ],
+        flags: [
+            { kind: "Mature Themes", level: "Strong", auto: true },
+            { kind: "Disturbing Content", level: "Moderate", auto: true },
+        ],
+    },
+    "Finding Your Roots": {
+        title: "Finding Your Roots",
+        tagline: "Henry Louis Gates Jr. reveals the surprising family histories of prominent Americans",
+        season: "Season 11",
+        episodes: 10,
+        genre: "Documentary",
+        rights: { window: "Mar 1, 2026 – Feb 28, 2029", territory: "US, all platforms", clearances: "Broadcast + Streaming" },
+        funding: ["Bank of America", "Ancestry", "Viewer Support"],
+        contributors: [
+            { name: "Sarah Kim", role: "Digital Lead", note: "Companion articles published on pbs.org same day as broadcast." },
+            { name: "Marcus Webb", role: "Rights Coordinator", note: "Streaming window confirmed for all S11 episodes." },
+        ],
+        flags: [{ kind: "Mature Themes", level: "Some", auto: true }],
+    },
+    "Amanpour & Co.": {
+        title: "Amanpour & Co.",
+        tagline: "Wide-ranging, in-depth interviews with global newsmakers and thought leaders",
+        season: "Season 2026",
+        episodes: 220,
+        genre: "News & Public Affairs",
+        rights: { window: "Feb 1, 2026 – Jan 31, 2027", territory: "US, all platforms", clearances: "Cleared for VOD + Streaming" },
+        funding: ["Rosalind P. Walter", "Mutual of America", "Viewer Support"],
+        contributors: [
+            { name: "Maria Chen", role: "Scheduling Lead", note: "Confirmed 60-min cutdowns available for weekend slots." },
+            { name: "Jordan Fields", role: "Rights Coordinator", note: "Streaming extension approved through FY27." },
+        ],
+        flags: [],
+    },
+};
+const INITIAL_ISSUES = [
+    {
+        id: "i1",
+        show: "Finding Your Roots",
+        episode: "Roots: Icons of Hollywood",
+        station: "New Mexico Station",
+        author: "K. Ortiz",
+        type: "Accessibility",
+        tags: ["No closed captioning", "Visual description missing"],
+        description: "Episode arrived without closed captioning track. Visual description audio also not present on the SAP channel.",
+        status: "Open",
+        timestamp: "2 hours ago",
+        replies: [],
+    },
+    {
+        id: "i2",
+        show: "Frontline",
+        episode: "Frontline: The Plastics Trap",
+        station: "Boston Station",
+        author: "T. Nguyen",
+        type: "Video",
+        tags: ["Flicker", "Visual discrepancy"],
+        description: "Visible flicker around the 14:32 mark, approximately 3 seconds. Appears to be a compression artifact.",
+        status: "In Review",
+        timestamp: "Yesterday",
+        replies: [
+            { author: "Operations Team", role: "staff", text: "Confirmed on master. Re-encoding now — new file ETA 6 hours.", timestamp: "45 min ago" },
+        ],
+    },
+    {
+        id: "i3",
+        show: "Finding Your Roots",
+        episode: "Roots: The Writers' Room",
+        station: "Chicago Station",
+        author: "R. Patel",
+        type: "Audio",
+        tags: ["Sync issue"],
+        description: "Audio drifts out of sync by ~200ms starting at 22:15. Happens through the end of the episode.",
+        status: "Open",
+        timestamp: "4 hours ago",
+        replies: [],
+    },
+];
+
+;// ../broadcast_ops_widget/utils.js
+// Date / timezone utilities — all schedule times are Eastern (EDT = UTC-4)
+const EDT_OFFSET_S = 4 * 3600;
+function getCurrentETDate() {
+    const etMs = Date.now() - EDT_OFFSET_S * 1000;
+    const d = new Date(etMs);
+    return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+const TODAY = getCurrentETDate();
+const DATE_RANGE = Array.from({ length: 14 }, (_, i) => addDays(TODAY, i));
+function dateKey(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function formatShortDate(d) {
+    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return `${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}`;
+}
+function formatDayNumber(d) { return d.getDate(); }
+function formatDayName(d) { return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()]; }
+function formatFullDate(d) {
+    const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    return `${["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+}
+function addDays(d, n) {
+    const r = new Date(d);
+    r.setDate(r.getDate() + n);
+    return r;
+}
+function isSameDay(a, b) {
+    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+// Timestamp helpers (Unix seconds → Eastern Time)
+function parseTimestamps(html) {
+    if (!html)
+        return [];
+    const nums = html.match(/\b1\d{9}\b/g);
+    return nums ? nums.map(Number) : [];
+}
+function tsToETDate(ts) {
+    return new Date((ts - EDT_OFFSET_S) * 1000);
+}
+function tsDateKey(ts) {
+    const d = tsToETDate(ts);
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+}
+function tsShortDate(ts) {
+    const d = tsToETDate(ts);
+    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return `${days[d.getUTCDay()]}, ${months[d.getUTCMonth()]} ${d.getUTCDate()}`;
+}
+function tsHour(ts) { return tsToETDate(ts).getUTCHours(); }
+function tsFormatTime(ts) {
+    const d = tsToETDate(ts);
+    let h = d.getUTCHours();
+    const m = d.getUTCMinutes();
+    const ampm = h < 12 ? "AM" : "PM";
+    if (h === 0)
+        h = 12;
+    else if (h > 12)
+        h -= 12;
+    const mStr = m === 0 ? "" : `:${String(m).padStart(2, "0")}`;
+    return `${h}${mStr} ${ampm} ET`;
+}
+function getDaypart(hour) {
+    if (hour >= 5 && hour < 12)
+        return "morning";
+    if (hour >= 12 && hour < 17)
+        return "daytime";
+    if (hour >= 17 && hour < 23)
+        return "primetime";
+    return "overnight";
+}
+
+;// ../broadcast_ops_widget/api.js
+var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+
+
+const SB_API = "https://app.staffbase.com/api";
+const SB_KEY = "NjlmYjIzODZkMjBiNGE3NzZlODJmZmNkOi5NakImMkFha05hdUMxd1F0KVR9fWYycUp7ZVljQWczLktBN1oySmpOOCQ0XTlpK35zRFJ4IV5KYi1pfmlbTUM=";
+function fetchScheduleFromStaffbase() {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a, _b, _c, _d, _e, _f;
+        const headers = { authorization: `Basic ${SB_KEY}`, accept: "application/json" };
+        const rangeKeys = new Set(DATE_RANGE.map(dateKey));
+        const items = [];
+        for (const ch of CHANNELS) {
+            const cfg = CHANNEL_SB[ch.id];
+            try {
+                const res = yield fetch(`${SB_API}/channels/${cfg.sbId}/posts?limit=30`, { headers });
+                if (!res.ok)
+                    continue;
+                const data = yield res.json();
+                for (const post of data.data || []) {
+                    const title = (_b = (_a = post.contents) === null || _a === void 0 ? void 0 : _a.en_US) === null || _b === void 0 ? void 0 : _b.title;
+                    if (!title || title === "Summary")
+                        continue;
+                    const content = ((_d = (_c = post.contents) === null || _c === void 0 ? void 0 : _c.en_US) === null || _d === void 0 ? void 0 : _d.content) || "";
+                    const teaser = ((_f = (_e = post.contents) === null || _e === void 0 ? void 0 : _e.en_US) === null || _f === void 0 ? void 0 : _f.teaser) || "";
+                    const timestamps = parseTimestamps(content);
+                    for (const ts of timestamps) {
+                        const dk = tsDateKey(ts);
+                        if (!rangeKeys.has(dk))
+                            continue;
+                        const hour = tsHour(ts);
+                        items.push({
+                            id: `${post.id}_${ts}`,
+                            show: ch.label,
+                            channel: ch.id,
+                            episode: title,
+                            teaser,
+                            time: tsFormatTime(ts),
+                            hour,
+                            minute: tsToETDate(ts).getUTCMinutes(),
+                            dateKey: dk,
+                            date: tsShortDate(ts),
+                            daypart: getDaypart(hour),
+                            duration: cfg.duration,
+                        });
+                    }
+                }
+            }
+            catch (_) {
+                // non-fatal — channel simply won't appear in schedule
+            }
+        }
+        return items.sort((a, b) => a.dateKey !== b.dateKey ? a.dateKey.localeCompare(b.dateKey) :
+            a.hour !== b.hour ? a.hour - b.hour :
+                a.minute - b.minute);
+    });
+}
 
 ;// ./node_modules/lucide-react/dist/esm/icons/layout-grid.js
 /**
@@ -1037,6 +1214,50 @@ const ChevronRight = createLucideIcon("chevron-right", chevron_right_iconNode);
 
 
 //# sourceMappingURL=chevron-right.js.map
+
+;// ./node_modules/lucide-react/dist/esm/icons/flag.js
+/**
+ * @license lucide-react v0.511.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+
+
+
+const flag_iconNode = [
+  ["path", { d: "M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z", key: "i9b6wo" }],
+  ["line", { x1: "4", x2: "4", y1: "22", y2: "15", key: "1cm3nv" }]
+];
+const Flag = createLucideIcon("flag", flag_iconNode);
+
+
+//# sourceMappingURL=flag.js.map
+
+;// ./node_modules/lucide-react/dist/esm/icons/film.js
+/**
+ * @license lucide-react v0.511.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+
+
+
+const film_iconNode = [
+  ["rect", { width: "18", height: "18", x: "3", y: "3", rx: "2", key: "afitv7" }],
+  ["path", { d: "M7 3v18", key: "bbkbws" }],
+  ["path", { d: "M3 7.5h4", key: "zfgn84" }],
+  ["path", { d: "M3 12h18", key: "1i2n21" }],
+  ["path", { d: "M3 16.5h4", key: "1230mu" }],
+  ["path", { d: "M17 3v18", key: "in4fa5" }],
+  ["path", { d: "M17 7.5h4", key: "myr1c1" }],
+  ["path", { d: "M17 16.5h4", key: "go4c1d" }]
+];
+const Film = createLucideIcon("film", film_iconNode);
+
+
+//# sourceMappingURL=film.js.map
 
 ;// ./node_modules/lucide-react/dist/esm/icons/eye.js
 /**
@@ -1167,6 +1388,175 @@ const Send = createLucideIcon("send", send_iconNode);
 
 //# sourceMappingURL=send.js.map
 
+;// ../broadcast_ops_widget/components/Shared.jsx
+
+
+
+
+function Modal({ children, onClose, size = "lg" }) {
+    (0,react.useEffect)(() => {
+        const handleEsc = (e) => e.key === "Escape" && onClose();
+        window.addEventListener("keydown", handleEsc);
+        document.body.style.overflow = "hidden";
+        return () => {
+            window.removeEventListener("keydown", handleEsc);
+            document.body.style.overflow = "";
+        };
+    }, [onClose]);
+    return ((0,jsx_runtime.jsx)("div", { className: "fixed inset-0 z-[100] flex items-center justify-center p-4 modal-backdrop", style: { background: "rgba(15, 26, 48, 0.65)", backdropFilter: "blur(4px)" }, onClick: onClose, children: (0,jsx_runtime.jsx)("div", { className: `${size === "lg" ? "max-w-5xl" : "max-w-2xl"} w-full max-h-[90vh] rounded-xl shadow-2xl flex flex-col modal-content overflow-hidden`, style: { background: "#f5f3ee", border: "1px solid #e5e2d8" }, onClick: (e) => e.stopPropagation(), children: children }) }));
+}
+function ReportForm({ scheduleItem, onSubmit, onClose, onViewDetails }) {
+    const [draft, setDraft] = (0,react.useState)({ type: "Video", tags: [], description: "" });
+    const channel = CHANNELS.find((c) => c.id === scheduleItem.channel);
+    const hasDetails = !!SHOW_DETAILS[scheduleItem.show];
+    const canSubmit = draft.description.trim().length > 0;
+    const issueTypes = [
+        { id: "Video", icon: Film, desc: "Picture quality, artifacts" },
+        { id: "Audio", icon: Radio, desc: "Sound issues, levels" },
+        { id: "Accessibility", icon: Eye, desc: "Captions, descriptions" },
+        { id: "Metadata", icon: FileText, desc: "Wrong info, titles" },
+        { id: "Rights", icon: Flag, desc: "Clearance problems" },
+    ];
+    const commonTags = {
+        Video: ["Flicker", "Visual discrepancy", "Frame drop", "Color shift", "Wrong aspect ratio"],
+        Audio: ["Audio dropout", "Levels too low", "Sync issue", "Distortion"],
+        Accessibility: ["No closed captioning", "Missing audio description", "Caption sync off"],
+        Metadata: ["Wrong title", "Wrong episode", "Missing info"],
+        Rights: ["Wrong territory", "Window expired", "Missing clearance"],
+    };
+    const toggleTag = (t) => setDraft(Object.assign(Object.assign({}, draft), { tags: draft.tags.includes(t) ? draft.tags.filter((x) => x !== t) : [...draft.tags, t] }));
+    return ((0,jsx_runtime.jsxs)(jsx_runtime.Fragment, { children: [(0,jsx_runtime.jsxs)("div", { className: "relative px-6 py-5 flex items-start justify-between flex-shrink-0", style: { background: "linear-gradient(135deg, #1a2744 0%, #2d3f6b 100%)" }, children: [(0,jsx_runtime.jsxs)("div", { className: "flex-1 min-w-0", children: [(0,jsx_runtime.jsxs)("div", { className: "text-xs font-bold uppercase tracking-widest mb-1", style: { color: "#f5a623" }, children: [(0,jsx_runtime.jsx)(Flag, { className: "w-3 h-3 inline mr-1" }), " Report Media Issue"] }), (0,jsx_runtime.jsx)("h2", { className: "font-display font-black text-xl text-white leading-tight", children: scheduleItem.show }), (0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-2 mt-1 text-xs flex-wrap", style: { color: "#a8b4cc" }, children: [(0,jsx_runtime.jsx)("span", { className: "text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded", style: { background: channel.color, color: "white" }, children: channel.label }), (0,jsx_runtime.jsx)("span", { children: scheduleItem.episode }), (0,jsx_runtime.jsx)("span", { children: "\u00B7" }), (0,jsx_runtime.jsxs)("span", { children: [scheduleItem.time, " ", scheduleItem.date] }), (0,jsx_runtime.jsx)("span", { children: "\u00B7" }), (0,jsx_runtime.jsxs)("span", { children: [scheduleItem.duration, " min"] })] }), hasDetails && ((0,jsx_runtime.jsxs)("button", { onClick: onViewDetails, className: "text-xs font-semibold mt-2 flex items-center gap-1 transition-opacity hover:opacity-80", style: { color: "#f5a623" }, children: ["View show 360\u00B0 ", (0,jsx_runtime.jsx)(ArrowUpRight, { className: "w-3 h-3" })] }))] }), (0,jsx_runtime.jsx)("button", { onClick: onClose, className: "ml-4 p-1.5 rounded hover:bg-white/10 transition-colors", children: (0,jsx_runtime.jsx)(X, { className: "w-5 h-5 text-white" }) })] }), (0,jsx_runtime.jsxs)("div", { className: "overflow-y-auto scrollbar-thin flex-1 px-6 py-5 space-y-5", children: [(0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "text-xs font-bold uppercase tracking-wider mb-2", style: { color: "#6b6a63" }, children: "Issue Type" }), (0,jsx_runtime.jsx)("div", { className: "grid grid-cols-2 md:grid-cols-5 gap-2", children: issueTypes.map(({ id, icon: Icon, desc }) => {
+                                    const active = draft.type === id;
+                                    return ((0,jsx_runtime.jsxs)("button", { onClick: () => setDraft(Object.assign(Object.assign({}, draft), { type: id, tags: [] })), className: "rounded-lg p-3 text-left transition-all", style: { background: active ? "#1a2744" : "white", border: `2px solid ${active ? "#f5a623" : "#e5e2d8"}` }, children: [(0,jsx_runtime.jsx)(Icon, { className: "w-4 h-4 mb-1.5", style: { color: active ? "#f5a623" : "#1a2744" } }), (0,jsx_runtime.jsx)("div", { className: "text-xs font-bold", style: { color: active ? "white" : "#1a2744" }, children: id }), (0,jsx_runtime.jsx)("div", { className: "text-[10px] mt-0.5 leading-tight", style: { color: active ? "#a8b4cc" : "#6b6a63" }, children: desc })] }, id));
+                                }) })] }), (0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsxs)("div", { className: "text-xs font-bold uppercase tracking-wider mb-2", style: { color: "#6b6a63" }, children: ["Common Tags ", (0,jsx_runtime.jsxs)("span", { className: "font-normal normal-case", style: { color: "#a8a59a" }, children: ["\u00B7 ", draft.tags.length, " selected"] })] }), (0,jsx_runtime.jsx)("div", { className: "flex gap-2 flex-wrap", children: (commonTags[draft.type] || []).map((t) => ((0,jsx_runtime.jsxs)("button", { onClick: () => toggleTag(t), className: "px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1 transition-all", style: { background: draft.tags.includes(t) ? "#f5a623" : "white", color: draft.tags.includes(t) ? "#1a2744" : "#6b6a63", border: `1px solid ${draft.tags.includes(t) ? "#f5a623" : "#e5e2d8"}` }, children: [draft.tags.includes(t) ? (0,jsx_runtime.jsx)(CircleCheck, { className: "w-3 h-3" }) : (0,jsx_runtime.jsx)(Plus, { className: "w-3 h-3" }), t] }, t))) })] }), (0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsxs)("div", { className: "text-xs font-bold uppercase tracking-wider mb-2", style: { color: "#6b6a63" }, children: ["Description ", (0,jsx_runtime.jsx)("span", { style: { color: "#be123c" }, children: "*" })] }), (0,jsx_runtime.jsx)("textarea", { value: draft.description, onChange: (e) => setDraft(Object.assign(Object.assign({}, draft), { description: e.target.value })), placeholder: "Describe what you're seeing or hearing. Include timecodes when possible.", className: "w-full rounded-lg p-3 text-sm resize-none outline-none", style: { background: "white", border: "1px solid #e5e2d8", color: "#1a2744", minHeight: 120 } }), (0,jsx_runtime.jsxs)("div", { className: "text-[11px] mt-1.5 flex items-center gap-1", style: { color: "#6b6a63" }, children: [(0,jsx_runtime.jsx)(CircleAlert, { className: "w-3 h-3" }), " Your report will route to the Operations team and appear in the Media Issues queue."] })] })] }), (0,jsx_runtime.jsxs)("div", { className: "px-6 py-4 flex items-center justify-between flex-shrink-0", style: { background: "white", borderTop: "1px solid #e5e2d8" }, children: [(0,jsx_runtime.jsxs)("div", { className: "text-xs", style: { color: "#6b6a63" }, children: ["Reporting as ", (0,jsx_runtime.jsx)("strong", { style: { color: "#1a2744" }, children: "Your Station" })] }), (0,jsx_runtime.jsxs)("div", { className: "flex gap-2", children: [(0,jsx_runtime.jsx)("button", { onClick: onClose, className: "px-4 py-2 text-sm font-semibold rounded-lg transition-colors hover:bg-gray-100", style: { color: "#6b6a63" }, children: "Cancel" }), (0,jsx_runtime.jsxs)("button", { onClick: () => onSubmit(draft), disabled: !canSubmit, className: "px-5 py-2 text-sm font-bold rounded-lg flex items-center gap-2 transition-all", style: { background: canSubmit ? "#f5a623" : "#e5e2d8", color: canSubmit ? "#1a2744" : "#a8a59a", cursor: canSubmit ? "pointer" : "not-allowed" }, children: [(0,jsx_runtime.jsx)(Send, { className: "w-3.5 h-3.5" }), " Submit Issue"] })] })] })] }));
+}
+function ModalCard({ title, eyebrow, icon: Icon, iconColor, children }) {
+    return ((0,jsx_runtime.jsxs)("div", { className: "rounded-lg p-5", style: { background: "white", border: "1px solid #e5e2d8" }, children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-start gap-3 mb-4 pb-3", style: { borderBottom: "1px solid #e5e2d8" }, children: [(0,jsx_runtime.jsx)("div", { className: "w-9 h-9 rounded flex items-center justify-center flex-shrink-0", style: { background: `${iconColor}15` }, children: (0,jsx_runtime.jsx)(Icon, { className: "w-4 h-4", style: { color: iconColor } }) }), (0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "text-[10px] font-bold uppercase tracking-widest", style: { color: "#6b6a63" }, children: eyebrow }), (0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-base", style: { color: "#1a2744" }, children: title })] })] }), children] }));
+}
+function InfoBlock({ label, value }) {
+    return ((0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "text-xs font-bold uppercase tracking-wider mb-1", style: { color: "#6b6a63" }, children: label }), (0,jsx_runtime.jsx)("div", { style: { color: "#1a2744" }, children: value })] }));
+}
+function SectionHeader({ eyebrow, title, subtitle }) {
+    return ((0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "text-xs font-bold uppercase tracking-widest mb-2", style: { color: "#f5a623" }, children: eyebrow }), (0,jsx_runtime.jsx)("h1", { className: "font-display font-black text-3xl leading-tight", style: { color: "#1a2744" }, children: title }), (0,jsx_runtime.jsx)("p", { className: "text-sm mt-2 max-w-2xl", style: { color: "#6b6a63" }, children: subtitle })] }));
+}
+function EmptyState({ icon: Icon, message }) {
+    return ((0,jsx_runtime.jsxs)("div", { className: "rounded-lg p-12 text-center", style: { background: "white", border: "1px dashed #cbc9c0" }, children: [(0,jsx_runtime.jsx)(Icon, { className: "w-10 h-10 mx-auto mb-3", style: { color: "#cbc9c0" } }), (0,jsx_runtime.jsx)("p", { className: "text-sm", style: { color: "#6b6a63" }, children: message })] }));
+}
+function NotifItem({ title, detail, time, topic }) {
+    return ((0,jsx_runtime.jsx)("div", { className: "p-3 hover:bg-gray-50 border-b", style: { borderColor: "#e5e2d8" }, children: (0,jsx_runtime.jsxs)("div", { className: "flex items-start gap-2", children: [(0,jsx_runtime.jsx)("div", { className: "w-2 h-2 rounded-full mt-1.5 flex-shrink-0", style: { background: "#f5a623" } }), (0,jsx_runtime.jsxs)("div", { className: "flex-1 min-w-0", children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-center justify-between gap-2", children: [(0,jsx_runtime.jsx)("span", { className: "text-[10px] font-bold uppercase tracking-wider", style: { color: "#6b6a63" }, children: topic }), (0,jsx_runtime.jsx)("span", { className: "text-[10px]", style: { color: "#a8a59a" }, children: time })] }), (0,jsx_runtime.jsx)("div", { className: "text-sm font-semibold mt-0.5", style: { color: "#1a2744" }, children: title }), (0,jsx_runtime.jsx)("div", { className: "text-xs mt-0.5", style: { color: "#6b6a63" }, children: detail })] })] }) }));
+}
+
+;// ../broadcast_ops_widget/components/Calendar.jsx
+
+
+
+
+
+
+function Calendar360({ viewMode, setViewMode, currentWeek, weekStartIndex, setWeekStartIndex, selectedDate, selectedDateKey, setSelectedDateKey, selectedChannels, toggleChannel, weekSchedule, daySchedule, role, onReportIssue, onViewShow, onDayClick, }) {
+    const weekLabel = `${formatShortDate(currentWeek[0])} – ${formatShortDate(currentWeek[currentWeek.length - 1])}`;
+    const canGoPrev = weekStartIndex > 0;
+    const canGoNext = weekStartIndex + 4 < 14;
+    return ((0,jsx_runtime.jsxs)("div", { className: "space-y-6 fade-in-up", children: [(0,jsx_runtime.jsx)(SectionHeader, { eyebrow: "Programming", title: "Schedule Calendar", subtitle: "Two-week rolling window in 4-day blocks. Click any day to see the hourly timeline." }), (0,jsx_runtime.jsxs)("div", { className: "rounded-lg p-4 flex items-center justify-between gap-3 flex-wrap", style: { background: "white", border: "1px solid #e5e2d8" }, children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-2", children: [(0,jsx_runtime.jsx)("div", { className: "flex items-center rounded-md overflow-hidden", style: { border: "1px solid #e5e2d8" }, children: [{ id: "week", Icon: LayoutGrid, label: "4-Day" }, { id: "day", Icon: CalendarDays, label: "Day" }].map(({ id, Icon, label }) => ((0,jsx_runtime.jsxs)("button", { onClick: () => setViewMode(id), className: "flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold transition-colors", style: { background: viewMode === id ? "#1a2744" : "white", color: viewMode === id ? "white" : "#1a2744" }, children: [(0,jsx_runtime.jsx)(Icon, { className: "w-3.5 h-3.5" }), " ", label] }, id))) }), viewMode === "week" && ((0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-1 ml-2", children: [(0,jsx_runtime.jsx)("button", { onClick: () => canGoPrev && setWeekStartIndex(Math.max(0, weekStartIndex - 4)), disabled: !canGoPrev, className: "p-1.5 rounded", style: { background: canGoPrev ? "#f5f3ee" : "transparent", color: canGoPrev ? "#1a2744" : "#cbc9c0", cursor: canGoPrev ? "pointer" : "not-allowed" }, children: (0,jsx_runtime.jsx)(ChevronLeft, { className: "w-4 h-4" }) }), (0,jsx_runtime.jsx)("div", { className: "text-sm font-semibold px-2", style: { color: "#1a2744" }, children: weekLabel }), (0,jsx_runtime.jsx)("button", { onClick: () => canGoNext && setWeekStartIndex(Math.min(10, weekStartIndex + 4)), disabled: !canGoNext, className: "p-1.5 rounded", style: { background: canGoNext ? "#f5f3ee" : "transparent", color: canGoNext ? "#1a2744" : "#cbc9c0", cursor: canGoNext ? "pointer" : "not-allowed" }, children: (0,jsx_runtime.jsx)(ChevronRight, { className: "w-4 h-4" }) })] })), viewMode === "day" && ((0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-1 ml-2", children: [(0,jsx_runtime.jsx)("button", { onClick: () => { const i = DATE_RANGE.findIndex((d) => dateKey(d) === selectedDateKey); if (i > 0)
+                                            setSelectedDateKey(dateKey(DATE_RANGE[i - 1])); }, className: "p-1.5 rounded", style: { background: "#f5f3ee", color: "#1a2744" }, children: (0,jsx_runtime.jsx)(ChevronLeft, { className: "w-4 h-4" }) }), (0,jsx_runtime.jsx)("div", { className: "text-sm font-semibold px-2", style: { color: "#1a2744" }, children: formatFullDate(selectedDate) }), (0,jsx_runtime.jsx)("button", { onClick: () => { const i = DATE_RANGE.findIndex((d) => dateKey(d) === selectedDateKey); if (i < DATE_RANGE.length - 1)
+                                            setSelectedDateKey(dateKey(DATE_RANGE[i + 1])); }, className: "p-1.5 rounded", style: { background: "#f5f3ee", color: "#1a2744" }, children: (0,jsx_runtime.jsx)(ChevronRight, { className: "w-4 h-4" }) })] }))] }), (0,jsx_runtime.jsx)("button", { onClick: () => { setSelectedDateKey(dateKey(TODAY)); setWeekStartIndex(0); }, className: "text-xs font-semibold px-3 py-1.5 rounded", style: { background: "#f5a623", color: "#1a2744" }, children: "Today" })] }), (0,jsx_runtime.jsxs)("div", { className: "rounded-lg p-4", style: { background: "white", border: "1px solid #e5e2d8" }, children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-2 text-xs font-bold uppercase tracking-wider mb-2", style: { color: "#6b6a63" }, children: [(0,jsx_runtime.jsx)(Tv, { className: "w-3.5 h-3.5" }), " Channels (", selectedChannels.length, "/", CHANNELS.length, ")"] }), (0,jsx_runtime.jsx)("div", { className: "flex gap-2 flex-wrap", children: CHANNELS.map((c) => {
+                            const on = selectedChannels.includes(c.id);
+                            return ((0,jsx_runtime.jsxs)("button", { onClick: () => toggleChannel(c.id), className: "px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-2 transition-all", style: { background: on ? c.color : "#f5f3ee", color: on ? "white" : "#1a2744", border: `1px solid ${on ? c.color : "#e5e2d8"}` }, children: [(0,jsx_runtime.jsx)("span", { className: "w-2 h-2 rounded-full", style: { background: on ? "white" : c.color } }), c.label] }, c.id));
+                        }) })] }), viewMode === "week" ? ((0,jsx_runtime.jsx)(WeekGrid, { currentWeek: currentWeek, weekSchedule: weekSchedule, onDayClick: onDayClick })) : ((0,jsx_runtime.jsx)(DayTimeline, { selectedDate: selectedDate, daySchedule: daySchedule, onViewShow: onViewShow, onReportIssue: onReportIssue, role: role }))] }));
+}
+function WeekGrid({ currentWeek, weekSchedule, onDayClick }) {
+    const scheduleByDay = (0,react.useMemo)(() => {
+        const m = {};
+        currentWeek.forEach((d) => (m[dateKey(d)] = []));
+        weekSchedule.forEach((s) => { if (m[s.dateKey])
+            m[s.dateKey].push(s); });
+        return m;
+    }, [currentWeek, weekSchedule]);
+    return ((0,jsx_runtime.jsx)("div", { className: "rounded-lg overflow-hidden", style: { background: "white", border: "1px solid #e5e2d8" }, children: (0,jsx_runtime.jsx)("div", { className: "grid grid-cols-4", children: currentWeek.map((d) => {
+                const isToday = isSameDay(d, TODAY);
+                const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                const dayItems = scheduleByDay[dateKey(d)] || [];
+                return ((0,jsx_runtime.jsxs)("button", { onClick: () => onDayClick(d), className: "text-left p-4 transition-colors hover:bg-gray-50 flex flex-col min-w-0", style: { borderRight: "1px solid #e5e2d8", borderBottom: "1px solid #e5e2d8", minHeight: 420, background: isToday ? "#fef9e7" : isWeekend ? "#faf8f3" : "white" }, children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-baseline justify-between mb-3", children: [(0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "text-[11px] font-bold uppercase tracking-wider", style: { color: "#6b6a63" }, children: formatDayName(d) }), (0,jsx_runtime.jsx)("div", { className: "font-display font-black text-3xl leading-none", style: { color: isToday ? "#f5a623" : "#1a2744" }, children: formatDayNumber(d) })] }), isToday && (0,jsx_runtime.jsx)("span", { className: "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded", style: { background: "#f5a623", color: "#1a2744" }, children: "Today" })] }), (0,jsx_runtime.jsxs)("div", { className: "space-y-1.5 flex-1 overflow-hidden", children: [dayItems.slice(0, 9).map((s) => {
+                                    const ch = CHANNELS.find((c) => c.id === s.channel);
+                                    return ((0,jsx_runtime.jsxs)("div", { className: "rounded px-2.5 py-1.5 text-[11px] leading-tight overflow-hidden", style: { background: `${ch.color}12`, borderLeft: `3px solid ${ch.color}` }, children: [(0,jsx_runtime.jsxs)("div", { className: "font-bold truncate", style: { color: "#1a2744" }, children: [s.time, " \u00B7 ", s.episode] }), (0,jsx_runtime.jsxs)("div", { className: "text-[10px] mt-0.5 truncate", style: { color: "#6b6a63" }, children: [ch.label, " \u00B7 ", s.duration, "m"] })] }, s.id));
+                                }), dayItems.length > 9 && (0,jsx_runtime.jsxs)("div", { className: "text-[11px] font-semibold mt-1", style: { color: "#f5a623" }, children: ["+", dayItems.length - 9, " more"] }), dayItems.length === 0 && (0,jsx_runtime.jsx)("div", { className: "text-xs italic", style: { color: "#a8a59a" }, children: "No programming" })] }), (0,jsx_runtime.jsxs)("div", { className: "text-[11px] mt-3 pt-3 flex items-center gap-1 font-semibold", style: { color: "#1a2744", borderTop: "1px solid #e5e2d8" }, children: [(0,jsx_runtime.jsx)(CalendarDays, { className: "w-3 h-3" }), " View day timeline"] })] }, dateKey(d)));
+            }) }) }));
+}
+function DayTimeline({ selectedDate, daySchedule, onViewShow, onReportIssue, role }) {
+    const HOURS = Array.from({ length: 19 }, (_, i) => i + 5);
+    const isToday = isSameDay(selectedDate, TODAY);
+    const scheduleByHour = (0,react.useMemo)(() => {
+        const m = {};
+        daySchedule.forEach((s) => { if (!m[s.hour])
+            m[s.hour] = []; m[s.hour].push(s); });
+        return m;
+    }, [daySchedule]);
+    const fmtHour = (h) => h === 0 ? "12 AM" : h === 12 ? "12 PM" : h < 12 ? `${h} AM` : `${h - 12} PM`;
+    return ((0,jsx_runtime.jsxs)("div", { className: "rounded-lg overflow-hidden", style: { background: "white", border: "1px solid #e5e2d8" }, children: [(0,jsx_runtime.jsx)("div", { className: "px-5 py-4", style: { background: isToday ? "#fef9e7" : "#f5f3ee", borderBottom: "1px solid #e5e2d8" }, children: (0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-3", children: [(0,jsx_runtime.jsxs)("div", { className: "w-14 h-14 rounded-lg flex flex-col items-center justify-center flex-shrink-0", style: { background: isToday ? "#f5a623" : "#1a2744" }, children: [(0,jsx_runtime.jsx)("div", { className: "text-[9px] font-bold uppercase tracking-wider", style: { color: isToday ? "#1a2744" : "#f5a623" }, children: formatDayName(selectedDate) }), (0,jsx_runtime.jsx)("div", { className: "font-display font-black text-xl leading-none", style: { color: isToday ? "#1a2744" : "white" }, children: formatDayNumber(selectedDate) })] }), (0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-lg", style: { color: "#1a2744" }, children: formatFullDate(selectedDate) }), (0,jsx_runtime.jsxs)("div", { className: "text-xs", style: { color: "#6b6a63" }, children: [daySchedule.length, " program", daySchedule.length === 1 ? "" : "s", " scheduled"] })] })] }) }), (0,jsx_runtime.jsx)("div", { className: "divide-y", style: { borderColor: "#e5e2d8" }, children: HOURS.map((h) => {
+                    const items = scheduleByHour[h] || [];
+                    return ((0,jsx_runtime.jsxs)("div", { className: "flex", children: [(0,jsx_runtime.jsx)("div", { className: "w-20 px-4 py-3 text-xs font-semibold flex-shrink-0", style: { background: "#faf8f3", color: "#6b6a63", borderRight: "1px solid #e5e2d8" }, children: fmtHour(h) }), (0,jsx_runtime.jsx)("div", { className: "flex-1 py-3 px-3 space-y-2", children: items.length === 0 ? ((0,jsx_runtime.jsx)("div", { className: "text-xs italic py-1", style: { color: "#cbc9c0" }, children: "\u2014" })) : items.map((s) => {
+                                    const ch = CHANNELS.find((c) => c.id === s.channel);
+                                    const hasDetails = !!SHOW_DETAILS[s.show];
+                                    return ((0,jsx_runtime.jsxs)("div", { className: "rounded-lg p-3 flex items-center gap-3 transition-shadow hover:shadow-sm", style: { background: `${ch.color}08`, border: `1px solid ${ch.color}30`, borderLeft: `3px solid ${ch.color}` }, children: [(0,jsx_runtime.jsxs)("div", { className: "flex-1 min-w-0", children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-2 flex-wrap", children: [(0,jsx_runtime.jsx)("span", { className: "text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded", style: { background: ch.color, color: "white" }, children: ch.label }), (0,jsx_runtime.jsx)("span", { className: "text-xs font-bold", style: { color: "#1a2744" }, children: s.time }), (0,jsx_runtime.jsxs)("span", { className: "text-xs", style: { color: "#6b6a63" }, children: ["\u00B7 ", s.duration, " min"] })] }), (0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-sm mt-0.5", style: { color: "#1a2744" }, children: s.episode }), s.teaser && (0,jsx_runtime.jsx)("div", { className: "text-[11px] mt-0.5 line-clamp-2", style: { color: "#6b6a63" }, children: s.teaser })] }), (0,jsx_runtime.jsxs)("div", { className: "flex gap-1.5 flex-shrink-0", children: [(0,jsx_runtime.jsxs)("button", { onClick: () => onViewShow(s), disabled: !hasDetails, className: "text-[11px] font-semibold px-2.5 py-1.5 rounded flex items-center gap-1", style: { background: "white", color: hasDetails ? "#1a2744" : "#a8a59a", border: "1px solid #e5e2d8", cursor: hasDetails ? "pointer" : "not-allowed" }, children: ["Details ", (0,jsx_runtime.jsx)(ChevronRight, { className: "w-3 h-3" })] }), role === "station" && ((0,jsx_runtime.jsxs)("button", { onClick: () => onReportIssue(s), className: "text-[11px] font-semibold px-2.5 py-1.5 rounded flex items-center gap-1", style: { background: "#fef3c7", color: "#92400e", border: "1px solid #fde68a" }, children: [(0,jsx_runtime.jsx)(Flag, { className: "w-3 h-3" }), " Report"] }))] })] }, s.id));
+                                }) })] }, h));
+                }) })] }));
+}
+
+;// ./node_modules/lucide-react/dist/esm/icons/message-square.js
+/**
+ * @license lucide-react v0.511.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+
+
+
+const message_square_iconNode = [
+  ["path", { d: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z", key: "1lielz" }]
+];
+const MessageSquare = createLucideIcon("message-square", message_square_iconNode);
+
+
+//# sourceMappingURL=message-square.js.map
+
+;// ../broadcast_ops_widget/components/Issues.jsx
+
+
+
+
+
+function MediaIssues({ issues, role, replyDraft, setReplyDraft, submitReply, onOpenDetails }) {
+    return ((0,jsx_runtime.jsxs)("div", { className: "space-y-6 fade-in-up", children: [(0,jsx_runtime.jsx)(SectionHeader, { eyebrow: "Operations", title: "Media Delivery Issues", subtitle: role === "station"
+                    ? "Reports you or other stations have submitted. Go to the TV Guide and click Report on any show to file a new issue."
+                    : "Review and respond to issues reported by stations." }), (0,jsx_runtime.jsx)("div", { className: "space-y-3", children: issues.map((issue, idx) => ((0,jsx_runtime.jsx)(IssueCard, { issue: issue, role: role, replyDraft: replyDraft[issue.id] || "", setReplyDraft: (val) => setReplyDraft((prev) => (Object.assign(Object.assign({}, prev), { [issue.id]: val }))), submitReply: () => submitReply(issue.id), onOpenDetails: onOpenDetails, delay: idx * 40 }, issue.id))) })] }));
+}
+function IssueCard({ issue, role, replyDraft, setReplyDraft, submitReply, onOpenDetails, delay }) {
+    const [expanded, setExpanded] = (0,react.useState)(false);
+    const statusColors = {
+        Open: { bg: "#fef3c7", fg: "#92400e", border: "#fde68a" },
+        "In Review": { bg: "#dbeafe", fg: "#1e40af", border: "#bfdbfe" },
+        Resolved: { bg: "#d1fae5", fg: "#065f46", border: "#a7f3d0" },
+    };
+    const status = statusColors[issue.status];
+    const hasDetails = !!SHOW_DETAILS[issue.show];
+    return ((0,jsx_runtime.jsxs)("div", { className: "rounded-lg p-5 fade-in-up", style: { background: "white", border: "1px solid #e5e2d8", animationDelay: `${delay}ms` }, children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-start justify-between gap-4 mb-3", children: [(0,jsx_runtime.jsxs)("div", { className: "flex-1 min-w-0", children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-2 flex-wrap mb-1", children: [(0,jsx_runtime.jsx)("button", { onClick: () => hasDetails && onOpenDetails(issue.show), disabled: !hasDetails, className: "font-display font-bold text-base transition-colors", style: { color: "#1a2744", cursor: hasDetails ? "pointer" : "default", textDecoration: hasDetails ? "underline" : "none", textDecorationColor: "#f5a623", textUnderlineOffset: 3 }, children: issue.show }), (0,jsx_runtime.jsxs)("span", { className: "text-xs", style: { color: "#6b6a63" }, children: ["\u00B7 ", issue.episode] })] }), (0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-3 text-xs", style: { color: "#6b6a63" }, children: [(0,jsx_runtime.jsxs)("span", { className: "flex items-center gap-1", children: [(0,jsx_runtime.jsx)(User, { className: "w-3 h-3" }), issue.author, " \u00B7 ", issue.station] }), (0,jsx_runtime.jsx)("span", { children: issue.timestamp })] })] }), (0,jsx_runtime.jsx)("span", { className: "text-[11px] font-bold px-2.5 py-1 rounded uppercase tracking-wider flex-shrink-0", style: { background: status.bg, color: status.fg, border: `1px solid ${status.border}` }, children: issue.status })] }), (0,jsx_runtime.jsxs)("div", { className: "flex gap-2 flex-wrap mb-3", children: [(0,jsx_runtime.jsx)("span", { className: "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded", style: { background: "#1a2744", color: "white" }, children: issue.type }), issue.tags.map((t) => ((0,jsx_runtime.jsx)("span", { className: "text-xs px-2 py-0.5 rounded", style: { background: "#f5f3ee", color: "#1a2744", border: "1px solid #e5e2d8" }, children: t }, t)))] }), (0,jsx_runtime.jsx)("p", { className: "text-sm leading-relaxed", style: { color: "#3a3833" }, children: issue.description }), issue.replies.length > 0 && ((0,jsx_runtime.jsx)("div", { className: "mt-4 pl-4 space-y-3", style: { borderLeft: "2px solid #f5a623" }, children: issue.replies.map((r, i) => ((0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-2 text-xs mb-1", children: [(0,jsx_runtime.jsx)("span", { className: "font-semibold", style: { color: "#1a2744" }, children: r.author }), (0,jsx_runtime.jsx)("span", { className: "text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded", style: { background: "#f5a623", color: "#1a2744" }, children: "HQ" }), (0,jsx_runtime.jsx)("span", { style: { color: "#6b6a63" }, children: r.timestamp })] }), (0,jsx_runtime.jsx)("p", { className: "text-sm", style: { color: "#3a3833" }, children: r.text })] }, i))) })), role === "hq" && ((0,jsx_runtime.jsx)("div", { className: "mt-4 pt-4", style: { borderTop: "1px solid #e5e2d8" }, children: !expanded ? ((0,jsx_runtime.jsxs)("button", { onClick: () => setExpanded(true), className: "text-xs font-semibold flex items-center gap-1", style: { color: "#1a2744" }, children: [(0,jsx_runtime.jsx)(MessageSquare, { className: "w-3.5 h-3.5" }), " Reply to station"] })) : ((0,jsx_runtime.jsxs)("div", { className: "space-y-2", children: [(0,jsx_runtime.jsx)("textarea", { value: replyDraft, onChange: (e) => setReplyDraft(e.target.value), placeholder: "Respond to the station\u2026", className: "w-full rounded p-2 text-sm resize-none outline-none", style: { background: "#f5f3ee", border: "1px solid #e5e2d8", color: "#1a2744", minHeight: 70 } }), (0,jsx_runtime.jsxs)("div", { className: "flex justify-end gap-2", children: [(0,jsx_runtime.jsx)("button", { onClick: () => setExpanded(false), className: "text-xs font-semibold", style: { color: "#6b6a63" }, children: "Cancel" }), (0,jsx_runtime.jsxs)("button", { onClick: () => { submitReply(); setExpanded(false); }, disabled: !replyDraft.trim(), className: "text-xs font-semibold px-3 py-1.5 rounded flex items-center gap-1", style: { background: replyDraft.trim() ? "#1a2744" : "#e5e2d8", color: replyDraft.trim() ? "white" : "#a8a59a" }, children: [(0,jsx_runtime.jsx)(Send, { className: "w-3 h-3" }), " Send"] })] })] })) }))] }));
+}
+
+;// ../broadcast_ops_widget/components/Search.jsx
+
+
+
+
+
+function SearchView({ query, setQuery, results, onSelectShow }) {
+    return ((0,jsx_runtime.jsxs)("div", { className: "space-y-6 fade-in-up", children: [(0,jsx_runtime.jsx)(SectionHeader, { eyebrow: "Discovery", title: "Search the Catalog", subtitle: "Find any show or episode in the live programming schedule." }), (0,jsx_runtime.jsxs)("div", { className: "rounded-lg flex items-center gap-3 p-4", style: { background: "white", border: "2px solid #1a2744" }, children: [(0,jsx_runtime.jsx)(Search, { className: "w-5 h-5", style: { color: "#1a2744" } }), (0,jsx_runtime.jsx)("input", { value: query, onChange: (e) => setQuery(e.target.value), placeholder: "Search shows or episodes\u2026", autoFocus: true, className: "flex-1 bg-transparent outline-none text-base", style: { color: "#1a2744" } }), query && ((0,jsx_runtime.jsx)("button", { onClick: () => setQuery(""), children: (0,jsx_runtime.jsx)(X, { className: "w-4 h-4", style: { color: "#6b6a63" } }) }))] }), !query && ((0,jsx_runtime.jsxs)("div", { className: "space-y-3", children: [(0,jsx_runtime.jsx)("div", { className: "text-xs font-bold uppercase tracking-wider", style: { color: "#6b6a63" }, children: "Suggested searches" }), (0,jsx_runtime.jsx)("div", { className: "flex gap-2 flex-wrap", children: ["Frontline", "Finding Your Roots", "Amanpour", "Plastics Trap", "Putin", "Icons of Hollywood"].map((s) => ((0,jsx_runtime.jsx)("button", { onClick: () => setQuery(s), className: "px-3 py-1.5 rounded text-xs font-semibold", style: { background: "white", color: "#1a2744", border: "1px solid #e5e2d8" }, children: s }, s))) })] })), query && results.length === 0 && ((0,jsx_runtime.jsx)(EmptyState, { icon: Search, message: `No results for "${query}". Try another term.` })), results.length > 0 && ((0,jsx_runtime.jsxs)("div", { className: "space-y-2", children: [(0,jsx_runtime.jsxs)("div", { className: "text-xs font-bold uppercase tracking-wider", style: { color: "#6b6a63" }, children: [results.length, " result", results.length === 1 ? "" : "s"] }), results.map((r, idx) => {
+                        const ch = CHANNELS.find((c) => c.id === r.channel);
+                        const has360 = !!SHOW_DETAILS[r.show];
+                        return ((0,jsx_runtime.jsxs)("div", { className: "rounded-lg p-4 flex items-center gap-4 hover:shadow-md transition-shadow fade-in-up", style: { background: "white", border: "1px solid #e5e2d8", animationDelay: `${idx * 30}ms` }, children: [(0,jsx_runtime.jsx)("div", { className: "w-12 h-12 rounded flex items-center justify-center flex-shrink-0", style: { background: ch.color }, children: (0,jsx_runtime.jsx)(Film, { className: "w-5 h-5 text-white" }) }), (0,jsx_runtime.jsxs)("div", { className: "flex-1 min-w-0", children: [(0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-base", style: { color: "#1a2744" }, children: r.episode }), (0,jsx_runtime.jsxs)("div", { className: "text-xs", style: { color: "#6b6a63" }, children: [r.show, " \u00B7 ", r.time, " ", r.date] }), r.teaser && (0,jsx_runtime.jsx)("div", { className: "text-xs mt-0.5 line-clamp-1", style: { color: "#6b6a63" }, children: r.teaser })] }), (0,jsx_runtime.jsxs)("button", { onClick: () => onSelectShow(r.show), disabled: !has360, className: "text-xs font-semibold px-3 py-1.5 rounded flex items-center gap-1", style: { background: has360 ? "#1a2744" : "#f5f3ee", color: has360 ? "white" : "#a8a59a", cursor: has360 ? "pointer" : "not-allowed" }, children: [has360 ? "View 360°" : "No details", (0,jsx_runtime.jsx)(ArrowUpRight, { className: "w-3 h-3" })] })] }, r.id));
+                    })] }))] }));
+}
+
 ;// ./node_modules/lucide-react/dist/esm/icons/triangle-alert.js
 /**
  * @license lucide-react v0.511.0 - ISC
@@ -1245,7 +1635,57 @@ const Sparkles = createLucideIcon("sparkles", sparkles_iconNode);
 
 //# sourceMappingURL=sparkles.js.map
 
-;// ./node_modules/lucide-react/dist/esm/icons/message-square.js
+;// ../broadcast_ops_widget/components/Show360.jsx
+
+
+
+
+
+const FLAG_ICONS = {
+    Violence: TriangleAlert,
+    "Mature Themes": Eye,
+    "Brief Nudity": Eye,
+    "Medical Content": Heart,
+    "Disturbing Content": TriangleAlert,
+};
+function ShowHero({ details, nextAiring, children }) {
+    return ((0,jsx_runtime.jsxs)("div", { className: "rounded-lg p-6 relative overflow-hidden", style: { background: "linear-gradient(135deg, #1a2744 0%, #2d3f6b 100%)" }, children: [(0,jsx_runtime.jsx)("div", { className: "absolute top-0 right-0 w-64 h-64 opacity-10 pointer-events-none", style: { background: "radial-gradient(circle, #f5a623 0%, transparent 70%)" } }), (0,jsx_runtime.jsxs)("div", { className: "relative", children: [(0,jsx_runtime.jsxs)("div", { className: "text-xs font-bold uppercase tracking-widest mb-2", style: { color: "#f5a623" }, children: [details.genre, " \u00B7 ", details.season] }), (0,jsx_runtime.jsx)("h2", { className: "font-display font-black text-3xl text-white leading-tight mb-2", children: details.title }), (0,jsx_runtime.jsx)("p", { className: "text-sm max-w-2xl", style: { color: "#a8b4cc" }, children: details.tagline }), (0,jsx_runtime.jsxs)("div", { className: "flex gap-6 mt-4 text-xs", style: { color: "#a8b4cc" }, children: [(0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "uppercase tracking-wider opacity-70", children: "Episodes" }), (0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-white text-lg", children: details.episodes })] }), (0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "uppercase tracking-wider opacity-70", children: "Season" }), (0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-white text-lg", children: details.season })] }), nextAiring && (0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "uppercase tracking-wider opacity-70", children: "Next Airing" }), (0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-white text-lg", children: nextAiring.time })] })] }), children] })] }));
+}
+function FlagsCard({ flags }) {
+    if (!flags.length)
+        return null;
+    return ((0,jsx_runtime.jsxs)(ModalCard, { title: "Content Advisories", eyebrow: "Auto-synced from data lake", icon: TriangleAlert, iconColor: "#d97706", children: [(0,jsx_runtime.jsx)("div", { className: "grid grid-cols-2 md:grid-cols-4 gap-3", children: flags.map((f) => {
+                    const Icon = FLAG_ICONS[f.kind] || CircleAlert;
+                    return ((0,jsx_runtime.jsxs)("div", { className: "rounded p-3", style: { background: "#fef3c7", border: "1px solid #fde68a" }, children: [(0,jsx_runtime.jsx)(Icon, { className: "w-4 h-4 mb-2", style: { color: "#92400e" } }), (0,jsx_runtime.jsx)("div", { className: "text-xs font-bold", style: { color: "#92400e" }, children: f.kind }), (0,jsx_runtime.jsx)("div", { className: "text-[11px] uppercase tracking-wider mt-0.5", style: { color: "#b45309" }, children: f.level })] }, f.kind));
+                }) }), (0,jsx_runtime.jsx)("p", { className: "text-xs mt-3 italic", style: { color: "#6b6a63" }, children: "Advisories automatically generated by upstream scheduling + screening systems." })] }));
+}
+function RightsCard({ rights }) {
+    return ((0,jsx_runtime.jsx)(ModalCard, { title: "Rights & Clearances", eyebrow: "Rights management system", icon: Flag, iconColor: "#7c2d12", children: (0,jsx_runtime.jsxs)("div", { className: "grid grid-cols-1 md:grid-cols-3 gap-4 text-sm", children: [(0,jsx_runtime.jsx)(InfoBlock, { label: "Window", value: rights.window }), (0,jsx_runtime.jsx)(InfoBlock, { label: "Territory", value: rights.territory }), (0,jsx_runtime.jsx)(InfoBlock, { label: "Clearances", value: rights.clearances })] }) }));
+}
+function FundingCard({ funding }) {
+    return ((0,jsx_runtime.jsx)(ModalCard, { title: "Funding Credits", eyebrow: "Rights management system", icon: Sparkles, iconColor: "#059669", children: (0,jsx_runtime.jsx)("div", { className: "flex gap-2 flex-wrap", children: funding.map((f) => ((0,jsx_runtime.jsx)("span", { className: "text-xs px-3 py-1.5 rounded-full", style: { background: "#f5f3ee", color: "#1a2744", border: "1px solid #e5e2d8" }, children: f }, f))) }) }));
+}
+function ContributorsCard({ contributors, role }) {
+    return ((0,jsx_runtime.jsx)(ModalCard, { title: "Contributor Notes", eyebrow: "Custom annotations", icon: FileText, iconColor: "#1a2744", children: (0,jsx_runtime.jsxs)("div", { className: "space-y-3", children: [contributors.map((c, i) => ((0,jsx_runtime.jsxs)("div", { className: "rounded p-3", style: { background: "#f5f3ee" }, children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-2 mb-1", children: [(0,jsx_runtime.jsx)("div", { className: "w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white", style: { background: "#1a2744" }, children: c.name.split(" ").map((n) => n[0]).join("") }), (0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "text-sm font-semibold", style: { color: "#1a2744" }, children: c.name }), (0,jsx_runtime.jsx)("div", { className: "text-[11px] uppercase tracking-wider", style: { color: "#6b6a63" }, children: c.role })] })] }), (0,jsx_runtime.jsx)("p", { className: "text-sm", style: { color: "#3a3833" }, children: c.note })] }, i))), role === "hq" && ((0,jsx_runtime.jsxs)("button", { className: "text-xs font-semibold flex items-center gap-1", style: { color: "#1a2744" }, children: [(0,jsx_runtime.jsx)(Plus, { className: "w-3.5 h-3.5" }), " Add contributor note"] }))] }) }));
+}
+// ========== SHOW 360° TAB ==========
+function Show360Browser({ selected, setSelected, role, schedule }) {
+    const details = SHOW_DETAILS[selected];
+    const nextAiring = schedule.find((s) => s.show === selected);
+    if (!details)
+        return null;
+    return ((0,jsx_runtime.jsxs)("div", { className: "space-y-6 fade-in-up", children: [(0,jsx_runtime.jsx)(SectionHeader, { eyebrow: "Consolidated View", title: "Show 360\u00B0", subtitle: "A single pane aggregating scheduling, rights, funding, and contributor notes across all upstream systems." }), (0,jsx_runtime.jsx)("div", { className: "flex gap-2 flex-wrap", children: Object.keys(SHOW_DETAILS).map((s) => ((0,jsx_runtime.jsx)("button", { onClick: () => setSelected(s), className: "px-3 py-1.5 rounded text-xs font-semibold", style: { background: selected === s ? "#1a2744" : "white", color: selected === s ? "white" : "#1a2744", border: `1px solid ${selected === s ? "#1a2744" : "#e5e2d8"}` }, children: s }, s))) }), (0,jsx_runtime.jsx)(ShowHero, { details: details, nextAiring: nextAiring }), (0,jsx_runtime.jsx)(FlagsCard, { flags: details.flags }), (0,jsx_runtime.jsx)(RightsCard, { rights: details.rights }), (0,jsx_runtime.jsx)(FundingCard, { funding: details.funding }), (0,jsx_runtime.jsx)(ContributorsCard, { contributors: details.contributors, role: role })] }));
+}
+// ========== SHOW 360° MODAL (opened from schedule cards) ==========
+function Show360Content({ show, role, onClose, onReportIssue, schedule }) {
+    const details = SHOW_DETAILS[show];
+    const nextAiring = schedule.find((s) => s.show === show);
+    if (!details)
+        return null;
+    return ((0,jsx_runtime.jsxs)(jsx_runtime.Fragment, { children: [(0,jsx_runtime.jsxs)("div", { className: "relative px-6 py-6 flex items-start justify-between flex-shrink-0", style: { background: "linear-gradient(135deg, #1a2744 0%, #2d3f6b 100%)" }, children: [(0,jsx_runtime.jsx)("div", { className: "absolute top-0 right-0 w-96 h-full opacity-10 pointer-events-none", style: { background: "radial-gradient(circle at top right, #f5a623 0%, transparent 60%)" } }), (0,jsx_runtime.jsxs)("div", { className: "relative flex-1 min-w-0", children: [(0,jsx_runtime.jsxs)("div", { className: "text-xs font-bold uppercase tracking-widest mb-2", style: { color: "#f5a623" }, children: [(0,jsx_runtime.jsx)(Layers, { className: "w-3 h-3 inline mr-1" }), " Show 360\u00B0 \u00B7 ", details.genre] }), (0,jsx_runtime.jsx)("h2", { className: "font-display font-black text-3xl text-white leading-tight mb-1", children: details.title }), (0,jsx_runtime.jsx)("p", { className: "text-sm", style: { color: "#a8b4cc" }, children: details.tagline }), (0,jsx_runtime.jsxs)("div", { className: "flex gap-6 mt-4 text-xs", style: { color: "#a8b4cc" }, children: [(0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "uppercase tracking-wider opacity-70", children: "Episodes" }), (0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-white text-lg", children: details.episodes })] }), (0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "uppercase tracking-wider opacity-70", children: "Season" }), (0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-white text-lg", children: details.season })] }), nextAiring && (0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "uppercase tracking-wider opacity-70", children: "Next Airing" }), (0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-white text-lg", children: nextAiring.time })] })] })] }), (0,jsx_runtime.jsx)("button", { onClick: onClose, className: "relative p-1.5 rounded hover:bg-white/10 transition-colors ml-4", children: (0,jsx_runtime.jsx)(X, { className: "w-5 h-5 text-white" }) })] }), (0,jsx_runtime.jsxs)("div", { className: "overflow-y-auto scrollbar-thin flex-1 px-6 py-5 space-y-4", children: [(0,jsx_runtime.jsx)(FlagsCard, { flags: details.flags }), (0,jsx_runtime.jsx)(RightsCard, { rights: details.rights }), (0,jsx_runtime.jsx)(FundingCard, { funding: details.funding }), (0,jsx_runtime.jsx)(ContributorsCard, { contributors: details.contributors, role: role })] }), (0,jsx_runtime.jsxs)("div", { className: "px-6 py-4 flex items-center justify-between flex-shrink-0", style: { background: "white", borderTop: "1px solid #e5e2d8" }, children: [(0,jsx_runtime.jsx)("div", { className: "text-xs", style: { color: "#6b6a63" }, children: "Data aggregated from Staffbase scheduling, rights, and CMS systems." }), (0,jsx_runtime.jsxs)("div", { className: "flex gap-2", children: [(0,jsx_runtime.jsx)("button", { onClick: onClose, className: "px-4 py-2 text-sm font-semibold rounded-lg transition-colors hover:bg-gray-100", style: { color: "#6b6a63" }, children: "Close" }), role === "station" && nextAiring && ((0,jsx_runtime.jsxs)("button", { onClick: onReportIssue, className: "px-4 py-2 text-sm font-bold rounded-lg flex items-center gap-2 transition-all", style: { background: "#f5a623", color: "#1a2744" }, children: [(0,jsx_runtime.jsx)(Flag, { className: "w-3.5 h-3.5" }), " Report Issue"] }))] })] })] }));
+}
+
+;// ./node_modules/lucide-react/dist/esm/icons/calendar.js
 /**
  * @license lucide-react v0.511.0 - ISC
  *
@@ -1255,13 +1695,16 @@ const Sparkles = createLucideIcon("sparkles", sparkles_iconNode);
 
 
 
-const message_square_iconNode = [
-  ["path", { d: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z", key: "1lielz" }]
+const calendar_iconNode = [
+  ["path", { d: "M8 2v4", key: "1cmpym" }],
+  ["path", { d: "M16 2v4", key: "4m81vk" }],
+  ["rect", { width: "18", height: "18", x: "3", y: "4", rx: "2", key: "1hopcy" }],
+  ["path", { d: "M3 10h18", key: "8toen8" }]
 ];
-const MessageSquare = createLucideIcon("message-square", message_square_iconNode);
+const Calendar = createLucideIcon("calendar", calendar_iconNode);
 
 
-//# sourceMappingURL=message-square.js.map
+//# sourceMappingURL=calendar.js.map
 
 ;// ./node_modules/lucide-react/dist/esm/icons/mail.js
 /**
@@ -1303,428 +1746,119 @@ const Hash = createLucideIcon("hash", hash_iconNode);
 
 //# sourceMappingURL=hash.js.map
 
-;// ../broadcast_ops_widget.jsx
+;// ../broadcast_ops_widget/components/Activity.jsx
 
 
 
-// ========== DATE UTILITIES ==========
-// Today is Wed, April 22, 2026 per system context
-const TODAY = new Date(2026, 3, 22); // month is 0-indexed
-function dateKey(d) {
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-function formatShortDate(d) {
-    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    return `${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}`;
-}
-function formatDayNumber(d) {
-    return d.getDate();
-}
-function formatDayName(d) {
-    return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()];
-}
-function formatFullDate(d) {
-    const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    return `${["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
-}
-function addDays(d, n) {
-    const r = new Date(d);
-    r.setDate(r.getDate() + n);
-    return r;
-}
-function isSameDay(a, b) {
-    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-}
-// Two-week rolling window starting today
-const DATE_RANGE = Array.from({ length: 14 }, (_, i) => addDays(TODAY, i));
-// ========== MOCK DATA ==========
-const CHANNELS = [
-    { id: "main", label: "Main", color: "#1e3a8a" },
-    { id: "kids", label: "Kids", color: "#d97706" },
-    { id: "create", label: "Create", color: "#059669" },
-    { id: "world", label: "World", color: "#7c2d12" },
-    { id: "explore", label: "Explore", color: "#6d28d9" },
-    { id: "livingroom", label: "Living Room", color: "#be123c" },
-    { id: "encore", label: "Encore", color: "#0e7490" },
-];
-const DAYPARTS = [
-    { id: "morning", label: "Morning", range: "5a – 12p", startHour: 5, endHour: 12 },
-    { id: "daytime", label: "Daytime", range: "12p – 5p", startHour: 12, endHour: 17 },
-    { id: "primetime", label: "Primetime", range: "5p – 11p", startHour: 17, endHour: 23 },
-    { id: "overnight", label: "Overnight", range: "11p – 5a", startHour: 23, endHour: 29 },
-];
-function getDaypart(hour) {
-    if (hour >= 5 && hour < 12)
-        return "morning";
-    if (hour >= 12 && hour < 17)
-        return "daytime";
-    if (hour >= 17 && hour < 23)
-        return "primetime";
-    return "overnight";
-}
-// Program catalog — each with duration, typical channel, daypart preference
-const PROGRAMS = [
-    { show: "Newshour", channel: "main", duration: 60, preferredHours: [7, 18] },
-    { show: "Antiques Roadshow", channel: "main", duration: 60, preferredHours: [8, 20] },
-    { show: "Nature", channel: "explore", duration: 60, preferredHours: [10, 20] },
-    { show: "Masterpiece", channel: "main", duration: 90, preferredHours: [14, 21] },
-    { show: "Amanpour & Company", channel: "world", duration: 60, preferredHours: [19, 23] },
-    { show: "Frontline", channel: "main", duration: 120, preferredHours: [21] },
-    { show: "The Count of Monte Cristo", channel: "main", duration: 90, preferredHours: [20] },
-    { show: "Daniel Tiger", channel: "kids", duration: 30, preferredHours: [9, 14] },
-    { show: "Sesame Street", channel: "kids", duration: 60, preferredHours: [8, 11] },
-    { show: "Odd Squad", channel: "kids", duration: 30, preferredHours: [10, 15] },
-    { show: "America's Test Kitchen", channel: "create", duration: 30, preferredHours: [11, 16] },
-    { show: "Rick Steves' Europe", channel: "create", duration: 30, preferredHours: [12, 17] },
-    { show: "Ken Burns: The American Buffalo", channel: "main", duration: 120, preferredHours: [21] },
-    { show: "Independent Lens", channel: "world", duration: 90, preferredHours: [22] },
-    { show: "NOVA", channel: "explore", duration: 60, preferredHours: [20, 22] },
-    { show: "Finding Your Roots", channel: "main", duration: 60, preferredHours: [20] },
-    { show: "This Old House", channel: "livingroom", duration: 30, preferredHours: [13, 18] },
-    { show: "The Great British Baking Show", channel: "livingroom", duration: 60, preferredHours: [19, 21] },
-    { show: "Austin City Limits", channel: "encore", duration: 60, preferredHours: [22] },
-    { show: "Call the Midwife", channel: "main", duration: 60, preferredHours: [21] },
-    { show: "Arthur", channel: "kids", duration: 30, preferredHours: [9, 15] },
-    { show: "Wild Kratts", channel: "kids", duration: 30, preferredHours: [8, 14] },
-];
-// Generate schedule across 14 days
-function generateSchedule() {
-    const items = [];
-    let counter = 1;
-    DATE_RANGE.forEach((d) => {
-        const dk = dateKey(d);
-        // Morning block
-        PROGRAMS.filter((p) => p.preferredHours.some((h) => h >= 7 && h < 12)).forEach((p) => {
-            const h = p.preferredHours.find((x) => x >= 7 && x < 12);
-            if (h !== undefined && Math.random() > 0.35) {
-                items.push({
-                    id: `s${counter++}`,
-                    show: p.show,
-                    channel: p.channel,
-                    time: `${String(h).padStart(2, "0")}:00`,
-                    hour: h,
-                    minute: 0,
-                    dateKey: dk,
-                    date: formatShortDate(d),
-                    daypart: getDaypart(h),
-                    episode: generateEpisode(p.show),
-                    duration: p.duration,
-                });
-            }
-        });
-        // Daytime
-        PROGRAMS.filter((p) => p.preferredHours.some((h) => h >= 12 && h < 17)).forEach((p) => {
-            const h = p.preferredHours.find((x) => x >= 12 && x < 17);
-            if (h !== undefined && Math.random() > 0.4) {
-                items.push({
-                    id: `s${counter++}`,
-                    show: p.show,
-                    channel: p.channel,
-                    time: `${String(h).padStart(2, "0")}:00`,
-                    hour: h,
-                    minute: 0,
-                    dateKey: dk,
-                    date: formatShortDate(d),
-                    daypart: getDaypart(h),
-                    episode: generateEpisode(p.show),
-                    duration: p.duration,
-                });
-            }
-        });
-        // Primetime — more dense
-        PROGRAMS.filter((p) => p.preferredHours.some((h) => h >= 17 && h < 23)).forEach((p) => {
-            const h = p.preferredHours.find((x) => x >= 17 && x < 23);
-            if (h !== undefined && Math.random() > 0.25) {
-                items.push({
-                    id: `s${counter++}`,
-                    show: p.show,
-                    channel: p.channel,
-                    time: `${String(h).padStart(2, "0")}:00`,
-                    hour: h,
-                    minute: 0,
-                    dateKey: dk,
-                    date: formatShortDate(d),
-                    daypart: getDaypart(h),
-                    episode: generateEpisode(p.show),
-                    duration: p.duration,
-                });
-            }
-        });
-    });
-    // Deterministic sort
-    items.sort((a, b) => {
-        if (a.dateKey !== b.dateKey)
-            return a.dateKey.localeCompare(b.dateKey);
-        if (a.hour !== b.hour)
-            return a.hour - b.hour;
-        return a.channel.localeCompare(b.channel);
-    });
-    return items;
-}
-function generateEpisode(show) {
-    const seasons = {
-        "Newshour": `Season 51 · E${Math.floor(Math.random() * 200) + 1}`,
-        "Antiques Roadshow": `Season 28 · E${Math.floor(Math.random() * 26) + 1}`,
-        "Nature": `Season 42 · E${Math.floor(Math.random() * 12) + 1}`,
-        "Masterpiece": `Season 53 · E${Math.floor(Math.random() * 8) + 1}`,
-        "Amanpour & Company": `Season 2026 · E${Math.floor(Math.random() * 250) + 1}`,
-        "Frontline": `Season 44 · E${Math.floor(Math.random() * 24) + 1}`,
-        "The Count of Monte Cristo": `Limited Series · E${Math.floor(Math.random() * 8) + 1}`,
-        "Daniel Tiger": `Season 6 · E${Math.floor(Math.random() * 20) + 1}`,
-        "Sesame Street": `Season 56 · E${Math.floor(Math.random() * 35) + 1}`,
-        "Odd Squad": `Season 4 · E${Math.floor(Math.random() * 20) + 1}`,
-        "America's Test Kitchen": `Season 25 · E${Math.floor(Math.random() * 26) + 1}`,
-        "Rick Steves' Europe": `Season 12 · E${Math.floor(Math.random() * 13) + 1}`,
-        "Ken Burns: The American Buffalo": `Limited · E${Math.floor(Math.random() * 2) + 1}`,
-        "Independent Lens": `Season 27 · E${Math.floor(Math.random() * 20) + 1}`,
-        "NOVA": `Season 52 · E${Math.floor(Math.random() * 20) + 1}`,
-        "Finding Your Roots": `Season 11 · E${Math.floor(Math.random() * 10) + 1}`,
-        "This Old House": `Season 46 · E${Math.floor(Math.random() * 26) + 1}`,
-        "The Great British Baking Show": `Season 14 · E${Math.floor(Math.random() * 10) + 1}`,
-        "Austin City Limits": `Season 51 · E${Math.floor(Math.random() * 13) + 1}`,
-        "Call the Midwife": `Season 15 · E${Math.floor(Math.random() * 8) + 1}`,
-        "Arthur": `Season 25 · E${Math.floor(Math.random() * 20) + 1}`,
-        "Wild Kratts": `Season 7 · E${Math.floor(Math.random() * 26) + 1}`,
-    };
-    return seasons[show] || "New Episode";
-}
-// Seed once — stable across renders
-const SCHEDULE = generateSchedule();
-const SHOW_DETAILS = {
-    "Amanpour & Company": {
-        title: "Amanpour & Company",
-        tagline: "Wide-ranging, in-depth interviews with global newsmakers",
-        season: "Season 2026",
-        episodes: 220,
-        genre: "News & Public Affairs",
-        rights: { window: "Feb 1, 2026 – Jan 31, 2027", territory: "US, all platforms", clearances: "Cleared for VOD + Streaming" },
-        funding: ["Rosalind P. Walter", "Mutual of America", "Viewer Support"],
-        contributors: [
-            { name: "Maria Chen", role: "Scheduling Lead", note: "Confirmed 60-min cutdowns available for weekend slots." },
-            { name: "Jordan Fields", role: "Rights Coordinator", note: "Streaming extension approved through FY27." },
-        ],
-        flags: [],
-    },
-    "The Count of Monte Cristo": {
-        title: "The Count of Monte Cristo",
-        tagline: "A sweeping new adaptation of the Dumas classic",
-        season: "Limited Series",
-        episodes: 8,
-        genre: "Drama",
-        rights: { window: "Jan 15, 2026 – Jan 14, 2028", territory: "US + Puerto Rico", clearances: "Broadcast + Streaming" },
-        funding: ["Public Broadcasting Fund", "Anonymous Donor"],
-        contributors: [{ name: "Priya Rao", role: "Programming", note: "Recommend primetime block. Avoid family hour." }],
-        flags: [
-            { kind: "Violence", level: "Moderate", auto: true },
-            { kind: "Mature Themes", level: "Some", auto: true },
-            { kind: "Brief Nudity", level: "Minimal", auto: true },
-            { kind: "Medical Content", level: "Low", auto: true },
-        ],
-    },
-    "Frontline": {
-        title: "Frontline",
-        tagline: "Investigative journalism that exposes injustice",
-        season: "Season 44",
-        episodes: 24,
-        genre: "Documentary",
-        rights: { window: "Ongoing", territory: "US, all platforms", clearances: "Broadcast + Digital" },
-        funding: ["Public Broadcasting Fund", "Ford Foundation", "Park Foundation"],
-        contributors: [{ name: "Alex Rivera", role: "Series Producer", note: "E08 contains archival footage — pre-cleared." }],
-        flags: [
-            { kind: "Mature Themes", level: "Strong", auto: true },
-            { kind: "Disturbing Content", level: "Moderate", auto: true },
-        ],
-    },
-    "Antiques Roadshow": {
-        title: "Antiques Roadshow",
-        tagline: "Treasure-hunting appraisals from across the country",
-        season: "Season 28",
-        episodes: 26,
-        genre: "Reality / Lifestyle",
-        rights: { window: "Feb 1, 2026 – Jan 31, 2029", territory: "US, all platforms", clearances: "Full clearance" },
-        funding: ["Ancestry", "Consumer Cellular", "Public Broadcasting Fund"],
-        contributors: [{ name: "Sam Washington", role: "Digital Lead", note: "Streaming window drops 14 days after broadcast." }],
-        flags: [],
-    },
-    "Nature": {
-        title: "Nature",
-        tagline: "Breathtaking wildlife documentaries from across the globe",
-        season: "Season 42",
-        episodes: 12,
-        genre: "Documentary",
-        rights: { window: "Jan 1, 2026 – Dec 31, 2028", territory: "US, all platforms", clearances: "Broadcast + Streaming" },
-        funding: ["Arnhold Foundation", "Sue and Edgar Wachenheim III", "Viewer Support"],
-        contributors: [{ name: "Lin Park", role: "Series Producer", note: "4K masters available for all episodes this season." }],
-        flags: [],
-    },
-    "Masterpiece": {
-        title: "Masterpiece",
-        tagline: "Award-winning drama from the UK and beyond",
-        season: "Season 53",
-        episodes: 8,
-        genre: "Drama",
-        rights: { window: "Mar 1, 2026 – Feb 28, 2028", territory: "US, all platforms", clearances: "Broadcast + Streaming" },
-        funding: ["Viking", "Raymond James", "Public Broadcasting Fund"],
-        contributors: [{ name: "Elena Voss", role: "Acquisitions", note: "BBC delivered masters two weeks ahead of schedule." }],
-        flags: [{ kind: "Mature Themes", level: "Some", auto: true }],
-    },
-    "NOVA": {
-        title: "NOVA",
-        tagline: "Science and technology documentaries",
-        season: "Season 52",
-        episodes: 20,
-        genre: "Science",
-        rights: { window: "Ongoing", territory: "US, all platforms", clearances: "Broadcast + Digital + Education" },
-        funding: ["David H. Koch Fund for Science", "Public Broadcasting Fund", "Viewer Support"],
-        contributors: [{ name: "Devon Carter", role: "Digital Producer", note: "Classroom resources published with each episode." }],
-        flags: [],
-    },
-    "Ken Burns: The American Buffalo": {
-        title: "Ken Burns: The American Buffalo",
-        tagline: "The epic story of the American West's most iconic animal",
-        season: "Limited",
-        episodes: 2,
-        genre: "Documentary",
-        rights: { window: "Apr 1, 2026 – Mar 31, 2029", territory: "US + Canada", clearances: "Broadcast + Streaming" },
-        funding: ["Bank of America", "Public Broadcasting Fund", "Park Foundation"],
-        contributors: [{ name: "Marcus Reed", role: "Programming", note: "Pair with companion podcast series in Media Manager." }],
-        flags: [],
-    },
-};
-const INITIAL_ISSUES = [
-    {
-        id: "i1",
-        show: "Antiques Roadshow",
-        episode: "Season 28 · E11",
-        station: "New Mexico Station",
-        author: "K. Ortiz",
-        type: "Accessibility",
-        tags: ["No closed captioning", "Visual description missing"],
-        description: "Episode arrived without closed captioning track. Visual description audio also not present on the SAP channel.",
-        status: "Open",
-        timestamp: "2 hours ago",
-        replies: [],
-    },
-    {
-        id: "i2",
-        show: "Nature",
-        episode: "Season 42 · E06",
-        station: "Boston Station",
-        author: "T. Nguyen",
-        type: "Video",
-        tags: ["Flicker", "Visual discrepancy"],
-        description: "Visible flicker around the 14:32 mark, approximately 3 seconds. Appears to be a compression artifact.",
-        status: "In Review",
-        timestamp: "Yesterday",
-        replies: [
-            { author: "Operations Team", role: "staff", text: "Confirmed on master. Re-encoding now — new file ETA 6 hours.", timestamp: "45 min ago" },
-        ],
-    },
-    {
-        id: "i3",
-        show: "Masterpiece",
-        episode: "Season 53 · E03",
-        station: "Chicago Station",
-        author: "R. Patel",
-        type: "Audio",
-        tags: ["Sync issue"],
-        description: "Audio drifts out of sync by ~200ms starting at 22:15. Happens through the end of the episode.",
-        status: "Open",
-        timestamp: "4 hours ago",
-        replies: [],
-    },
-];
+
 const ACTIVITY_TOPICS = [
     { id: "bugs", label: "Media Issues", icon: CircleAlert, desc: "Station-reported media file problems" },
     { id: "guide", label: "Schedule Updates", icon: Calendar, desc: "Changes to the programming guide" },
     { id: "rights", label: "Rights & Clearances", icon: Flag, desc: "New windows, expirations, territory changes" },
     { id: "shows", label: "Show Metadata", icon: Film, desc: "New contributor notes and advisories" },
 ];
-// ========== MAIN COMPONENT ==========
+function ActivityStream({ subscriptions, toggleSubscription, notifDelivery, setNotifDelivery }) {
+    return ((0,jsx_runtime.jsxs)("div", { className: "space-y-6 fade-in-up", children: [(0,jsx_runtime.jsx)(SectionHeader, { eyebrow: "Stay Informed", title: "Activity Stream", subtitle: "Subscribe to topics to receive updates by email and in-app when something changes." }), (0,jsx_runtime.jsx)(ModalCard, { title: "Delivery Preferences", eyebrow: "How you want to hear about it", icon: Bell, iconColor: "#1a2744", children: (0,jsx_runtime.jsx)("div", { className: "flex gap-3", children: [{ key: "email", Icon: Mail, label: "Email" }, { key: "inApp", Icon: BellRing, label: "In-app" }].map(({ key, Icon, label }) => ((0,jsx_runtime.jsxs)("button", { onClick: () => setNotifDelivery(Object.assign(Object.assign({}, notifDelivery), { [key]: !notifDelivery[key] })), className: "flex items-center gap-2 px-4 py-2.5 rounded text-sm font-semibold transition-all", style: { background: notifDelivery[key] ? "#1a2744" : "#f5f3ee", color: notifDelivery[key] ? "white" : "#1a2744", border: `1px solid ${notifDelivery[key] ? "#1a2744" : "#e5e2d8"}` }, children: [(0,jsx_runtime.jsx)(Icon, { className: "w-4 h-4" }), " ", label, " ", notifDelivery[key] && (0,jsx_runtime.jsx)(CircleCheck, { className: "w-4 h-4" })] }, key))) }) }), (0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsxs)("div", { className: "text-xs font-bold uppercase tracking-wider mb-3", style: { color: "#6b6a63" }, children: ["Topics \u2014 ", subscriptions.length, " subscribed"] }), (0,jsx_runtime.jsx)("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-3", children: ACTIVITY_TOPICS.map((t) => {
+                            const Icon = t.icon;
+                            const sub = subscriptions.includes(t.id);
+                            return ((0,jsx_runtime.jsx)("button", { onClick: () => toggleSubscription(t.id), className: "rounded-lg p-4 text-left transition-all hover:shadow-md", style: { background: sub ? "#1a2744" : "white", border: `2px solid ${sub ? "#f5a623" : "#e5e2d8"}` }, children: (0,jsx_runtime.jsxs)("div", { className: "flex items-start gap-3", children: [(0,jsx_runtime.jsx)("div", { className: "w-10 h-10 rounded flex items-center justify-center flex-shrink-0", style: { background: sub ? "#f5a623" : "#f5f3ee" }, children: (0,jsx_runtime.jsx)(Icon, { className: "w-5 h-5", style: { color: "#1a2744" } }) }), (0,jsx_runtime.jsxs)("div", { className: "flex-1", children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-2", children: [(0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-base", style: { color: sub ? "white" : "#1a2744" }, children: t.label }), sub && (0,jsx_runtime.jsx)("span", { className: "text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded", style: { background: "#f5a623", color: "#1a2744" }, children: "Subscribed" })] }), (0,jsx_runtime.jsx)("p", { className: "text-xs mt-1", style: { color: sub ? "#a8b4cc" : "#6b6a63" }, children: t.desc })] })] }) }, t.id));
+                        }) })] }), (0,jsx_runtime.jsx)(ModalCard, { title: "Recent Activity", eyebrow: "From your subscriptions", icon: Hash, iconColor: "#1a2744", children: subscriptions.length === 0 ? ((0,jsx_runtime.jsx)("div", { className: "text-sm text-center py-6", style: { color: "#6b6a63" }, children: "Subscribe to a topic above to see activity here." })) : ((0,jsx_runtime.jsxs)("div", { className: "space-y-3", children: [(0,jsx_runtime.jsx)(ActivityItem, { topic: "Media Issues", title: "New issue reported", detail: "K. Ortiz flagged Roots: Icons of Hollywood for accessibility", time: "2h ago" }), (0,jsx_runtime.jsx)(ActivityItem, { topic: "Rights & Clearances", title: "Window extended", detail: "Frontline streaming approved through end of season", time: "5h ago" }), (0,jsx_runtime.jsx)(ActivityItem, { topic: "Schedule Updates", title: "Programming change", detail: "Roots: Off the Charts added to Saturday 10am repeat slot", time: "Yesterday" }), (0,jsx_runtime.jsx)(ActivityItem, { topic: "Show Metadata", title: "S11 notes published", detail: "Finding Your Roots streaming window confirmed for all episodes", time: "2 days ago" })] })) })] }));
+}
+function ActivityItem({ topic, title, detail, time }) {
+    return ((0,jsx_runtime.jsxs)("div", { className: "flex items-start gap-3 pb-3", style: { borderBottom: "1px solid #e5e2d8" }, children: [(0,jsx_runtime.jsx)("div", { className: "w-2 h-2 rounded-full mt-1.5 flex-shrink-0", style: { background: "#f5a623" } }), (0,jsx_runtime.jsxs)("div", { className: "flex-1 min-w-0", children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-2 flex-wrap", children: [(0,jsx_runtime.jsx)("span", { className: "text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded", style: { background: "#1a2744", color: "white" }, children: topic }), (0,jsx_runtime.jsx)("span", { className: "text-sm font-semibold", style: { color: "#1a2744" }, children: title })] }), (0,jsx_runtime.jsx)("p", { className: "text-xs mt-1", style: { color: "#6b6a63" }, children: detail })] }), (0,jsx_runtime.jsx)("span", { className: "text-xs flex-shrink-0", style: { color: "#a8a59a" }, children: time })] }));
+}
+
+;// ../broadcast_ops_widget/index.jsx
+
+
+
+
+
+
+
+
+
+
+
+
 function BroadcastOpsWidget() {
+    const [schedule, setSchedule] = (0,react.useState)([]);
+    const [loading, setLoading] = (0,react.useState)(true);
+    const [loadError, setLoadError] = (0,react.useState)(null);
     const [role, setRole] = (0,react.useState)("station");
     const [activeTab, setActiveTab] = (0,react.useState)("guide");
-    const [weekStartIndex, setWeekStartIndex] = (0,react.useState)(0); // 0 = week 1, 7 = week 2
-    const [viewMode, setViewMode] = (0,react.useState)("week"); // "week" or "day"
+    const [weekStartIndex, setWeekStartIndex] = (0,react.useState)(0);
+    const [viewMode, setViewMode] = (0,react.useState)("week");
     const [selectedDateKey, setSelectedDateKey] = (0,react.useState)(dateKey(TODAY));
     const [selectedChannels, setSelectedChannels] = (0,react.useState)(CHANNELS.map((c) => c.id));
     const [searchQuery, setSearchQuery] = (0,react.useState)("");
     const [issues, setIssues] = (0,react.useState)(INITIAL_ISSUES);
-    const [selectedShow360, setSelectedShow360] = (0,react.useState)("Amanpour & Company");
+    const [selectedShow360, setSelectedShow360] = (0,react.useState)("Frontline");
     const [subscriptions, setSubscriptions] = (0,react.useState)(["bugs", "rights"]);
     const [notifDelivery, setNotifDelivery] = (0,react.useState)({ email: true, inApp: true });
     const [showNotifPanel, setShowNotifPanel] = (0,react.useState)(false);
     const [replyDraft, setReplyDraft] = (0,react.useState)({});
     const [detailsModalShow, setDetailsModalShow] = (0,react.useState)(null);
     const [reportModalShow, setReportModalShow] = (0,react.useState)(null);
+    (0,react.useEffect)(() => {
+        fetchScheduleFromStaffbase()
+            .then((items) => { setSchedule(items); setLoading(false); })
+            .catch((err) => { setLoadError(err.message || "Failed to load"); setLoading(false); });
+    }, []);
     const currentWeek = (0,react.useMemo)(() => DATE_RANGE.slice(weekStartIndex, weekStartIndex + 4), [weekStartIndex]);
-    const selectedDate = (0,react.useMemo)(() => {
-        return DATE_RANGE.find((d) => dateKey(d) === selectedDateKey) || TODAY;
-    }, [selectedDateKey]);
-    const weekSchedule = (0,react.useMemo)(() => {
-        const weekKeys = currentWeek.map(dateKey);
-        return SCHEDULE.filter((s) => weekKeys.includes(s.dateKey) && selectedChannels.includes(s.channel));
-    }, [currentWeek, selectedChannels]);
-    const daySchedule = (0,react.useMemo)(() => {
-        return SCHEDULE.filter((s) => s.dateKey === selectedDateKey && selectedChannels.includes(s.channel));
-    }, [selectedDateKey, selectedChannels]);
+    const selectedDate = (0,react.useMemo)(() => DATE_RANGE.find((d) => dateKey(d) === selectedDateKey) || TODAY, [selectedDateKey]);
+    const weekSchedule = (0,react.useMemo)(() => schedule.filter((s) => currentWeek.map(dateKey).includes(s.dateKey) && selectedChannels.includes(s.channel)), [currentWeek, selectedChannels, schedule]);
+    const daySchedule = (0,react.useMemo)(() => schedule.filter((s) => s.dateKey === selectedDateKey && selectedChannels.includes(s.channel)), [selectedDateKey, selectedChannels, schedule]);
     const searchResults = (0,react.useMemo)(() => {
         if (!searchQuery.trim())
             return [];
         const q = searchQuery.toLowerCase();
         const seen = new Set();
-        return SCHEDULE.filter((s) => {
-            if (s.show.toLowerCase().includes(q) ||
-                s.episode.toLowerCase().includes(q) ||
-                s.channel.toLowerCase().includes(q)) {
-                if (seen.has(s.show))
+        return schedule.filter((s) => {
+            if (s.show.toLowerCase().includes(q) || s.episode.toLowerCase().includes(q)) {
+                if (seen.has(s.episode))
                     return false;
-                seen.add(s.show);
+                seen.add(s.episode);
                 return true;
             }
             return false;
         });
-    }, [searchQuery]);
-    const toggleChannel = (id) => {
-        setSelectedChannels((prev) => prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]);
-    };
-    const toggleSubscription = (id) => {
-        setSubscriptions((prev) => prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]);
-    };
+    }, [searchQuery, schedule]);
+    const toggleChannel = (id) => setSelectedChannels((p) => p.includes(id) ? p.filter((c) => c !== id) : [...p, id]);
+    const toggleSubscription = (id) => setSubscriptions((p) => p.includes(id) ? p.filter((s) => s !== id) : [...p, id]);
     const submitIssue = (show, draft) => {
-        const newIssue = {
-            id: `i${Date.now()}`,
-            show: show.show,
-            episode: show.episode,
-            station: "Your Station",
-            author: "You",
-            type: draft.type,
-            tags: draft.tags,
-            description: draft.description,
-            status: "Open",
-            timestamp: "Just now",
-            replies: [],
-        };
-        setIssues([newIssue, ...issues]);
+        setIssues((prev) => [{
+                id: `i${Date.now()}`, show: show.show, episode: show.episode,
+                station: "Your Station", author: "You", type: draft.type, tags: draft.tags,
+                description: draft.description, status: "Open", timestamp: "Just now", replies: [],
+            }, ...prev]);
         setReportModalShow(null);
         setActiveTab("issues");
     };
     const submitReply = (issueId) => {
         const text = replyDraft[issueId];
-        if (!text || !text.trim())
+        if (!(text === null || text === void 0 ? void 0 : text.trim()))
             return;
-        setIssues(issues.map((i) => i.id === issueId
+        setIssues((prev) => prev.map((i) => i.id === issueId
             ? Object.assign(Object.assign({}, i), { status: "In Review", replies: [...i.replies, { author: "Operations Team", role: "staff", text, timestamp: "Just now" }] }) : i));
-        setReplyDraft(Object.assign(Object.assign({}, replyDraft), { [issueId]: "" }));
+        setReplyDraft((p) => (Object.assign(Object.assign({}, p), { [issueId]: "" })));
     };
     const openDetails = (showName) => SHOW_DETAILS[showName] && setDetailsModalShow(showName);
-    const openReport = (scheduleItem) => setReportModalShow(scheduleItem);
-    const openDayView = (d) => {
-        setSelectedDateKey(dateKey(d));
-        setViewMode("day");
-    };
+    const openReport = (item) => setReportModalShow(item);
+    const openDayView = (d) => { setSelectedDateKey(dateKey(d)); setViewMode("day"); };
     const unreadCount = subscriptions.length * 2;
+    // ── Loading / error states ──────────────────────────────────────────────
+    if (loading)
+        return ((0,jsx_runtime.jsx)("div", { className: "min-h-screen w-full flex items-center justify-center", style: { background: "#f5f3ee" }, children: (0,jsx_runtime.jsxs)("div", { className: "text-center", children: [(0,jsx_runtime.jsx)("div", { className: "w-12 h-12 rounded-sm flex items-center justify-center mx-auto mb-4", style: { background: "#1a2744" }, children: (0,jsx_runtime.jsx)(Radio, { className: "w-6 h-6 text-white" }) }), (0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-lg mb-1", style: { color: "#1a2744" }, children: "Loading Schedule" }), (0,jsx_runtime.jsx)("div", { className: "text-sm", style: { color: "#6b6a63" }, children: "Fetching live data from Staffbase\u2026" })] }) }));
+    if (loadError)
+        return ((0,jsx_runtime.jsx)("div", { className: "min-h-screen w-full flex items-center justify-center", style: { background: "#f5f3ee" }, children: (0,jsx_runtime.jsxs)("div", { className: "text-center max-w-sm", children: [(0,jsx_runtime.jsx)(CircleAlert, { className: "w-10 h-10 mx-auto mb-3", style: { color: "#be123c" } }), (0,jsx_runtime.jsx)("div", { className: "font-bold mb-1", style: { color: "#1a2744" }, children: "Could not load schedule" }), (0,jsx_runtime.jsx)("div", { className: "text-sm", style: { color: "#6b6a63" }, children: loadError }), (0,jsx_runtime.jsx)("div", { className: "text-xs mt-3", style: { color: "#a8a59a" }, children: "This widget requires access to app.staffbase.com. Try opening it inside Staffbase." })] }) }));
+    const TABS = [
+        { id: "guide", label: "TV Guide", icon: Tv },
+        { id: "issues", label: "Media Issues", icon: CircleAlert, badge: issues.filter((i) => i.status === "Open").length },
+        { id: "search", label: "Search Shows", icon: Search },
+        { id: "show360", label: "Show 360°", icon: Layers },
+        { id: "activity", label: "Activity Stream", icon: BellRing, badge: subscriptions.length },
+    ];
     return ((0,jsx_runtime.jsxs)("div", { className: "min-h-screen w-full", style: { background: "#f5f3ee", fontFamily: "'Source Sans Pro', -apple-system, system-ui, sans-serif" }, children: [(0,jsx_runtime.jsx)("style", { children: `
         @import url('https://fonts.googleapis.com/css2?family=Source+Serif+Pro:wght@400;600;700;900&family=Source+Sans+Pro:wght@300;400;600;700&display=swap');
         .font-display { font-family: 'Source Serif Pro', Georgia, serif; }
@@ -1737,318 +1871,26 @@ function BroadcastOpsWidget() {
         .fade-in-up { animation: fadeInUp 0.3s ease-out; }
         .modal-backdrop { animation: backdropIn 0.2s ease-out; }
         .modal-content { animation: modalIn 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
-      ` }), (0,jsx_runtime.jsxs)("header", { className: "sticky top-0 z-40 border-b", style: { background: "#1a2744", borderColor: "#0f1a30" }, children: [(0,jsx_runtime.jsxs)("div", { className: "max-w-7xl mx-auto px-6 py-4 flex items-center justify-between", children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-3", children: [(0,jsx_runtime.jsx)("div", { className: "w-10 h-10 rounded-sm flex items-center justify-center", style: { background: "#f5a623" }, children: (0,jsx_runtime.jsx)(Radio, { className: "w-5 h-5", style: { color: "#1a2744" }, strokeWidth: 2.5 }) }), (0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-white text-lg leading-tight tracking-tight", children: "Broadcast Operations" }), (0,jsx_runtime.jsx)("div", { className: "text-xs tracking-widest uppercase", style: { color: "#a8b4cc" }, children: "Programming & Delivery Hub" })] })] }), (0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-3", children: [(0,jsx_runtime.jsxs)("button", { onClick: () => setShowNotifPanel(!showNotifPanel), className: "relative p-2 rounded-md transition-colors", style: { background: showNotifPanel ? "#f5a623" : "rgba(255,255,255,0.08)" }, children: [(0,jsx_runtime.jsx)(Bell, { className: "w-5 h-5", style: { color: showNotifPanel ? "#1a2744" : "white" } }), unreadCount > 0 && ((0,jsx_runtime.jsx)("span", { className: "absolute -top-1 -right-1 text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center", style: { background: "#f5a623", color: "#1a2744" }, children: unreadCount }))] }), (0,jsx_runtime.jsxs)("div", { className: "flex items-center rounded-md p-1", style: { background: "rgba(255,255,255,0.08)" }, children: [(0,jsx_runtime.jsxs)("button", { onClick: () => setRole("station"), className: "flex items-center gap-2 px-3 py-1.5 rounded text-xs font-semibold transition-all", style: {
-                                                    background: role === "station" ? "#f5a623" : "transparent",
-                                                    color: role === "station" ? "#1a2744" : "#a8b4cc",
-                                                }, children: [(0,jsx_runtime.jsx)(User, { className: "w-3.5 h-3.5" }), "Station"] }), (0,jsx_runtime.jsxs)("button", { onClick: () => setRole("hq"), className: "flex items-center gap-2 px-3 py-1.5 rounded text-xs font-semibold transition-all", style: {
-                                                    background: role === "hq" ? "#f5a623" : "transparent",
-                                                    color: role === "hq" ? "#1a2744" : "#a8b4cc",
-                                                }, children: [(0,jsx_runtime.jsx)(Users, { className: "w-3.5 h-3.5" }), "HQ Staff"] })] })] })] }), (0,jsx_runtime.jsx)("nav", { className: "max-w-7xl mx-auto px-6 flex gap-1 overflow-x-auto scrollbar-thin", children: [
-                            { id: "guide", label: "TV Guide", icon: Tv },
-                            { id: "issues", label: "Media Issues", icon: CircleAlert, badge: issues.filter((i) => i.status === "Open").length },
-                            { id: "search", label: "Search Shows", icon: Search },
-                            { id: "show360", label: "Show 360°", icon: Layers },
-                            { id: "activity", label: "Activity Stream", icon: BellRing, badge: subscriptions.length },
-                        ].map((tab) => {
-                            const Icon = tab.icon;
-                            const active = activeTab === tab.id;
-                            return ((0,jsx_runtime.jsxs)("button", { onClick: () => setActiveTab(tab.id), className: "flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap", style: {
-                                    borderColor: active ? "#f5a623" : "transparent",
-                                    color: active ? "white" : "#a8b4cc",
-                                }, children: [(0,jsx_runtime.jsx)(Icon, { className: "w-4 h-4" }), tab.label, tab.badge > 0 && ((0,jsx_runtime.jsx)("span", { className: "text-[10px] font-bold px-1.5 py-0.5 rounded-full", style: { background: active ? "#f5a623" : "#3a4866", color: active ? "#1a2744" : "white" }, children: tab.badge }))] }, tab.id));
-                        }) })] }), showNotifPanel && ((0,jsx_runtime.jsxs)("div", { className: "fixed top-20 right-6 z-50 w-96 rounded-lg shadow-2xl border fade-in-up", style: { background: "white", borderColor: "#e5e2d8" }, children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-center justify-between p-4 border-b", style: { borderColor: "#e5e2d8" }, children: [(0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-base", style: { color: "#1a2744" }, children: "Recent Activity" }), (0,jsx_runtime.jsx)("button", { onClick: () => setShowNotifPanel(false), children: (0,jsx_runtime.jsx)(X, { className: "w-4 h-4", style: { color: "#6b6a63" } }) })] }), (0,jsx_runtime.jsxs)("div", { className: "max-h-96 overflow-y-auto scrollbar-thin", children: [(0,jsx_runtime.jsx)(NotifItem, { title: "New media issue reported", detail: "K. Ortiz flagged Antiques Roadshow S28\u00B7E11", time: "2h ago", topic: "Media Issues" }), (0,jsx_runtime.jsx)(NotifItem, { title: "Rights window extended", detail: "Amanpour & Company streaming approved through FY27", time: "5h ago", topic: "Rights & Clearances" }), (0,jsx_runtime.jsx)(NotifItem, { title: "Schedule change", detail: "Masterpiece moved to 2pm Saturday block", time: "Yesterday", topic: "Schedule Updates" }), (0,jsx_runtime.jsx)(NotifItem, { title: "New contributor note", detail: "Count of Monte Cristo advisories published", time: "2 days ago", topic: "Show Metadata" })] })] })), (0,jsx_runtime.jsxs)("main", { className: "max-w-7xl mx-auto px-6 py-8", children: [activeTab === "guide" && ((0,jsx_runtime.jsx)(Calendar360, { viewMode: viewMode, setViewMode: setViewMode, currentWeek: currentWeek, weekStartIndex: weekStartIndex, setWeekStartIndex: setWeekStartIndex, selectedDate: selectedDate, selectedDateKey: selectedDateKey, setSelectedDateKey: setSelectedDateKey, selectedChannels: selectedChannels, toggleChannel: toggleChannel, weekSchedule: weekSchedule, daySchedule: daySchedule, role: role, onReportIssue: openReport, onViewShow: (s) => openDetails(s.show), onDayClick: openDayView })), activeTab === "issues" && ((0,jsx_runtime.jsx)(MediaIssues, { issues: issues, role: role, replyDraft: replyDraft, setReplyDraft: setReplyDraft, submitReply: submitReply, onOpenDetails: openDetails })), activeTab === "search" && ((0,jsx_runtime.jsx)(SearchView, { query: searchQuery, setQuery: setSearchQuery, results: searchResults, onSelectShow: openDetails })), activeTab === "show360" && ((0,jsx_runtime.jsx)(Show360Browser, { selected: selectedShow360, setSelected: setSelectedShow360, role: role })), activeTab === "activity" && ((0,jsx_runtime.jsx)(ActivityStream, { subscriptions: subscriptions, toggleSubscription: toggleSubscription, notifDelivery: notifDelivery, setNotifDelivery: setNotifDelivery }))] }), (0,jsx_runtime.jsxs)("footer", { className: "max-w-7xl mx-auto px-6 py-6 text-xs flex items-center justify-between", style: { color: "#6b6a63" }, children: [(0,jsx_runtime.jsxs)("div", { children: ["Signed in as ", role === "station" ? "Station User" : "HQ Operations"] }), (0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-4", children: [(0,jsx_runtime.jsx)("span", { children: "All times local" }), (0,jsx_runtime.jsx)("span", { children: "v2.4.1" })] })] }), detailsModalShow && ((0,jsx_runtime.jsx)(Modal, { onClose: () => setDetailsModalShow(null), size: "lg", children: (0,jsx_runtime.jsx)(Show360Content, { show: detailsModalShow, role: role, onClose: () => setDetailsModalShow(null), onReportIssue: () => {
-                        const scheduleItem = SCHEDULE.find((s) => s.show === detailsModalShow);
-                        if (scheduleItem) {
+      ` }), (0,jsx_runtime.jsxs)("header", { className: "sticky top-0 z-40 border-b", style: { background: "#1a2744", borderColor: "#0f1a30" }, children: [(0,jsx_runtime.jsxs)("div", { className: "max-w-7xl mx-auto px-6 py-4 flex items-center justify-between", children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-3", children: [(0,jsx_runtime.jsx)("div", { className: "w-10 h-10 rounded-sm flex items-center justify-center", style: { background: "#f5a623" }, children: (0,jsx_runtime.jsx)(Radio, { className: "w-5 h-5", style: { color: "#1a2744" }, strokeWidth: 2.5 }) }), (0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-white text-lg leading-tight tracking-tight", children: "Broadcast Operations" }), (0,jsx_runtime.jsx)("div", { className: "text-xs tracking-widest uppercase", style: { color: "#a8b4cc" }, children: "Programming & Delivery Hub" })] })] }), (0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-3", children: [(0,jsx_runtime.jsxs)("button", { onClick: () => setShowNotifPanel(!showNotifPanel), className: "relative p-2 rounded-md transition-colors", style: { background: showNotifPanel ? "#f5a623" : "rgba(255,255,255,0.08)" }, children: [(0,jsx_runtime.jsx)(Bell, { className: "w-5 h-5", style: { color: showNotifPanel ? "#1a2744" : "white" } }), unreadCount > 0 && ((0,jsx_runtime.jsx)("span", { className: "absolute -top-1 -right-1 text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center", style: { background: "#f5a623", color: "#1a2744" }, children: unreadCount }))] }), (0,jsx_runtime.jsx)("div", { className: "flex items-center rounded-md p-1", style: { background: "rgba(255,255,255,0.08)" }, children: [{ val: "station", label: "Station", Icon: User }, { val: "hq", label: "HQ Staff", Icon: Users }].map(({ val, label, Icon }) => ((0,jsx_runtime.jsxs)("button", { onClick: () => setRole(val), className: "flex items-center gap-2 px-3 py-1.5 rounded text-xs font-semibold transition-all", style: { background: role === val ? "#f5a623" : "transparent", color: role === val ? "#1a2744" : "#a8b4cc" }, children: [(0,jsx_runtime.jsx)(Icon, { className: "w-3.5 h-3.5" }), " ", label] }, val))) })] })] }), (0,jsx_runtime.jsx)("nav", { className: "max-w-7xl mx-auto px-6 flex gap-1 overflow-x-auto scrollbar-thin", children: TABS.map(({ id, label, icon: Icon, badge }) => {
+                            const active = activeTab === id;
+                            return ((0,jsx_runtime.jsxs)("button", { onClick: () => setActiveTab(id), className: "flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap", style: { borderColor: active ? "#f5a623" : "transparent", color: active ? "white" : "#a8b4cc" }, children: [(0,jsx_runtime.jsx)(Icon, { className: "w-4 h-4" }), label, badge > 0 && ((0,jsx_runtime.jsx)("span", { className: "text-[10px] font-bold px-1.5 py-0.5 rounded-full", style: { background: active ? "#f5a623" : "#3a4866", color: active ? "#1a2744" : "white" }, children: badge }))] }, id));
+                        }) })] }), showNotifPanel && ((0,jsx_runtime.jsxs)("div", { className: "fixed top-20 right-6 z-50 w-96 rounded-lg shadow-2xl border fade-in-up", style: { background: "white", borderColor: "#e5e2d8" }, children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-center justify-between p-4 border-b", style: { borderColor: "#e5e2d8" }, children: [(0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-base", style: { color: "#1a2744" }, children: "Recent Activity" }), (0,jsx_runtime.jsx)("button", { onClick: () => setShowNotifPanel(false), children: (0,jsx_runtime.jsx)(X, { className: "w-4 h-4", style: { color: "#6b6a63" } }) })] }), (0,jsx_runtime.jsxs)("div", { className: "max-h-96 overflow-y-auto scrollbar-thin", children: [(0,jsx_runtime.jsx)(NotifItem, { title: "New media issue reported", detail: "K. Ortiz flagged Roots: Icons of Hollywood", time: "2h ago", topic: "Media Issues" }), (0,jsx_runtime.jsx)(NotifItem, { title: "Rights window extended", detail: "Frontline streaming approved through end of season", time: "5h ago", topic: "Rights & Clearances" }), (0,jsx_runtime.jsx)(NotifItem, { title: "Schedule change", detail: "Roots: Off the Charts added to Saturday 10am", time: "Yesterday", topic: "Schedule Updates" }), (0,jsx_runtime.jsx)(NotifItem, { title: "New contributor note", detail: "Finding Your Roots S11 streaming window confirmed", time: "2 days ago", topic: "Show Metadata" })] })] })), (0,jsx_runtime.jsxs)("main", { className: "max-w-7xl mx-auto px-6 py-8", children: [activeTab === "guide" && ((0,jsx_runtime.jsx)(Calendar360, { viewMode: viewMode, setViewMode: setViewMode, currentWeek: currentWeek, weekStartIndex: weekStartIndex, setWeekStartIndex: setWeekStartIndex, selectedDate: selectedDate, selectedDateKey: selectedDateKey, setSelectedDateKey: setSelectedDateKey, selectedChannels: selectedChannels, toggleChannel: toggleChannel, weekSchedule: weekSchedule, daySchedule: daySchedule, role: role, onReportIssue: openReport, onViewShow: (s) => openDetails(s.show), onDayClick: openDayView })), activeTab === "issues" && ((0,jsx_runtime.jsx)(MediaIssues, { issues: issues, role: role, replyDraft: replyDraft, setReplyDraft: setReplyDraft, submitReply: submitReply, onOpenDetails: openDetails })), activeTab === "search" && ((0,jsx_runtime.jsx)(SearchView, { query: searchQuery, setQuery: setSearchQuery, results: searchResults, onSelectShow: openDetails })), activeTab === "show360" && ((0,jsx_runtime.jsx)(Show360Browser, { selected: selectedShow360, setSelected: setSelectedShow360, role: role, schedule: schedule })), activeTab === "activity" && ((0,jsx_runtime.jsx)(ActivityStream, { subscriptions: subscriptions, toggleSubscription: toggleSubscription, notifDelivery: notifDelivery, setNotifDelivery: setNotifDelivery }))] }), (0,jsx_runtime.jsxs)("footer", { className: "max-w-7xl mx-auto px-6 py-6 text-xs flex items-center justify-between", style: { color: "#6b6a63" }, children: [(0,jsx_runtime.jsxs)("div", { children: ["Signed in as ", role === "station" ? "Station User" : "HQ Operations"] }), (0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-4", children: [(0,jsx_runtime.jsx)("span", { children: "All times Eastern (ET)" }), (0,jsx_runtime.jsx)("span", { children: "Live \u00B7 Staffbase" })] })] }), detailsModalShow && ((0,jsx_runtime.jsx)(Modal, { onClose: () => setDetailsModalShow(null), size: "lg", children: (0,jsx_runtime.jsx)(Show360Content, { show: detailsModalShow, role: role, schedule: schedule, onClose: () => setDetailsModalShow(null), onReportIssue: () => {
+                        const item = schedule.find((s) => s.show === detailsModalShow);
+                        if (item) {
                             setDetailsModalShow(null);
-                            setTimeout(() => setReportModalShow(scheduleItem), 200);
+                            setTimeout(() => setReportModalShow(item), 200);
                         }
                     } }) })), reportModalShow && ((0,jsx_runtime.jsx)(Modal, { onClose: () => setReportModalShow(null), size: "md", children: (0,jsx_runtime.jsx)(ReportForm, { scheduleItem: reportModalShow, onSubmit: (draft) => submitIssue(reportModalShow, draft), onClose: () => setReportModalShow(null), onViewDetails: () => {
-                        const showName = reportModalShow.show;
-                        if (SHOW_DETAILS[showName]) {
+                        const name = reportModalShow.show;
+                        if (SHOW_DETAILS[name]) {
                             setReportModalShow(null);
-                            setTimeout(() => setDetailsModalShow(showName), 200);
+                            setTimeout(() => setDetailsModalShow(name), 200);
                         }
                     } }) }))] }));
 }
-// ========== CALENDAR VIEW (WEEK + DAY) ==========
-function Calendar360({ viewMode, setViewMode, currentWeek, weekStartIndex, setWeekStartIndex, selectedDate, selectedDateKey, setSelectedDateKey, selectedChannels, toggleChannel, weekSchedule, daySchedule, role, onReportIssue, onViewShow, onDayClick, }) {
-    const weekLabel = `${formatShortDate(currentWeek[0])} – ${formatShortDate(currentWeek[currentWeek.length - 1])}`;
-    const canGoPrev = weekStartIndex > 0;
-    const canGoNext = weekStartIndex + 4 < 14;
-    return ((0,jsx_runtime.jsxs)("div", { className: "space-y-6 fade-in-up", children: [(0,jsx_runtime.jsx)(SectionHeader, { eyebrow: "Programming", title: "Schedule Calendar", subtitle: "Two-week rolling window shown in 4-day blocks. Click any day to drill into an hourly timeline." }), (0,jsx_runtime.jsxs)("div", { className: "rounded-lg p-4 flex items-center justify-between gap-3 flex-wrap", style: { background: "white", border: "1px solid #e5e2d8" }, children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-2", children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-center rounded-md overflow-hidden", style: { border: "1px solid #e5e2d8" }, children: [(0,jsx_runtime.jsxs)("button", { onClick: () => setViewMode("week"), className: "flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold transition-colors", style: {
-                                            background: viewMode === "week" ? "#1a2744" : "white",
-                                            color: viewMode === "week" ? "white" : "#1a2744",
-                                        }, children: [(0,jsx_runtime.jsx)(LayoutGrid, { className: "w-3.5 h-3.5" }), " 4-Day"] }), (0,jsx_runtime.jsxs)("button", { onClick: () => setViewMode("day"), className: "flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold transition-colors", style: {
-                                            background: viewMode === "day" ? "#1a2744" : "white",
-                                            color: viewMode === "day" ? "white" : "#1a2744",
-                                        }, children: [(0,jsx_runtime.jsx)(CalendarDays, { className: "w-3.5 h-3.5" }), " Day"] })] }), viewMode === "week" && ((0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-1 ml-2", children: [(0,jsx_runtime.jsx)("button", { onClick: () => canGoPrev && setWeekStartIndex(Math.max(0, weekStartIndex - 4)), disabled: !canGoPrev, className: "p-1.5 rounded", style: {
-                                            background: canGoPrev ? "#f5f3ee" : "transparent",
-                                            color: canGoPrev ? "#1a2744" : "#cbc9c0",
-                                            cursor: canGoPrev ? "pointer" : "not-allowed",
-                                        }, children: (0,jsx_runtime.jsx)(ChevronLeft, { className: "w-4 h-4" }) }), (0,jsx_runtime.jsx)("div", { className: "text-sm font-semibold px-2", style: { color: "#1a2744" }, children: weekLabel }), (0,jsx_runtime.jsx)("button", { onClick: () => canGoNext && setWeekStartIndex(Math.min(10, weekStartIndex + 4)), disabled: !canGoNext, className: "p-1.5 rounded", style: {
-                                            background: canGoNext ? "#f5f3ee" : "transparent",
-                                            color: canGoNext ? "#1a2744" : "#cbc9c0",
-                                            cursor: canGoNext ? "pointer" : "not-allowed",
-                                        }, children: (0,jsx_runtime.jsx)(ChevronRight, { className: "w-4 h-4" }) })] })), viewMode === "day" && ((0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-1 ml-2", children: [(0,jsx_runtime.jsx)("button", { onClick: () => {
-                                            const idx = DATE_RANGE.findIndex((d) => dateKey(d) === selectedDateKey);
-                                            if (idx > 0)
-                                                setSelectedDateKey(dateKey(DATE_RANGE[idx - 1]));
-                                        }, className: "p-1.5 rounded", style: { background: "#f5f3ee", color: "#1a2744" }, children: (0,jsx_runtime.jsx)(ChevronLeft, { className: "w-4 h-4" }) }), (0,jsx_runtime.jsx)("div", { className: "text-sm font-semibold px-2", style: { color: "#1a2744" }, children: formatFullDate(selectedDate) }), (0,jsx_runtime.jsx)("button", { onClick: () => {
-                                            const idx = DATE_RANGE.findIndex((d) => dateKey(d) === selectedDateKey);
-                                            if (idx < DATE_RANGE.length - 1)
-                                                setSelectedDateKey(dateKey(DATE_RANGE[idx + 1]));
-                                        }, className: "p-1.5 rounded", style: { background: "#f5f3ee", color: "#1a2744" }, children: (0,jsx_runtime.jsx)(ChevronRight, { className: "w-4 h-4" }) })] }))] }), (0,jsx_runtime.jsx)("button", { onClick: () => {
-                            setSelectedDateKey(dateKey(TODAY));
-                            setWeekStartIndex(0);
-                        }, className: "text-xs font-semibold px-3 py-1.5 rounded", style: { background: "#f5a623", color: "#1a2744" }, children: "Today" })] }), (0,jsx_runtime.jsxs)("div", { className: "rounded-lg p-4", style: { background: "white", border: "1px solid #e5e2d8" }, children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-2 text-xs font-bold uppercase tracking-wider mb-2", style: { color: "#6b6a63" }, children: [(0,jsx_runtime.jsx)(Tv, { className: "w-3.5 h-3.5" }), " Channels (", selectedChannels.length, "/", CHANNELS.length, ")"] }), (0,jsx_runtime.jsx)("div", { className: "flex gap-2 flex-wrap", children: CHANNELS.map((c) => {
-                            const on = selectedChannels.includes(c.id);
-                            return ((0,jsx_runtime.jsxs)("button", { onClick: () => toggleChannel(c.id), className: "px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-2 transition-all", style: {
-                                    background: on ? c.color : "#f5f3ee",
-                                    color: on ? "white" : "#1a2744",
-                                    border: `1px solid ${on ? c.color : "#e5e2d8"}`,
-                                }, children: [(0,jsx_runtime.jsx)("span", { className: "w-2 h-2 rounded-full", style: { background: on ? "white" : c.color } }), c.label] }, c.id));
-                        }) })] }), viewMode === "week" ? ((0,jsx_runtime.jsx)(WeekGrid, { currentWeek: currentWeek, weekSchedule: weekSchedule, onDayClick: onDayClick, onViewShow: onViewShow, onReportIssue: onReportIssue, role: role })) : ((0,jsx_runtime.jsx)(DayTimeline, { selectedDate: selectedDate, daySchedule: daySchedule, onViewShow: onViewShow, onReportIssue: onReportIssue, role: role }))] }));
-}
-// ---------- WEEK GRID ----------
-function WeekGrid({ currentWeek, weekSchedule, onDayClick, onViewShow, onReportIssue, role }) {
-    const scheduleByDay = (0,react.useMemo)(() => {
-        const m = {};
-        currentWeek.forEach((d) => (m[dateKey(d)] = []));
-        weekSchedule.forEach((s) => {
-            if (m[s.dateKey])
-                m[s.dateKey].push(s);
-        });
-        return m;
-    }, [currentWeek, weekSchedule]);
-    return ((0,jsx_runtime.jsx)("div", { className: "rounded-lg overflow-hidden", style: { background: "white", border: "1px solid #e5e2d8" }, children: (0,jsx_runtime.jsx)("div", { className: "grid grid-cols-4", children: currentWeek.map((d) => {
-                const isToday = isSameDay(d, TODAY);
-                const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-                const dayItems = scheduleByDay[dateKey(d)] || [];
-                return ((0,jsx_runtime.jsxs)("button", { onClick: () => onDayClick(d), className: "text-left p-4 transition-colors hover:bg-gray-50 flex flex-col min-w-0", style: {
-                        borderRight: "1px solid #e5e2d8",
-                        borderBottom: "1px solid #e5e2d8",
-                        minHeight: 420,
-                        background: isToday ? "#fef9e7" : isWeekend ? "#faf8f3" : "white",
-                    }, children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-baseline justify-between mb-3", children: [(0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "text-[11px] font-bold uppercase tracking-wider", style: { color: "#6b6a63" }, children: formatDayName(d) }), (0,jsx_runtime.jsx)("div", { className: "font-display font-black text-3xl leading-none", style: { color: isToday ? "#f5a623" : "#1a2744" }, children: formatDayNumber(d) })] }), isToday && ((0,jsx_runtime.jsx)("span", { className: "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded", style: { background: "#f5a623", color: "#1a2744" }, children: "Today" }))] }), (0,jsx_runtime.jsxs)("div", { className: "space-y-1.5 flex-1 overflow-hidden", children: [dayItems.slice(0, 9).map((s) => {
-                                    const channel = CHANNELS.find((c) => c.id === s.channel);
-                                    return ((0,jsx_runtime.jsxs)("div", { className: "rounded px-2.5 py-1.5 text-[11px] leading-tight overflow-hidden", style: {
-                                            background: `${channel.color}12`,
-                                            borderLeft: `3px solid ${channel.color}`,
-                                        }, children: [(0,jsx_runtime.jsxs)("div", { className: "font-bold truncate", style: { color: "#1a2744" }, children: [s.time, " \u00B7 ", s.show] }), (0,jsx_runtime.jsxs)("div", { className: "text-[10px] mt-0.5 truncate", style: { color: "#6b6a63" }, children: [channel.label, " \u00B7 ", s.duration, "m"] })] }, s.id));
-                                }), dayItems.length > 9 && ((0,jsx_runtime.jsxs)("div", { className: "text-[11px] font-semibold mt-1", style: { color: "#f5a623" }, children: ["+", dayItems.length - 9, " more"] })), dayItems.length === 0 && ((0,jsx_runtime.jsx)("div", { className: "text-xs italic", style: { color: "#a8a59a" }, children: "No programming" }))] }), (0,jsx_runtime.jsxs)("div", { className: "text-[11px] mt-3 pt-3 flex items-center gap-1 font-semibold", style: { color: "#1a2744", borderTop: "1px solid #e5e2d8" }, children: [(0,jsx_runtime.jsx)(CalendarDays, { className: "w-3 h-3" }), "View day timeline"] })] }, dateKey(d)));
-            }) }) }));
-}
-// ---------- DAY TIMELINE ----------
-function DayTimeline({ selectedDate, daySchedule, onViewShow, onReportIssue, role }) {
-    const HOURS = Array.from({ length: 19 }, (_, i) => i + 5); // 5am to 11pm
-    const isToday = isSameDay(selectedDate, TODAY);
-    const scheduleByHour = (0,react.useMemo)(() => {
-        const m = {};
-        daySchedule.forEach((s) => {
-            if (!m[s.hour])
-                m[s.hour] = [];
-            m[s.hour].push(s);
-        });
-        return m;
-    }, [daySchedule]);
-    const formatHour = (h) => {
-        if (h === 0)
-            return "12 AM";
-        if (h === 12)
-            return "12 PM";
-        if (h < 12)
-            return `${h} AM`;
-        return `${h - 12} PM`;
-    };
-    return ((0,jsx_runtime.jsxs)("div", { className: "rounded-lg overflow-hidden", style: { background: "white", border: "1px solid #e5e2d8" }, children: [(0,jsx_runtime.jsx)("div", { className: "px-5 py-4", style: { background: isToday ? "#fef9e7" : "#f5f3ee", borderBottom: "1px solid #e5e2d8" }, children: (0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-3", children: [(0,jsx_runtime.jsxs)("div", { className: "w-14 h-14 rounded-lg flex flex-col items-center justify-center flex-shrink-0", style: { background: isToday ? "#f5a623" : "#1a2744" }, children: [(0,jsx_runtime.jsx)("div", { className: "text-[9px] font-bold uppercase tracking-wider", style: { color: isToday ? "#1a2744" : "#f5a623" }, children: formatDayName(selectedDate) }), (0,jsx_runtime.jsx)("div", { className: "font-display font-black text-xl leading-none", style: { color: isToday ? "#1a2744" : "white" }, children: formatDayNumber(selectedDate) })] }), (0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-lg", style: { color: "#1a2744" }, children: formatFullDate(selectedDate) }), (0,jsx_runtime.jsxs)("div", { className: "text-xs", style: { color: "#6b6a63" }, children: [daySchedule.length, " program", daySchedule.length === 1 ? "" : "s", " scheduled"] })] })] }) }), (0,jsx_runtime.jsx)("div", { className: "divide-y", style: { borderColor: "#e5e2d8" }, children: HOURS.map((h) => {
-                    const items = scheduleByHour[h] || [];
-                    return ((0,jsx_runtime.jsxs)("div", { className: "flex", style: { borderColor: "#f0ede4" }, children: [(0,jsx_runtime.jsx)("div", { className: "w-20 px-4 py-3 text-xs font-semibold flex-shrink-0", style: { background: "#faf8f3", color: "#6b6a63", borderRight: "1px solid #e5e2d8" }, children: formatHour(h) }), (0,jsx_runtime.jsx)("div", { className: "flex-1 py-3 px-3 space-y-2", children: items.length === 0 ? ((0,jsx_runtime.jsx)("div", { className: "text-xs italic py-1", style: { color: "#cbc9c0" }, children: "\u2014" })) : (items.map((s) => {
-                                    const channel = CHANNELS.find((c) => c.id === s.channel);
-                                    const hasDetails = !!SHOW_DETAILS[s.show];
-                                    return ((0,jsx_runtime.jsxs)("div", { className: "rounded-lg p-3 flex items-center gap-3 transition-shadow hover:shadow-sm", style: {
-                                            background: `${channel.color}08`,
-                                            borderLeft: `3px solid ${channel.color}`,
-                                            border: `1px solid ${channel.color}30`,
-                                            borderLeftWidth: 3,
-                                        }, children: [(0,jsx_runtime.jsxs)("div", { className: "flex-1 min-w-0", children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-2 flex-wrap", children: [(0,jsx_runtime.jsx)("span", { className: "text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded", style: { background: channel.color, color: "white" }, children: channel.label }), (0,jsx_runtime.jsx)("span", { className: "text-xs font-bold", style: { color: "#1a2744" }, children: s.time }), (0,jsx_runtime.jsxs)("span", { className: "text-xs", style: { color: "#6b6a63" }, children: ["\u00B7 ", s.duration, " min"] })] }), (0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-sm mt-0.5", style: { color: "#1a2744" }, children: s.show }), (0,jsx_runtime.jsx)("div", { className: "text-[11px]", style: { color: "#6b6a63" }, children: s.episode })] }), (0,jsx_runtime.jsxs)("div", { className: "flex gap-1.5 flex-shrink-0", children: [(0,jsx_runtime.jsxs)("button", { onClick: () => onViewShow(s), disabled: !hasDetails, className: "text-[11px] font-semibold px-2.5 py-1.5 rounded flex items-center gap-1", style: {
-                                                            background: "white",
-                                                            color: hasDetails ? "#1a2744" : "#a8a59a",
-                                                            border: "1px solid #e5e2d8",
-                                                            cursor: hasDetails ? "pointer" : "not-allowed",
-                                                        }, children: ["Details ", (0,jsx_runtime.jsx)(ChevronRight, { className: "w-3 h-3" })] }), role === "station" && ((0,jsx_runtime.jsxs)("button", { onClick: () => onReportIssue(s), className: "text-[11px] font-semibold px-2.5 py-1.5 rounded flex items-center gap-1", style: { background: "#fef3c7", color: "#92400e", border: "1px solid #fde68a" }, children: [(0,jsx_runtime.jsx)(Flag, { className: "w-3 h-3" }), " Report"] }))] })] }, s.id));
-                                })) })] }, h));
-                }) })] }));
-}
-// ========== MODAL SHELL ==========
-function Modal({ children, onClose, size = "lg" }) {
-    (0,react.useEffect)(() => {
-        const handleEsc = (e) => e.key === "Escape" && onClose();
-        window.addEventListener("keydown", handleEsc);
-        document.body.style.overflow = "hidden";
-        return () => {
-            window.removeEventListener("keydown", handleEsc);
-            document.body.style.overflow = "";
-        };
-    }, [onClose]);
-    const maxWidth = size === "lg" ? "max-w-5xl" : "max-w-2xl";
-    return ((0,jsx_runtime.jsx)("div", { className: "fixed inset-0 z-[100] flex items-center justify-center p-4 modal-backdrop", style: { background: "rgba(15, 26, 48, 0.65)", backdropFilter: "blur(4px)" }, onClick: onClose, children: (0,jsx_runtime.jsx)("div", { className: `${maxWidth} w-full max-h-[90vh] rounded-xl shadow-2xl flex flex-col modal-content overflow-hidden`, style: { background: "#f5f3ee", border: "1px solid #e5e2d8" }, onClick: (e) => e.stopPropagation(), children: children }) }));
-}
-// ========== REPORT FORM ==========
-function ReportForm({ scheduleItem, onSubmit, onClose, onViewDetails }) {
-    const [draft, setDraft] = (0,react.useState)({ type: "Video", tags: [], description: "" });
-    const channel = CHANNELS.find((c) => c.id === scheduleItem.channel);
-    const hasDetails = !!SHOW_DETAILS[scheduleItem.show];
-    const issueTypes = [
-        { id: "Video", icon: Film, desc: "Picture quality, artifacts" },
-        { id: "Audio", icon: Radio, desc: "Sound issues, levels" },
-        { id: "Accessibility", icon: Eye, desc: "Captions, descriptions" },
-        { id: "Metadata", icon: FileText, desc: "Wrong info, titles" },
-        { id: "Rights", icon: Flag, desc: "Clearance problems" },
-    ];
-    const commonTags = {
-        Video: ["Flicker", "Visual discrepancy", "Frame drop", "Color shift", "Wrong aspect ratio"],
-        Audio: ["Audio dropout", "Levels too low", "Sync issue", "Distortion"],
-        Accessibility: ["No closed captioning", "Missing audio description", "Caption sync off"],
-        Metadata: ["Wrong title", "Wrong episode", "Missing info"],
-        Rights: ["Wrong territory", "Window expired", "Missing clearance"],
-    };
-    const toggleTag = (t) => {
-        setDraft(Object.assign(Object.assign({}, draft), { tags: draft.tags.includes(t) ? draft.tags.filter((x) => x !== t) : [...draft.tags, t] }));
-    };
-    const canSubmit = draft.description.trim().length > 0;
-    return ((0,jsx_runtime.jsxs)(jsx_runtime.Fragment, { children: [(0,jsx_runtime.jsxs)("div", { className: "relative px-6 py-5 flex items-start justify-between flex-shrink-0", style: { background: "linear-gradient(135deg, #1a2744 0%, #2d3f6b 100%)" }, children: [(0,jsx_runtime.jsxs)("div", { className: "flex-1 min-w-0", children: [(0,jsx_runtime.jsxs)("div", { className: "text-xs font-bold uppercase tracking-widest mb-1", style: { color: "#f5a623" }, children: [(0,jsx_runtime.jsx)(Flag, { className: "w-3 h-3 inline mr-1" }), " Report Media Issue"] }), (0,jsx_runtime.jsx)("h2", { className: "font-display font-black text-xl text-white leading-tight", children: scheduleItem.show }), (0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-2 mt-1 text-xs flex-wrap", style: { color: "#a8b4cc" }, children: [(0,jsx_runtime.jsx)("span", { className: "text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded", style: { background: channel.color, color: "white" }, children: channel.label }), (0,jsx_runtime.jsx)("span", { children: scheduleItem.episode }), (0,jsx_runtime.jsx)("span", { children: "\u00B7" }), (0,jsx_runtime.jsxs)("span", { children: [scheduleItem.time, " ", scheduleItem.date] }), (0,jsx_runtime.jsx)("span", { children: "\u00B7" }), (0,jsx_runtime.jsxs)("span", { children: [scheduleItem.duration, " min"] })] }), hasDetails && ((0,jsx_runtime.jsxs)("button", { onClick: onViewDetails, className: "text-xs font-semibold mt-2 flex items-center gap-1 transition-opacity hover:opacity-80", style: { color: "#f5a623" }, children: ["View show 360\u00B0 ", (0,jsx_runtime.jsx)(ArrowUpRight, { className: "w-3 h-3" })] }))] }), (0,jsx_runtime.jsx)("button", { onClick: onClose, className: "ml-4 p-1.5 rounded hover:bg-white/10 transition-colors", children: (0,jsx_runtime.jsx)(X, { className: "w-5 h-5 text-white" }) })] }), (0,jsx_runtime.jsxs)("div", { className: "overflow-y-auto scrollbar-thin flex-1 px-6 py-5 space-y-5", children: [(0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "text-xs font-bold uppercase tracking-wider mb-2", style: { color: "#6b6a63" }, children: "Issue Type" }), (0,jsx_runtime.jsx)("div", { className: "grid grid-cols-2 md:grid-cols-5 gap-2", children: issueTypes.map((t) => {
-                                    const Icon = t.icon;
-                                    const active = draft.type === t.id;
-                                    return ((0,jsx_runtime.jsxs)("button", { onClick: () => setDraft(Object.assign(Object.assign({}, draft), { type: t.id, tags: [] })), className: "rounded-lg p-3 text-left transition-all", style: {
-                                            background: active ? "#1a2744" : "white",
-                                            border: `2px solid ${active ? "#f5a623" : "#e5e2d8"}`,
-                                        }, children: [(0,jsx_runtime.jsx)(Icon, { className: "w-4 h-4 mb-1.5", style: { color: active ? "#f5a623" : "#1a2744" } }), (0,jsx_runtime.jsx)("div", { className: "text-xs font-bold", style: { color: active ? "white" : "#1a2744" }, children: t.id }), (0,jsx_runtime.jsx)("div", { className: "text-[10px] mt-0.5 leading-tight", style: { color: active ? "#a8b4cc" : "#6b6a63" }, children: t.desc })] }, t.id));
-                                }) })] }), (0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsxs)("div", { className: "text-xs font-bold uppercase tracking-wider mb-2", style: { color: "#6b6a63" }, children: ["Common Tags ", (0,jsx_runtime.jsxs)("span", { className: "font-normal normal-case", style: { color: "#a8a59a" }, children: ["\u00B7 ", draft.tags.length, " selected"] })] }), (0,jsx_runtime.jsx)("div", { className: "flex gap-2 flex-wrap", children: (commonTags[draft.type] || []).map((t) => ((0,jsx_runtime.jsxs)("button", { onClick: () => toggleTag(t), className: "px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1 transition-all", style: {
-                                        background: draft.tags.includes(t) ? "#f5a623" : "white",
-                                        color: draft.tags.includes(t) ? "#1a2744" : "#6b6a63",
-                                        border: `1px solid ${draft.tags.includes(t) ? "#f5a623" : "#e5e2d8"}`,
-                                    }, children: [draft.tags.includes(t) ? (0,jsx_runtime.jsx)(CircleCheck, { className: "w-3 h-3" }) : (0,jsx_runtime.jsx)(Plus, { className: "w-3 h-3" }), t] }, t))) })] }), (0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsxs)("div", { className: "text-xs font-bold uppercase tracking-wider mb-2", style: { color: "#6b6a63" }, children: ["Description ", (0,jsx_runtime.jsx)("span", { style: { color: "#be123c" }, children: "*" })] }), (0,jsx_runtime.jsx)("textarea", { value: draft.description, onChange: (e) => setDraft(Object.assign(Object.assign({}, draft), { description: e.target.value })), placeholder: "Describe what you're seeing or hearing. Include timecodes when possible.", className: "w-full rounded-lg p-3 text-sm resize-none outline-none", style: { background: "white", border: "1px solid #e5e2d8", color: "#1a2744", minHeight: 120 } }), (0,jsx_runtime.jsxs)("div", { className: "text-[11px] mt-1.5 flex items-center gap-1", style: { color: "#6b6a63" }, children: [(0,jsx_runtime.jsx)(CircleAlert, { className: "w-3 h-3" }), "Your report will route to the Operations team and appear in the Media Issues queue."] })] })] }), (0,jsx_runtime.jsxs)("div", { className: "px-6 py-4 flex items-center justify-between flex-shrink-0", style: { background: "white", borderTop: "1px solid #e5e2d8" }, children: [(0,jsx_runtime.jsxs)("div", { className: "text-xs", style: { color: "#6b6a63" }, children: ["Reporting as ", (0,jsx_runtime.jsx)("strong", { style: { color: "#1a2744" }, children: "Your Station" })] }), (0,jsx_runtime.jsxs)("div", { className: "flex gap-2", children: [(0,jsx_runtime.jsx)("button", { onClick: onClose, className: "px-4 py-2 text-sm font-semibold rounded-lg transition-colors hover:bg-gray-100", style: { color: "#6b6a63" }, children: "Cancel" }), (0,jsx_runtime.jsxs)("button", { onClick: () => onSubmit(draft), disabled: !canSubmit, className: "px-5 py-2 text-sm font-bold rounded-lg flex items-center gap-2 transition-all", style: {
-                                    background: canSubmit ? "#f5a623" : "#e5e2d8",
-                                    color: canSubmit ? "#1a2744" : "#a8a59a",
-                                    cursor: canSubmit ? "pointer" : "not-allowed",
-                                }, children: [(0,jsx_runtime.jsx)(Send, { className: "w-3.5 h-3.5" }), " Submit Issue"] })] })] })] }));
-}
-// ========== SHOW 360 MODAL CONTENT ==========
-function Show360Content({ show, role, onClose, onReportIssue }) {
-    const details = SHOW_DETAILS[show];
-    if (!details)
-        return null;
-    const scheduleItem = SCHEDULE.find((s) => s.show === show);
-    const flagIcons = {
-        Violence: TriangleAlert,
-        "Mature Themes": Eye,
-        "Brief Nudity": Eye,
-        "Medical Content": Heart,
-        "Disturbing Content": TriangleAlert,
-    };
-    return ((0,jsx_runtime.jsxs)(jsx_runtime.Fragment, { children: [(0,jsx_runtime.jsxs)("div", { className: "relative px-6 py-6 flex items-start justify-between flex-shrink-0", style: { background: "linear-gradient(135deg, #1a2744 0%, #2d3f6b 100%)" }, children: [(0,jsx_runtime.jsx)("div", { className: "absolute top-0 right-0 w-96 h-full opacity-10 pointer-events-none", style: { background: "radial-gradient(circle at top right, #f5a623 0%, transparent 60%)" } }), (0,jsx_runtime.jsxs)("div", { className: "relative flex-1 min-w-0", children: [(0,jsx_runtime.jsxs)("div", { className: "text-xs font-bold uppercase tracking-widest mb-2", style: { color: "#f5a623" }, children: [(0,jsx_runtime.jsx)(Layers, { className: "w-3 h-3 inline mr-1" }), " Show 360\u00B0 \u00B7 ", details.genre] }), (0,jsx_runtime.jsx)("h2", { className: "font-display font-black text-3xl text-white leading-tight mb-1", children: details.title }), (0,jsx_runtime.jsx)("p", { className: "text-sm", style: { color: "#a8b4cc" }, children: details.tagline }), (0,jsx_runtime.jsxs)("div", { className: "flex gap-6 mt-4 text-xs", style: { color: "#a8b4cc" }, children: [(0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "uppercase tracking-wider opacity-70", children: "Episodes" }), (0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-white text-lg", children: details.episodes })] }), (0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "uppercase tracking-wider opacity-70", children: "Season" }), (0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-white text-lg", children: details.season })] }), scheduleItem && ((0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "uppercase tracking-wider opacity-70", children: "Next Airing" }), (0,jsx_runtime.jsxs)("div", { className: "font-display font-bold text-white text-lg", children: [scheduleItem.time, " ", scheduleItem.date.split(",")[0]] })] }))] })] }), (0,jsx_runtime.jsx)("button", { onClick: onClose, className: "relative p-1.5 rounded hover:bg-white/10 transition-colors ml-4", children: (0,jsx_runtime.jsx)(X, { className: "w-5 h-5 text-white" }) })] }), (0,jsx_runtime.jsxs)("div", { className: "overflow-y-auto scrollbar-thin flex-1 px-6 py-5 space-y-4", children: [details.flags.length > 0 && ((0,jsx_runtime.jsxs)(ModalCard, { title: "Content Advisories", eyebrow: "Auto-synced from data lake", icon: TriangleAlert, iconColor: "#d97706", children: [(0,jsx_runtime.jsx)("div", { className: "grid grid-cols-2 md:grid-cols-4 gap-3", children: details.flags.map((f) => {
-                                    const Icon = flagIcons[f.kind] || CircleAlert;
-                                    return ((0,jsx_runtime.jsxs)("div", { className: "rounded-lg p-3", style: { background: "#fef3c7", border: "1px solid #fde68a" }, children: [(0,jsx_runtime.jsx)(Icon, { className: "w-4 h-4 mb-2", style: { color: "#92400e" } }), (0,jsx_runtime.jsx)("div", { className: "text-xs font-bold", style: { color: "#92400e" }, children: f.kind }), (0,jsx_runtime.jsx)("div", { className: "text-[11px] uppercase tracking-wider mt-0.5", style: { color: "#b45309" }, children: f.level })] }, f.kind));
-                                }) }), (0,jsx_runtime.jsx)("p", { className: "text-xs mt-3 italic", style: { color: "#6b6a63" }, children: "Advisories automatically generated by upstream scheduling + screening systems." })] })), (0,jsx_runtime.jsx)(ModalCard, { title: "Rights & Clearances", eyebrow: "Rights management system", icon: Flag, iconColor: "#7c2d12", children: (0,jsx_runtime.jsxs)("div", { className: "grid grid-cols-1 md:grid-cols-3 gap-4 text-sm", children: [(0,jsx_runtime.jsx)(InfoBlock, { label: "Window", value: details.rights.window }), (0,jsx_runtime.jsx)(InfoBlock, { label: "Territory", value: details.rights.territory }), (0,jsx_runtime.jsx)(InfoBlock, { label: "Clearances", value: details.rights.clearances })] }) }), (0,jsx_runtime.jsx)(ModalCard, { title: "Funding Credits", eyebrow: "Rights management system", icon: Sparkles, iconColor: "#059669", children: (0,jsx_runtime.jsx)("div", { className: "flex gap-2 flex-wrap", children: details.funding.map((f) => ((0,jsx_runtime.jsx)("span", { className: "text-xs px-3 py-1.5 rounded-full", style: { background: "#f5f3ee", color: "#1a2744", border: "1px solid #e5e2d8" }, children: f }, f))) }) }), (0,jsx_runtime.jsx)(ModalCard, { title: "Contributor Notes", eyebrow: "Custom annotations", icon: FileText, iconColor: "#1a2744", children: (0,jsx_runtime.jsxs)("div", { className: "space-y-3", children: [details.contributors.map((c, i) => ((0,jsx_runtime.jsxs)("div", { className: "rounded-lg p-3", style: { background: "#f5f3ee" }, children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-2 mb-1", children: [(0,jsx_runtime.jsx)("div", { className: "w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white", style: { background: "#1a2744" }, children: c.name.split(" ").map((n) => n[0]).join("") }), (0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "text-sm font-semibold", style: { color: "#1a2744" }, children: c.name }), (0,jsx_runtime.jsx)("div", { className: "text-[11px] uppercase tracking-wider", style: { color: "#6b6a63" }, children: c.role })] })] }), (0,jsx_runtime.jsx)("p", { className: "text-sm", style: { color: "#3a3833" }, children: c.note })] }, i))), role === "hq" && ((0,jsx_runtime.jsxs)("button", { className: "text-xs font-semibold flex items-center gap-1", style: { color: "#1a2744" }, children: [(0,jsx_runtime.jsx)(Plus, { className: "w-3.5 h-3.5" }), " Add contributor note"] }))] }) })] }), (0,jsx_runtime.jsxs)("div", { className: "px-6 py-4 flex items-center justify-between flex-shrink-0", style: { background: "white", borderTop: "1px solid #e5e2d8" }, children: [(0,jsx_runtime.jsx)("div", { className: "text-xs", style: { color: "#6b6a63" }, children: "Data aggregated from scheduling, rights, and CMS systems." }), (0,jsx_runtime.jsxs)("div", { className: "flex gap-2", children: [(0,jsx_runtime.jsx)("button", { onClick: onClose, className: "px-4 py-2 text-sm font-semibold rounded-lg transition-colors hover:bg-gray-100", style: { color: "#6b6a63" }, children: "Close" }), role === "station" && scheduleItem && ((0,jsx_runtime.jsxs)("button", { onClick: onReportIssue, className: "px-4 py-2 text-sm font-bold rounded-lg flex items-center gap-2 transition-all", style: { background: "#f5a623", color: "#1a2744" }, children: [(0,jsx_runtime.jsx)(Flag, { className: "w-3.5 h-3.5" }), " Report Issue"] }))] })] })] }));
-}
-function ModalCard({ title, eyebrow, icon: Icon, iconColor, children }) {
-    return ((0,jsx_runtime.jsxs)("div", { className: "rounded-lg p-5", style: { background: "white", border: "1px solid #e5e2d8" }, children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-start gap-3 mb-4 pb-3", style: { borderBottom: "1px solid #e5e2d8" }, children: [(0,jsx_runtime.jsx)("div", { className: "w-9 h-9 rounded flex items-center justify-center flex-shrink-0", style: { background: `${iconColor}15` }, children: (0,jsx_runtime.jsx)(Icon, { className: "w-4 h-4", style: { color: iconColor } }) }), (0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "text-[10px] font-bold uppercase tracking-widest", style: { color: "#6b6a63" }, children: eyebrow }), (0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-base", style: { color: "#1a2744" }, children: title })] })] }), children] }));
-}
-function InfoBlock({ label, value }) {
-    return ((0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "text-xs font-bold uppercase tracking-wider mb-1", style: { color: "#6b6a63" }, children: label }), (0,jsx_runtime.jsx)("div", { style: { color: "#1a2744" }, children: value })] }));
-}
-// ========== MEDIA ISSUES ==========
-function MediaIssues({ issues, role, replyDraft, setReplyDraft, submitReply, onOpenDetails }) {
-    return ((0,jsx_runtime.jsxs)("div", { className: "space-y-6 fade-in-up", children: [(0,jsx_runtime.jsx)(SectionHeader, { eyebrow: "Operations", title: "Media Delivery Issues", subtitle: role === "station" ? "Reports you or other stations have submitted. Go to the TV Guide and click Report on any show to file a new issue." : "Review and respond to issues reported by stations." }), (0,jsx_runtime.jsx)("div", { className: "space-y-3", children: issues.map((issue, idx) => ((0,jsx_runtime.jsx)(IssueCard, { issue: issue, role: role, replyDraft: replyDraft[issue.id] || "", setReplyDraft: (val) => setReplyDraft((prev) => (Object.assign(Object.assign({}, prev), { [issue.id]: val }))), submitReply: () => submitReply(issue.id), onOpenDetails: onOpenDetails, delay: idx * 40 }, issue.id))) })] }));
-}
-function IssueCard({ issue, role, replyDraft, setReplyDraft, submitReply, onOpenDetails, delay }) {
-    const [expanded, setExpanded] = (0,react.useState)(false);
-    const statusColors = {
-        Open: { bg: "#fef3c7", fg: "#92400e", border: "#fde68a" },
-        "In Review": { bg: "#dbeafe", fg: "#1e40af", border: "#bfdbfe" },
-        Resolved: { bg: "#d1fae5", fg: "#065f46", border: "#a7f3d0" },
-    };
-    const status = statusColors[issue.status];
-    const hasDetails = !!SHOW_DETAILS[issue.show];
-    return ((0,jsx_runtime.jsxs)("div", { className: "rounded-lg p-5 fade-in-up", style: { background: "white", border: "1px solid #e5e2d8", animationDelay: `${delay}ms` }, children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-start justify-between gap-4 mb-3", children: [(0,jsx_runtime.jsxs)("div", { className: "flex-1 min-w-0", children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-2 flex-wrap mb-1", children: [(0,jsx_runtime.jsx)("button", { onClick: () => hasDetails && onOpenDetails(issue.show), disabled: !hasDetails, className: "font-display font-bold text-base transition-colors", style: {
-                                            color: "#1a2744",
-                                            cursor: hasDetails ? "pointer" : "default",
-                                            textDecoration: hasDetails ? "underline" : "none",
-                                            textDecorationColor: "#f5a623",
-                                            textUnderlineOffset: 3,
-                                        }, children: issue.show }), (0,jsx_runtime.jsxs)("span", { className: "text-xs", style: { color: "#6b6a63" }, children: ["\u00B7 ", issue.episode] })] }), (0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-3 text-xs", style: { color: "#6b6a63" }, children: [(0,jsx_runtime.jsxs)("span", { className: "flex items-center gap-1", children: [(0,jsx_runtime.jsx)(User, { className: "w-3 h-3" }), issue.author, " \u00B7 ", issue.station] }), (0,jsx_runtime.jsx)("span", { children: issue.timestamp })] })] }), (0,jsx_runtime.jsx)("span", { className: "text-[11px] font-bold px-2.5 py-1 rounded uppercase tracking-wider flex-shrink-0", style: { background: status.bg, color: status.fg, border: `1px solid ${status.border}` }, children: issue.status })] }), (0,jsx_runtime.jsxs)("div", { className: "flex gap-2 flex-wrap mb-3", children: [(0,jsx_runtime.jsx)("span", { className: "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded", style: { background: "#1a2744", color: "white" }, children: issue.type }), issue.tags.map((t) => ((0,jsx_runtime.jsx)("span", { className: "text-xs px-2 py-0.5 rounded", style: { background: "#f5f3ee", color: "#1a2744", border: "1px solid #e5e2d8" }, children: t }, t)))] }), (0,jsx_runtime.jsx)("p", { className: "text-sm leading-relaxed", style: { color: "#3a3833" }, children: issue.description }), issue.replies.length > 0 && ((0,jsx_runtime.jsx)("div", { className: "mt-4 pl-4 space-y-3", style: { borderLeft: "2px solid #f5a623" }, children: issue.replies.map((r, i) => ((0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-2 text-xs mb-1", children: [(0,jsx_runtime.jsx)("span", { className: "font-semibold", style: { color: "#1a2744" }, children: r.author }), (0,jsx_runtime.jsx)("span", { className: "text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded", style: { background: "#f5a623", color: "#1a2744" }, children: "HQ" }), (0,jsx_runtime.jsx)("span", { style: { color: "#6b6a63" }, children: r.timestamp })] }), (0,jsx_runtime.jsx)("p", { className: "text-sm", style: { color: "#3a3833" }, children: r.text })] }, i))) })), role === "hq" && ((0,jsx_runtime.jsx)("div", { className: "mt-4 pt-4", style: { borderTop: "1px solid #e5e2d8" }, children: !expanded ? ((0,jsx_runtime.jsxs)("button", { onClick: () => setExpanded(true), className: "text-xs font-semibold flex items-center gap-1", style: { color: "#1a2744" }, children: [(0,jsx_runtime.jsx)(MessageSquare, { className: "w-3.5 h-3.5" }), " Reply to station"] })) : ((0,jsx_runtime.jsxs)("div", { className: "space-y-2", children: [(0,jsx_runtime.jsx)("textarea", { value: replyDraft, onChange: (e) => setReplyDraft(e.target.value), placeholder: "Respond to the station...", className: "w-full rounded p-2 text-sm resize-none outline-none", style: { background: "#f5f3ee", border: "1px solid #e5e2d8", color: "#1a2744", minHeight: 70 } }), (0,jsx_runtime.jsxs)("div", { className: "flex justify-end gap-2", children: [(0,jsx_runtime.jsx)("button", { onClick: () => setExpanded(false), className: "text-xs font-semibold", style: { color: "#6b6a63" }, children: "Cancel" }), (0,jsx_runtime.jsxs)("button", { onClick: () => { submitReply(); setExpanded(false); }, disabled: !replyDraft.trim(), className: "text-xs font-semibold px-3 py-1.5 rounded flex items-center gap-1", style: {
-                                        background: replyDraft.trim() ? "#1a2744" : "#e5e2d8",
-                                        color: replyDraft.trim() ? "white" : "#a8a59a",
-                                    }, children: [(0,jsx_runtime.jsx)(Send, { className: "w-3 h-3" }), " Send"] })] })] })) }))] }));
-}
-// ========== SEARCH ==========
-function SearchView({ query, setQuery, results, onSelectShow }) {
-    return ((0,jsx_runtime.jsxs)("div", { className: "space-y-6 fade-in-up", children: [(0,jsx_runtime.jsx)(SectionHeader, { eyebrow: "Discovery", title: "Search the Catalog", subtitle: "Find any show, episode, or channel in the programming database." }), (0,jsx_runtime.jsxs)("div", { className: "rounded-lg flex items-center gap-3 p-4", style: { background: "white", border: "2px solid #1a2744" }, children: [(0,jsx_runtime.jsx)(Search, { className: "w-5 h-5", style: { color: "#1a2744" } }), (0,jsx_runtime.jsx)("input", { value: query, onChange: (e) => setQuery(e.target.value), placeholder: "Search shows, episodes, or channels...", autoFocus: true, className: "flex-1 bg-transparent outline-none text-base", style: { color: "#1a2744" } }), query && ((0,jsx_runtime.jsx)("button", { onClick: () => setQuery(""), children: (0,jsx_runtime.jsx)(X, { className: "w-4 h-4", style: { color: "#6b6a63" } }) }))] }), !query && ((0,jsx_runtime.jsxs)("div", { className: "space-y-3", children: [(0,jsx_runtime.jsx)("div", { className: "text-xs font-bold uppercase tracking-wider", style: { color: "#6b6a63" }, children: "Suggested searches" }), (0,jsx_runtime.jsx)("div", { className: "flex gap-2 flex-wrap", children: ["Amanpour", "Antiques Roadshow", "Frontline", "Nature", "Masterpiece", "NOVA", "Ken Burns"].map((s) => ((0,jsx_runtime.jsx)("button", { onClick: () => setQuery(s), className: "px-3 py-1.5 rounded text-xs font-semibold", style: { background: "white", color: "#1a2744", border: "1px solid #e5e2d8" }, children: s }, s))) })] })), query && results.length === 0 && ((0,jsx_runtime.jsx)(EmptyState, { icon: Search, message: `No results for "${query}". Try another term.` })), results.length > 0 && ((0,jsx_runtime.jsxs)("div", { className: "space-y-2", children: [(0,jsx_runtime.jsxs)("div", { className: "text-xs font-bold uppercase tracking-wider", style: { color: "#6b6a63" }, children: [results.length, " result", results.length === 1 ? "" : "s"] }), results.map((r, idx) => {
-                        const channel = CHANNELS.find((c) => c.id === r.channel);
-                        const has360 = !!SHOW_DETAILS[r.show];
-                        return ((0,jsx_runtime.jsxs)("div", { className: "rounded-lg p-4 flex items-center gap-4 hover:shadow-md transition-shadow fade-in-up", style: { background: "white", border: "1px solid #e5e2d8", animationDelay: `${idx * 30}ms` }, children: [(0,jsx_runtime.jsx)("div", { className: "w-12 h-12 rounded flex items-center justify-center flex-shrink-0", style: { background: channel.color }, children: (0,jsx_runtime.jsx)(Film, { className: "w-5 h-5 text-white" }) }), (0,jsx_runtime.jsxs)("div", { className: "flex-1 min-w-0", children: [(0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-base", style: { color: "#1a2744" }, children: r.show }), (0,jsx_runtime.jsxs)("div", { className: "text-xs", style: { color: "#6b6a63" }, children: [r.episode, " \u00B7 ", channel.label, " \u00B7 Next airs ", r.time, " ", r.date] })] }), (0,jsx_runtime.jsxs)("button", { onClick: () => onSelectShow(r.show), disabled: !has360, className: "text-xs font-semibold px-3 py-1.5 rounded flex items-center gap-1", style: {
-                                        background: has360 ? "#1a2744" : "#f5f3ee",
-                                        color: has360 ? "white" : "#a8a59a",
-                                        cursor: has360 ? "pointer" : "not-allowed",
-                                    }, children: [has360 ? "View 360°" : "No details", (0,jsx_runtime.jsx)(ArrowUpRight, { className: "w-3 h-3" })] })] }, r.id));
-                    })] }))] }));
-}
-// ========== SHOW 360 BROWSER TAB ==========
-function Show360Browser({ selected, setSelected, role }) {
-    const details = SHOW_DETAILS[selected];
-    if (!details)
-        return null;
-    const flagIcons = {
-        Violence: TriangleAlert,
-        "Mature Themes": Eye,
-        "Brief Nudity": Eye,
-        "Medical Content": Heart,
-        "Disturbing Content": TriangleAlert,
-    };
-    return ((0,jsx_runtime.jsxs)("div", { className: "space-y-6 fade-in-up", children: [(0,jsx_runtime.jsx)(SectionHeader, { eyebrow: "Consolidated View", title: "Show 360\u00B0", subtitle: "A single pane aggregating scheduling, rights, funding, and contributor notes across all upstream systems." }), (0,jsx_runtime.jsx)("div", { className: "flex gap-2 flex-wrap", children: Object.keys(SHOW_DETAILS).map((s) => ((0,jsx_runtime.jsx)("button", { onClick: () => setSelected(s), className: "px-3 py-1.5 rounded text-xs font-semibold", style: {
-                        background: selected === s ? "#1a2744" : "white",
-                        color: selected === s ? "white" : "#1a2744",
-                        border: `1px solid ${selected === s ? "#1a2744" : "#e5e2d8"}`,
-                    }, children: s }, s))) }), (0,jsx_runtime.jsxs)("div", { className: "rounded-lg p-6 relative overflow-hidden", style: { background: "linear-gradient(135deg, #1a2744 0%, #2d3f6b 100%)" }, children: [(0,jsx_runtime.jsx)("div", { className: "absolute top-0 right-0 w-64 h-64 opacity-10", style: { background: "radial-gradient(circle, #f5a623 0%, transparent 70%)" } }), (0,jsx_runtime.jsxs)("div", { className: "relative", children: [(0,jsx_runtime.jsxs)("div", { className: "text-xs font-bold uppercase tracking-widest mb-2", style: { color: "#f5a623" }, children: [details.genre, " \u00B7 ", details.season] }), (0,jsx_runtime.jsx)("h2", { className: "font-display font-black text-3xl text-white leading-tight mb-2", children: details.title }), (0,jsx_runtime.jsx)("p", { className: "text-sm max-w-2xl", style: { color: "#a8b4cc" }, children: details.tagline }), (0,jsx_runtime.jsxs)("div", { className: "flex gap-6 mt-4 text-xs", style: { color: "#a8b4cc" }, children: [(0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "uppercase tracking-wider opacity-70", children: "Episodes" }), (0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-white text-lg", children: details.episodes })] }), (0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "uppercase tracking-wider opacity-70", children: "Season" }), (0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-white text-lg", children: details.season })] }), (0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "uppercase tracking-wider opacity-70", children: "Genre" }), (0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-white text-lg", children: details.genre })] })] })] })] }), details.flags.length > 0 && ((0,jsx_runtime.jsxs)(ModalCard, { title: "Content Advisories", eyebrow: "Auto-synced from data lake", icon: TriangleAlert, iconColor: "#d97706", children: [(0,jsx_runtime.jsx)("div", { className: "grid grid-cols-2 md:grid-cols-4 gap-3", children: details.flags.map((f) => {
-                            const Icon = flagIcons[f.kind] || CircleAlert;
-                            return ((0,jsx_runtime.jsxs)("div", { className: "rounded p-3", style: { background: "#fef3c7", border: "1px solid #fde68a" }, children: [(0,jsx_runtime.jsx)(Icon, { className: "w-4 h-4 mb-2", style: { color: "#92400e" } }), (0,jsx_runtime.jsx)("div", { className: "text-xs font-bold", style: { color: "#92400e" }, children: f.kind }), (0,jsx_runtime.jsx)("div", { className: "text-[11px] uppercase tracking-wider mt-0.5", style: { color: "#b45309" }, children: f.level })] }, f.kind));
-                        }) }), (0,jsx_runtime.jsx)("p", { className: "text-xs mt-3 italic", style: { color: "#6b6a63" }, children: "Advisories automatically generated by upstream scheduling + screening systems." })] })), (0,jsx_runtime.jsx)(ModalCard, { title: "Rights & Clearances", eyebrow: "Rights management system", icon: Flag, iconColor: "#7c2d12", children: (0,jsx_runtime.jsxs)("div", { className: "grid grid-cols-1 md:grid-cols-3 gap-4 text-sm", children: [(0,jsx_runtime.jsx)(InfoBlock, { label: "Window", value: details.rights.window }), (0,jsx_runtime.jsx)(InfoBlock, { label: "Territory", value: details.rights.territory }), (0,jsx_runtime.jsx)(InfoBlock, { label: "Clearances", value: details.rights.clearances })] }) }), (0,jsx_runtime.jsx)(ModalCard, { title: "Funding Credits", eyebrow: "Rights management system", icon: Sparkles, iconColor: "#059669", children: (0,jsx_runtime.jsx)("div", { className: "flex gap-2 flex-wrap", children: details.funding.map((f) => ((0,jsx_runtime.jsx)("span", { className: "text-xs px-3 py-1.5 rounded-full", style: { background: "#f5f3ee", color: "#1a2744", border: "1px solid #e5e2d8" }, children: f }, f))) }) }), (0,jsx_runtime.jsx)(ModalCard, { title: "Contributor Notes", eyebrow: "Custom annotations", icon: FileText, iconColor: "#1a2744", children: (0,jsx_runtime.jsxs)("div", { className: "space-y-3", children: [details.contributors.map((c, i) => ((0,jsx_runtime.jsxs)("div", { className: "rounded p-3", style: { background: "#f5f3ee" }, children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-2 mb-1", children: [(0,jsx_runtime.jsx)("div", { className: "w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white", style: { background: "#1a2744" }, children: c.name.split(" ").map((n) => n[0]).join("") }), (0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "text-sm font-semibold", style: { color: "#1a2744" }, children: c.name }), (0,jsx_runtime.jsx)("div", { className: "text-[11px] uppercase tracking-wider", style: { color: "#6b6a63" }, children: c.role })] })] }), (0,jsx_runtime.jsx)("p", { className: "text-sm", style: { color: "#3a3833" }, children: c.note })] }, i))), role === "hq" && ((0,jsx_runtime.jsxs)("button", { className: "text-xs font-semibold flex items-center gap-1", style: { color: "#1a2744" }, children: [(0,jsx_runtime.jsx)(Plus, { className: "w-3.5 h-3.5" }), " Add contributor note"] }))] }) })] }));
-}
-// ========== ACTIVITY STREAM ==========
-function ActivityStream({ subscriptions, toggleSubscription, notifDelivery, setNotifDelivery }) {
-    return ((0,jsx_runtime.jsxs)("div", { className: "space-y-6 fade-in-up", children: [(0,jsx_runtime.jsx)(SectionHeader, { eyebrow: "Stay Informed", title: "Activity Stream", subtitle: "Subscribe to topics to receive updates by email and in-app when something changes." }), (0,jsx_runtime.jsx)(ModalCard, { title: "Delivery Preferences", eyebrow: "How you want to hear about it", icon: Bell, iconColor: "#1a2744", children: (0,jsx_runtime.jsxs)("div", { className: "flex gap-3", children: [(0,jsx_runtime.jsxs)("button", { onClick: () => setNotifDelivery(Object.assign(Object.assign({}, notifDelivery), { email: !notifDelivery.email })), className: "flex items-center gap-2 px-4 py-2.5 rounded text-sm font-semibold transition-all", style: {
-                                background: notifDelivery.email ? "#1a2744" : "#f5f3ee",
-                                color: notifDelivery.email ? "white" : "#1a2744",
-                                border: `1px solid ${notifDelivery.email ? "#1a2744" : "#e5e2d8"}`,
-                            }, children: [(0,jsx_runtime.jsx)(Mail, { className: "w-4 h-4" }), "Email", notifDelivery.email && (0,jsx_runtime.jsx)(CircleCheck, { className: "w-4 h-4" })] }), (0,jsx_runtime.jsxs)("button", { onClick: () => setNotifDelivery(Object.assign(Object.assign({}, notifDelivery), { inApp: !notifDelivery.inApp })), className: "flex items-center gap-2 px-4 py-2.5 rounded text-sm font-semibold transition-all", style: {
-                                background: notifDelivery.inApp ? "#1a2744" : "#f5f3ee",
-                                color: notifDelivery.inApp ? "white" : "#1a2744",
-                                border: `1px solid ${notifDelivery.inApp ? "#1a2744" : "#e5e2d8"}`,
-                            }, children: [(0,jsx_runtime.jsx)(BellRing, { className: "w-4 h-4" }), "In-app", notifDelivery.inApp && (0,jsx_runtime.jsx)(CircleCheck, { className: "w-4 h-4" })] })] }) }), (0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsxs)("div", { className: "text-xs font-bold uppercase tracking-wider mb-3", style: { color: "#6b6a63" }, children: ["Topics \u2014 ", subscriptions.length, " subscribed"] }), (0,jsx_runtime.jsx)("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-3", children: ACTIVITY_TOPICS.map((t) => {
-                            const Icon = t.icon;
-                            const sub = subscriptions.includes(t.id);
-                            return ((0,jsx_runtime.jsx)("button", { onClick: () => toggleSubscription(t.id), className: "rounded-lg p-4 text-left transition-all hover:shadow-md", style: {
-                                    background: sub ? "#1a2744" : "white",
-                                    border: `2px solid ${sub ? "#f5a623" : "#e5e2d8"}`,
-                                }, children: (0,jsx_runtime.jsxs)("div", { className: "flex items-start gap-3", children: [(0,jsx_runtime.jsx)("div", { className: "w-10 h-10 rounded flex items-center justify-center flex-shrink-0", style: { background: sub ? "#f5a623" : "#f5f3ee" }, children: (0,jsx_runtime.jsx)(Icon, { className: "w-5 h-5", style: { color: "#1a2744" } }) }), (0,jsx_runtime.jsxs)("div", { className: "flex-1", children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-2", children: [(0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-base", style: { color: sub ? "white" : "#1a2744" }, children: t.label }), sub && ((0,jsx_runtime.jsx)("span", { className: "text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded", style: { background: "#f5a623", color: "#1a2744" }, children: "Subscribed" }))] }), (0,jsx_runtime.jsx)("p", { className: "text-xs mt-1", style: { color: sub ? "#a8b4cc" : "#6b6a63" }, children: t.desc })] })] }) }, t.id));
-                        }) })] }), (0,jsx_runtime.jsx)(ModalCard, { title: "Recent Activity", eyebrow: "From your subscriptions", icon: Hash, iconColor: "#1a2744", children: subscriptions.length === 0 ? ((0,jsx_runtime.jsx)("div", { className: "text-sm text-center py-6", style: { color: "#6b6a63" }, children: "Subscribe to a topic above to see activity here." })) : ((0,jsx_runtime.jsxs)("div", { className: "space-y-3", children: [(0,jsx_runtime.jsx)(ActivityItem, { topic: "Media Issues", title: "New issue reported", detail: "Antiques Roadshow \u00B7 S28\u00B7E11 flagged for accessibility", time: "2h ago" }), (0,jsx_runtime.jsx)(ActivityItem, { topic: "Rights & Clearances", title: "Window extended", detail: "Amanpour & Company streaming approved through FY27", time: "5h ago" }), (0,jsx_runtime.jsx)(ActivityItem, { topic: "Schedule Updates", title: "Programming change", detail: "Masterpiece moved to Saturday 2pm slot", time: "Yesterday" }), (0,jsx_runtime.jsx)(ActivityItem, { topic: "Show Metadata", title: "Advisories published", detail: "Count of Monte Cristo content flags now available", time: "2 days ago" })] })) })] }));
-}
-function ActivityItem({ topic, title, detail, time }) {
-    return ((0,jsx_runtime.jsxs)("div", { className: "flex items-start gap-3 pb-3", style: { borderBottom: "1px solid #e5e2d8" }, children: [(0,jsx_runtime.jsx)("div", { className: "w-2 h-2 rounded-full mt-1.5 flex-shrink-0", style: { background: "#f5a623" } }), (0,jsx_runtime.jsxs)("div", { className: "flex-1 min-w-0", children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-2 flex-wrap", children: [(0,jsx_runtime.jsx)("span", { className: "text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded", style: { background: "#1a2744", color: "white" }, children: topic }), (0,jsx_runtime.jsx)("span", { className: "text-sm font-semibold", style: { color: "#1a2744" }, children: title })] }), (0,jsx_runtime.jsx)("p", { className: "text-xs mt-1", style: { color: "#6b6a63" }, children: detail })] }), (0,jsx_runtime.jsx)("span", { className: "text-xs flex-shrink-0", style: { color: "#a8a59a" }, children: time })] }));
-}
-// ========== SHARED ==========
-function SectionHeader({ eyebrow, title, subtitle }) {
-    return ((0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "text-xs font-bold uppercase tracking-widest mb-2", style: { color: "#f5a623" }, children: eyebrow }), (0,jsx_runtime.jsx)("h1", { className: "font-display font-black text-3xl leading-tight", style: { color: "#1a2744" }, children: title }), (0,jsx_runtime.jsx)("p", { className: "text-sm mt-2 max-w-2xl", style: { color: "#6b6a63" }, children: subtitle })] }));
-}
-function EmptyState({ icon: Icon, message }) {
-    return ((0,jsx_runtime.jsxs)("div", { className: "rounded-lg p-12 text-center", style: { background: "white", border: "1px dashed #cbc9c0" }, children: [(0,jsx_runtime.jsx)(Icon, { className: "w-10 h-10 mx-auto mb-3", style: { color: "#cbc9c0" } }), (0,jsx_runtime.jsx)("p", { className: "text-sm", style: { color: "#6b6a63" }, children: message })] }));
-}
-function NotifItem({ title, detail, time, topic }) {
-    return ((0,jsx_runtime.jsx)("div", { className: "p-3 hover:bg-gray-50 border-b", style: { borderColor: "#e5e2d8" }, children: (0,jsx_runtime.jsxs)("div", { className: "flex items-start gap-2", children: [(0,jsx_runtime.jsx)("div", { className: "w-2 h-2 rounded-full mt-1.5 flex-shrink-0", style: { background: "#f5a623" } }), (0,jsx_runtime.jsxs)("div", { className: "flex-1 min-w-0", children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-center justify-between gap-2", children: [(0,jsx_runtime.jsx)("span", { className: "text-[10px] font-bold uppercase tracking-wider", style: { color: "#6b6a63" }, children: topic }), (0,jsx_runtime.jsx)("span", { className: "text-[10px]", style: { color: "#a8a59a" }, children: time })] }), (0,jsx_runtime.jsx)("div", { className: "text-sm font-semibold mt-0.5", style: { color: "#1a2744" }, children: title }), (0,jsx_runtime.jsx)("div", { className: "text-xs mt-0.5", style: { color: "#6b6a63" }, children: detail })] })] }) }));
-}
 
 ;// ./broadcast-ops-widget.tsx
-var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
+var broadcast_ops_widget_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
         function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
@@ -2083,7 +1925,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
             this.root = null;
         }
         renderBlock(container) {
-            return __awaiter(this, void 0, void 0, function* () {
+            return broadcast_ops_widget_awaiter(this, void 0, void 0, function* () {
                 // Inject Tailwind CSS CDN if not already present
                 if (!document.getElementById("tailwind-cdn")) {
                     const script = document.createElement("script");
