@@ -141,7 +141,7 @@ export default function BroadcastOpsWidget() {
   ];
 
   return (
-    <div className="w-full" style={widgetStyle}>
+    <div id="bow-root" className="w-full" style={widgetStyle}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Source+Serif+Pro:wght@400;600;700;900&family=Source+Sans+Pro:wght@300;400;600;700&display=swap');
         .font-display { font-family: 'Source Serif Pro', Georgia, serif; }
@@ -154,6 +154,65 @@ export default function BroadcastOpsWidget() {
         .fade-in-up { animation: fadeInUp 0.3s ease-out; }
         .modal-backdrop { animation: backdropIn 0.2s ease-out; }
         .modal-content { animation: modalIn 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+
+        /* ── Staffbase CSS conflict overrides ──────────────────────────────────
+           Staffbase defines its own .flex, .grid, .gap-N, .px-N etc. utility
+           classes with pixel values that clash with Tailwind's rem-based ones,
+           and applies a global  button { background-color: rgb(38,56,196) }
+           rule. We scope every fix to #bow-root so nothing leaks outside.   */
+
+        /* Display helpers */
+        #bow-root .flex        { display: flex !important; }
+        #bow-root .inline-flex { display: inline-flex !important; }
+        #bow-root .grid        { display: grid !important; }
+        #bow-root .hidden      { display: none !important; }
+        #bow-root .block       { display: block !important; }
+
+        /* Flex behaviour */
+        #bow-root .flex-col    { flex-direction: column !important; }
+        #bow-root .flex-wrap   { flex-wrap: wrap !important; }
+        #bow-root .flex-nowrap { flex-wrap: nowrap !important; }
+        #bow-root .flex-shrink-0 { flex-shrink: 0 !important; }
+        #bow-root .flex-1      { flex: 1 1 0% !important; }
+
+        /* Grid columns */
+        #bow-root .grid-cols-1 { grid-template-columns: repeat(1, minmax(0,1fr)) !important; }
+        #bow-root .grid-cols-2 { grid-template-columns: repeat(2, minmax(0,1fr)) !important; }
+        #bow-root .grid-cols-3 { grid-template-columns: repeat(3, minmax(0,1fr)) !important; }
+        #bow-root .grid-cols-4 { grid-template-columns: repeat(4, minmax(0,1fr)) !important; }
+        #bow-root .grid-cols-5 { grid-template-columns: repeat(5, minmax(0,1fr)) !important; }
+
+        /* Items / justify */
+        #bow-root .items-center   { align-items: center !important; }
+        #bow-root .items-start    { align-items: flex-start !important; }
+        #bow-root .justify-between { justify-content: space-between !important; }
+        #bow-root .justify-center  { justify-content: center !important; }
+        #bow-root .justify-end     { justify-content: flex-end !important; }
+
+        /* Width */
+        #bow-root .w-full  { width: 100% !important; }
+        #bow-root .w-auto  { width: auto !important; }
+        #bow-root .min-w-0 { min-width: 0 !important; }
+        #bow-root .max-w-none { max-width: none !important; }
+
+        /* Button reset — no !important so inline style={} still wins */
+        #bow-root button,
+        #bow-root button:focus {
+          background-color: transparent;
+          color: inherit;
+          border: none;
+          padding: 0;
+          cursor: pointer;
+          box-sizing: border-box;
+          width: auto;
+        }
+
+        /* Keep buttons compact inside flex containers */
+        #bow-root .flex button,
+        #bow-root .inline-flex button {
+          flex: 0 0 auto;
+          width: auto;
+        }
       `}</style>
 
       {/* ── Top bar ── */}

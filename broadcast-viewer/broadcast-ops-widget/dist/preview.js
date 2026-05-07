@@ -2099,7 +2099,7 @@ function BroadcastOpsWidget() {
         { id: "show360", label: "Show 360°", icon: Layers },
         { id: "activity", label: "Activity Stream", icon: BellRing, badge: subscriptions.length },
     ];
-    return ((0,jsx_runtime.jsxs)("div", { className: "w-full", style: widgetStyle, children: [(0,jsx_runtime.jsx)("style", { children: `
+    return ((0,jsx_runtime.jsxs)("div", { id: "bow-root", className: "w-full", style: widgetStyle, children: [(0,jsx_runtime.jsx)("style", { children: `
         @import url('https://fonts.googleapis.com/css2?family=Source+Serif+Pro:wght@400;600;700;900&family=Source+Sans+Pro:wght@300;400;600;700&display=swap');
         .font-display { font-family: 'Source Serif Pro', Georgia, serif; }
         .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -2111,6 +2111,65 @@ function BroadcastOpsWidget() {
         .fade-in-up { animation: fadeInUp 0.3s ease-out; }
         .modal-backdrop { animation: backdropIn 0.2s ease-out; }
         .modal-content { animation: modalIn 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+
+        /* ── Staffbase CSS conflict overrides ──────────────────────────────────
+           Staffbase defines its own .flex, .grid, .gap-N, .px-N etc. utility
+           classes with pixel values that clash with Tailwind's rem-based ones,
+           and applies a global  button { background-color: rgb(38,56,196) }
+           rule. We scope every fix to #bow-root so nothing leaks outside.   */
+
+        /* Display helpers */
+        #bow-root .flex        { display: flex !important; }
+        #bow-root .inline-flex { display: inline-flex !important; }
+        #bow-root .grid        { display: grid !important; }
+        #bow-root .hidden      { display: none !important; }
+        #bow-root .block       { display: block !important; }
+
+        /* Flex behaviour */
+        #bow-root .flex-col    { flex-direction: column !important; }
+        #bow-root .flex-wrap   { flex-wrap: wrap !important; }
+        #bow-root .flex-nowrap { flex-wrap: nowrap !important; }
+        #bow-root .flex-shrink-0 { flex-shrink: 0 !important; }
+        #bow-root .flex-1      { flex: 1 1 0% !important; }
+
+        /* Grid columns */
+        #bow-root .grid-cols-1 { grid-template-columns: repeat(1, minmax(0,1fr)) !important; }
+        #bow-root .grid-cols-2 { grid-template-columns: repeat(2, minmax(0,1fr)) !important; }
+        #bow-root .grid-cols-3 { grid-template-columns: repeat(3, minmax(0,1fr)) !important; }
+        #bow-root .grid-cols-4 { grid-template-columns: repeat(4, minmax(0,1fr)) !important; }
+        #bow-root .grid-cols-5 { grid-template-columns: repeat(5, minmax(0,1fr)) !important; }
+
+        /* Items / justify */
+        #bow-root .items-center   { align-items: center !important; }
+        #bow-root .items-start    { align-items: flex-start !important; }
+        #bow-root .justify-between { justify-content: space-between !important; }
+        #bow-root .justify-center  { justify-content: center !important; }
+        #bow-root .justify-end     { justify-content: flex-end !important; }
+
+        /* Width */
+        #bow-root .w-full  { width: 100% !important; }
+        #bow-root .w-auto  { width: auto !important; }
+        #bow-root .min-w-0 { min-width: 0 !important; }
+        #bow-root .max-w-none { max-width: none !important; }
+
+        /* Button reset — no !important so inline style={} still wins */
+        #bow-root button,
+        #bow-root button:focus {
+          background-color: transparent;
+          color: inherit;
+          border: none;
+          padding: 0;
+          cursor: pointer;
+          box-sizing: border-box;
+          width: auto;
+        }
+
+        /* Keep buttons compact inside flex containers */
+        #bow-root .flex button,
+        #bow-root .inline-flex button {
+          flex: 0 0 auto;
+          width: auto;
+        }
       ` }), (0,jsx_runtime.jsxs)("header", { className: "border-b", style: { background: "#1a2744", borderColor: "#0f1a30" }, children: [(0,jsx_runtime.jsxs)("div", { className: "px-4 sm:px-6 py-4 flex items-center justify-between", children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-3", children: [(0,jsx_runtime.jsx)("div", { className: "w-10 h-10 rounded-sm flex items-center justify-center flex-shrink-0", style: { background: "#f5a623" }, children: (0,jsx_runtime.jsx)(Radio, { className: "w-5 h-5", style: { color: "#1a2744" }, strokeWidth: 2.5 }) }), (0,jsx_runtime.jsxs)("div", { children: [(0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-white text-lg leading-tight tracking-tight", children: "Broadcast Operations" }), (0,jsx_runtime.jsx)("div", { className: "text-xs tracking-widest uppercase hidden sm:block", style: { color: "#a8b4cc" }, children: "Programming & Delivery Hub" })] })] }), (0,jsx_runtime.jsxs)("div", { className: "flex items-center gap-2 sm:gap-3", children: [(0,jsx_runtime.jsxs)("div", { className: "relative", children: [(0,jsx_runtime.jsxs)("button", { onClick: () => setShowNotifPanel(!showNotifPanel), className: "relative p-2 rounded-md transition-colors", style: { background: showNotifPanel ? "#f5a623" : "rgba(255,255,255,0.08)" }, children: [(0,jsx_runtime.jsx)(Bell, { className: "w-5 h-5", style: { color: showNotifPanel ? "#1a2744" : "white" } }), unreadCount > 0 && ((0,jsx_runtime.jsx)("span", { className: "absolute -top-1 -right-1 text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center", style: { background: "#f5a623", color: "#1a2744" }, children: unreadCount }))] }), showNotifPanel && ((0,jsx_runtime.jsxs)("div", { className: "absolute top-full right-0 mt-2 z-50 w-80 sm:w-96 rounded-lg shadow-2xl border fade-in-up", style: { background: "white", borderColor: "#e5e2d8" }, children: [(0,jsx_runtime.jsxs)("div", { className: "flex items-center justify-between p-4 border-b", style: { borderColor: "#e5e2d8" }, children: [(0,jsx_runtime.jsx)("div", { className: "font-display font-bold text-base", style: { color: "#1a2744" }, children: "Recent Activity" }), (0,jsx_runtime.jsx)("button", { onClick: () => setShowNotifPanel(false), children: (0,jsx_runtime.jsx)(X, { className: "w-4 h-4", style: { color: "#6b6a63" } }) })] }), (0,jsx_runtime.jsxs)("div", { className: "max-h-80 overflow-y-auto scrollbar-thin", children: [(0,jsx_runtime.jsx)(NotifItem, { title: "New media issue reported", detail: "K. Ortiz flagged Roots: Icons of Hollywood", time: "2h ago", topic: "Media Issues" }), (0,jsx_runtime.jsx)(NotifItem, { title: "Rights window extended", detail: "Frontline streaming approved through end of season", time: "5h ago", topic: "Rights & Clearances" }), (0,jsx_runtime.jsx)(NotifItem, { title: "Schedule change", detail: "Roots: Off the Charts added to Saturday 10am", time: "Yesterday", topic: "Schedule Updates" }), (0,jsx_runtime.jsx)(NotifItem, { title: "New contributor note", detail: "Finding Your Roots S11 streaming window confirmed", time: "2 days ago", topic: "Show Metadata" })] })] }))] }), (0,jsx_runtime.jsx)("div", { className: "flex items-center rounded-md p-1", style: { background: "rgba(255,255,255,0.08)" }, children: [{ val: "station", label: "Station", Icon: User }, { val: "hq", label: "HQ Staff", Icon: Users }].map(({ val, label, Icon }) => ((0,jsx_runtime.jsxs)("button", { onClick: () => setRole(val), className: "flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded text-xs font-semibold transition-all", style: { background: role === val ? "#f5a623" : "transparent", color: role === val ? "#1a2744" : "#a8b4cc" }, children: [(0,jsx_runtime.jsx)(Icon, { className: "w-3.5 h-3.5" }), " ", (0,jsx_runtime.jsx)("span", { className: "hidden sm:inline", children: label })] }, val))) })] })] }), (0,jsx_runtime.jsx)("nav", { className: "px-4 sm:px-6 flex gap-0.5 overflow-x-auto scrollbar-thin", children: TABS.map(({ id, label, icon: Icon, badge }) => {
                             const active = activeTab === id;
                             return ((0,jsx_runtime.jsxs)("button", { onClick: () => setActiveTab(id), className: "flex items-center gap-2 px-3 sm:px-4 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap", style: { borderColor: active ? "#f5a623" : "transparent", color: active ? "white" : "#a8b4cc" }, children: [(0,jsx_runtime.jsx)(Icon, { className: "w-4 h-4" }), label, badge > 0 && ((0,jsx_runtime.jsx)("span", { className: "text-[10px] font-bold px-1.5 py-0.5 rounded-full", style: { background: active ? "#f5a623" : "#3a4866", color: active ? "#1a2744" : "white" }, children: badge }))] }, id));

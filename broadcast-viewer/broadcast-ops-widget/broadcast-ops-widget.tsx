@@ -51,7 +51,10 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
           script.onload = () => {
             const tw = (window as any).tailwind;
             if (tw) {
-              tw.config = { corePlugins: { preflight: false } };
+              tw.config = {
+                important: '#bow-root',
+                corePlugins: { preflight: false },
+              };
             }
             resolve();
           };
