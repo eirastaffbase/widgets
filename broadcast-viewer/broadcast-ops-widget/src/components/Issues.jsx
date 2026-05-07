@@ -66,7 +66,7 @@ function IssueCard({ issue, role, replyDraft, setReplyDraft, submitReply, onOpen
               onClick={() => hasDetails && onOpenDetails(issue.show)}
               disabled={!hasDetails}
               className="font-display"
-              style={{ fontWeight: 700, fontSize: "16px", color: "#1a2744", cursor: hasDetails ? "pointer" : "default", textDecoration: hasDetails ? "underline" : "none", textDecorationColor: "#f5a623", textUnderlineOffset: "3px", background: "transparent", border: "none", padding: 0 }}
+              style={{ fontWeight: 700, fontSize: "16px", color: "#1a2744", cursor: hasDetails ? "pointer" : "default", textDecoration: hasDetails ? "underline" : "none", textDecorationColor: "#f5a623", textUnderlineOffset: "3px", background: "transparent", border: "none", padding: 0, textAlign: "left" }}
             >
               {issue.show}
             </button>
