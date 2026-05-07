@@ -54,15 +54,14 @@ export default function BroadcastOpsWidget() {
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
     const q = searchQuery.toLowerCase();
-    const seen = new Set();
-    return schedule.filter((s) => {
+    const groups = {};
+    schedule.forEach((s) => {
       if (s.show.toLowerCase().includes(q) || s.episode.toLowerCase().includes(q)) {
-        if (seen.has(s.episode)) return false;
-        seen.add(s.episode);
-        return true;
+        if (!groups[s.channel]) groups[s.channel] = { show: s.show, channel: s.channel, episodes: [] };
+        groups[s.channel].episodes.push(s);
       }
-      return false;
     });
+    return Object.values(groups);
   }, [searchQuery, schedule]);
 
   const toggleChannel      = (id) => setSelectedChannels((p) => p.includes(id) ? p.filter((c) => c !== id) : [...p, id]);

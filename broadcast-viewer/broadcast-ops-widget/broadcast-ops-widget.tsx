@@ -9,7 +9,7 @@ import { JSONSchema7 } from "json-schema";
 import { UiSchema } from "@rjsf/utils";
 import React from "react";
 import ReactDOM from "react-dom/client";
-import BroadcastOpsWidget from "../broadcast_ops_widget";
+import BroadcastOpsWidget from "./src";
 
 const configurationSchema: JSONSchema7 = {
   properties: {
