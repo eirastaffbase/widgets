@@ -11,7 +11,7 @@ const ACTIVITY_TOPICS = [
 
 export function ActivityStream({ subscriptions, toggleSubscription, notifDelivery, setNotifDelivery }) {
   return (
-    <div className="space-y-6 fade-in-up">
+    <div className="fade-in-up" style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
       <SectionHeader
         eyebrow="Stay Informed"
         title="Activity Stream"
@@ -19,33 +19,33 @@ export function ActivityStream({ subscriptions, toggleSubscription, notifDeliver
       />
 
       <ModalCard title="Delivery Preferences" eyebrow="How you want to hear about it" icon={Bell} iconColor="#1a2744">
-        <div className="flex gap-3">
+        <div style={{ display: "flex", gap: "12px" }}>
           {[{ key: "email", Icon: Mail, label: "Email" }, { key: "inApp", Icon: BellRing, label: "In-app" }].map(({ key, Icon, label }) => (
-            <button key={key} onClick={() => setNotifDelivery({ ...notifDelivery, [key]: !notifDelivery[key] })} className="flex items-center gap-2 px-4 py-2.5 rounded text-sm font-semibold transition-all" style={{ background: notifDelivery[key] ? "#1a2744" : "#f5f3ee", color: notifDelivery[key] ? "white" : "#1a2744", border: `1px solid ${notifDelivery[key] ? "#1a2744" : "#e5e2d8"}` }}>
-              <Icon className="w-4 h-4" /> {label} {notifDelivery[key] && <CheckCircle2 className="w-4 h-4" />}
+            <button key={key} onClick={() => setNotifDelivery({ ...notifDelivery, [key]: !notifDelivery[key] })} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 16px", borderRadius: "6px", fontSize: "14px", fontWeight: 600, background: notifDelivery[key] ? "#1a2744" : "#f5f3ee", color: notifDelivery[key] ? "white" : "#1a2744", border: `1px solid ${notifDelivery[key] ? "#1a2744" : "#e5e2d8"}`, cursor: "pointer" }}>
+              <Icon style={{ width: "16px", height: "16px" }} /> {label} {notifDelivery[key] && <CheckCircle2 style={{ width: "16px", height: "16px" }} />}
             </button>
           ))}
         </div>
       </ModalCard>
 
       <div>
-        <div className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: "#6b6a63" }}>Topics — {subscriptions.length} subscribed</div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "12px", color: "#6b6a63" }}>Topics — {subscriptions.length} subscribed</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "12px" }}>
           {ACTIVITY_TOPICS.map((t) => {
             const Icon = t.icon;
             const sub  = subscriptions.includes(t.id);
             return (
-              <button key={t.id} onClick={() => toggleSubscription(t.id)} className="rounded-lg p-4 text-left transition-all hover:shadow-md" style={{ background: sub ? "#1a2744" : "white", border: `2px solid ${sub ? "#f5a623" : "#e5e2d8"}` }}>
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded flex items-center justify-center flex-shrink-0" style={{ background: sub ? "#f5a623" : "#f5f3ee" }}>
-                    <Icon className="w-5 h-5" style={{ color: "#1a2744" }} />
+              <button key={t.id} onClick={() => toggleSubscription(t.id)} style={{ borderRadius: "8px", padding: "16px", textAlign: "left", background: sub ? "#1a2744" : "white", border: `2px solid ${sub ? "#f5a623" : "#e5e2d8"}`, cursor: "pointer" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
+                  <div style={{ width: "40px", height: "40px", borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: sub ? "#f5a623" : "#f5f3ee" }}>
+                    <Icon style={{ width: "20px", height: "20px", color: "#1a2744" }} />
                   </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <div className="font-display font-bold text-base" style={{ color: sub ? "white" : "#1a2744" }}>{t.label}</div>
-                      {sub && <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "#f5a623", color: "#1a2744" }}>Subscribed</span>}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <div className="font-display" style={{ fontWeight: 700, fontSize: "16px", color: sub ? "white" : "#1a2744" }}>{t.label}</div>
+                      {sub && <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", padding: "2px 6px", borderRadius: "4px", background: "#f5a623", color: "#1a2744" }}>Subscribed</span>}
                     </div>
-                    <p className="text-xs mt-1" style={{ color: sub ? "#a8b4cc" : "#6b6a63" }}>{t.desc}</p>
+                    <p style={{ fontSize: "12px", marginTop: "4px", color: sub ? "#a8b4cc" : "#6b6a63", margin: "4px 0 0 0" }}>{t.desc}</p>
                   </div>
                 </div>
               </button>
@@ -56,9 +56,9 @@ export function ActivityStream({ subscriptions, toggleSubscription, notifDeliver
 
       <ModalCard title="Recent Activity" eyebrow="From your subscriptions" icon={Hash} iconColor="#1a2744">
         {subscriptions.length === 0 ? (
-          <div className="text-sm text-center py-6" style={{ color: "#6b6a63" }}>Subscribe to a topic above to see activity here.</div>
+          <div style={{ fontSize: "14px", textAlign: "center", padding: "24px 0", color: "#6b6a63" }}>Subscribe to a topic above to see activity here.</div>
         ) : (
-          <div className="space-y-3">
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             <ActivityItem topic="Media Issues"        title="New issue reported"   detail="K. Ortiz flagged Roots: Icons of Hollywood for accessibility"   time="2h ago" />
             <ActivityItem topic="Rights & Clearances" title="Window extended"      detail="Frontline streaming approved through end of season"              time="5h ago" />
             <ActivityItem topic="Schedule Updates"    title="Programming change"   detail="Roots: Off the Charts added to Saturday 10am repeat slot"        time="Yesterday" />
@@ -72,16 +72,16 @@ export function ActivityStream({ subscriptions, toggleSubscription, notifDeliver
 
 function ActivityItem({ topic, title, detail, time }) {
   return (
-    <div className="flex items-start gap-3 pb-3" style={{ borderBottom: "1px solid #e5e2d8" }}>
-      <div className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{ background: "#f5a623" }} />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "#1a2744", color: "white" }}>{topic}</span>
-          <span className="text-sm font-semibold" style={{ color: "#1a2744" }}>{title}</span>
+    <div style={{ display: "flex", alignItems: "flex-start", gap: "12px", paddingBottom: "12px", borderBottom: "1px solid #e5e2d8" }}>
+      <div style={{ width: "8px", height: "8px", borderRadius: "9999px", marginTop: "6px", flexShrink: 0, background: "#f5a623" }} />
+      <div style={{ flex: "1 1 0%", minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+          <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", padding: "2px 6px", borderRadius: "4px", background: "#1a2744", color: "white" }}>{topic}</span>
+          <span style={{ fontSize: "14px", fontWeight: 600, color: "#1a2744" }}>{title}</span>
         </div>
-        <p className="text-xs mt-1" style={{ color: "#6b6a63" }}>{detail}</p>
+        <p style={{ fontSize: "12px", marginTop: "4px", color: "#6b6a63", margin: "4px 0 0 0" }}>{detail}</p>
       </div>
-      <span className="text-xs flex-shrink-0" style={{ color: "#a8a59a" }}>{time}</span>
+      <span style={{ fontSize: "12px", flexShrink: 0, color: "#a8a59a" }}>{time}</span>
     </div>
   );
 }

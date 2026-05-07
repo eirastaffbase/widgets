@@ -107,27 +107,39 @@ export default function BroadcastOpsWidget() {
     fontFamily: "'Source Sans Pro', -apple-system, system-ui, sans-serif",
     maxWidth: "100%",
     overflowX: "hidden",
+    boxSizing: "border-box",
+    fontSize: "16px",
+    lineHeight: "1.5",
+    color: "#1a2744",
   };
 
   if (loading) return (
-    <div className="w-full py-24 flex items-center justify-center" style={widgetStyle}>
-      <div className="text-center">
-        <div className="w-12 h-12 rounded-sm flex items-center justify-center mx-auto mb-4" style={{ background: "#1a2744" }}>
-          <Radio className="w-6 h-6 text-white" />
+    <div style={{ ...widgetStyle, paddingTop: "96px", paddingBottom: "96px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Source+Serif+Pro:wght@400;600;700;900&family=Source+Sans+Pro:wght@300;400;600;700&display=swap');
+        .font-display { font-family: 'Source Serif Pro', Georgia, serif; }
+      `}</style>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ width: "48px", height: "48px", borderRadius: "2px", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", background: "#1a2744" }}>
+          <Radio style={{ width: "24px", height: "24px", color: "white" }} />
         </div>
-        <div className="font-display font-bold text-lg mb-1" style={{ color: "#1a2744" }}>Loading Schedule</div>
-        <div className="text-sm" style={{ color: "#6b6a63" }}>Fetching live data from Staffbase…</div>
+        <div className="font-display" style={{ fontWeight: 700, fontSize: "18px", marginBottom: "4px", color: "#1a2744" }}>Loading Schedule</div>
+        <div style={{ fontSize: "14px", color: "#6b6a63" }}>Fetching live data from Staffbase…</div>
       </div>
     </div>
   );
 
   if (loadError) return (
-    <div className="w-full py-24 flex items-center justify-center" style={widgetStyle}>
-      <div className="text-center max-w-sm">
-        <AlertCircle className="w-10 h-10 mx-auto mb-3" style={{ color: "#be123c" }} />
-        <div className="font-bold mb-1" style={{ color: "#1a2744" }}>Could not load schedule</div>
-        <div className="text-sm" style={{ color: "#6b6a63" }}>{loadError}</div>
-        <div className="text-xs mt-3" style={{ color: "#a8a59a" }}>This widget requires access to app.staffbase.com. Try opening it inside Staffbase.</div>
+    <div style={{ ...widgetStyle, paddingTop: "96px", paddingBottom: "96px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Source+Serif+Pro:wght@400;600;700;900&family=Source+Sans+Pro:wght@300;400;600;700&display=swap');
+        .font-display { font-family: 'Source Serif Pro', Georgia, serif; }
+      `}</style>
+      <div style={{ textAlign: "center", maxWidth: "384px" }}>
+        <AlertCircle style={{ width: "40px", height: "40px", margin: "0 auto 12px", display: "block", color: "#be123c" }} />
+        <div style={{ fontWeight: 700, marginBottom: "4px", color: "#1a2744" }}>Could not load schedule</div>
+        <div style={{ fontSize: "14px", color: "#6b6a63" }}>{loadError}</div>
+        <div style={{ fontSize: "12px", marginTop: "12px", color: "#a8a59a" }}>This widget requires access to app.staffbase.com. Try opening it inside Staffbase.</div>
       </div>
     </div>
   );
@@ -141,7 +153,7 @@ export default function BroadcastOpsWidget() {
   ];
 
   return (
-    <div id="bow-root" className="w-full" style={widgetStyle}>
+    <div style={widgetStyle}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Source+Serif+Pro:wght@400;600;700;900&family=Source+Sans+Pro:wght@300;400;600;700&display=swap');
         .font-display { font-family: 'Source Serif Pro', Georgia, serif; }
@@ -154,96 +166,38 @@ export default function BroadcastOpsWidget() {
         .fade-in-up { animation: fadeInUp 0.3s ease-out; }
         .modal-backdrop { animation: backdropIn 0.2s ease-out; }
         .modal-content { animation: modalIn 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
-
-        /* ── Staffbase CSS conflict overrides ──────────────────────────────────
-           Staffbase defines its own .flex, .grid, .gap-N, .px-N etc. utility
-           classes with pixel values that clash with Tailwind's rem-based ones,
-           and applies a global  button { background-color: rgb(38,56,196) }
-           rule. We scope every fix to #bow-root so nothing leaks outside.   */
-
-        /* Display helpers */
-        #bow-root .flex        { display: flex !important; }
-        #bow-root .inline-flex { display: inline-flex !important; }
-        #bow-root .grid        { display: grid !important; }
-        #bow-root .hidden      { display: none !important; }
-        #bow-root .block       { display: block !important; }
-
-        /* Flex behaviour */
-        #bow-root .flex-col    { flex-direction: column !important; }
-        #bow-root .flex-wrap   { flex-wrap: wrap !important; }
-        #bow-root .flex-nowrap { flex-wrap: nowrap !important; }
-        #bow-root .flex-shrink-0 { flex-shrink: 0 !important; }
-        #bow-root .flex-1      { flex: 1 1 0% !important; }
-
-        /* Grid columns */
-        #bow-root .grid-cols-1 { grid-template-columns: repeat(1, minmax(0,1fr)) !important; }
-        #bow-root .grid-cols-2 { grid-template-columns: repeat(2, minmax(0,1fr)) !important; }
-        #bow-root .grid-cols-3 { grid-template-columns: repeat(3, minmax(0,1fr)) !important; }
-        #bow-root .grid-cols-4 { grid-template-columns: repeat(4, minmax(0,1fr)) !important; }
-        #bow-root .grid-cols-5 { grid-template-columns: repeat(5, minmax(0,1fr)) !important; }
-
-        /* Items / justify */
-        #bow-root .items-center   { align-items: center !important; }
-        #bow-root .items-start    { align-items: flex-start !important; }
-        #bow-root .justify-between { justify-content: space-between !important; }
-        #bow-root .justify-center  { justify-content: center !important; }
-        #bow-root .justify-end     { justify-content: flex-end !important; }
-
-        /* Width */
-        #bow-root .w-full  { width: 100% !important; }
-        #bow-root .w-auto  { width: auto !important; }
-        #bow-root .min-w-0 { min-width: 0 !important; }
-        #bow-root .max-w-none { max-width: none !important; }
-
-        /* Button reset — no !important so inline style={} still wins */
-        #bow-root button,
-        #bow-root button:focus {
-          background-color: transparent;
-          color: inherit;
-          border: none;
-          padding: 0;
-          cursor: pointer;
-          box-sizing: border-box;
-          width: auto;
-        }
-
-        /* Keep buttons compact inside flex containers */
-        #bow-root .flex button,
-        #bow-root .inline-flex button {
-          flex: 0 0 auto;
-          width: auto;
-        }
       `}</style>
 
       {/* ── Top bar ── */}
-      <header className="border-b" style={{ background: "#1a2744", borderColor: "#0f1a30" }}>
-        <div className="px-4 sm:px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-sm flex items-center justify-center flex-shrink-0" style={{ background: "#f5a623" }}>
-              <Radio className="w-5 h-5" style={{ color: "#1a2744" }} strokeWidth={2.5} />
+      <header style={{ background: "#1a2744", borderBottom: "1px solid #0f1a30" }}>
+        <div style={{ padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <div style={{ width: "40px", height: "40px", borderRadius: "2px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: "#f5a623" }}>
+              <Radio style={{ width: "20px", height: "20px", color: "#1a2744" }} />
             </div>
             <div>
-              <div className="font-display font-bold text-white text-lg leading-tight tracking-tight">Broadcast Operations</div>
-              <div className="text-xs tracking-widest uppercase hidden sm:block" style={{ color: "#a8b4cc" }}>Programming & Delivery Hub</div>
+              <div className="font-display" style={{ fontWeight: 700, color: "white", fontSize: "18px", lineHeight: "1.25", letterSpacing: "-0.025em" }}>Broadcast Operations</div>
+              <div style={{ fontSize: "11px", letterSpacing: "0.1em", textTransform: "uppercase", color: "#a8b4cc" }}>Programming &amp; Delivery Hub</div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="relative">
-              <button onClick={() => setShowNotifPanel(!showNotifPanel)} className="relative p-2 rounded-md transition-colors" style={{ background: showNotifPanel ? "#f5a623" : "rgba(255,255,255,0.08)" }}>
-                <Bell className="w-5 h-5" style={{ color: showNotifPanel ? "#1a2744" : "white" }} />
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            {/* Bell */}
+            <div style={{ position: "relative" }}>
+              <button onClick={() => setShowNotifPanel(!showNotifPanel)} style={{ position: "relative", padding: "8px", borderRadius: "6px", background: showNotifPanel ? "#f5a623" : "rgba(255,255,255,0.08)", border: "none", cursor: "pointer" }}>
+                <Bell style={{ width: "20px", height: "20px", color: showNotifPanel ? "#1a2744" : "white" }} />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center" style={{ background: "#f5a623", color: "#1a2744" }}>{unreadCount}</span>
+                  <span style={{ position: "absolute", top: "-4px", right: "-4px", fontSize: "10px", fontWeight: 700, borderRadius: "9999px", width: "20px", height: "20px", display: "flex", alignItems: "center", justifyContent: "center", background: "#f5a623", color: "#1a2744" }}>{unreadCount}</span>
                 )}
               </button>
 
               {showNotifPanel && (
-                <div className="absolute top-full right-0 mt-2 z-50 w-80 sm:w-96 rounded-lg shadow-2xl border fade-in-up" style={{ background: "white", borderColor: "#e5e2d8" }}>
-                  <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: "#e5e2d8" }}>
-                    <div className="font-display font-bold text-base" style={{ color: "#1a2744" }}>Recent Activity</div>
-                    <button onClick={() => setShowNotifPanel(false)}><X className="w-4 h-4" style={{ color: "#6b6a63" }} /></button>
+                <div className="fade-in-up" style={{ position: "absolute", top: "100%", right: 0, marginTop: "8px", zIndex: 50, width: "384px", borderRadius: "8px", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)", border: "1px solid #e5e2d8", background: "white" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px", borderBottom: "1px solid #e5e2d8" }}>
+                    <div className="font-display" style={{ fontWeight: 700, fontSize: "16px", color: "#1a2744" }}>Recent Activity</div>
+                    <button onClick={() => setShowNotifPanel(false)} style={{ background: "transparent", border: "none", cursor: "pointer", padding: 0, display: "flex" }}><X style={{ width: "16px", height: "16px", color: "#6b6a63" }} /></button>
                   </div>
-                  <div className="max-h-80 overflow-y-auto scrollbar-thin">
+                  <div className="scrollbar-thin" style={{ maxHeight: "320px", overflowY: "auto" }}>
                     <NotifItem title="New media issue reported"   detail="K. Ortiz flagged Roots: Icons of Hollywood"         time="2h ago"     topic="Media Issues" />
                     <NotifItem title="Rights window extended"     detail="Frontline streaming approved through end of season" time="5h ago"     topic="Rights & Clearances" />
                     <NotifItem title="Schedule change"            detail="Roots: Off the Charts added to Saturday 10am"       time="Yesterday"  topic="Schedule Updates" />
@@ -253,25 +207,27 @@ export default function BroadcastOpsWidget() {
               )}
             </div>
 
-            <div className="flex items-center rounded-md p-1" style={{ background: "rgba(255,255,255,0.08)" }}>
+            {/* Role switcher */}
+            <div style={{ display: "flex", alignItems: "center", borderRadius: "6px", padding: "4px", background: "rgba(255,255,255,0.08)" }}>
               {[{ val: "station", label: "Station", Icon: User }, { val: "hq", label: "HQ Staff", Icon: Users }].map(({ val, label, Icon }) => (
-                <button key={val} onClick={() => setRole(val)} className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded text-xs font-semibold transition-all" style={{ background: role === val ? "#f5a623" : "transparent", color: role === val ? "#1a2744" : "#a8b4cc" }}>
-                  <Icon className="w-3.5 h-3.5" /> <span className="hidden sm:inline">{label}</span>
+                <button key={val} onClick={() => setRole(val)} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 12px", borderRadius: "4px", fontSize: "12px", fontWeight: 600, background: role === val ? "#f5a623" : "transparent", color: role === val ? "#1a2744" : "#a8b4cc", border: "none", cursor: "pointer" }}>
+                  <Icon style={{ width: "14px", height: "14px" }} /> {label}
                 </button>
               ))}
             </div>
           </div>
         </div>
 
-        <nav className="px-4 sm:px-6 flex gap-0.5 overflow-x-auto scrollbar-thin">
+        {/* Tab nav */}
+        <nav className="scrollbar-thin" style={{ padding: "0 24px", display: "flex", gap: "2px", overflowX: "auto" }}>
           {TABS.map(({ id, label, icon: Icon, badge }) => {
             const active = activeTab === id;
             return (
-              <button key={id} onClick={() => setActiveTab(id)} className="flex items-center gap-2 px-3 sm:px-4 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap" style={{ borderColor: active ? "#f5a623" : "transparent", color: active ? "white" : "#a8b4cc" }}>
-                <Icon className="w-4 h-4" />
+              <button key={id} onClick={() => setActiveTab(id)} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "12px 16px", fontSize: "14px", fontWeight: 600, borderBottom: `2px solid ${active ? "#f5a623" : "transparent"}`, color: active ? "white" : "#a8b4cc", background: "transparent", border: "none", borderBottom: `2px solid ${active ? "#f5a623" : "transparent"}`, cursor: "pointer", whiteSpace: "nowrap" }}>
+                <Icon style={{ width: "16px", height: "16px" }} />
                 {label}
                 {badge > 0 && (
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: active ? "#f5a623" : "#3a4866", color: active ? "#1a2744" : "white" }}>{badge}</span>
+                  <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 6px", borderRadius: "9999px", background: active ? "#f5a623" : "#3a4866", color: active ? "#1a2744" : "white" }}>{badge}</span>
                 )}
               </button>
             );
@@ -280,7 +236,7 @@ export default function BroadcastOpsWidget() {
       </header>
 
       {/* ── Main content ── */}
-      <main className="px-4 sm:px-6 py-6">
+      <main style={{ padding: "24px" }}>
         {activeTab === "guide" && (
           <Calendar360
             viewMode={viewMode} setViewMode={setViewMode}
@@ -305,9 +261,9 @@ export default function BroadcastOpsWidget() {
         )}
       </main>
 
-      <footer className="px-4 sm:px-6 py-4 text-xs flex items-center justify-between border-t" style={{ color: "#6b6a63", borderColor: "#e5e2d8" }}>
+      <footer style={{ padding: "16px 24px", fontSize: "12px", display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: "1px solid #e5e2d8", color: "#6b6a63" }}>
         <div>Signed in as {role === "station" ? "Station User" : "HQ Operations"}</div>
-        <div className="flex items-center gap-4">
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
           <span>All times Eastern (ET)</span>
           <span>Live · Staffbase</span>
         </div>
