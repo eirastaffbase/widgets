@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { Tv, ChevronLeft, ChevronRight, CalendarDays, LayoutGrid, Flag } from "lucide-react";
+// ChevronRight kept for future use
 import { CHANNELS, SHOW_DETAILS } from "../constants.js";
 import { TODAY, DATE_RANGE, dateKey, formatShortDate, formatDayName, formatDayNumber, formatFullDate, isSameDay } from "../utils.js";
 import { SectionHeader } from "./Shared.jsx";
@@ -25,41 +26,42 @@ export function Calendar360({
       />
 
       {/* Toolbar */}
-      <div style={{ borderRadius: "8px", padding: "16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap", background: "white", border: "1px solid #e5e2d8" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <div style={{ display: "flex", alignItems: "center", borderRadius: "6px", overflow: "hidden", border: "1px solid #e5e2d8" }}>
-            {[{ id: "week", Icon: LayoutGrid, label: "4-Day" }, { id: "day", Icon: CalendarDays, label: "Day" }].map(({ id, Icon, label }) => (
-              <button key={id} onClick={() => setViewMode(id)} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 12px", fontSize: "12px", fontWeight: 600, background: viewMode === id ? "#1a2744" : "white", color: viewMode === id ? "white" : "#1a2744", border: "none", cursor: "pointer" }}>
-                <Icon style={{ width: "14px", height: "14px" }} /> {label}
-              </button>
-            ))}
-          </div>
-
-          {viewMode === "week" && (
-            <div style={{ display: "flex", alignItems: "center", gap: "4px", marginLeft: "8px" }}>
-              <button onClick={() => canGoPrev && setWeekStartIndex(Math.max(0, weekStartIndex - 4))} disabled={!canGoPrev} style={{ padding: "6px", borderRadius: "4px", background: canGoPrev ? "#f5f3ee" : "transparent", color: canGoPrev ? "#1a2744" : "#cbc9c0", cursor: canGoPrev ? "pointer" : "not-allowed", border: "none" }}>
-                <ChevronLeft style={{ width: "16px", height: "16px" }} />
-              </button>
-              <div style={{ fontSize: "14px", fontWeight: 600, padding: "0 8px", color: "#1a2744" }}>{weekLabel}</div>
-              <button onClick={() => canGoNext && setWeekStartIndex(Math.min(10, weekStartIndex + 4))} disabled={!canGoNext} style={{ padding: "6px", borderRadius: "4px", background: canGoNext ? "#f5f3ee" : "transparent", color: canGoNext ? "#1a2744" : "#cbc9c0", cursor: canGoNext ? "pointer" : "not-allowed", border: "none" }}>
-                <ChevronRight style={{ width: "16px", height: "16px" }} />
-              </button>
-            </div>
-          )}
-
-          {viewMode === "day" && (
-            <div style={{ display: "flex", alignItems: "center", gap: "4px", marginLeft: "8px" }}>
-              <button onClick={() => { const i = DATE_RANGE.findIndex((d) => dateKey(d) === selectedDateKey); if (i > 0) setSelectedDateKey(dateKey(DATE_RANGE[i - 1])); }} style={{ padding: "6px", borderRadius: "4px", background: "#f5f3ee", color: "#1a2744", border: "none", cursor: "pointer" }}>
-                <ChevronLeft style={{ width: "16px", height: "16px" }} />
-              </button>
-              <div style={{ fontSize: "14px", fontWeight: 600, padding: "0 8px", color: "#1a2744" }}>{formatFullDate(selectedDate)}</div>
-              <button onClick={() => { const i = DATE_RANGE.findIndex((d) => dateKey(d) === selectedDateKey); if (i < DATE_RANGE.length - 1) setSelectedDateKey(dateKey(DATE_RANGE[i + 1])); }} style={{ padding: "6px", borderRadius: "4px", background: "#f5f3ee", color: "#1a2744", border: "none", cursor: "pointer" }}>
-                <ChevronRight style={{ width: "16px", height: "16px" }} />
-              </button>
-            </div>
-          )}
+      <div style={{ borderRadius: "8px", padding: "16px", display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap", background: "white", border: "1px solid #e5e2d8" }}>
+        {/* View mode toggle */}
+        <div style={{ display: "flex", alignItems: "center", borderRadius: "6px", overflow: "hidden", border: "1px solid #e5e2d8" }}>
+          {[{ id: "week", Icon: LayoutGrid, label: "4-Day" }, { id: "day", Icon: CalendarDays, label: "Day" }].map(({ id, Icon, label }) => (
+            <button key={id} onClick={() => setViewMode(id)} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 12px", fontSize: "12px", fontWeight: 600, background: viewMode === id ? "#1a2744" : "white", color: viewMode === id ? "white" : "#1a2744", border: "none", cursor: "pointer" }}>
+              <Icon style={{ width: "14px", height: "14px" }} /> {label}
+            </button>
+          ))}
         </div>
 
+        {/* Nav arrows + date label */}
+        {viewMode === "week" && (
+          <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+            <button onClick={() => canGoPrev && setWeekStartIndex(Math.max(0, weekStartIndex - 4))} disabled={!canGoPrev} style={{ padding: "6px", borderRadius: "4px", background: canGoPrev ? "#f5f3ee" : "transparent", color: canGoPrev ? "#1a2744" : "#cbc9c0", cursor: canGoPrev ? "pointer" : "not-allowed", border: "none" }}>
+              <ChevronLeft style={{ width: "16px", height: "16px" }} />
+            </button>
+            <div style={{ fontSize: "14px", fontWeight: 600, padding: "0 8px", color: "#1a2744" }}>{weekLabel}</div>
+            <button onClick={() => canGoNext && setWeekStartIndex(Math.min(10, weekStartIndex + 4))} disabled={!canGoNext} style={{ padding: "6px", borderRadius: "4px", background: canGoNext ? "#f5f3ee" : "transparent", color: canGoNext ? "#1a2744" : "#cbc9c0", cursor: canGoNext ? "pointer" : "not-allowed", border: "none" }}>
+              <ChevronRight style={{ width: "16px", height: "16px" }} />
+            </button>
+          </div>
+        )}
+
+        {viewMode === "day" && (
+          <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+            <button onClick={() => { const i = DATE_RANGE.findIndex((d) => dateKey(d) === selectedDateKey); if (i > 0) setSelectedDateKey(dateKey(DATE_RANGE[i - 1])); }} style={{ padding: "6px", borderRadius: "4px", background: "#f5f3ee", color: "#1a2744", border: "none", cursor: "pointer" }}>
+              <ChevronLeft style={{ width: "16px", height: "16px" }} />
+            </button>
+            <div style={{ fontSize: "14px", fontWeight: 600, padding: "0 8px", color: "#1a2744" }}>{formatFullDate(selectedDate)}</div>
+            <button onClick={() => { const i = DATE_RANGE.findIndex((d) => dateKey(d) === selectedDateKey); if (i < DATE_RANGE.length - 1) setSelectedDateKey(dateKey(DATE_RANGE[i + 1])); }} style={{ padding: "6px", borderRadius: "4px", background: "#f5f3ee", color: "#1a2744", border: "none", cursor: "pointer" }}>
+              <ChevronRight style={{ width: "16px", height: "16px" }} />
+            </button>
+          </div>
+        )}
+
+        {/* Today — sits right next to nav, no gap */}
         <button onClick={() => { setSelectedDateKey(dateKey(TODAY)); setWeekStartIndex(0); }} style={{ fontSize: "12px", fontWeight: 600, padding: "6px 12px", borderRadius: "4px", background: "#f5a623", color: "#1a2744", border: "none", cursor: "pointer" }}>
           Today
         </button>
@@ -108,7 +110,7 @@ function WeekGrid({ currentWeek, weekSchedule, onDayClick }) {
           const isWeekend = d.getDay() === 0 || d.getDay() === 6;
           const dayItems  = scheduleByDay[dateKey(d)] || [];
           return (
-            <button key={dateKey(d)} onClick={() => onDayClick(d)} style={{ textAlign: "left", padding: "16px", display: "flex", flexDirection: "column", minWidth: 0, borderRight: "1px solid #e5e2d8", borderBottom: "1px solid #e5e2d8", minHeight: "420px", background: isToday ? "#fef9e7" : isWeekend ? "#faf8f3" : "white", cursor: "pointer", border: "none", borderRight: "1px solid #e5e2d8", borderBottom: "1px solid #e5e2d8", boxSizing: "border-box" }}>
+            <button key={dateKey(d)} onClick={() => onDayClick(d)} className="bow-day-cell" style={{ textAlign: "left", padding: "16px", display: "flex", flexDirection: "column", minWidth: 0, borderRight: "1px solid #e5e2d8", borderBottom: "1px solid #e5e2d8", minHeight: "420px", background: isToday ? "#fef9e7" : isWeekend ? "#faf8f3" : "white", cursor: "pointer", border: "none", borderRight: "1px solid #e5e2d8", borderBottom: "1px solid #e5e2d8", boxSizing: "border-box" }}>
               <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: "12px" }}>
                 <div>
                   <div style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#6b6a63" }}>{formatDayName(d)}</div>
@@ -121,8 +123,8 @@ function WeekGrid({ currentWeek, weekSchedule, onDayClick }) {
                   const ch = CHANNELS.find((c) => c.id === s.channel);
                   return (
                     <div key={s.id} style={{ borderRadius: "4px", padding: "6px 10px", fontSize: "12px", lineHeight: "1.3", overflow: "hidden", background: `${ch.color}12`, borderLeft: `3px solid ${ch.color}` }}>
-                      <div style={{ fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "#1a2744" }}>{s.time} · {ch.label}</div>
-                      <div style={{ fontSize: "11px", marginTop: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "#6b6a63" }}>{s.duration}m</div>
+                      <div style={{ fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "#1a2744" }}>{s.show}</div>
+                      <div style={{ fontSize: "11px", marginTop: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "#6b6a63" }}>{s.time} · {s.duration}m</div>
                     </div>
                   );
                 })}
@@ -236,26 +238,31 @@ function DayTimeline({ selectedDate, daySchedule, onViewShow, onReportIssue, rol
             const top    = ((s.hour - MIN_HOUR) + s.minute / 60) * HOUR_PX;
             const height = (s.duration / 60) * HOUR_PX;
             const colW   = 1 / s.totalCols;
+            const pad    = height - 4;
             return (
-              <div key={s.id} style={{ position: "absolute", top: top + 2, left: `calc(${s.col * colW * 100}% + 4px)`, width: `calc(${colW * 100}% - 8px)`, height: height - 4, borderRadius: 6, background: `${ch.color}10`, border: `1px solid ${ch.color}40`, borderLeft: `4px solid ${ch.color}`, boxSizing: "border-box", zIndex: 5, overflow: "hidden", display: "flex", flexDirection: "column", padding: height - 4 < 28 ? "2px 6px" : "6px 8px" }}>
-                {height - 4 >= 20 && (
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", minWidth: 0 }}>
+              <div
+                key={s.id}
+                className="bow-show-card"
+                onClick={() => hasDetails && onViewShow(s)}
+                style={{ position: "absolute", top: top + 2, left: `calc(${s.col * colW * 100}% + 4px)`, width: `calc(${colW * 100}% - 8px)`, height: height - 4, borderRadius: 6, background: `${ch.color}10`, border: `1px solid ${ch.color}40`, borderLeft: `4px solid ${ch.color}`, boxSizing: "border-box", zIndex: 5, overflow: "hidden", display: "flex", flexDirection: "column", padding: pad < 28 ? "2px 6px" : "6px 8px", cursor: hasDetails ? "pointer" : "default" }}
+              >
+                {pad >= 20 && (
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", minWidth: 0, paddingRight: role === "station" ? "18px" : "0" }}>
                     <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", padding: "2px 6px", borderRadius: "4px", flexShrink: 0, lineHeight: 1, background: ch.color, color: "white" }}>{ch.label}</span>
-                    {height - 4 >= 26 && <span style={{ fontSize: "11px", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "#1a2744" }}>{s.time} · {s.duration}m</span>}
+                    {pad >= 26 && <span style={{ fontSize: "11px", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "#1a2744" }}>{s.time} · {s.duration}m</span>}
                   </div>
                 )}
-                {height - 4 >= 52 && <div style={{ fontSize: "11px", marginTop: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "#3a3833" }}>{s.episode}</div>}
-                {height - 4 >= 80 && (
-                  <div style={{ display: "flex", gap: "6px", marginTop: "auto", paddingTop: "4px", flexWrap: "wrap" }}>
-                    <button onClick={() => onViewShow(s)} disabled={!hasDetails} style={{ fontSize: "11px", fontWeight: 600, padding: "4px 8px", borderRadius: "4px", display: "flex", alignItems: "center", gap: "2px", background: "white", color: hasDetails ? "#1a2744" : "#a8a59a", border: "1px solid #e5e2d8", cursor: hasDetails ? "pointer" : "not-allowed" }}>
-                      Details <ChevronRight style={{ width: "10px", height: "10px" }} />
-                    </button>
-                    {role === "station" && (
-                      <button onClick={() => onReportIssue(s)} style={{ fontSize: "11px", fontWeight: 600, padding: "4px 8px", borderRadius: "4px", display: "flex", alignItems: "center", gap: "2px", background: "#fef3c7", color: "#92400e", border: "1px solid #fde68a", cursor: "pointer" }}>
-                        <Flag style={{ width: "10px", height: "10px" }} /> Report
-                      </button>
-                    )}
-                  </div>
+                {pad >= 52 && <div style={{ fontSize: "11px", marginTop: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "#3a3833" }}>{s.episode}</div>}
+
+                {/* Flag button — hidden until card is hovered */}
+                {role === "station" && (
+                  <button
+                    className="bow-flag-btn"
+                    onClick={(e) => { e.stopPropagation(); onReportIssue(s); }}
+                    style={{ position: "absolute", top: "3px", right: "3px", width: "18px", height: "18px", borderRadius: "3px", display: "flex", alignItems: "center", justifyContent: "center", background: "#fef3c7", border: "1px solid #fde68a", cursor: "pointer", padding: 0 }}
+                  >
+                    <Flag style={{ width: "10px", height: "10px", color: "#92400e" }} />
+                  </button>
                 )}
               </div>
             );

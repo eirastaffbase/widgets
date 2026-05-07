@@ -166,12 +166,58 @@ export default function BroadcastOpsWidget() {
            picker rows, etc.) that need to span their container. */
         #bow-root button { display: inline-flex !important; align-items: center !important; width: auto !important; }
         #bow-root button.bow-full { display: flex !important; width: 100% !important; }
+        #bow-root button.bow-day-cell { display: flex !important; flex-direction: column !important; width: 100% !important; align-items: stretch !important; }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes modalIn { from { opacity: 0; transform: translateY(16px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
         @keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }
         .fade-in-up { animation: fadeInUp 0.3s ease-out; }
         .modal-backdrop { animation: backdropIn 0.2s ease-out; }
         .modal-content { animation: modalIn 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+
+        /* ── Hover & transition polish ── */
+        /* All interactive buttons get a smooth transition base */
+        #bow-root button { transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease !important; }
+
+        /* Nav tabs */
+        #bow-root nav button:hover { color: white !important; }
+
+        /* Primary dark buttons (Today, View 360°, channel chips when active) */
+        #bow-root button[style*="background: rgb(26, 39, 68)"]:hover,
+        #bow-root button[style*="background: #1a2744"]:hover { background: #2d3f6b !important; }
+
+        /* Amber / gold buttons (Today, Report Issue CTA) */
+        #bow-root button[style*="background: rgb(245, 166, 35)"]:hover,
+        #bow-root button[style*="background: #f5a623"]:hover { background: #e09410 !important; box-shadow: 0 2px 8px rgba(245,166,35,0.35) !important; }
+
+        /* Ghost / light buttons (Details, nav arrows, view-mode toggles) */
+        #bow-root button[style*="background: rgb(245, 243, 238)"]:hover,
+        #bow-root button[style*="background: #f5f3ee"]:hover { background: #ebe8df !important; }
+
+        /* White buttons (Details chip in timeline) */
+        #bow-root button[style*="background: white"]:hover { background: #f5f3ee !important; }
+
+        /* Report amber chip in timeline */
+        #bow-root button[style*="background: rgb(254, 243, 199)"]:hover,
+        #bow-root button[style*="background: #fef3c7"]:hover { background: #fde68a !important; }
+
+        /* Day grid cells — subtle lift on hover */
+        #bow-root .bow-day-cell:hover { background: #fef6e4 !important; box-shadow: inset 0 0 0 2px #f5a623; }
+
+        /* Day timeline show cards — click to open, hover reveals flag */
+        #bow-root .bow-show-card { cursor: pointer; }
+        #bow-root .bow-show-card:hover { filter: brightness(0.94); }
+        #bow-root .bow-flag-btn { opacity: 0; transition: opacity 0.15s ease !important; }
+        #bow-root .bow-show-card:hover .bow-flag-btn { opacity: 1 !important; }
+
+        /* Show 360° modal episode rows */
+        #bow-root button.bow-full:hover { background: #f5f3ee !important; }
+
+        /* Search result cards "Episodes" toggle */
+        #bow-root button[style*="background: rgb(245, 243, 238)"]:hover { background: #ebe8df !important; }
+
+        /* Topic subscription cards */
+        #bow-root button[style*="background: rgb(26, 39, 68)"][style*="border: 2px"]:hover { box-shadow: 0 4px 16px rgba(26,39,68,0.18) !important; }
+        #bow-root button[style*="background: white"][style*="border: 2px"]:hover { border-color: #1a2744 !important; box-shadow: 0 2px 8px rgba(26,39,68,0.1) !important; }
       `}</style>
 
       {/* ── Top bar ── */}
