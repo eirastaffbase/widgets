@@ -153,13 +153,19 @@ export default function BroadcastOpsWidget() {
   ];
 
   return (
-    <div style={widgetStyle}>
+    <div id="bow-root" style={widgetStyle}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Source+Serif+Pro:wght@400;600;700;900&family=Source+Sans+Pro:wght@300;400;600;700&display=swap');
         .font-display { font-family: 'Source Serif Pro', Georgia, serif; }
         .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
         .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
         .scrollbar-thin::-webkit-scrollbar-thumb { background: #cbc9c0; border-radius: 3px; }
+        /* Staffbase forces display:block + width:100% on all buttons.
+           Override with !important scoped to our widget root so nothing leaks out.
+           .bow-full is used for the handful of genuinely full-width buttons (episode
+           picker rows, etc.) that need to span their container. */
+        #bow-root button { display: inline-flex !important; align-items: center !important; width: auto !important; }
+        #bow-root button.bow-full { display: flex !important; width: 100% !important; }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes modalIn { from { opacity: 0; transform: translateY(16px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
         @keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }

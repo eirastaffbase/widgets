@@ -162,7 +162,7 @@ export function Show360Content({ show, role, onClose, onReportIssue, schedule })
             <p style={{ fontSize: "14px", textAlign: "center", padding: "32px 0", color: "#6b6a63", margin: 0 }}>No upcoming airings found for this show.</p>
           )}
           {airings.map((ep) => (
-            <button key={ep.id} onClick={() => onReportIssue(ep)} style={{ width: "100%", textAlign: "left", borderRadius: "8px", padding: "16px", display: "flex", alignItems: "center", gap: "12px", background: "white", border: "1px solid #e5e2d8", cursor: "pointer" }}>
+            <button key={ep.id} onClick={() => onReportIssue(ep)} className="bow-full" style={{ width: "100%", textAlign: "left", borderRadius: "8px", padding: "16px", display: "flex", alignItems: "center", gap: "12px", background: "white", border: "1px solid #e5e2d8", cursor: "pointer" }}>
               <div style={{ flex: "1 1 0%", minWidth: 0 }}>
                 <div style={{ fontWeight: 600, fontSize: "14px", color: "#1a2744" }}>{ep.episode}</div>
                 <div style={{ fontSize: "12px", marginTop: "2px", color: "#6b6a63" }}>{ep.date} · {ep.time} · {ep.duration} min</div>
