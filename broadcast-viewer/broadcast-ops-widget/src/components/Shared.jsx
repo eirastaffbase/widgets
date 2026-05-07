@@ -96,7 +96,7 @@ export function ReportForm({ scheduleItem, onSubmit, onClose, onViewDetails }) {
             {issueTypes.map(({ id, icon: Icon, desc }) => {
               const active = draft.type === id;
               return (
-                <button key={id} onClick={() => setDraft({ ...draft, type: id, tags: [] })} className="bow-full" style={{ borderRadius: "8px", padding: "12px", textAlign: "left", background: active ? "#1a2744" : "white", border: `2px solid ${active ? "#f5a623" : "#e5e2d8"}`, cursor: "pointer" }}>
+                <button key={id} onClick={() => setDraft({ ...draft, type: id, tags: [] })} className="bow-full" style={{ borderRadius: "8px", padding: "12px", textAlign: "left", flexDirection: "column", alignItems: "flex-start", background: active ? "#1a2744" : "white", border: `2px solid ${active ? "#f5a623" : "#e5e2d8"}`, cursor: "pointer" }}>
                   <Icon style={{ width: "16px", height: "16px", marginBottom: "6px", color: active ? "#f5a623" : "#1a2744" }} />
                   <div style={{ fontSize: "12px", fontWeight: 700, color: active ? "white" : "#1a2744" }}>{id}</div>
                   <div style={{ fontSize: "10px", marginTop: "2px", lineHeight: "1.3", color: active ? "#a8b4cc" : "#6b6a63" }}>{desc}</div>
