@@ -533,6 +533,7 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
             flex: 1; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--r-sm);
             font-size: 12px; font-weight: 600; background: #f9fafb; color: var(--gray);
             cursor: pointer; text-align: center; transition: all .15s; font-family: inherit;
+            touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none; outline: none;
           }
           .${p}-assign-tab.active { background: var(--primary); color: var(--primary-text); border-color: var(--primary); }
           .${p}-assign-list {
@@ -643,8 +644,8 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
                 <input type="text" id="${p}-assign-search" placeholder="Search users and groups…">
               </div>
               <div class="${p}-assign-tabs">
-                <button type="button" class="${p}-assign-tab active" id="${p}-tab-users">Users</button>
-                <button type="button" class="${p}-assign-tab" id="${p}-tab-groups">Groups</button>
+                <div role="button" tabindex="0" class="${p}-assign-tab active" id="${p}-tab-users">Users</div>
+                <div role="button" tabindex="0" class="${p}-assign-tab" id="${p}-tab-groups">Groups</div>
               </div>
               <div class="${p}-assign-list" id="${p}-assign-list">
                 <div class="${p}-assign-empty">Loading…</div>

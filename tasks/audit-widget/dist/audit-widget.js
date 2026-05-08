@@ -103,14 +103,21 @@ const factory = (BaseBlockClass, widgetApi) => {
                 let activeCat = "";
                 let auditorName = "";
                 let nameLoaded = false;
+                let installationsLoaded = false;
+                let questionsLoaded = false;
                 let auditDate = new Date().toISOString().split("T")[0];
                 let auditNotes = "";
                 const responses = {};
                 const taskGroupOverrides = {};
+                const taskUserOverrides = {};
+                const taskAssignType = {};
+                let allUsers = [];
                 let step = "setup";
                 let cleanupStoreDropdown = null;
                 // per-task group picker open state
                 const openGroupPicker = {};
+                // callback so fetchAll can refresh store opts without re-rendering setup
+                let refreshStoreOptsCallback = null;
                 // ── HTML skeleton ──────────────────────────────────────────────────
                 container.innerHTML = `
         <style>
@@ -194,6 +201,7 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-temp-input:focus{outline:none;border-color:var(--primary);background:#fff}
           .${p}-temp-input.ok{border-color:var(--success);background:rgba(46,125,74,.05)}
           .${p}-temp-input.bad{border-color:var(--error);background:rgba(196,30,58,.05)}
+          .${p}-temp-hint{font-size:11px;color:var(--gray-lt);margin-top:5px;line-height:1.4;text-align:center}
           .${p}-task-flag{background:#fffbeb;border:1px solid #fde68a;border-radius:var(--r-md);padding:10px 12px;margin-top:10px;display:none}
           .${p}-task-flag.show{display:block}
           .${p}-task-flag-title{font-size:12px;font-weight:700;color:#92400e;margin-bottom:4px;display:flex;align-items:center;gap:5px}
@@ -284,6 +292,14 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-dd-opt:hover{background:rgba(var(--primary-rgb),.05)}
           .${p}-dd-opt.sel{background:rgba(var(--primary-rgb),.06);font-weight:600;color:var(--primary)}
           .${p}-dd-msg{padding:20px;text-align:center;color:var(--gray-lt);font-size:13px}
+
+          /* ── touch-action to eliminate 300ms tap delay ── */
+          .${p}-pf-btn,.${p}-rating-btn,.${p}-cat-tab,.${p}-btn,.${p}-gp-trigger,.${p}-ms-trigger,.${p}-tabs-arrow,.${p}-gp-opt,.${p}-dd-opt{touch-action:manipulation}
+
+          /* ── Assign tabs (user + group) in generate step ── */
+          .${p}-ap-tabs{display:flex;gap:4px;margin:8px 0 6px}
+          .${p}-ap-tab{flex:1!important;padding:6px 10px!important;border:1px solid var(--border)!important;border-radius:var(--r-sm)!important;font-size:12px!important;font-weight:600!important;background:#f9fafb!important;color:var(--gray)!important;cursor:pointer!important;text-align:center!important;transition:all .15s!important;font-family:inherit!important;touch-action:manipulation!important;display:block!important;line-height:normal!important;width:auto!important}
+          .${p}-ap-tab.active{background:var(--primary)!important;color:var(--primary-text)!important;border-color:var(--primary)!important}
         </style>
 
         <div class="${p}">
@@ -468,48 +484,81 @@ const factory = (BaseBlockClass, widgetApi) => {
                 function fetchAll() {
                     return __awaiter(this, void 0, void 0, function* () {
                         hspinEl.style.display = "";
-                        try {
-                            const [instRes, grpRes] = yield Promise.all([
-                                fetch(`${baseUrl}/installations?limit=200`, apiOpts()),
-                                // Use search endpoint to get both open (enumeration) and internal groups
-                                fetch(`${baseUrl}/groups/search?limit=100&sort=name_ASC`, apiOpts()),
-                            ]);
-                            if (instRes.ok) {
-                                const d = yield instRes.json();
-                                installations = (d.data || d)
-                                    .filter((i) => i.pluginID === "tasks" || i.pluginId === "tasks")
-                                    .map((i) => { var _a, _b, _c; return ({ id: i.id, title: ((_c = (_b = (_a = i.config) === null || _a === void 0 ? void 0 : _a.localization) === null || _b === void 0 ? void 0 : _b.en_US) === null || _c === void 0 ? void 0 : _c.title) || i.title || i.name || i.id }); })
-                                    .sort((a, b) => a.title.localeCompare(b.title));
-                            }
-                            if (grpRes.ok) {
-                                const d = yield grpRes.json();
-                                allGroups = (d.data || d.results || [])
-                                    .map((g) => { var _a, _b, _c; return ({ id: g.id, name: ((_c = (_b = (_a = g.config) === null || _a === void 0 ? void 0 : _a.localization) === null || _b === void 0 ? void 0 : _b.en_US) === null || _c === void 0 ? void 0 : _c.title) || g.name || g.id }); })
-                                    .filter((g) => g.name)
-                                    .sort((a, b) => a.name.localeCompare(b.name));
-                            }
-                            // Fallback: if search returned nothing, try the standard endpoint
-                            if (!allGroups.length) {
-                                try {
-                                    const fallback = yield fetch(`${baseUrl}/groups?limit=200`, apiOpts());
-                                    if (fallback.ok) {
-                                        const d = yield fallback.json();
-                                        allGroups = (d.data || [])
-                                            .map((g) => { var _a, _b, _c; return ({ id: g.id, name: ((_c = (_b = (_a = g.config) === null || _a === void 0 ? void 0 : _a.localization) === null || _b === void 0 ? void 0 : _b.en_US) === null || _c === void 0 ? void 0 : _c.title) || g.name || g.id }); })
-                                            .filter((g) => g.name)
-                                            .sort((a, b) => a.name.localeCompare(b.name));
-                                    }
-                                }
-                                catch (_) { }
-                            }
+                        // ① Profile — fires immediately, updates name in-place
+                        const profileP = (() => __awaiter(this, void 0, void 0, function* () {
                             try {
                                 const prof = yield widgetApi.getUserInformation();
                                 auditorName = (`${prof.firstName || ""} ${prof.lastName || ""}`).trim() || prof.id || "";
                             }
                             catch (_) { }
                             nameLoaded = true;
+                            if (step === "setup") {
+                                const loadingEl = contentEl.querySelector(`#${p}-name-loading`);
+                                if (loadingEl) {
+                                    const disp = document.createElement("div");
+                                    disp.className = `${p}-name-display`;
+                                    disp.id = `${p}-name-display`;
+                                    disp.title = "Click to edit";
+                                    disp.innerHTML = `<span class="${p}-name-text" id="${p}-name-text">${esc(auditorName || "—")}</span><span class="${p}-name-edit-hint">${iPencil} edit</span>`;
+                                    loadingEl.replaceWith(disp);
+                                    bindNameEdit(disp);
+                                }
+                            }
+                        }))();
+                        // ② Installations + groups + users — parallel
+                        const instGroupP = (() => __awaiter(this, void 0, void 0, function* () {
                             try {
-                                const sr = yield fetch(appsScriptUrl);
+                                const [instRes, grpRes, userRes] = yield Promise.all([
+                                    fetch(`${baseUrl}/installations?limit=200`, apiOpts()),
+                                    fetch(`${baseUrl}/groups/search?limit=100&sort=name_ASC`, apiOpts()),
+                                    fetch(`${baseUrl}/users?limit=200`, apiOpts()),
+                                ]);
+                                if (instRes.ok) {
+                                    const d = yield instRes.json();
+                                    installations = (d.data || d)
+                                        .filter((i) => i.pluginID === "tasks" || i.pluginId === "tasks")
+                                        .map((i) => { var _a, _b, _c; return ({ id: i.id, title: ((_c = (_b = (_a = i.config) === null || _a === void 0 ? void 0 : _a.localization) === null || _b === void 0 ? void 0 : _b.en_US) === null || _c === void 0 ? void 0 : _c.title) || i.title || i.name || i.id }); })
+                                        .sort((a, b) => a.title.localeCompare(b.title));
+                                }
+                                if (grpRes.ok) {
+                                    const d = yield grpRes.json();
+                                    allGroups = (d.data || d.results || [])
+                                        .map((g) => { var _a, _b, _c; return ({ id: g.id, name: ((_c = (_b = (_a = g.config) === null || _a === void 0 ? void 0 : _a.localization) === null || _b === void 0 ? void 0 : _b.en_US) === null || _c === void 0 ? void 0 : _c.title) || g.title || g.name || g.id }); })
+                                        .filter((g) => g.name)
+                                        .sort((a, b) => a.name.localeCompare(b.name));
+                                }
+                                // Fallback: if search returned nothing, try standard endpoint
+                                if (!allGroups.length) {
+                                    try {
+                                        const fb = yield fetch(`${baseUrl}/groups?limit=200`, apiOpts());
+                                        if (fb.ok) {
+                                            const d = yield fb.json();
+                                            allGroups = (d.data || []).map((g) => { var _a, _b, _c; return ({ id: g.id, name: ((_c = (_b = (_a = g.config) === null || _a === void 0 ? void 0 : _a.localization) === null || _b === void 0 ? void 0 : _b.en_US) === null || _c === void 0 ? void 0 : _c.title) || g.title || g.name || g.id }); }).filter((g) => g.name).sort((a, b) => a.name.localeCompare(b.name));
+                                        }
+                                    }
+                                    catch (_) { }
+                                }
+                                if (userRes.ok) {
+                                    const d = yield userRes.json();
+                                    allUsers = (d.data || []).map((u) => { var _a, _b; return ({ id: u.id, name: (`${u.firstName || ""} ${u.lastName || ""}`).trim() || u.id, avatar: ((_b = (_a = u.avatar) === null || _a === void 0 ? void 0 : _a.icon) === null || _b === void 0 ? void 0 : _b.url) || "" }); }).filter((u) => u.name).sort((a, b) => a.name.localeCompare(b.name));
+                                }
+                            }
+                            catch (_) { }
+                            installationsLoaded = true;
+                            // Update store trigger in-place if setup is showing
+                            if (step === "setup") {
+                                const trigEl = contentEl.querySelector(`#${p}-trigger`);
+                                if (trigEl && !selectedInstId)
+                                    trigEl.innerHTML = `<span class="${p}-ms-ph">Select a ${esc(storeS)}…</span>`;
+                                if (refreshStoreOptsCallback)
+                                    refreshStoreOptsCallback("");
+                            }
+                        }))();
+                        // ③ Questions — 10s timeout, then dummy fallback
+                        const questionsP = (() => __awaiter(this, void 0, void 0, function* () {
+                            try {
+                                const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 14000));
+                                const sr = yield Promise.race([fetch(appsScriptUrl), timeout]);
                                 if (sr.ok) {
                                     const data = yield sr.json();
                                     const raw = data.data || data;
@@ -538,17 +587,18 @@ const factory = (BaseBlockClass, widgetApi) => {
                                 }
                             }
                             activeCat = categories[0] || "";
-                        }
-                        catch (e) {
-                            showBanner("error", `Failed to load: ${e.message}`);
-                            questions = [...DUMMY_QUESTIONS];
-                            categories = [...new Set(questions.map(q => q.cat))];
-                            activeCat = categories[0] || "";
-                            nameLoaded = true;
-                        }
+                            questionsLoaded = true;
+                            // Enable Begin button in-place
+                            if (step === "setup") {
+                                const beginBtn = contentEl.querySelector(`#${p}-begin`);
+                                if (beginBtn) {
+                                    beginBtn.disabled = false;
+                                    beginBtn.innerHTML = `${iCheck} Begin Audit`;
+                                }
+                            }
+                        }))();
+                        yield Promise.all([profileP, instGroupP, questionsP]);
                         hspinEl.style.display = "none";
-                        if (step === "setup")
-                            renderSetup();
                     });
                 }
                 // ── Render dispatch ───────────────────────────────────────────────
@@ -560,23 +610,53 @@ const factory = (BaseBlockClass, widgetApi) => {
                     else if (step === "generate")
                         renderGenerate();
                 }
+                // ── Name click-to-edit binder (shared by renderSetup + in-place update) ──
+                function bindNameEdit(nameDisplay) {
+                    nameDisplay.addEventListener("click", function onClick() {
+                        const input = document.createElement("input");
+                        input.type = "text";
+                        input.className = `${p}-input`;
+                        input.id = `${p}-aname`;
+                        input.value = auditorName;
+                        input.placeholder = "Your name";
+                        nameDisplay.replaceWith(input);
+                        input.focus();
+                        input.select();
+                        const save = () => {
+                            auditorName = input.value.trim();
+                            const nd = document.createElement("div");
+                            nd.className = `${p}-name-display`;
+                            nd.id = `${p}-name-display`;
+                            nd.title = "Click to edit";
+                            nd.innerHTML = `<span class="${p}-name-text">${esc(auditorName || "—")}</span><span class="${p}-name-edit-hint">${iPencil} edit</span>`;
+                            input.replaceWith(nd);
+                            bindNameEdit(nd);
+                        };
+                        input.addEventListener("blur", save);
+                        input.addEventListener("keydown", (e) => { if (e.key === "Enter") {
+                            e.preventDefault();
+                            input.blur();
+                        } });
+                    });
+                }
                 // ── Step 1: Setup ─────────────────────────────────────────────────
                 function renderSetup() {
                     if (cleanupStoreDropdown) {
                         cleanupStoreDropdown();
                         cleanupStoreDropdown = null;
                     }
+                    refreshStoreOptsCallback = null;
                     const selInst = installations.find(i => i.id === selectedInstId);
                     const triggerInner = selInst
                         ? `<span style="color:var(--dark);font-size:14px">${esc(selInst.title)}</span>`
-                        : `<span class="${p}-ms-ph">${installations.length === 0 ? `Loading ${esc(storeP.toLowerCase())}…` : `Select a ${esc(storeS)}…`}</span>`;
+                        : `<span class="${p}-ms-ph">${!installationsLoaded ? `Loading ${esc(storeP.toLowerCase())}…` : `Select a ${esc(storeS)}…`}</span>`;
                     // Auditor name field: spinner while loading, click-to-edit display after
                     const nameFieldHtml = nameLoaded
                         ? `<div class="${p}-name-display" id="${p}-name-display" title="Click to edit">
                <span class="${p}-name-text" id="${p}-name-text">${esc(auditorName || "—")}</span>
                <span class="${p}-name-edit-hint">${iPencil} edit</span>
              </div>`
-                        : `<div class="${p}-name-loading">
+                        : `<div class="${p}-name-loading" id="${p}-name-loading">
                <span class="${p}-spin"></span>
                <span>Loading your name…</span>
              </div>`;
@@ -612,48 +692,26 @@ const factory = (BaseBlockClass, widgetApi) => {
                   <textarea class="${p}-input" id="${p}-anotes" rows="2" placeholder="Context for this audit session…" style="resize:none;line-height:1.5">${esc(auditNotes)}</textarea>
                 </div>
               </div>
-              <button type="button" class="${p}-btn ${p}-btn-primary ${p}-btn-full" id="${p}-begin">${iCheck} Begin Audit</button>
+              <button type="button" class="${p}-btn ${p}-btn-primary ${p}-btn-full" id="${p}-begin" ${!questionsLoaded ? "disabled" : ""}>${!questionsLoaded ? `<span class="${p}-spin" style="border-top-color:#fff;border-color:rgba(255,255,255,.3)"></span> Loading questions…` : `${iCheck} Begin Audit`}</button>
             </div>
           </div>`;
-                    // ── Click-to-edit name ─────────────────────────────────────────
+                    // ── Bind click-to-edit name (if already loaded) ───────────────
                     if (nameLoaded) {
                         const nameDisplay = contentEl.querySelector(`#${p}-name-display`);
-                        if (nameDisplay) {
-                            nameDisplay.addEventListener("click", () => {
-                                const input = document.createElement("input");
-                                input.type = "text";
-                                input.className = `${p}-input`;
-                                input.id = `${p}-aname`;
-                                input.value = auditorName;
-                                input.placeholder = "Your name";
-                                nameDisplay.replaceWith(input);
-                                input.focus();
-                                input.select();
-                                const save = () => {
-                                    auditorName = input.value.trim();
-                                    const newDisplay = document.createElement("div");
-                                    newDisplay.className = `${p}-name-display`;
-                                    newDisplay.id = `${p}-name-display`;
-                                    newDisplay.title = "Click to edit";
-                                    newDisplay.innerHTML = `<span class="${p}-name-text">${esc(auditorName || "—")}</span><span class="${p}-name-edit-hint">${iPencil} edit</span>`;
-                                    input.replaceWith(newDisplay);
-                                    newDisplay.addEventListener("click", arguments.callee);
-                                };
-                                input.addEventListener("blur", save);
-                                input.addEventListener("keydown", (e) => { if (e.key === "Enter") {
-                                    e.preventDefault();
-                                    input.blur();
-                                } });
-                            });
-                        }
+                        if (nameDisplay)
+                            bindNameEdit(nameDisplay);
                     }
                     const trigger = contentEl.querySelector(`#${p}-trigger`);
                     const dropdown = contentEl.querySelector(`#${p}-dropdown`);
                     const searchInp = contentEl.querySelector(`#${p}-search`);
                     const optsList = contentEl.querySelector(`#${p}-opts`);
                     function renderOpts(filter = "") {
-                        if (!installations.length) {
+                        if (!installationsLoaded) {
                             optsList.innerHTML = `<div class="${p}-dd-msg">Loading ${esc(storeP.toLowerCase())}…</div>`;
+                            return;
+                        }
+                        if (!installations.length) {
+                            optsList.innerHTML = `<div class="${p}-dd-msg">No ${esc(storeP.toLowerCase())} found</div>`;
                             return;
                         }
                         const matches = installations.filter(s => s.title.toLowerCase().includes(filter.toLowerCase()));
@@ -677,6 +735,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                             });
                         });
                     }
+                    refreshStoreOptsCallback = renderOpts;
                     trigger.addEventListener("click", () => {
                         dropdown.classList.toggle("show");
                         trigger.classList.toggle("open");
@@ -732,7 +791,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                         const fails = catQsList.filter(q => isPass(q, responses[q.id] || "") === false).length;
                         const badge = fails > 0 ? `<span class="${p}-cat-badge">${fails}</span>` : "";
                         const score = `<span class="${p}-cat-tab-score">${answered}/${catQsList.length}</span>`;
-                        return `<button type="button" class="${p}-cat-tab${cat === activeCat ? " active" : ""}" data-cat="${esc(cat)}">${catIcon(cat)}<span class="${p}-cat-tab-name">${esc(cat)}${badge}</span>${score}</button>`;
+                        return `<div role="button" tabindex="0" class="${p}-cat-tab${cat === activeCat ? " active" : ""}" data-cat="${esc(cat)}">${catIcon(cat)}<span class="${p}-cat-tab-name">${esc(cat)}${badge}</span>${score}</div>`;
                     }).join("");
                     const qHtml = catQs.map(renderQuestion).join("");
                     contentEl.innerHTML = `
@@ -947,7 +1006,15 @@ const factory = (BaseBlockClass, widgetApi) => {
                         ? `<div class="${p}-state"><strong>No failures</strong>All answered questions passed or were marked N/A.</div>`
                         : ft.map(q => {
                             const gid = taskGroupOverrides[q.id] || "";
+                            const uid = taskUserOverrides[q.id] || "";
+                            const atype = taskAssignType[q.id] || "group";
                             const selGroup = allGroups.find(g => g.id === gid);
+                            const selUser = allUsers.find(u => u.id === uid);
+                            const selLabel = atype === "user" && selUser
+                                ? `<span style="color:var(--dark)">${esc(selUser.name)}</span>`
+                                : atype === "group" && selGroup
+                                    ? `<span style="color:var(--dark)">${esc(selGroup.name)}</span>`
+                                    : `<span class="${p}-gp-ph">— Unassigned —</span>`;
                             const due = q.taskDue === 0 ? "Immediately" : `Within ${q.taskDue}d`;
                             return `<div class="${p}-fail-item">
               <div class="${p}-fail-head">
@@ -955,16 +1022,16 @@ const factory = (BaseBlockClass, widgetApi) => {
                 <span class="${p}-prio ${prioClass(q.taskPriority)}">${esc(q.taskPriority)}</span>
               </div>
               <div class="${p}-fail-meta">${esc(q.id)} · Due: ${due}</div>
-              <div class="${p}-group-lbl">Assign to group</div>
+              <div class="${p}-group-lbl">Assign to</div>
               <div class="${p}-gp-wrap" data-qid="${esc(q.id)}">
-                <button type="button" class="${p}-gp-trigger" data-qid="${esc(q.id)}">
-                  ${selGroup
-                                ? `<span style="color:var(--dark)">${esc(selGroup.name)}</span>`
-                                : `<span class="${p}-gp-ph">— No group —</span>`}
-                </button>
+                <button type="button" class="${p}-gp-trigger" data-qid="${esc(q.id)}">${selLabel}</button>
                 <div class="${p}-gp-dropdown" data-qid="${esc(q.id)}">
-                  <div class="${p}-gp-search"><input type="text" placeholder="Search groups…" data-qid="${esc(q.id)}"></div>
-                  <div class="${p}-gp-list" data-qid="${esc(q.id)}"></div>
+                  <div class="${p}-ap-tabs">
+                    <button type="button" class="${p}-ap-tab${atype === "group" ? " active" : ""}" data-qid="${esc(q.id)}" data-tab="group">Groups</button>
+                    <button type="button" class="${p}-ap-tab${atype === "user" ? " active" : ""}" data-qid="${esc(q.id)}" data-tab="user">People</button>
+                  </div>
+                  <div class="${p}-gp-search"><input type="text" placeholder="Search…" data-qid="${esc(q.id)}"></div>
+                  <div class="${p}-gp-list" data-qid="${esc(q.id)}" data-tab="${atype}"></div>
                 </div>
               </div>
             </div>`;
@@ -1007,42 +1074,68 @@ const factory = (BaseBlockClass, widgetApi) => {
             <div class="${p}-submit-bar-wrap"><div class="${p}-submit-bar-fill" id="${p}-sfill"></div></div>
             <div class="${p}-submit-log" id="${p}-slog"></div>
           </div>`;
-                    // ── Group picker logic ─────────────────────────────────────────
+                    // ── Assign picker logic (groups + people) ─────────────────────
                     function renderGpList(qid, filter = "") {
                         const list = contentEl.querySelector(`.${p}-gp-list[data-qid="${qid}"]`);
                         if (!list)
                             return;
+                        const tab = (taskAssignType[qid] || "group");
+                        list.dataset.tab = tab;
                         const fl = filter.toLowerCase();
-                        const opts = [{ id: "", name: "— No group —" }, ...allGroups].filter(g => !fl || g.name.toLowerCase().includes(fl));
-                        if (!opts.length) {
-                            list.innerHTML = `<div class="${p}-gp-none">No groups found</div>`;
-                            return;
+                        if (tab === "user") {
+                            const selId = taskUserOverrides[qid] || "";
+                            const opts = [{ id: "", name: "— No assignee —", avatar: "" }, ...allUsers].filter(u => !fl || u.name.toLowerCase().includes(fl));
+                            if (!opts.length) {
+                                list.innerHTML = `<div class="${p}-gp-none">No people found</div>`;
+                                return;
+                            }
+                            list.innerHTML = opts.map(u => `
+              <div class="${p}-gp-opt${u.id === selId ? " sel" : ""}" data-uid="${esc(u.id)}" data-uname="${esc(u.name)}" data-dtype="user" data-qid="${esc(qid)}">
+                <span>${esc(u.name)}</span>
+                ${u.id === selId ? iCheck : ""}
+              </div>`).join("");
                         }
-                        const selId = taskGroupOverrides[qid] || "";
-                        list.innerHTML = opts.map(g => `
-            <div class="${p}-gp-opt${g.id === selId ? " sel" : ""}" data-gid="${esc(g.id)}" data-gname="${esc(g.name)}" data-qid="${esc(qid)}">
-              <span>${esc(g.name)}</span>
-              ${g.id === selId ? iCheck : ""}
-            </div>`).join("");
+                        else {
+                            const selId = taskGroupOverrides[qid] || "";
+                            const opts = [{ id: "", name: "— No group —" }, ...allGroups].filter(g => !fl || g.name.toLowerCase().includes(fl));
+                            if (!opts.length) {
+                                list.innerHTML = `<div class="${p}-gp-none">No groups found</div>`;
+                                return;
+                            }
+                            list.innerHTML = opts.map(g => `
+              <div class="${p}-gp-opt${g.id === selId ? " sel" : ""}" data-gid="${esc(g.id)}" data-gname="${esc(g.name)}" data-dtype="group" data-qid="${esc(qid)}">
+                <span>${esc(g.name)}</span>
+                ${g.id === selId ? iCheck : ""}
+              </div>`).join("");
+                        }
                         list.querySelectorAll(`.${p}-gp-opt`).forEach((opt) => {
                             opt.addEventListener("click", () => {
                                 const el = opt;
-                                const gid = el.dataset.gid || "";
-                                const gname = el.dataset.gname || "";
                                 const qid2 = el.dataset.qid;
-                                taskGroupOverrides[qid2] = gid;
-                                // update trigger label
+                                const dtype = el.dataset.dtype;
+                                taskAssignType[qid2] = dtype;
+                                let label = `<span class="${p}-gp-ph">— Unassigned —</span>`;
+                                if (dtype === "user") {
+                                    const uid = el.dataset.uid || "";
+                                    const uname = el.dataset.uname || "";
+                                    taskUserOverrides[qid2] = uid;
+                                    if (uid)
+                                        label = `<span style="color:var(--dark)">${esc(uname)}</span>`;
+                                }
+                                else {
+                                    const gid = el.dataset.gid || "";
+                                    const gname = el.dataset.gname || "";
+                                    taskGroupOverrides[qid2] = gid;
+                                    if (gid)
+                                        label = `<span style="color:var(--dark)">${esc(gname)}</span>`;
+                                }
                                 const trigger2 = contentEl.querySelector(`.${p}-gp-trigger[data-qid="${qid2}"]`);
                                 if (trigger2)
-                                    trigger2.innerHTML = gid
-                                        ? `<span style="color:var(--dark)">${esc(gname)}</span>`
-                                        : `<span class="${p}-gp-ph">— No group —</span>`;
-                                // close dropdown
+                                    trigger2.innerHTML = label;
                                 const dd = contentEl.querySelector(`.${p}-gp-dropdown[data-qid="${qid2}"]`);
                                 if (dd)
                                     dd.classList.remove("show");
                                 trigger2 === null || trigger2 === void 0 ? void 0 : trigger2.classList.remove("open");
-                                // re-render list to update checkmarks
                                 renderGpList(qid2, "");
                             });
                         });
@@ -1074,9 +1167,22 @@ const factory = (BaseBlockClass, widgetApi) => {
                             if (dd3.classList.contains("show"))
                                 search3 === null || search3 === void 0 ? void 0 : search3.focus();
                         });
-                        search3 === null || search3 === void 0 ? void 0 : search3.addEventListener("input", () => renderGpList(q.id, search3.value));
+                        search3 === null || search3 === void 0 ? void 0 : search3.addEventListener("input", () => renderGpList(q.id, (search3 === null || search3 === void 0 ? void 0 : search3.value) || ""));
                         search3 === null || search3 === void 0 ? void 0 : search3.addEventListener("click", (e) => e.stopPropagation());
                         dd3.addEventListener("click", (e) => e.stopPropagation());
+                        // Tab switching (Groups / People)
+                        dd3.querySelectorAll(`.${p}-ap-tab[data-qid="${q.id}"]`).forEach((tab) => {
+                            tab.addEventListener("click", (e) => {
+                                e.stopPropagation();
+                                const t = tab.dataset.tab;
+                                taskAssignType[q.id] = t;
+                                if (search3)
+                                    search3.value = "";
+                                // update active tab appearance
+                                dd3.querySelectorAll(`.${p}-ap-tab`).forEach((tb) => tb.classList.toggle("active", tb.dataset.tab === t));
+                                renderGpList(q.id, "");
+                            });
+                        });
                     });
                     document.addEventListener("click", () => closeAllPickers());
                     contentEl.querySelector(`#${p}-back`).addEventListener("click", () => {
@@ -1161,7 +1267,6 @@ const factory = (BaseBlockClass, widgetApi) => {
                             for (let i = 0; i < ft.length; i++) {
                                 const q = ft[i];
                                 setProgress(done, `Task ${i + 1}/${ft.length}…`);
-                                const gid = taskGroupOverrides[q.id] || "";
                                 const due = q.taskDue === 0
                                     ? new Date().toISOString()
                                     : new Date(Date.now() + q.taskDue * 86400000).toISOString().split("T")[0] + "T00:00:00.000Z";
@@ -1172,8 +1277,13 @@ const factory = (BaseBlockClass, widgetApi) => {
                                         description: `Audit finding: ${q.id} — ${q.text}\nAudit: ${listName}\nAuditor: ${auditorName}`,
                                         status: "OPEN", priority: prio, taskListId: listId, dueDate: due,
                                     };
-                                    if (gid)
-                                        body.groupIds = [gid];
+                                    const atype = taskAssignType[q.id] || "group";
+                                    const gid2 = taskGroupOverrides[q.id] || "";
+                                    const uid2 = taskUserOverrides[q.id] || "";
+                                    if (atype === "user" && uid2)
+                                        body.userIds = [uid2];
+                                    else if (gid2)
+                                        body.groupIds = [gid2];
                                     const r = yield fetch(`${baseUrl}/tasks/${selectedInstId}/task`, Object.assign(Object.assign({ method: "POST" }, apiOpts()), { body: JSON.stringify(body) }));
                                     if (r.ok)
                                         logLine(`✓ ${q.taskTitle || q.text}`, "ok");

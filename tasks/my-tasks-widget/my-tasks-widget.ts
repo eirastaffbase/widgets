@@ -140,6 +140,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       let activeInstallFilter        = "all";
       let activeAuditListId          = "";
       let auditLists: AuditList[]    = [];
+      let showCompletedAudit         = false;
       const groupMap                 = new Map<string,string>(); // groupId → name
 
       // ── Render skeleton ────────────────────────────────────────────────
@@ -190,13 +191,13 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-audit-tab-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-lt);margin-bottom:6px}
           .${p}-audit-tabs{display:flex;overflow-x:auto;scrollbar-width:none;border-bottom:2px solid var(--border)}
           .${p}-audit-tabs::-webkit-scrollbar{display:none}
-          .${p}-audit-tab{flex-shrink:0;padding:8px 14px;font-size:12px;font-weight:600;color:var(--gray);cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-2px;white-space:nowrap;background:none;border-left:none;border-right:none;border-top:none;font-family:inherit;transition:color .15s,border-color .15s;display:flex;align-items:center;gap:6px}
-          .${p}-audit-tab:hover{color:var(--dark)}
+          .${p}-audit-tab{flex-shrink:0;padding:8px 14px;font-size:12px;font-weight:600;color:var(--gray);cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-2px;white-space:nowrap;background:none;border:none;font-family:inherit;transition:color .15s,border-color .15s;display:flex;align-items:center;gap:6px;user-select:none;touch-action:manipulation;-webkit-tap-highlight-color:transparent;outline:none}
+          .${p}-audit-tab:hover{color:var(--dark);background:rgba(var(--primary-rgb),.04)}
           .${p}-audit-tab.active{color:var(--primary);border-bottom-color:var(--primary)}
           .${p}-audit-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
           /* ── Store tabs ── */
           .${p}-store-tabs{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:14px}
-          .${p}-store-tab{display:inline-flex;align-items:center;width:auto;padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:#fff;font-size:12px;font-weight:600;color:var(--gray);cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap;flex-shrink:0}
+          .${p}-store-tab{display:inline-flex;align-items:center;width:auto;padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:#fff;font-size:12px;font-weight:600;color:var(--gray);cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap;flex-shrink:0;user-select:none;touch-action:manipulation;-webkit-tap-highlight-color:transparent;outline:none}
           .${p}-store-tab:hover{border-color:var(--primary);color:var(--primary)}
           .${p}-store-tab.active{background:var(--primary);border-color:var(--primary);color:var(--primary-text)}
           /* ── Filter bar ── */
@@ -213,7 +214,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-type-opt.active{font-weight:700;color:var(--dark);background:rgba(var(--primary-rgb),.06)}
           .${p}-type-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
           .${p}-status-toggle{display:flex;border:1.5px solid var(--border);border-radius:var(--r-md);overflow:hidden;background:#fff;flex-shrink:0}
-          .${p}-status-opt{padding:7px 13px;font-size:12px;font-weight:600;cursor:pointer;color:var(--gray);font-family:inherit;border:none;background:none;transition:all .15s}
+          .${p}-status-opt{padding:7px 13px;font-size:12px;font-weight:600;cursor:pointer;color:var(--gray);font-family:inherit;border:none;background:none;transition:all .15s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;outline:none;user-select:none}
           .${p}-status-opt.active{background:var(--primary);color:var(--primary-text)}
           /* ── Task cards ── */
           .${p}-list{display:flex;flex-direction:column;gap:8px}
@@ -425,13 +426,13 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         storeTabs.style.display="flex";
         const total=allTasks.filter(t=>t.taskType!=="audit-result").length;
         storeTabs.innerHTML=`
-          <button type="button" class="${p}-store-tab ${activeInstallFilter==="all"?"active":""}" data-inst="all">
+          <div role="button" tabindex="0" class="${p}-store-tab ${activeInstallFilter==="all"?"active":""}" data-inst="all">
             All <span style="opacity:.6;font-weight:400">(${total})</span>
-          </button>
+          </div>
           ${[...instMap.entries()].map(([id,info])=>`
-            <button type="button" class="${p}-store-tab ${activeInstallFilter===id?"active":""}" data-inst="${esc(id)}">
+            <div role="button" tabindex="0" class="${p}-store-tab ${activeInstallFilter===id?"active":""}" data-inst="${esc(id)}">
               ${esc(info.title||id)} <span style="opacity:.6;font-weight:400">(${info.count})</span>
-            </button>`).join("")}`;
+            </div>`).join("")}`;
         storeTabs.querySelectorAll(`.${p}-store-tab`).forEach(btn=>{
           btn.addEventListener("click",()=>{
             activeInstallFilter=(btn as HTMLElement).dataset.inst||"all";
@@ -452,10 +453,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           const pct=pa?.score!=null?pa.score+"%":"—";
           const dotColor=passing===true?"var(--success)":passing===false?"var(--error)":"var(--gray-lt)";
           const label=al.listName.replace(/^Audit\s*—\s*/i,"").trim()||al.listName;
-          return `<button type="button" class="${p}-audit-tab${al.listId===activeAuditListId?" active":""}" data-list-id="${esc(al.listId)}" data-inst-id="${esc(al.installId)}">
+          return `<div role="button" tabindex="0" class="${p}-audit-tab${al.listId===activeAuditListId?" active":""}" data-list-id="${esc(al.listId)}" data-inst-id="${esc(al.installId)}">
             <span class="${p}-audit-dot" style="background:${dotColor}"></span>
             ${esc(label)} <span style="opacity:.55;font-size:10px">${pct}</span>
-          </button>`;
+          </div>`;
         }).join("");
         auditTabsEl.querySelectorAll(`.${p}-audit-tab`).forEach(btn=>{
           btn.addEventListener("click",()=>{
@@ -591,14 +592,50 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           </div>`:"";
 
         // All failure tasks in this audit (excluding system task)
-        const tasks=allTasks.filter(t=>t.listId===al.listId&&t.installationId===al.installId&&t.taskType!=="audit-result");
+        const allAuditTasks=allTasks.filter(t=>t.listId===al.listId&&t.installationId===al.installId&&t.taskType!=="audit-result");
+        const isDoneTask=(t:Task)=>t.status==="DONE"||t.status==="done"||t.status==="CLOSED";
+        const doneTasks=allAuditTasks.filter(isDoneTask);
+        const tasks=showCompletedAudit?allAuditTasks:allAuditTasks.filter(t=>!isDoneTask(t));
         countEl.textContent=String(tasks.length);
 
-        const taskHtml=tasks.length===0
-          ?`<div style="text-align:center;padding:20px;color:var(--gray-lt);font-size:13px">No failure tasks in this audit.</div>`
-          :`<div class="${p}-list">${tasks.map(t=>renderTaskCard(t)).join("")}</div>`;
+        const allDone=allAuditTasks.length>0&&doneTasks.length===allAuditTasks.length;
 
-        listWrap.innerHTML=summaryHtml+taskHtml;
+        // Toggle button (only if there are completed tasks)
+        const toggleHtml=doneTasks.length>0?`
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray-lt)">Tasks (${allAuditTasks.length})</span>
+            <button id="${p}-audit-toggle" type="button" style="font-size:11px;font-weight:600;color:var(--primary);background:none;border:none;cursor:pointer;padding:3px 7px;border-radius:4px;font-family:inherit;touch-action:manipulation">
+              ${showCompletedAudit?"Hide completed":"Show completed ("+doneTasks.length+")"}
+            </button>
+          </div>`:
+          allAuditTasks.length>0?`<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray-lt);margin-bottom:10px">Tasks (${allAuditTasks.length})</div>`:"";
+
+        let taskHtml:string;
+        if(allAuditTasks.length===0){
+          taskHtml=`<div style="text-align:center;padding:20px;color:var(--gray-lt);font-size:13px">No failure tasks in this audit.</div>`;
+        } else if(allDone&&!showCompletedAudit){
+          taskHtml=`<div style="text-align:center;padding:20px 16px;background:rgba(46,125,74,.06);border:1px solid rgba(46,125,74,.2);border-radius:10px">
+            <div style="font-size:22px;margin-bottom:6px">✓</div>
+            <div style="font-size:14px;font-weight:700;color:var(--success)">All tasks completed for this audit!</div>
+            <div style="font-size:12px;color:var(--gray-lt);margin-top:4px">${doneTasks.length} task${doneTasks.length!==1?"s":""} marked done</div>
+          </div>`;
+        } else if(tasks.length===0){
+          taskHtml=`<div style="text-align:center;padding:20px;color:var(--gray-lt);font-size:13px">No open tasks — all caught up!</div>`;
+        } else {
+          taskHtml=`<div class="${p}-list">${tasks.map(t=>renderTaskCard(t)).join("")}</div>`;
+        }
+
+        listWrap.innerHTML=summaryHtml+toggleHtml+taskHtml;
+
+        // Wire toggle button
+        const toggleBtn=listWrap.querySelector(`#${p}-audit-toggle`) as HTMLButtonElement|null;
+        if(toggleBtn){
+          toggleBtn.addEventListener("click",()=>{
+            showCompletedAudit=!showCompletedAudit;
+            renderAuditContent();
+          });
+        }
+
         bindListEvents();
       }
 
