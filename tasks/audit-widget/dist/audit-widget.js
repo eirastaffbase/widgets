@@ -103,7 +103,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 let activeCat = "";
                 let auditorName = "";
                 let auditDate = new Date().toISOString().split("T")[0];
-                let auditType = "Full Audit";
+                let auditNotes = "";
                 const responses = {};
                 const taskGroupOverrides = {};
                 let step = "setup";
@@ -432,20 +432,20 @@ const factory = (BaseBlockClass, widgetApi) => {
                   </select>
                 </div>
                 <div class="${p}-field">
-                  <label class="${p}-label">Audit Type</label>
-                  <select class="${p}-select" id="${p}-atype">
-                    <option>Full Audit</option><option>SC Audit Preview</option><option>Spot Check</option><option>Follow-Up</option>
-                  </select>
+                  <label class="${p}-label">Audit Date</label>
+                  <input type="date" class="${p}-input" id="${p}-adate" value="${auditDate}">
                 </div>
               </div>
-              <div class="${p}-row">
+              <div class="${p}-row full" style="grid-template-columns:1fr">
                 <div class="${p}-field">
                   <label class="${p}-label">Auditor Name</label>
                   <input type="text" class="${p}-input" id="${p}-aname" placeholder="Your name" value="${esc(auditorName)}">
                 </div>
+              </div>
+              <div class="${p}-row full" style="grid-template-columns:1fr;margin-bottom:12px">
                 <div class="${p}-field">
-                  <label class="${p}-label">Audit Date</label>
-                  <input type="date" class="${p}-input" id="${p}-adate" value="${auditDate}">
+                  <label class="${p}-label">Auditor Notes <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:var(--gray-lt)">(optional)</span></label>
+                  <textarea class="${p}-input" id="${p}-anotes" rows="2" placeholder="Context for this audit session…" style="resize:none;line-height:1.5">${esc(auditNotes)}</textarea>
                 </div>
               </div>
               ${installations.length === 0 ? `<div style="font-size:12px;color:var(--gray-lt);margin-bottom:10px"><span class="${p}-spin" style="width:12px;height:12px;border-width:1.5px;vertical-align:middle;margin-right:5px"></span>Loading ${esc(storeP.toLowerCase())}…</div>` : ""}
@@ -453,15 +453,13 @@ const factory = (BaseBlockClass, widgetApi) => {
             </div>
           </div>`;
                     const storeSel = contentEl.querySelector(`#${p}-store`);
-                    const atypeSel = contentEl.querySelector(`#${p}-atype`);
                     if (selectedInstId)
                         storeSel.value = selectedInstId;
-                    atypeSel.value = auditType;
                     contentEl.querySelector(`#${p}-begin`).addEventListener("click", () => {
                         selectedInstId = contentEl.querySelector(`#${p}-store`).value;
                         auditorName = contentEl.querySelector(`#${p}-aname`).value.trim();
                         auditDate = contentEl.querySelector(`#${p}-adate`).value;
-                        auditType = contentEl.querySelector(`#${p}-atype`).value;
+                        auditNotes = contentEl.querySelector(`#${p}-anotes`).value.trim();
                         if (!selectedInstId) {
                             showBanner("error", `Please select a ${storeS}.`);
                             return;
@@ -547,8 +545,8 @@ const factory = (BaseBlockClass, widgetApi) => {
                     let ctrl = "";
                     if (q.type === "pf") {
                         ctrl = `<div class="${p}-pf-row">
-            <button type="button" class="${p}-pf-btn${val === "pass" ? " pass" : ""}" data-qid="${esc(q.id)}" data-val="pass">${iCheck} Pass</button>
-            <button type="button" class="${p}-pf-btn${val === "fail" ? " fail" : ""}" data-qid="${esc(q.id)}" data-val="fail">${iX} Fail</button>
+            <button type="button" class="${p}-pf-btn${val === "pass" ? " pass" : ""}" data-qid="${esc(q.id)}" data-val="pass">Pass</button>
+            <button type="button" class="${p}-pf-btn${val === "fail" ? " fail" : ""}" data-qid="${esc(q.id)}" data-val="fail">Fail</button>
             <button type="button" class="${p}-pf-btn${val === "na" ? " na" : ""}" data-qid="${esc(q.id)}" data-val="na">N/A</button>
           </div>`;
                     }
@@ -695,8 +693,8 @@ const factory = (BaseBlockClass, widgetApi) => {
                 <div class="${p}-meta-row"><span>${iStore} ${esc(storeS)}</span><span style="font-weight:600">${esc((inst === null || inst === void 0 ? void 0 : inst.title) || "—")}</span></div>
                 <div class="${p}-meta-row"><span>${iUser} Auditor</span><span>${esc(auditorName)}</span></div>
                 <div class="${p}-meta-row"><span>Date</span><span>${esc(auditDate)}</span></div>
-                <div class="${p}-meta-row"><span>Type</span><span>${esc(auditType)}</span></div>
                 <div class="${p}-meta-row"><span>Tasks flagged</span><span style="font-weight:700;color:${ft.length > 0 ? "var(--error)" : "var(--success)"}">${ft.length}</span></div>
+                ${auditNotes ? `<div class="${p}-meta-row" style="flex-direction:column;align-items:flex-start;gap:3px"><span style="color:var(--gray-lt);font-size:11px;text-transform:uppercase;letter-spacing:.3px">Notes</span><span style="line-height:1.5">${esc(auditNotes)}</span></div>` : ""}
               </div>
               <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-lt);margin-bottom:8px">Category Breakdown</div>
               ${catRows}
@@ -789,7 +787,8 @@ const factory = (BaseBlockClass, widgetApi) => {
                                 catBreakdown[cat] = { earned, total: tot, pct: tot > 0 ? Math.round((earned / tot) * 100) : 0 };
                             }
                             const blob = JSON.stringify({
-                                score: pct, passing, auditor: auditorName, date: auditDate, auditType,
+                                score: pct, passing, auditor: auditorName, date: auditDate,
+                                notes: auditNotes || undefined,
                                 store: (inst === null || inst === void 0 ? void 0 : inst.title) || selectedInstId, storeId: selectedInstId,
                                 taskCount: ft.length, categories: catBreakdown,
                             });
