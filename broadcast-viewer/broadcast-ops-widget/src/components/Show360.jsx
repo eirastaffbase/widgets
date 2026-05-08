@@ -80,8 +80,8 @@ function ContributorsCard({ contributors, role }) {
     <ModalCard title="Contributor Notes" eyebrow="Custom annotations" icon={FileText} iconColor="#1a2744">
       <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
         {contributors.map((c, i) => (
-          <div key={i} style={{ borderRadius: "4px", padding: "12px", background: "#f5f3ee" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+          <div key={i} style={{ borderRadius: "4px", padding: "14px 16px", background: "#f5f3ee" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
               <div style={{ width: "28px", height: "28px", borderRadius: "9999px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 700, color: "white", background: "#1a2744", flexShrink: 0 }}>
                 {c.name.split(" ").map((n) => n[0]).join("")}
               </div>

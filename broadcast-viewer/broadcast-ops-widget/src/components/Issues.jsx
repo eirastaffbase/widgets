@@ -62,14 +62,14 @@ function IssueCard({ issue, role, replyDraft, setReplyDraft, submitReply, onOpen
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px", marginBottom: "12px" }}>
         <div style={{ flex: "1 1 0%", minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
-            <button
+            <span
               onClick={() => hasDetails && onOpenDetails(issue.show)}
-              disabled={!hasDetails}
+              role={hasDetails ? "button" : undefined}
               className="font-display"
-              style={{ fontWeight: 700, fontSize: "16px", color: "#1a2744", cursor: hasDetails ? "pointer" : "default", textDecoration: hasDetails ? "underline" : "none", textDecorationColor: "#f5a623", textUnderlineOffset: "3px", background: "transparent", border: "none", padding: 0, textAlign: "left" }}
+              style={{ fontWeight: 700, fontSize: "16px", color: "#1a2744", cursor: hasDetails ? "pointer" : "default", textDecoration: hasDetails ? "underline" : "none", textDecorationColor: "#f5a623", textUnderlineOffset: "3px" }}
             >
               {issue.show}
-            </button>
+            </span>
             <span style={{ fontSize: "12px", color: "#6b6a63" }}>· {issue.episode}</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "12px", color: "#6b6a63" }}>

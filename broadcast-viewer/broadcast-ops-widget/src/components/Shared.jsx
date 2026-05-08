@@ -96,7 +96,7 @@ export function ReportForm({ scheduleItem, onSubmit, onClose, onViewDetails }) {
             {issueTypes.map(({ id, icon: Icon, desc }) => {
               const active = draft.type === id;
               return (
-                <button key={id} onClick={() => setDraft({ ...draft, type: id, tags: [] })} className="bow-full" style={{ borderRadius: "8px", padding: "12px", textAlign: "left", flexDirection: "column", alignItems: "flex-start", background: active ? "#1a2744" : "white", border: `2px solid ${active ? "#f5a623" : "#e5e2d8"}`, cursor: "pointer" }}>
+                <button key={id} onClick={() => setDraft({ ...draft, type: id, tags: [] })} className="bow-full" style={{ borderRadius: "8px", padding: "12px", textAlign: "left", flexDirection: "column", alignItems: "flex-start", height: "100%", background: active ? "#1a2744" : "white", border: `2px solid ${active ? "#f5a623" : "#e5e2d8"}`, cursor: "pointer" }}>
                   <Icon style={{ width: "16px", height: "16px", marginBottom: "6px", color: active ? "#f5a623" : "#1a2744" }} />
                   <div style={{ fontSize: "12px", fontWeight: 700, color: active ? "white" : "#1a2744" }}>{id}</div>
                   <div style={{ fontSize: "10px", marginTop: "2px", lineHeight: "1.3", color: active ? "#a8b4cc" : "#6b6a63" }}>{desc}</div>
@@ -110,9 +110,9 @@ export function ReportForm({ scheduleItem, onSubmit, onClose, onViewDetails }) {
           <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "8px", color: "#6b6a63" }}>
             Common Tags <span style={{ fontWeight: 400, textTransform: "none", color: "#a8a59a" }}>· {draft.tags.length} selected</span>
           </div>
-          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
             {(commonTags[draft.type] || []).map((t) => (
-              <button key={t} onClick={() => toggleTag(t)} style={{ padding: "6px 12px", borderRadius: "9999px", fontSize: "12px", fontWeight: 500, display: "flex", alignItems: "center", gap: "4px", background: draft.tags.includes(t) ? "#f5a623" : "white", color: draft.tags.includes(t) ? "#1a2744" : "#6b6a63", border: `1px solid ${draft.tags.includes(t) ? "#f5a623" : "#e5e2d8"}`, cursor: "pointer" }}>
+              <button key={t} onClick={() => toggleTag(t)} style={{ padding: "4px 10px", borderRadius: "9999px", fontSize: "12px", fontWeight: 500, display: "flex", alignItems: "center", gap: "4px", background: draft.tags.includes(t) ? "#f5a623" : "white", color: draft.tags.includes(t) ? "#1a2744" : "#6b6a63", border: `1px solid ${draft.tags.includes(t) ? "#f5a623" : "#e5e2d8"}`, cursor: "pointer" }}>
                 {draft.tags.includes(t) ? <CheckCircle2 style={{ width: "12px", height: "12px" }} /> : <Plus style={{ width: "12px", height: "12px" }} />}
                 {t}
               </button>
@@ -157,7 +157,7 @@ export function ModalCard({ title, eyebrow, icon: Icon, iconColor, children }) {
           <Icon style={{ width: "16px", height: "16px", color: iconColor }} />
         </div>
         <div>
-          <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#6b6a63" }}>{eyebrow}</div>
+          <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "3px", color: "#6b6a63" }}>{eyebrow}</div>
           <div className="font-display" style={{ fontWeight: 700, fontSize: "16px", color: "#1a2744" }}>{title}</div>
         </div>
       </div>
