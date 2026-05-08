@@ -43,10 +43,11 @@
 
   /* ── Layout ──────────────────────────────────────────── */
   #stage {
-    display: grid; grid-template-columns: 1fr 1fr;
-    gap: 24px; padding: 24px; max-width: 1400px; margin: 0 auto;
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 24px; padding: 24px; max-width: 1800px; margin: 0 auto;
   }
-  @media (max-width: 900px) { #stage { grid-template-columns: 1fr; } }
+  @media (max-width: 1200px) { #stage { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 800px)  { #stage { grid-template-columns: 1fr; } }
 
   .widget-panel {
     background: #fff; border-radius: 14px;
@@ -102,6 +103,10 @@
   <div class="widget-panel">
     <div class="widget-panel-label">Tasks Integration Widget</div>
     <div class="widget-inner" id="tiw-host"></div>
+  </div>
+  <div class="widget-panel">
+    <div class="widget-panel-label">Audit Widget</div>
+    <div class="widget-inner" id="aw-host"></div>
   </div>
 </div>
 
@@ -218,7 +223,19 @@ window.fetch = async (url, opts) => {
       return mockJson(MOCK_TASKS_INST2);
     }
     if (u.includes("/users")) return mockJson({ data: [] });
-    if (u.includes("/groups")) return mockJson({ data: [] });
+    if (u.includes("/groups")) return mockJson({ data: [
+      { id: "grp-crew",    name: "Store Crew",        config: { localization: { en_US: { title: "Store Crew" } } } },
+      { id: "grp-mgr",     name: "Store Managers",    config: { localization: { en_US: { title: "Store Managers" } } } },
+      { id: "grp-facil",   name: "Facilities Team",   config: { localization: { en_US: { title: "Facilities Team" } } } },
+      { id: "grp-it",      name: "IT Support",        config: { localization: { en_US: { title: "IT Support" } } } },
+    ]});
+    // Audit widget: list creation and task creation (POST)
+    if ((opts && opts.method === "POST") && u.includes("/lists")) {
+      return mockJson({ id: "list-audit-preview", name: "Audit Preview" });
+    }
+    if ((opts && opts.method === "POST") && u.includes("/task")) {
+      return mockJson({ id: "task-" + Math.random().toString(36).slice(2) });
+    }
     return mockJson({});
   }
 
@@ -296,10 +313,34 @@ function renderTIW(colors) {
   widget.renderBlock(host);
 }
 
+function renderAW(colors) {
+  const host = document.getElementById("aw-host");
+  host.innerHTML = "";
+  const def = registeredBlocks["audit-widget"];
+  if (!def) { host.textContent = "audit-widget not loaded"; return; }
+
+  const WidgetClass = def.blockDefinition.factory(MockBaseBlock, mockWidgetApi);
+  const widget = new WidgetClass();
+  widget._attrs = {
+    primarycolor:       colors.primary,
+    accentcolor:        colors.accent,
+    backgroundcolor:    colors.background,
+    apitoken:           "preview",
+    baseurl:            "https://app.staffbase.com/api",
+    // Let real Google Sheets URL through for live question data
+    appsscripturl:      "https://script.google.com/macros/s/AKfycbzlqYwqZ6gaq-nwDbIQ0M1spl77Qu5_fZtOwytNYYAsBKC_baY7WGUOEmM60Y6edInr/exec",
+    storelabelsingular: "Store",
+    storelabelplural:   "Stores",
+    passthreshold:      "90",
+  };
+  widget.renderBlock(host);
+}
+
 function renderAll() {
   const colors = getColors();
   renderMTW(colors);
   renderTIW(colors);
+  renderAW(colors);
 }
 
 // ── Controls ──────────────────────────────────────────────────────────────────
@@ -323,6 +364,7 @@ document.querySelectorAll("#bg-toggle button").forEach(btn => {
 <!-- Load widgets AFTER mock SDK is set up -->
 <script src="my-tasks-widget/dist/my-tasks-widget.js"></script>
 <script src="tasks-integration-widget/dist/tasks-integration-widget.js"></script>
+<script src="audit-widget/dist/audit-widget.js"></script>
 
 <script>
   // Initial render once both widgets are registered
