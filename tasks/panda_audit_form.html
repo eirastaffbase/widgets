@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panda Express — PASS Audit Form</title>
+<style>
+  :root {
+    --red: #C8102E;
+    --red-dark: #9B0D22;
+    --red-light: #FFF0F2;
+    --red-mid: #F5C4C4;
+    --bg: #F7F7F7;
+    --surface: #FFFFFF;
+    --border: #E0E0E0;
+    --text: #1A1A1A;
+    --text-muted: #666;
+    --text-hint: #999;
+    --pass: #1B7F3A;
+    --pass-bg: #EAF7EE;
+    --fail: #C0392B;
+    --fail-bg: #FDEDEC;
+    --warn: #D68910;
+    --warn-bg: #FEF9E7;
+    --critical-bg: #FFF0F2;
+    --radius: 10px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 15px; line-height: 1.5; }
+
+  /* HEADER */
+  .app-header { background: var(--red); padding: 0; position: sticky; top: 0; z-index: 100; }
+  .header-top { display: flex; align-items: center; gap: 12px; padding: 14px 16px; }
+  .header-logo { width: 36px; height: 36px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .header-logo svg { width: 22px; height: 22px; }
+  .header-title { color: white; font-size: 17px; font-weight: 600; }
+  .header-sub { color: rgba(255,255,255,0.75); font-size: 12px; }
+  .progress-bar-wrap { background: rgba(0,0,0,0.25); height: 3px; }
+  .progress-bar-fill { background: white; height: 3px; transition: width 0.4s ease; width: 0%; }
+
+  /* NAV TABS */
+  .nav-tabs { display: flex; overflow-x: auto; background: var(--red-dark); scrollbar-width: none; }
+  .nav-tabs::-webkit-scrollbar { display: none; }
+  .nav-tab { flex-shrink: 0; padding: 10px 14px; color: rgba(255,255,255,0.65); font-size: 12px; font-weight: 500; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; white-space: nowrap; }
+  .nav-tab.active { color: white; border-bottom-color: white; }
+  .nav-tab .tab-badge { display: inline-flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.2); color: white; border-radius: 10px; font-size: 10px; padding: 1px 6px; margin-left: 5px; }
+  .nav-tab .tab-badge.has-fails { background: #FFD700; color: #7B3900; }
+
+  /* SCREENS */
+  .screen { display: none; padding: 16px; animation: fadeIn 0.2s ease; }
+  .screen.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* CARDS */
+  .card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 12px; overflow: hidden; box-shadow: var(--shadow); }
+  .card-header { padding: 14px 16px 10px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+  .card-header-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+  .card-title { font-size: 15px; font-weight: 600; }
+  .card-subtitle { font-size: 12px; color: var(--text-muted); }
+  .card-body { padding: 14px 16px; }
+
+  /* STORE MAPPING */
+  .store-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .field-group { display: flex; flex-direction: column; gap: 4px; }
+  .field-group.full { grid-column: 1 / -1; }
+  label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
+  input[type=text], input[type=date], select, textarea {
+    width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 15px; color: var(--text); background: var(--surface); transition: border-color 0.2s;
+    -webkit-appearance: none; appearance: none;
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--red); }
+  textarea { resize: none; }
+  select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23999' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
+  .store-lookup { display: flex; gap: 8px; }
+  .store-lookup input { flex: 1; }
+
+  /* BUTTONS */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 11px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s; }
+  .btn-primary { background: var(--red); color: white; }
+  .btn-primary:hover { background: var(--red-dark); }
+  .btn-secondary { background: transparent; color: var(--red); border: 1.5px solid var(--red); }
+  .btn-sm { padding: 7px 14px; font-size: 13px; border-radius: 6px; }
+  .btn-full { width: 100%; }
+  .btn-icon { width: 36px; height: 36px; padding: 0; border-radius: 8px; background: var(--red-light); color: var(--red); border: 1.5px solid var(--red-mid); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .btn:active { transform: scale(0.97); }
+
+  /* STORE INFO BANNER */
+  .store-banner { background: var(--red); color: white; border-radius: var(--radius); padding: 14px 16px; margin-bottom: 14px; display: none; }
+  .store-banner.visible { display: block; }
+  .store-banner-row { display: flex; align-items: center; justify-content: space-between; }
+  .store-banner h3 { font-size: 16px; font-weight: 700; }
+  .store-banner p { font-size: 12px; opacity: 0.8; margin-top: 2px; }
+  .store-banner-meta { display: flex; gap: 16px; margin-top: 10px; }
+  .store-banner-meta span { font-size: 12px; opacity: 0.85; }
+  .store-badge { background: rgba(255,255,255,0.2); border-radius: 20px; padding: 3px 10px; font-size: 12px; }
+
+  /* QUESTION ITEMS */
+  .question-item { border-bottom: 1px solid var(--border); padding: 14px 16px; }
+  .question-item:last-child { border-bottom: none; }
+  .q-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+  .q-id { background: var(--bg); color: var(--text-muted); font-size: 10px; font-weight: 700; padding: 3px 7px; border-radius: 5px; border: 1px solid var(--border); flex-shrink: 0; margin-top: 2px; }
+  .q-text { font-size: 14px; line-height: 1.4; flex: 1; }
+  .q-meta { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+  .chip { font-size: 11px; padding: 3px 8px; border-radius: 12px; font-weight: 500; }
+  .chip-pts { background: #EEF2FF; color: #3730A3; }
+  .chip-type { background: #F0FFF4; color: #166534; }
+  .chip-critical { background: #FFF0F2; color: var(--red); border: 1px solid var(--red-mid); }
+  .chip-task { background: #FFF3CD; color: #7B5800; }
+
+  /* RESPONSE CONTROLS */
+  .response-row { display: flex; gap: 8px; align-items: center; }
+  .pf-btn { flex: 1; padding: 10px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: 1.5px solid var(--border); background: var(--surface); color: var(--text-muted); transition: all 0.15s; }
+  .pf-btn:active { transform: scale(0.97); }
+  .pf-btn.selected-pass { background: var(--pass-bg); border-color: var(--pass); color: var(--pass); }
+  .pf-btn.selected-fail { background: var(--fail-bg); border-color: var(--fail); color: var(--fail); }
+  .pf-btn.selected-na { background: #F5F5F5; border-color: #999; color: #555; }
+  .rating-row { display: flex; gap: 6px; }
+  .rating-btn { flex: 1; padding: 8px 4px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: 1.5px solid var(--border); background: var(--surface); color: var(--text-muted); text-align: center; transition: all 0.15s; }
+  .rating-btn.selected { background: var(--pass-bg); border-color: var(--pass); color: var(--pass); }
+  .rating-btn.selected-low { background: var(--fail-bg); border-color: var(--fail); color: var(--fail); }
+  .rating-btn.selected-mid { background: var(--warn-bg); border-color: var(--warn); color: var(--warn); }
+  .temp-input, .num-input { width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 16px; font-weight: 600; text-align: center; }
+  .temp-input:focus, .num-input:focus { outline: none; border-color: var(--red); }
+
+  /* STATUS PILLS */
+  .status-pass { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: var(--pass); }
+  .status-fail { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: var(--fail); }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; }
+  .dot-pass { background: var(--pass); }
+  .dot-fail { background: var(--fail); }
+
+  /* TASK FLAG */
+  .task-flag { background: #FFF3CD; border: 1px solid #F0D060; border-radius: 8px; padding: 10px 12px; margin-top: 10px; display: none; }
+  .task-flag.visible { display: block; }
+  .task-flag-header { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: #7B5800; margin-bottom: 6px; }
+  .task-flag p { font-size: 12px; color: #5A3E00; line-height: 1.4; }
+
+  /* COMMENT BOX */
+  .comment-toggle { display: flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 13px; cursor: pointer; margin-top: 8px; }
+  .comment-box { margin-top: 8px; display: none; }
+  .comment-box.visible { display: block; }
+
+  /* SECTION DIVIDER */
+  .section-header { display: flex; align-items: center; gap: 10px; padding: 10px 0 4px; }
+  .section-icon { font-size: 18px; }
+  .section-label { font-size: 13px; font-weight: 700; color: var(--red); text-transform: uppercase; letter-spacing: 0.5px; flex: 1; }
+  .section-count { font-size: 12px; color: var(--text-muted); }
+
+  /* SCORE BAR */
+  .score-summary { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); padding: 14px 16px; margin-bottom: 12px; }
+  .score-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .score-big { font-size: 28px; font-weight: 700; color: var(--red); }
+  .score-label { font-size: 12px; color: var(--text-muted); }
+  .score-track { background: var(--border); border-radius: 4px; height: 8px; overflow: hidden; }
+  .score-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; background: var(--red); }
+  .score-fill.passing { background: var(--pass); }
+
+  /* TASKS PANEL */
+  .task-item { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  .task-item:last-child { border-bottom: none; }
+  .task-title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .task-title { font-size: 14px; font-weight: 600; flex: 1; }
+  .priority-pill { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 12px; flex-shrink: 0; }
+  .p-critical { background: #FFF0F2; color: var(--red); }
+  .p-high { background: #FFE8E8; color: #A32D2D; }
+  .p-medium { background: #FFF3E0; color: #7B4400; }
+  .p-low { background: #E8F5E9; color: #1B5E20; }
+  .task-meta { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+  /* EMPTY STATES */
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); }
+  .empty-state-icon { font-size: 36px; margin-bottom: 10px; }
+  .empty-state p { font-size: 14px; }
+
+  /* SUBMIT SCREEN */
+  .submit-card { text-align: center; padding: 30px 20px; }
+  .submit-icon { width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 28px; }
+  .submit-icon.warn { background: #FFF3CD; }
+  .submit-icon.ok { background: var(--pass-bg); }
+  .cat-score-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .cat-score-row:last-child { border-bottom: none; }
+
+  /* TOAST */
+  .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #1A1A1A; color: white; padding: 10px 20px; border-radius: 20px; font-size: 13px; font-weight: 500; z-index: 999; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; }
+  .toast.show { opacity: 1; }
+
+  /* BOTTOM NAV */
+  .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); border-top: 1px solid var(--border); display: flex; padding: 6px 0 env(safe-area-inset-bottom, 0px); z-index: 50; }
+  .bnav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px; cursor: pointer; color: var(--text-hint); font-size: 10px; font-weight: 500; transition: color 0.2s; }
+  .bnav-item.active { color: var(--red); }
+  .bnav-icon { font-size: 20px; }
+  .bnav-badge { position: absolute; top: -2px; right: -2px; background: var(--red); color: white; font-size: 9px; font-weight: 700; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+  .bnav-icon-wrap { position: relative; }
+  .main-content { padding-bottom: 75px; }
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <div class="header-top">
+    <div class="header-logo">
+      <svg viewBox="0 0 36 36" fill="none"><circle cx="18" cy="18" r="17" fill="#C8102E"/><path d="M11 13 Q18 8 25 13 Q25 22 18 26 Q11 22 11 13Z" fill="white"/></svg>
+    </div>
+    <div>
+      <div class="header-title">PASS Audit 2026</div>
+      <div class="header-sub" id="header-store-info">Panda Restaurant Group</div>
+    </div>
+  </div>
+  <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progress-fill"></div></div>
+  <div class="nav-tabs" id="nav-tabs"></div>
+</div>
+
+<div class="main-content" id="main-content">
+  <!-- Screens injected by JS -->
+</div>
+
+<div class="bottom-nav">
+  <div class="bnav-item active" onclick="showSection('store')" id="bnav-store">
+    <div class="bnav-icon-wrap"><span class="bnav-icon">🏪</span></div>
+    <span>Store</span>
+  </div>
+  <div class="bnav-item" onclick="showSection('audit')" id="bnav-audit">
+    <div class="bnav-icon-wrap"><span class="bnav-icon">📋</span></div>
+    <span>Audit</span>
+  </div>
+  <div class="bnav-item" onclick="showSection('tasks')" id="bnav-tasks">
+    <div class="bnav-icon-wrap" style="position:relative"><span class="bnav-icon">⚡</span><span class="bnav-badge" id="tasks-badge" style="display:none">0</span></div>
+    <span>Tasks</span>
+  </div>
+  <div class="bnav-item" onclick="showSection('submit')" id="bnav-submit">
+    <div class="bnav-icon-wrap"><span class="bnav-icon">✅</span></div>
+    <span>Submit</span>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STORE_MAP = {
+  "1001": { name: "Panda Express #1001", address: "1234 Main St, Los Angeles, CA 90001", gm: "Maria L.", region: "SoCal", district: "LA-Central" },
+  "1002": { name: "Panda Express #1002", address: "456 Oak Ave, Pasadena, CA 91101", gm: "James T.", region: "SoCal", district: "LA-East" },
+  "1003": { name: "Panda Express #1003", address: "789 Beach Blvd, Huntington Beach, CA 92648", gm: "Rosa M.", region: "SoCal", district: "Orange County" },
+  "2001": { name: "Panda Express #2001", address: "321 Market St, San Francisco, CA 94102", gm: "Kevin W.", region: "NorCal", district: "Bay Area North" },
+  "2002": { name: "Panda Express #2002", address: "555 Mission Rd, San Jose, CA 95101", gm: "Priya S.", region: "NorCal", district: "Bay Area South" },
+  "3001": { name: "Panda Express #3001", address: "100 5th Ave, New York, NY 10001", gm: "Andre B.", region: "Northeast", district: "NYC Metro" },
+  "4001": { name: "Panda Express #4001", address: "200 Wacker Dr, Chicago, IL 60601", gm: "Linda K.", region: "Midwest", district: "Chicago Central" },
+  "5001": { name: "Panda Express #5001", address: "75 Peachtree St, Atlanta, GA 30303", gm: "Darnell H.", region: "Southeast", district: "Atlanta Metro" },
+};
+
+const CATEGORIES = [
+  { id: "exterior", label: "Exterior", icon: "🏢", color: "#FFF3CD" },
+  { id: "dining", label: "Dining Room", icon: "🍽️", color: "#E8F4FD" },
+  { id: "restroom", label: "Restroom", icon: "🚻", color: "#E8F8EE" },
+  { id: "serving", label: "Serving Table", icon: "🥡", color: "#FFF0E6" },
+  { id: "boh", label: "Back of House", icon: "👨‍🍳", color: "#F5E6FF" },
+  { id: "appearance", label: "Associate Appearance", icon: "👔", color: "#FFE6F0" },
+  { id: "accuracy", label: "Order Accuracy", icon: "🎯", color: "#E6F7FF" },
+  { id: "thermo", label: "Thermometer", icon: "🌡️", color: "#FFFDE7" },
+  { id: "protein", label: "Marinated Protein", icon: "🥩", color: "#FCE4EC" },
+  { id: "cash", label: "Cash Handling", icon: "💰", color: "#E8F5E9" },
+];
+
+const QUESTIONS = [
+  { id:"EXT-001", cat:"exterior", text:"Parking lot is free of trash and debris", type:"pf", pts:3, task:true, taskTitle:"Clean parking lot — action required", taskRole:"Crew Member", taskPriority:"High", taskDue:1 },
+  { id:"EXT-002", cat:"exterior", text:"Drive-thru lane is clear and marked properly", type:"pf", pts:3, task:true, taskTitle:"Drive-thru lane maintenance required", taskRole:"Facilities", taskPriority:"Medium", taskDue:3 },
+  { id:"EXT-003", cat:"exterior", text:"Exterior windows and doors are clean", type:"pf", pts:2, task:true, taskTitle:"Clean exterior windows", taskRole:"Crew Member", taskPriority:"Low", taskDue:1 },
+  { id:"EXT-004", cat:"exterior", text:"Signage is illuminated and undamaged", type:"pf", pts:3, task:true, taskTitle:"Repair/replace exterior signage", taskRole:"Facilities", taskPriority:"High", taskDue:7 },
+  { id:"EXT-005", cat:"exterior", text:"Trash receptacles are not overflowing", type:"pf", pts:2, task:true, taskTitle:"Empty exterior trash receptacles", taskRole:"Crew Member", taskPriority:"High", taskDue:1 },
+  { id:"EXT-006", cat:"exterior", text:"Landscaping is maintained and free of weeds", type:"pf", pts:1, task:false },
+  { id:"EXT-007", cat:"exterior", text:"Building exterior walls are clean and free of graffiti", type:"pf", pts:2, task:true, taskTitle:"Clean/pressure wash exterior walls", taskRole:"Facilities", taskPriority:"Medium", taskDue:14 },
+  { id:"DR-001", cat:"dining", text:"All tables are clean and sanitized", type:"pf", pts:3, task:true, taskTitle:"Sanitize all dining room tables", taskRole:"Crew Member", taskPriority:"High", taskDue:1 },
+  { id:"DR-002", cat:"dining", text:"Floors are clean and free of spills", type:"pf", pts:3, task:true, taskTitle:"Clean dining room floors", taskRole:"Crew Member", taskPriority:"High", taskDue:1 },
+  { id:"DR-003", cat:"dining", text:"Chairs are clean and undamaged", type:"pf", pts:2, task:true, taskTitle:"Clean/replace damaged chairs", taskRole:"Facilities", taskPriority:"Medium", taskDue:7 },
+  { id:"DR-004", cat:"dining", text:"Self-serve drink station is stocked and clean", type:"pf", pts:3, task:true, taskTitle:"Restock and clean drink station", taskRole:"Crew Member", taskPriority:"High", taskDue:1 },
+  { id:"DR-005", cat:"dining", text:"Trash receptacles are not overflowing", type:"pf", pts:2, task:true, taskTitle:"Empty interior trash cans", taskRole:"Crew Member", taskPriority:"High", taskDue:1 },
+  { id:"DR-006", cat:"dining", text:"Menu boards are accurate and well-lit", type:"pf", pts:3, task:true, taskTitle:"Update/repair menu boards", taskRole:"Manager", taskPriority:"High", taskDue:3 },
+  { id:"DR-007", cat:"dining", text:"High chairs are clean and available (at least 2)", type:"pf", pts:1, task:false },
+  { id:"DR-008", cat:"dining", text:"POP materials are current and properly displayed", type:"pf", pts:2, task:true, taskTitle:"Remove/update POP materials", taskRole:"Manager", taskPriority:"Medium", taskDue:1 },
+  { id:"DR-009", cat:"dining", text:"Ambient temperature is comfortable for guests", type:"rating", pts:2, task:true, taskTitle:"Report HVAC issue to facilities", taskRole:"Facilities", taskPriority:"Medium", taskDue:3 },
+  { id:"DR-010", cat:"dining", text:"Lighting is adequate and all fixtures functional", type:"pf", pts:2, task:true, taskTitle:"Replace faulty lighting", taskRole:"Facilities", taskPriority:"Medium", taskDue:7 },
+  { id:"DR-011", cat:"dining", text:"Background music is appropriate and audible", type:"pf", pts:1, task:false },
+  { id:"DR-012", cat:"dining", text:"Customer-facing Wi-Fi is operational", type:"pf", pts:1, task:true, taskTitle:"Restore customer Wi-Fi", taskRole:"IT", taskPriority:"Low", taskDue:3 },
+  { id:"RS-001", cat:"restroom", text:"Restrooms stocked (soap, paper towels, toilet paper)", type:"pf", pts:4, task:true, taskTitle:"Restock restroom supplies", taskRole:"Crew Member", taskPriority:"High", taskDue:1 },
+  { id:"RS-002", cat:"restroom", text:"Restrooms are clean (floors, sinks, toilets, no odor)", type:"pf", pts:4, task:true, taskTitle:"Deep clean restrooms immediately", taskRole:"Crew Member", taskPriority:"High", taskDue:1 },
+  { id:"RS-003", cat:"restroom", text:"Hand dryer / paper towel dispenser is functional", type:"pf", pts:2, task:true, taskTitle:"Repair/replace hand dryer", taskRole:"Facilities", taskPriority:"Medium", taskDue:7 },
+  { id:"RS-004", cat:"restroom", text:"Hand washing signage posted and visible", type:"pf", pts:3, critical:true, task:true, taskTitle:"Post hand washing signs", taskRole:"Manager", taskPriority:"High", taskDue:1 },
+  { id:"ST-001", cat:"serving", text:"Hot food holding temps are within range (≥140°F)", type:"temp", pts:5, critical:true, task:true, taskTitle:"Adjust holding temp — FOOD SAFETY RISK", taskRole:"Manager", taskPriority:"Critical", taskDue:0 },
+  { id:"ST-002", cat:"serving", text:"Food items are properly labeled with prep time", type:"pf", pts:3, task:true, taskTitle:"Label all serving table items", taskRole:"Crew Member", taskPriority:"High", taskDue:1 },
+  { id:"ST-003", cat:"serving", text:"Sneeze guards are clean and free of buildup", type:"pf", pts:3, task:true, taskTitle:"Clean sneeze guards", taskRole:"Crew Member", taskPriority:"Medium", taskDue:1 },
+  { id:"ST-004", cat:"serving", text:"Serving utensils are clean and handles are up", type:"pf", pts:3, task:true, taskTitle:"Replace/reposition serving utensils", taskRole:"Crew Member", taskPriority:"High", taskDue:1 },
+  { id:"ST-005", cat:"serving", text:"Serving table surface is clean with no spills", type:"pf", pts:3, task:true, taskTitle:"Clean serving table surface", taskRole:"Crew Member", taskPriority:"High", taskDue:1 },
+  { id:"ST-006", cat:"serving", text:"All menu items are available (no out-of-stock)", type:"pf", pts:4, task:true, taskTitle:"Resolve menu item shortage", taskRole:"Manager", taskPriority:"High", taskDue:1 },
+  { id:"ST-007", cat:"serving", text:"Food waste log is being recorded and current", type:"pf", pts:2, task:true, taskTitle:"Update food waste log", taskRole:"Manager", taskPriority:"Medium", taskDue:1 },
+  { id:"ST-008", cat:"serving", text:"Portion sizes are consistent with recipe standards", type:"rating", pts:3, task:true, taskTitle:"Retrain crew on portion standards", taskRole:"Manager", taskPriority:"Medium", taskDue:7 },
+  { id:"ST-009", cat:"serving", text:"Customers are greeted at the register", type:"pf", pts:3, task:true, taskTitle:"Coach team on guest greeting standards", taskRole:"Manager", taskPriority:"Medium", taskDue:3 },
+  { id:"ST-010", cat:"serving", text:"Register area is clean and organized", type:"pf", pts:2, task:true, taskTitle:"Clean register area", taskRole:"Crew Member", taskPriority:"Low", taskDue:1 },
+  { id:"BOH-001", cat:"boh", text:"Walk-in cooler temps are within range (35–41°F)", type:"temp", pts:5, critical:true, task:true, taskTitle:"Adjust cooler temp — FOOD SAFETY RISK", taskRole:"Manager", taskPriority:"Critical", taskDue:0 },
+  { id:"BOH-002", cat:"boh", text:"Cooking equipment is clean per cleaning schedule", type:"pf", pts:4, task:true, taskTitle:"Clean cooking equipment per schedule", taskRole:"Crew Member", taskPriority:"High", taskDue:1 },
+  { id:"AA-001", cat:"appearance", text:"Associates are in full uniform (shirt, hat, apron)", type:"pf", pts:3, task:true, taskTitle:"Coach associate on uniform standards", taskRole:"Manager", taskPriority:"High", taskDue:1 },
+  { id:"AA-002", cat:"appearance", text:"Name tags are visible and being worn", type:"pf", pts:2, task:true, taskTitle:"Provide/require name tag", taskRole:"Manager", taskPriority:"Medium", taskDue:1 },
+  { id:"AA-003", cat:"appearance", text:"Hair is properly restrained (hat or hairnet)", type:"pf", pts:4, critical:true, task:true, taskTitle:"Enforce hair restraint policy", taskRole:"Manager", taskPriority:"High", taskDue:1 },
+  { id:"AA-004", cat:"appearance", text:"Associates wearing non-slip safety shoes", type:"pf", pts:3, task:true, taskTitle:"Enforce footwear safety policy", taskRole:"Manager", taskPriority:"High", taskDue:3 },
+  { id:"AA-005", cat:"appearance", text:"No visible jewelry (except plain ring)", type:"pf", pts:3, task:true, taskTitle:"Coach on jewelry policy", taskRole:"Manager", taskPriority:"Medium", taskDue:1 },
+  { id:"AA-006", cat:"appearance", text:"Associates maintain positive attitude with guests", type:"rating", pts:3, task:true, taskTitle:"Coach team on guest experience standards", taskRole:"Manager", taskPriority:"Medium", taskDue:3 },
+  { id:"OA-001", cat:"accuracy", text:"Last 3 orders audited are complete and correct", type:"pf", pts:5, task:true, taskTitle:"Review order accuracy with entire team", taskRole:"Manager", taskPriority:"High", taskDue:3 },
+  { id:"OA-002", cat:"accuracy", text:"Order confirmation screen is visible to guest", type:"pf", pts:3, task:true, taskTitle:"Fix order confirmation display", taskRole:"IT", taskPriority:"Medium", taskDue:3 },
+  { id:"OA-003", cat:"accuracy", text:"Bag check process is being followed", type:"pf", pts:4, task:true, taskTitle:"Retrain crew on bag check SOP", taskRole:"Manager", taskPriority:"High", taskDue:3 },
+  { id:"OA-004", cat:"accuracy", text:"Correct sauces and condiments are included", type:"pf", pts:2, task:true, taskTitle:"Remind crew to add condiments", taskRole:"Manager", taskPriority:"Low", taskDue:1 },
+  { id:"OA-005", cat:"accuracy", text:"Napkins and utensils included in every bag", type:"pf", pts:2, task:true, taskTitle:"Stock and include napkins/utensils", taskRole:"Crew Member", taskPriority:"Low", taskDue:1 },
+  { id:"OA-006", cat:"accuracy", text:"Special requests and modifications honored correctly", type:"pf", pts:4, task:true, taskTitle:"Coach team on handling modifications", taskRole:"Manager", taskPriority:"High", taskDue:3 },
+  { id:"OA-007", cat:"accuracy", text:"Drive-thru order time ≤ 3 minutes (observe 3 cars)", type:"pf", pts:4, task:true, taskTitle:"Address drive-thru speed bottleneck", taskRole:"Manager", taskPriority:"High", taskDue:3 },
+  { id:"OA-008", cat:"accuracy", text:"Dine-in order completion ≤ 5 minutes (observe 2)", type:"pf", pts:3, task:true, taskTitle:"Address dine-in service speed issues", taskRole:"Manager", taskPriority:"Medium", taskDue:3 },
+  { id:"OA-009", cat:"accuracy", text:"Receipts offered to every guest", type:"pf", pts:1, task:false },
+  { id:"OA-010", cat:"accuracy", text:"ACO (digital) order accuracy ≥ 98%", type:"pf", pts:4, task:true, taskTitle:"Review ACO order accuracy issues", taskRole:"Manager", taskPriority:"High", taskDue:3 },
+  { id:"OA-011", cat:"accuracy", text:"Loyalty / rewards program promoted at POS", type:"pf", pts:2, task:false },
+  { id:"TH-001", cat:"thermo", text:"Calibrated thermometer is available and accessible", type:"pf", pts:4, critical:true, task:true, taskTitle:"Obtain/calibrate food thermometer", taskRole:"Manager", taskPriority:"Critical", taskDue:1 },
+  { id:"TH-002", cat:"thermo", text:"Thermometer temperature log is current and complete", type:"pf", pts:3, task:true, taskTitle:"Complete thermometer log today", taskRole:"Manager", taskPriority:"High", taskDue:1 },
+  { id:"MP-001", cat:"protein", text:"Cooking temps logged and meet standard (≥165°F)", type:"temp", pts:5, critical:true, task:true, taskTitle:"Recheck and document cooking temps — FOOD SAFETY", taskRole:"Manager", taskPriority:"Critical", taskDue:0 },
+  { id:"MP-002", cat:"protein", text:"Marination time is within recipe specification", type:"pf", pts:4, task:true, taskTitle:"Adjust marination process per recipe card", taskRole:"Manager", taskPriority:"High", taskDue:1 },
+  { id:"MP-003", cat:"protein", text:"Protein batch size is within par levels", type:"pf", pts:3, task:true, taskTitle:"Adjust protein batch cooking size", taskRole:"Manager", taskPriority:"Medium", taskDue:1 },
+  { id:"CH-001", cat:"cash", text:"Safe count matches system balance", type:"pf", pts:5, critical:true, task:true, taskTitle:"Investigate safe count discrepancy immediately", taskRole:"Manager", taskPriority:"Critical", taskDue:0 },
+  { id:"CH-002", cat:"cash", text:"Drawer count performed at each shift change", type:"pf", pts:4, task:true, taskTitle:"Enforce drawer count at every shift change", taskRole:"Manager", taskPriority:"High", taskDue:1 },
+  { id:"CH-003", cat:"cash", text:"No unauthorized access to safe (log is clean)", type:"pf", pts:5, critical:true, task:true, taskTitle:"Review safe access log immediately", taskRole:"Manager", taskPriority:"Critical", taskDue:0 },
+];
+
+// STATE
+const state = {
+  storeId: null,
+  storeInfo: null,
+  auditorName: "",
+  auditDate: new Date().toISOString().split("T")[0],
+  auditType: "Full Audit",
+  responses: {},
+  comments: {},
+  currentSection: "store",
+  currentCat: CATEGORIES[0].id,
+};
+
+function getCatQuestions(catId) { return QUESTIONS.filter(q => q.cat === catId); }
+function getResponse(id) { return state.responses[id] || null; }
+function setResponse(id, val) { state.responses[id] = val; updateProgress(); renderBadges(); renderTasksPanel(); }
+function getComment(id) { return state.comments[id] || ""; }
+function setComment(id, val) { state.comments[id] = val; }
+
+function isPass(q, val) {
+  if (!val) return null;
+  if (q.type === "pf") return val === "pass";
+  if (q.type === "rating") return parseInt(val) >= 3;
+  if (q.type === "temp") {
+    const n = parseFloat(val);
+    if (q.id.startsWith("BOH")) return n >= 35 && n <= 41;
+    return n >= 140;
+  }
+  return true;
+}
+
+function getScore(q) {
+  const val = getResponse(q.id);
+  const p = isPass(q, val);
+  if (p === null) return { earned: 0, answered: false };
+  if (p) return { earned: q.pts, answered: true };
+  return { earned: 0, answered: true };
+}
+
+function getTotalScore() {
+  let earned = 0, total = 0, answered = 0;
+  QUESTIONS.forEach(q => {
+    total += q.pts;
+    const s = getScore(q);
+    earned += s.earned;
+    if (s.answered) answered++;
+  });
+  return { earned, total, answered, count: QUESTIONS.length };
+}
+
+function getFailedTasks() {
+  return QUESTIONS.filter(q => {
+    if (!q.task) return false;
+    const val = getResponse(q.id);
+    return isPass(q, val) === false;
+  });
+}
+
+function updateProgress() {
+  const s = getTotalScore();
+  const pct = s.count > 0 ? Math.round((s.answered / s.count) * 100) : 0;
+  document.getElementById("progress-fill").style.width = pct + "%";
+  const tasks = getFailedTasks();
+  const badge = document.getElementById("tasks-badge");
+  if (tasks.length > 0) { badge.style.display = "flex"; badge.textContent = tasks.length; }
+  else { badge.style.display = "none"; }
+}
+
+function renderBadges() {
+  CATEGORIES.forEach(cat => {
+    const qs = getCatQuestions(cat.id);
+    const fails = qs.filter(q => isPass(q, getResponse(q.id)) === false).length;
+    const el = document.getElementById("badge-" + cat.id);
+    if (el) {
+      if (fails > 0) { el.textContent = fails; el.className = "tab-badge has-fails"; el.style.display = "inline-flex"; }
+      else { el.style.display = "none"; }
+    }
+  });
+}
+
+// STORE LOOKUP
+function lookupStore() {
+  const id = document.getElementById("store-id-input").value.trim();
+  const info = STORE_MAP[id];
+  if (info) {
+    state.storeId = id;
+    state.storeInfo = info;
+    const banner = document.getElementById("store-banner");
+    banner.classList.add("visible");
+    document.getElementById("sb-name").textContent = info.name;
+    document.getElementById("sb-addr").textContent = info.address;
+    document.getElementById("sb-gm").textContent = "GM: " + info.gm;
+    document.getElementById("sb-region").textContent = info.region;
+    document.getElementById("sb-district").textContent = info.district;
+    document.getElementById("header-store-info").textContent = "#" + id + " — " + info.region;
+    showToast("Store found: " + info.name);
+  } else {
+    showToast("Store ID not found. Check the number and try again.");
+  }
+}
+
+// RENDER STORE SCREEN
+function renderStoreScreen() {
+  const today = new Date().toISOString().split("T")[0];
+  return `
+<div class="screen active" id="screen-store">
+  <div id="store-banner" class="store-banner ${state.storeId ? 'visible' : ''}">
+    <div class="store-banner-row">
+      <div>
+        <h3 id="sb-name">${state.storeInfo ? state.storeInfo.name : ""}</h3>
+        <p id="sb-addr">${state.storeInfo ? state.storeInfo.address : ""}</p>
+      </div>
+      <span class="store-badge">✓</span>
+    </div>
+    <div class="store-banner-meta">
+      <span id="sb-gm">${state.storeInfo ? "GM: " + state.storeInfo.gm : ""}</span>
+      <span id="sb-region">${state.storeInfo ? state.storeInfo.region : ""}</span>
+      <span id="sb-district">${state.storeInfo ? state.storeInfo.district : ""}</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-header-icon" style="background:#FFF0F2;font-size:18px;">🏪</div>
+      <div><div class="card-title">Store Identification</div><div class="card-subtitle">Look up store by ID number</div></div>
+    </div>
+    <div class="card-body">
+      <div class="field-group" style="margin-bottom:12px;">
+        <label>Store ID Number</label>
+        <div class="store-lookup">
+          <input type="text" id="store-id-input" placeholder="e.g. 1001, 2001, 3001…" inputmode="numeric" value="${state.storeId || ""}" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+          <button class="btn btn-primary btn-sm" onclick="lookupStore()">Look up</button>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Try: 1001, 1002, 2001, 3001, 4001, 5001</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-header-icon" style="background:#E8F4FD;font-size:18px;">📝</div>
+      <div><div class="card-title">Audit Details</div><div class="card-subtitle">Auditor info and session type</div></div>
+    </div>
+    <div class="card-body">
+      <div class="store-grid">
+        <div class="field-group full">
+          <label>Auditor Name</label>
+          <input type="text" id="auditor-name" placeholder="Your full name" value="${state.auditorName}" oninput="state.auditorName=this.value">
+        </div>
+        <div class="field-group">
+          <label>Audit Date</label>
+          <input type="date" id="audit-date" value="${state.auditDate}" oninput="state.auditDate=this.value">
+        </div>
+        <div class="field-group">
+          <label>Audit Type</label>
+          <select id="audit-type" onchange="state.auditType=this.value">
+            <option ${state.auditType==="Full Audit"?"selected":""}>Full Audit</option>
+            <option ${state.auditType==="SC Audit Preview"?"selected":""}>SC Audit Preview</option>
+            <option ${state.auditType==="Spot Check"?"selected":""}>Spot Check</option>
+            <option ${state.auditType==="Follow-Up"?"selected":""}>Follow-Up</option>
+          </select>
+        </div>
+        <div class="field-group full">
+          <label>Auditor Notes (optional)</label>
+          <textarea id="audit-notes" rows="2" placeholder="Any context for this audit session…"></textarea>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-full" style="margin-top:14px;" onclick="beginAudit()">
+        Begin Audit ›
+      </button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-header-icon" style="background:#E8F5E9;font-size:18px;">📊</div>
+      <div><div class="card-title">Quick Stats</div><div class="card-subtitle">Current session progress</div></div>
+    </div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;">
+          <div style="font-size:22px;font-weight:700;color:var(--red);" id="qs-answered">0</div>
+          <div style="font-size:11px;color:var(--text-muted);">Answered</div>
+        </div>
+        <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;">
+          <div style="font-size:22px;font-weight:700;color:var(--red);" id="qs-tasks">0</div>
+          <div style="font-size:11px;color:var(--text-muted);">Tasks flagged</div>
+        </div>
+        <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;">
+          <div style="font-size:22px;font-weight:700;color:var(--red);" id="qs-score">0</div>
+          <div style="font-size:11px;color:var(--text-muted);">Points earned</div>
+        </div>
+        <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;">
+          <div style="font-size:22px;font-weight:700;color:var(--red);" id="qs-pct">—</div>
+          <div style="font-size:11px;color:var(--text-muted);">% Score</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>`;
+}
+
+function beginAudit() {
+  if (!state.storeId) { showToast("Please look up a store ID first"); return; }
+  if (!state.auditorName.trim()) { showToast("Please enter your name"); return; }
+  showSection("audit");
+}
+
+// RENDER AUDIT SECTION
+function renderAuditScreen() {
+  let tabsHtml = CATEGORIES.map(cat => {
+    const qs = getCatQuestions(cat.id);
+    const fails = qs.filter(q => isPass(q, getResponse(q.id)) === false).length;
+    return `<div class="nav-tab ${cat.id === state.currentCat ? 'active' : ''}" onclick="switchCat('${cat.id}')">${cat.icon} ${cat.label}<span id="badge-${cat.id}" class="tab-badge ${fails > 0 ? 'has-fails' : ''}" style="${fails===0?'display:none':''}"> ${fails} </span></div>`;
+  }).join("");
+
+  const cat = CATEGORIES.find(c => c.id === state.currentCat);
+  const qs = getCatQuestions(state.currentCat);
+
+  let questionsHtml = qs.map(q => renderQuestion(q)).join("");
+
+  return `
+<div class="screen active" id="screen-audit">
+  <div style="overflow-x:auto;display:flex;background:var(--surface);border-bottom:1px solid var(--border);scrollbar-width:none;margin-bottom:12px;">
+    ${CATEGORIES.map(cat => {
+      const fails = getCatQuestions(cat.id).filter(q => isPass(q, getResponse(q.id)) === false).length;
+      return `<div onclick="switchCat('${cat.id}')" style="flex-shrink:0;padding:10px 12px;font-size:12px;font-weight:500;cursor:pointer;border-bottom:2px solid ${cat.id===state.currentCat?'var(--red)':'transparent'};color:${cat.id===state.currentCat?'var(--red)':'var(--text-muted)'};white-space:nowrap;">${cat.icon} ${cat.label}${fails>0?`<span style="background:#FFD700;color:#7B3900;border-radius:10px;font-size:10px;padding:1px 5px;margin-left:4px;">${fails}</span>`:''}</div>`;
+    }).join("")}
+  </div>
+
+  <div class="card">
+    <div class="card-header" style="background:${cat.color};">
+      <div class="card-header-icon" style="background:rgba(255,255,255,0.8);font-size:18px;">${cat.icon}</div>
+      <div>
+        <div class="card-title">${cat.label}</div>
+        <div class="card-subtitle">${qs.length} questions · ${qs.reduce((a,q)=>a+q.pts,0)} pts max</div>
+      </div>
+    </div>
+    <div id="questions-container">
+      ${questionsHtml}
+    </div>
+  </div>
+
+  <div style="display:flex;gap:8px;margin-top:4px;">
+    ${state.currentCat !== CATEGORIES[0].id ? `<button class="btn btn-secondary" style="flex:1;" onclick="prevCat()">← Prev</button>` : '<div style="flex:1;"></div>'}
+    ${state.currentCat !== CATEGORIES[CATEGORIES.length-1].id ? `<button class="btn btn-primary" style="flex:1;" onclick="nextCat()">Next →</button>` : `<button class="btn btn-primary" style="flex:1;" onclick="showSection('submit')">Review & Submit →</button>`}
+  </div>
+</div>`;
+}
+
+function renderQuestion(q) {
+  const val = getResponse(q.id);
+  const p = isPass(q, val);
+  const comment = getComment(q.id);
+  const showTask = q.task && p === false;
+  const cat = CATEGORIES.find(c => c.id === q.cat);
+
+  let control = "";
+  if (q.type === "pf") {
+    control = `
+<div class="response-row">
+  <button class="pf-btn ${val==='pass'?'selected-pass':''}" onclick="respond('${q.id}','pass')">✓ Pass</button>
+  <button class="pf-btn ${val==='fail'?'selected-fail':''}" onclick="respond('${q.id}','fail')">✗ Fail</button>
+  <button class="pf-btn ${val==='na'?'selected-na':''}" onclick="respond('${q.id}','na')">N/A</button>
+</div>`;
+  } else if (q.type === "rating") {
+    const rv = val ? parseInt(val) : 0;
+    control = `
+<div>
+  <div class="rating-row">
+    ${[1,2,3,4,5].map(n => {
+      let cls = "";
+      if (rv === n) cls = n <= 2 ? "selected-low" : n === 3 ? "selected-mid" : "selected";
+      return `<button class="rating-btn ${cls}" onclick="respond('${q.id}','${n}')">${n}</button>`;
+    }).join("")}
+  </div>
+  <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-hint);margin-top:4px;"><span>Poor</span><span>Excellent</span></div>
+</div>`;
+  } else if (q.type === "temp") {
+    const hint = q.id.startsWith("BOH") ? "35–41°F (cooler)" : "≥140°F (hot holding) or ≥165°F (cooking)";
+    control = `
+<div>
+  <input class="temp-input" type="number" inputmode="decimal" placeholder="Enter temp in °F" value="${val||''}" id="temp-${q.id}" onchange="respond('${q.id}',this.value)" oninput="liveTemp('${q.id}',this.value)">
+  <div style="font-size:11px;color:var(--text-muted);margin-top:4px;text-align:center;">${hint}</div>
+</div>`;
+  }
+
+  let statusHtml = "";
+  if (p === true) statusHtml = `<span class="status-pass"><span class="status-dot dot-pass"></span> Pass</span>`;
+  else if (p === false) statusHtml = `<span class="status-fail"><span class="status-dot dot-fail"></span> Fail</span>`;
+
+  return `
+<div class="question-item" id="qi-${q.id}">
+  <div class="q-header">
+    <span class="q-id">${q.id}</span>
+    <span class="q-text">${q.text}</span>
+    ${statusHtml}
+  </div>
+  <div class="q-meta">
+    <span class="chip chip-pts">${q.pts} pts</span>
+    ${q.critical ? '<span class="chip chip-critical">⚠ Critical</span>' : ''}
+    ${q.task ? '<span class="chip chip-task">⚑ Auto-task</span>' : ''}
+  </div>
+  ${control}
+  <div class="task-flag ${showTask ? 'visible' : ''}" id="tf-${q.id}">
+    <div class="task-flag-header">⚑ Task will be generated</div>
+    <p><strong>${q.taskTitle}</strong><br>Assignee: ${q.taskRole} · Priority: <strong style="color:${q.taskPriority==='Critical'?'var(--red)':q.taskPriority==='High'?'#A32D2D':q.taskPriority==='Medium'?'#7B4400':'#1B5E20'}">${q.taskPriority}</strong> · Due: ${q.taskDue === 0 ? 'Immediately' : 'Within ' + q.taskDue + ' day' + (q.taskDue!==1?'s':'')}</p>
+  </div>
+  <div class="comment-toggle" onclick="toggleComment('${q.id}')">
+    <span style="font-size:14px;">💬</span> ${comment ? 'Edit comment' : 'Add comment'}
+  </div>
+  <div class="comment-box ${comment ? 'visible' : ''}" id="cb-${q.id}">
+    <textarea rows="2" placeholder="Observations, photos note, corrective action…" style="margin-top:6px;" oninput="setComment('${q.id}',this.value)">${comment}</textarea>
+  </div>
+</div>`;
+}
+
+function respond(id, val) {
+  setResponse(id, val);
+  const q = QUESTIONS.find(q => q.id === id);
+  const p = isPass(q, val);
+  const tf = document.getElementById("tf-" + id);
+  if (tf) { if (q.task && p === false) tf.classList.add("visible"); else tf.classList.remove("visible"); }
+  // re-render just this question item
+  const el = document.getElementById("qi-" + id);
+  if (el) el.outerHTML = renderQuestion(q);
+  updateProgress();
+  renderBadges();
+  renderTasksPanel();
+  updateStoreStats();
+}
+
+function liveTemp(id, val) {
+  if (!val) return;
+  respond(id, val);
+}
+
+function toggleComment(id) {
+  const cb = document.getElementById("cb-" + id);
+  if (cb) cb.classList.toggle("visible");
+}
+
+function switchCat(catId) {
+  state.currentCat = catId;
+  const mc = document.getElementById("main-content");
+  if (document.getElementById("screen-audit")) {
+    mc.innerHTML = renderAuditScreen();
+  }
+}
+
+function prevCat() {
+  const idx = CATEGORIES.findIndex(c => c.id === state.currentCat);
+  if (idx > 0) switchCat(CATEGORIES[idx-1].id);
+}
+function nextCat() {
+  const idx = CATEGORIES.findIndex(c => c.id === state.currentCat);
+  if (idx < CATEGORIES.length-1) switchCat(CATEGORIES[idx+1].id);
+}
+
+// TASKS PANEL
+function renderTasksPanel() {
+  const tasks = getFailedTasks();
+  let content = "";
+  if (tasks.length === 0) {
+    content = `<div class="empty-state"><div class="empty-state-icon">✅</div><p>No tasks flagged yet.<br>Complete the audit to generate tasks.</p></div>`;
+  } else {
+    content = tasks.map(q => {
+      const pc = q.taskPriority === "Critical" ? "p-critical" : q.taskPriority === "High" ? "p-high" : q.taskPriority === "Medium" ? "p-medium" : "p-low";
+      const due = q.taskDue === 0 ? "Immediately" : "Within " + q.taskDue + " day" + (q.taskDue !== 1 ? "s" : "");
+      return `<div class="task-item">
+        <div class="task-title-row">
+          <div class="task-title">${q.taskTitle}</div>
+          <span class="priority-pill ${pc}">${q.taskPriority}</span>
+        </div>
+        <div class="task-meta">${q.id} · ${q.taskRole} · Due: ${due}</div>
+      </div>`;
+    }).join("");
+  }
+  const panel = document.getElementById("tasks-panel");
+  if (panel) panel.innerHTML = content;
+}
+
+function renderTasksScreen() {
+  const tasks = getFailedTasks();
+  let content = tasks.length === 0
+    ? `<div class="empty-state"><div class="empty-state-icon">✅</div><p>No tasks flagged yet.<br>Failures during the audit will appear here automatically.</p></div>`
+    : tasks.map(q => {
+        const pc = q.taskPriority === "Critical" ? "p-critical" : q.taskPriority === "High" ? "p-high" : q.taskPriority === "Medium" ? "p-medium" : "p-low";
+        const due = q.taskDue === 0 ? "Immediately" : "Within " + q.taskDue + " day" + (q.taskDue !== 1 ? "s" : "");
+        return `<div class="task-item">
+          <div class="task-title-row">
+            <div class="task-title">${q.taskTitle}</div>
+            <span class="priority-pill ${pc}">${q.taskPriority}</span>
+          </div>
+          <div class="task-meta">${q.id} · Assignee: ${q.taskRole} · Due: ${due}</div>
+          ${getComment(q.id) ? `<div style="font-size:12px;color:var(--text-muted);margin-top:4px;font-style:italic;">"${getComment(q.id)}"</div>` : ""}
+        </div>`;
+      }).join("");
+
+  return `
+<div class="screen active" id="screen-tasks">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-header-icon" style="background:#FFF3CD;font-size:18px;">⚡</div>
+      <div>
+        <div class="card-title">Auto-Generated Tasks</div>
+        <div class="card-subtitle">${tasks.length} task${tasks.length !== 1 ? "s" : ""} from audit failures</div>
+      </div>
+    </div>
+    <div id="tasks-panel">${content}</div>
+  </div>
+  ${tasks.length > 0 ? `
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+    <div style="background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);padding:12px;text-align:center;">
+      <div style="font-size:22px;font-weight:700;color:var(--red);">${tasks.filter(t=>t.taskPriority==="Critical").length}</div>
+      <div style="font-size:11px;color:var(--text-muted);">Critical</div>
+    </div>
+    <div style="background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);padding:12px;text-align:center;">
+      <div style="font-size:22px;font-weight:700;color:#A32D2D;">${tasks.filter(t=>t.taskPriority==="High").length}</div>
+      <div style="font-size:11px;color:var(--text-muted);">High priority</div>
+    </div>
+  </div>` : ""}
+</div>`;
+}
+
+// SUBMIT SCREEN
+function renderSubmitScreen() {
+  const s = getTotalScore();
+  const pct = s.total > 0 ? Math.round((s.earned / s.total) * 100) : 0;
+  const passing = pct >= 90;
+  const tasks = getFailedTasks();
+
+  const catRows = CATEGORIES.map(cat => {
+    const qs = getCatQuestions(cat.id);
+    const earned = qs.reduce((a,q) => a + getScore(q).earned, 0);
+    const total = qs.reduce((a,q) => a + q.pts, 0);
+    const answered = qs.filter(q => getScore(q).answered).length;
+    const p = total > 0 ? Math.round((earned / total) * 100) : null;
+    const cat_ = CATEGORIES.find(c => c.id === cat.id);
+    return `<div class="cat-score-row">
+      <span>${cat_.icon} ${cat.label}</span>
+      <span style="display:flex;align-items:center;gap:6px;">
+        <span style="font-size:11px;color:var(--text-muted);">${answered}/${qs.length} done</span>
+        <span style="font-weight:600;color:${p===null?'var(--text-muted)':p>=90?'var(--pass)':'var(--fail)'}">${p !== null ? p + "%" : "—"}</span>
+      </span>
+    </div>`;
+  }).join("");
+
+  return `
+<div class="screen active" id="screen-submit">
+  <div class="card">
+    <div class="submit-card">
+      <div class="submit-icon ${passing ? 'ok' : 'warn'}">${passing ? '✅' : '⚠️'}</div>
+      <div style="font-size:32px;font-weight:700;color:${passing?'var(--pass)':'var(--red)'};">${pct}%</div>
+      <div style="font-size:16px;font-weight:600;margin:4px 0 2px;">${passing ? "Audit Passing" : "Audit Failing"}</div>
+      <div style="font-size:13px;color:var(--text-muted);">${s.earned} / ${s.total} points · ${s.answered} of ${s.count} answered</div>
+      <div class="score-track" style="margin:14px 0 0;">
+        <div class="score-fill ${passing ? 'passing' : ''}" style="width:${pct}%;"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-top:4px;">
+        <span>0%</span><span style="color:var(--pass);">90% threshold</span><span>100%</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-header-icon" style="background:#E8F4FD;font-size:18px;">🏪</div>
+      <div><div class="card-title">Audit Summary</div></div>
+    </div>
+    <div class="card-body" style="font-size:13px;">
+      <div style="display:grid;gap:6px;">
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-muted);">Store</span><span style="font-weight:600;">${state.storeInfo ? state.storeInfo.name : "—"}</span></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-muted);">Auditor</span><span>${state.auditorName || "—"}</span></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-muted);">Date</span><span>${state.auditDate}</span></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-muted);">Audit type</span><span>${state.auditType}</span></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-muted);">Tasks generated</span><span style="font-weight:600;color:var(--red);">${tasks.length}</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-header-icon" style="background:#E8F5E9;font-size:18px;">📊</div>
+      <div><div class="card-title">Category Breakdown</div></div>
+    </div>
+    <div class="card-body">${catRows}</div>
+  </div>
+
+  <button class="btn btn-primary btn-full" onclick="submitAudit()" style="margin-bottom:8px;">Submit Audit & Send Tasks</button>
+  <button class="btn btn-secondary btn-full" onclick="exportAudit()">Export as JSON</button>
+</div>`;
+}
+
+function submitAudit() {
+  if (!state.storeId) { showToast("Please complete store setup first"); showSection("store"); return; }
+  showToast("✅ Audit submitted! Tasks sent to " + (state.storeInfo ? state.storeInfo.gm : "manager"));
+}
+
+function exportAudit() {
+  const payload = {
+    auditMeta: { storeId: state.storeId, storeName: state.storeInfo?.name, auditor: state.auditorName, date: state.auditDate, type: state.auditType },
+    score: getTotalScore(),
+    responses: state.responses,
+    comments: state.comments,
+    generatedTasks: getFailedTasks().map(q => ({ id: q.id, task: q.taskTitle, role: q.taskRole, priority: q.taskPriority, dueInDays: q.taskDue }))
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type: "application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `panda_audit_${state.storeId || "draft"}_${state.auditDate}.json`;
+  a.click();
+  showToast("Exported audit JSON");
+}
+
+function updateStoreStats() {
+  const s = getTotalScore();
+  const pct = s.total > 0 && s.answered > 0 ? Math.round((s.earned / s.total) * 100) + "%" : "—";
+  const el_a = document.getElementById("qs-answered");
+  const el_t = document.getElementById("qs-tasks");
+  const el_s = document.getElementById("qs-score");
+  const el_p = document.getElementById("qs-pct");
+  if (el_a) el_a.textContent = s.answered;
+  if (el_t) el_t.textContent = getFailedTasks().length;
+  if (el_s) el_s.textContent = s.earned;
+  if (el_p) el_p.textContent = pct;
+}
+
+// NAVIGATION
+function showSection(sec) {
+  state.currentSection = sec;
+  const mc = document.getElementById("main-content");
+  if (sec === "store") mc.innerHTML = renderStoreScreen();
+  else if (sec === "audit") mc.innerHTML = renderAuditScreen();
+  else if (sec === "tasks") mc.innerHTML = renderTasksScreen();
+  else if (sec === "submit") mc.innerHTML = renderSubmitScreen();
+
+  ["store","audit","tasks","submit"].forEach(s => {
+    const el = document.getElementById("bnav-" + s);
+    if (el) el.classList.toggle("active", s === sec);
+  });
+
+  updateProgress();
+  renderBadges();
+  if (sec === "store") updateStoreStats();
+}
+
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2800);
+}
+
+// INIT
+showSection("store");
+</script>
+</body>
+</html>
