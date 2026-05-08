@@ -107,6 +107,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const responses = {};
                 const taskGroupOverrides = {};
                 let step = "setup";
+                let cleanupStoreDropdown = null;
                 // ── HTML skeleton ──────────────────────────────────────────────────
                 container.innerHTML = `
         <style>
@@ -216,6 +217,23 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-state{padding:36px 20px;text-align:center;color:var(--gray-lt);font-size:13px}
           .${p}-state strong{display:block;color:var(--gray);font-size:14px;margin-bottom:4px}
           .${p}-group-lbl{font-size:11px;font-weight:600;color:var(--gray);text-transform:uppercase;letter-spacing:.3px;margin-bottom:4px}
+          .${p}-ms-wrap{position:relative}
+          .${p}-ms-trigger{width:100%;min-height:42px;padding:8px 36px 8px 11px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fafafa;cursor:pointer;display:flex;align-items:center;position:relative;transition:border-color .15s,background .15s;font-size:14px;font-family:inherit;color:var(--dark)}
+          .${p}-ms-trigger:hover,.${p}-ms-trigger.open{border-color:var(--primary);background:#fff}
+          .${p}-ms-trigger::after{content:'▾';position:absolute;right:11px;top:50%;transform:translateY(-50%);color:var(--gray-lt);pointer-events:none;font-size:13px}
+          .${p}-ms-ph{color:var(--gray-lt)}
+          .${p}-ms-dropdown{display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1.5px solid var(--primary);border-radius:var(--r-md);box-shadow:var(--shadow-md);overflow:hidden;z-index:200}
+          .${p}-ms-dropdown.show{display:block;animation:${p}-dd .15s ease}
+          @keyframes ${p}-dd{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+          .${p}-dd-search{padding:9px 10px;border-bottom:1px solid var(--border)}
+          .${p}-dd-search input{width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-family:inherit;background:#fafafa;color:var(--dark);outline:none}
+          .${p}-dd-search input:focus{border-color:var(--primary);background:#fff}
+          .${p}-dd-list{max-height:210px;overflow-y:auto}
+          .${p}-dd-opt{padding:10px 12px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-size:13px;border-bottom:1px solid #f3f4f6;transition:background .1s;color:var(--dark)}
+          .${p}-dd-opt:last-child{border-bottom:none}
+          .${p}-dd-opt:hover{background:rgba(var(--primary-rgb),.05)}
+          .${p}-dd-opt.sel{background:rgba(var(--primary-rgb),.06);font-weight:600;color:var(--primary)}
+          .${p}-dd-msg{padding:20px;text-align:center;color:var(--gray-lt);font-size:13px}
         </style>
 
         <div class="${p}">
@@ -470,7 +488,14 @@ const factory = (BaseBlockClass, widgetApi) => {
                 }
                 // ── Step 1: Setup ─────────────────────────────────────────────────
                 function renderSetup() {
-                    const opts = installations.map(i => `<option value="${esc(i.id)}"${i.id === selectedInstId ? " selected" : ""}>${esc(i.title)}</option>`).join("");
+                    if (cleanupStoreDropdown) {
+                        cleanupStoreDropdown();
+                        cleanupStoreDropdown = null;
+                    }
+                    const selInst = installations.find(i => i.id === selectedInstId);
+                    const triggerInner = selInst
+                        ? `<span style="color:var(--dark);font-size:14px">${esc(selInst.title)}</span>`
+                        : `<span class="${p}-ms-ph">${installations.length === 0 ? `Loading ${esc(storeP.toLowerCase())}…` : `Select a ${esc(storeS)}…`}</span>`;
                     contentEl.innerHTML = `
           <div class="${p}-card">
             <div class="${p}-card-head"><span class="${p}-step">1</span><span class="${p}-card-title">Store &amp; Auditor Details</span></div>
@@ -478,9 +503,13 @@ const factory = (BaseBlockClass, widgetApi) => {
               <div class="${p}-row">
                 <div class="${p}-field">
                   <label class="${p}-label">${esc(storeS)}</label>
-                  <select class="${p}-select" id="${p}-store">
-                    <option value="">Select a ${esc(storeS)}…</option>${opts}
-                  </select>
+                  <div class="${p}-ms-wrap">
+                    <div class="${p}-ms-trigger" id="${p}-trigger">${triggerInner}</div>
+                    <div class="${p}-ms-dropdown" id="${p}-dropdown">
+                      <div class="${p}-dd-search"><input type="text" id="${p}-search" placeholder="Search ${esc(storeP.toLowerCase())}…"></div>
+                      <div class="${p}-dd-list" id="${p}-opts"><div class="${p}-dd-msg">Loading…</div></div>
+                    </div>
+                  </div>
                 </div>
                 <div class="${p}-field">
                   <label class="${p}-label">Audit Date</label>
@@ -499,15 +528,58 @@ const factory = (BaseBlockClass, widgetApi) => {
                   <textarea class="${p}-input" id="${p}-anotes" rows="2" placeholder="Context for this audit session…" style="resize:none;line-height:1.5">${esc(auditNotes)}</textarea>
                 </div>
               </div>
-              ${installations.length === 0 ? `<div style="font-size:12px;color:var(--gray-lt);margin-bottom:10px"><span class="${p}-spin" style="width:12px;height:12px;border-width:1.5px;vertical-align:middle;margin-right:5px"></span>Loading ${esc(storeP.toLowerCase())}…</div>` : ""}
               <button type="button" class="${p}-btn ${p}-btn-primary ${p}-btn-full" id="${p}-begin">${iCheck} Begin Audit</button>
             </div>
           </div>`;
-                    const storeSel = contentEl.querySelector(`#${p}-store`);
-                    if (selectedInstId)
-                        storeSel.value = selectedInstId;
+                    const trigger = contentEl.querySelector(`#${p}-trigger`);
+                    const dropdown = contentEl.querySelector(`#${p}-dropdown`);
+                    const searchInp = contentEl.querySelector(`#${p}-search`);
+                    const optsList = contentEl.querySelector(`#${p}-opts`);
+                    function renderOpts(filter = "") {
+                        if (!installations.length) {
+                            optsList.innerHTML = `<div class="${p}-dd-msg">Loading ${esc(storeP.toLowerCase())}…</div>`;
+                            return;
+                        }
+                        const matches = installations.filter(s => s.title.toLowerCase().includes(filter.toLowerCase()));
+                        if (!matches.length) {
+                            optsList.innerHTML = `<div class="${p}-dd-msg">No ${esc(storeP.toLowerCase())} found</div>`;
+                            return;
+                        }
+                        optsList.innerHTML = matches.map(s => `
+            <div class="${p}-dd-opt${s.id === selectedInstId ? " sel" : ""}" data-id="${esc(s.id)}" data-title="${esc(s.title)}">
+              <span>${esc(s.title)}</span>
+              ${s.id === selectedInstId ? iCheck : ""}
+            </div>`).join("");
+                        optsList.querySelectorAll(`.${p}-dd-opt`).forEach((opt) => {
+                            opt.addEventListener("click", () => {
+                                const el = opt;
+                                selectedInstId = el.dataset.id || "";
+                                trigger.innerHTML = `<span style="color:var(--dark);font-size:14px">${esc(el.dataset.title || "")}</span>`;
+                                dropdown.classList.remove("show");
+                                trigger.classList.remove("open");
+                                renderOpts(searchInp.value);
+                            });
+                        });
+                    }
+                    trigger.addEventListener("click", () => {
+                        dropdown.classList.toggle("show");
+                        trigger.classList.toggle("open");
+                        if (dropdown.classList.contains("show")) {
+                            searchInp.focus();
+                            renderOpts(searchInp.value);
+                        }
+                    });
+                    searchInp.addEventListener("input", () => renderOpts(searchInp.value));
+                    const outsideClick = (e) => {
+                        if (!trigger.contains(e.target) && !dropdown.contains(e.target)) {
+                            dropdown.classList.remove("show");
+                            trigger.classList.remove("open");
+                        }
+                    };
+                    document.addEventListener("click", outsideClick);
+                    cleanupStoreDropdown = () => document.removeEventListener("click", outsideClick);
+                    renderOpts();
                     contentEl.querySelector(`#${p}-begin`).addEventListener("click", () => {
-                        selectedInstId = contentEl.querySelector(`#${p}-store`).value;
                         auditorName = contentEl.querySelector(`#${p}-aname`).value.trim();
                         auditDate = contentEl.querySelector(`#${p}-adate`).value;
                         auditNotes = contentEl.querySelector(`#${p}-anotes`).value.trim();
