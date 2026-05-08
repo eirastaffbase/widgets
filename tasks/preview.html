@@ -33,6 +33,21 @@
     cursor: pointer; font-family: inherit; transition: all .15s;
   }
   #bg-toggle button.active { background: #374151; color: #fff; }
+  .ctrl input[type=text], .ctrl input[type=password] {
+    background: #1f2937; border: 1.5px solid #374151; border-radius: 6px;
+    color: #f9fafb; font-size: 12px; font-family: inherit;
+    padding: 5px 9px; width: 200px; outline: none;
+  }
+  .ctrl input[type=text]:focus, .ctrl input[type=password]:focus { border-color: #6b7280; }
+  #api-toggle {
+    display: flex; gap: 4px;
+  }
+  #api-toggle button {
+    padding: 5px 10px; border-radius: 5px; border: 1.5px solid #374151;
+    background: none; color: #9ca3af; font-size: 11px; font-weight: 600;
+    cursor: pointer; font-family: inherit; transition: all .15s;
+  }
+  #api-toggle button.active { background: #374151; color: #fff; }
   #apply-btn {
     padding: 7px 16px; border-radius: 7px; border: none;
     background: #da2e32; color: #fff; font-size: 12px; font-weight: 700;
@@ -40,6 +55,16 @@
     transition: filter .15s;
   }
   #apply-btn:hover { filter: brightness(.88); }
+
+  /* ── Loading overlay ─────────────────────────────────── */
+  #stage { position: relative; transition: opacity .2s; }
+  #stage.loading { opacity: .45; pointer-events: none; }
+  #loading-badge {
+    display: none; position: fixed; top: 58px; left: 50%; transform: translateX(-50%);
+    background: #1a1a1a; color: #fff; font-size: 12px; font-weight: 600;
+    padding: 6px 16px; border-radius: 20px; z-index: 9998;
+    box-shadow: 0 2px 12px rgba(0,0,0,.3);
+  }
 
   /* ── Layout ──────────────────────────────────────────── */
   #stage {
@@ -92,8 +117,21 @@
     </div>
   </div>
 
+  <div class="ctrl">
+    <label>API</label>
+    <div id="api-toggle">
+      <button class="active" data-api="mock">Mock</button>
+      <button data-api="real">Real</button>
+    </div>
+  </div>
+  <div class="ctrl" id="token-ctrl" style="display:none">
+    <label>Token</label>
+    <input type="password" id="api-token" placeholder="Basic token…" style="width:180px">
+  </div>
+
   <button id="apply-btn">Apply Colors</button>
 </div>
+<div id="loading-badge">Loading…</div>
 
 <div id="stage">
   <div class="widget-panel">
@@ -191,62 +229,89 @@ const MOCK_TASKS_INST2 = [
   },
 ];
 
+// ── API mode ──────────────────────────────────────────────────────────────────
+
+let apiMode = "mock"; // "mock" | "real"
+
+// ── Loading tracker ───────────────────────────────────────────────────────────
+
+let _inflightCount = 0;
+function trackStart() {
+  if (++_inflightCount === 1) {
+    document.getElementById("stage").classList.add("loading");
+    document.getElementById("loading-badge").style.display = "block";
+  }
+}
+function trackDone() {
+  if (--_inflightCount <= 0) {
+    _inflightCount = 0;
+    document.getElementById("stage").classList.remove("loading");
+    document.getElementById("loading-badge").style.display = "none";
+  }
+}
+
 // ── Mock fetch ────────────────────────────────────────────────────────────────
 
 const _realFetch = window.fetch.bind(window);
 window.fetch = async (url, opts) => {
   const u = String(url);
 
-  // Staffbase API mocks
+  // Always let Google Sheets through — real data, works cross-origin
+  if (u.includes("script.google.com")) {
+    trackStart();
+    return _realFetch(url, opts).finally(trackDone);
+  }
+
+  // Staffbase API — pass through in real mode
   if (u.includes("app.staffbase.com") || u.includes("/api/")) {
-    await new Promise(r => setTimeout(r, 180)); // tiny fake delay
+    if (apiMode === "real") {
+      trackStart();
+      return _realFetch(url, opts).finally(trackDone);
+    }
+
+    await new Promise(r => setTimeout(r, 180));
+    trackStart();
+    let result;
 
     if (u.includes("/installations")) {
-      return mockJson({ data: [
+      result = mockJson({ data: [
         { id: "inst1", pluginID: "tasks", config: { localization: { en_US: { title: "Panda Express #1234" } } } },
         { id: "inst2", pluginID: "tasks", config: { localization: { en_US: { title: "Panda Express HQ" } } } },
       ]});
-    }
-    if (u.includes("/tasks/inst1/lists")) return mockJson([{ id: "list1", name: "April Tasks" }]);
-    if (u.includes("/tasks/inst2/lists")) return mockJson([{ id: "list2", name: "Company Values" }]);
-    if (u.includes("/tasks/inst1/task") || u.includes("/tasks/inst2/task")) {
+    } else if (u.includes("/tasks/inst1/lists")) {
+      result = mockJson([{ id: "list1", name: "April Tasks" }]);
+    } else if (u.includes("/tasks/inst2/lists")) {
+      result = mockJson([{ id: "list2", name: "Company Values" }]);
+    } else if (u.includes("/tasks/inst1/task") || u.includes("/tasks/inst2/task")) {
       const allMock = [...MOCK_TASKS_INST1, ...MOCK_TASKS_INST2];
-      // PATCH — toggle status
       if (opts && opts.method === "PATCH") {
         const body = JSON.parse(opts.body || "{}");
         const taskId = u.split("/task/")[1];
         const t = allMock.find(x => x.id === taskId);
         if (t) t.status = body.status || t.status;
-        return mockJson(t || {});
+        result = mockJson(t || {});
+      } else {
+        result = u.includes("inst1") ? mockJson(MOCK_TASKS_INST1) : mockJson(MOCK_TASKS_INST2);
       }
-      if (u.includes("inst1")) return mockJson(MOCK_TASKS_INST1);
-      return mockJson(MOCK_TASKS_INST2);
+    } else if (u.includes("/users")) {
+      result = mockJson({ data: [] });
+    } else if (u.includes("/groups")) {
+      result = mockJson({ data: [
+        { id: "grp-crew",  name: "Store Crew",      config: { localization: { en_US: { title: "Store Crew" } } } },
+        { id: "grp-mgr",   name: "Store Managers",  config: { localization: { en_US: { title: "Store Managers" } } } },
+        { id: "grp-facil", name: "Facilities Team", config: { localization: { en_US: { title: "Facilities Team" } } } },
+        { id: "grp-it",    name: "IT Support",      config: { localization: { en_US: { title: "IT Support" } } } },
+      ]});
+    } else if ((opts && opts.method === "POST") && u.includes("/lists")) {
+      result = mockJson({ id: "list-audit-preview", name: "Audit Preview" });
+    } else if ((opts && opts.method === "POST") && u.includes("/task")) {
+      result = mockJson({ id: "task-" + Math.random().toString(36).slice(2) });
+    } else {
+      result = mockJson({});
     }
-    if (u.includes("/users")) return mockJson({ data: [] });
-    if (u.includes("/groups")) return mockJson({ data: [
-      { id: "grp-crew",    name: "Store Crew",        config: { localization: { en_US: { title: "Store Crew" } } } },
-      { id: "grp-mgr",     name: "Store Managers",    config: { localization: { en_US: { title: "Store Managers" } } } },
-      { id: "grp-facil",   name: "Facilities Team",   config: { localization: { en_US: { title: "Facilities Team" } } } },
-      { id: "grp-it",      name: "IT Support",        config: { localization: { en_US: { title: "IT Support" } } } },
-    ]});
-    // Audit widget: list creation and task creation (POST)
-    if ((opts && opts.method === "POST") && u.includes("/lists")) {
-      return mockJson({ id: "list-audit-preview", name: "Audit Preview" });
-    }
-    if ((opts && opts.method === "POST") && u.includes("/task")) {
-      return mockJson({ id: "task-" + Math.random().toString(36).slice(2) });
-    }
-    return mockJson({});
-  }
 
-  // Google Apps Script mock
-  if (u.includes("script.google.com")) {
-    await new Promise(r => setTimeout(r, 300));
-    return mockJson({ tasks: [
-      { title: "Oil Management Audit", description: "Review daily fryer oil filtering logs.", dueDate: new Date("2026-05-08").toISOString(), taskType: "Compliance" },
-      { title: "Summer Uniform Transition", description: "Distribute new summer uniforms to all staff.", dueDate: new Date("2026-05-12").toISOString(), taskType: "Operations" },
-      { title: "BOH Deep Cleaning Event", description: "Execute thorough deep clean of back of house.", dueDate: new Date("2026-05-25").toISOString(), taskType: "Operations" },
-    ]});
+    trackDone();
+    return result;
   }
 
   return _realFetch(url, opts);
@@ -268,6 +333,11 @@ function getColors() {
 
 let currentBg = "";
 
+function getApiToken() {
+  const t = document.getElementById("api-token").value.trim();
+  return t || "preview";
+}
+
 function renderMTW(colors) {
   const host = document.getElementById("mtw-host");
   host.innerHTML = "";
@@ -282,7 +352,7 @@ function renderMTW(colors) {
     backgroundcolor:  colors.background,
     showalltasks:     "false",
     showdonetasks:    "true",
-    apitoken:         "preview",
+    apitoken:         getApiToken(),
     baseurl:          "https://app.staffbase.com/api",
   };
   widget.renderBlock(host);
@@ -300,7 +370,7 @@ function renderTIW(colors) {
     primarycolor:         colors.primary,
     accentcolor:          colors.accent,
     backgroundcolor:      colors.background,
-    apitoken:             "preview",
+    apitoken:             getApiToken(),
     baseurl:              "https://app.staffbase.com/api",
     appsscripturl:        "https://script.google.com/macros/s/preview/exec",
     storelabelsingular:   "Store",
@@ -325,9 +395,8 @@ function renderAW(colors) {
     primarycolor:       colors.primary,
     accentcolor:        colors.accent,
     backgroundcolor:    colors.background,
-    apitoken:           "preview",
+    apitoken:           getApiToken(),
     baseurl:            "https://app.staffbase.com/api",
-    // Let real Google Sheets URL through for live question data
     appsscripturl:      "https://script.google.com/macros/s/AKfycbzlqYwqZ6gaq-nwDbIQ0M1spl77Qu5_fZtOwytNYYAsBKC_baY7WGUOEmM60Y6edInr/exec",
     storelabelsingular: "Store",
     storelabelplural:   "Stores",
@@ -352,6 +421,16 @@ document.querySelectorAll("#bg-toggle button").forEach(btn => {
     document.querySelectorAll("#bg-toggle button").forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
     currentBg = btn.dataset.bg;
+  });
+});
+
+document.querySelectorAll("#api-toggle button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#api-toggle button").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    apiMode = btn.dataset.api;
+    document.getElementById("token-ctrl").style.display = apiMode === "real" ? "" : "none";
+    renderAll();
   });
 });
 

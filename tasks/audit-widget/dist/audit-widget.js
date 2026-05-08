@@ -17,10 +17,10 @@ const DEFAULT_PRIMARY = "#da2e32";
 const DEFAULT_ACCENT = "#da2e32";
 const DEFAULT_THRESHOLD = "90";
 const DUMMY_QUESTIONS = [
-    { id: "EXT-001", cat: "Exterior", text: "Parking lot is free of trash and debris", type: "pf", pts: 3, critical: false, task: true, taskTitle: "Clean parking lot", taskRole: "Crew Member", taskPriority: "High", taskDue: 1 },
-    { id: "DR-001", cat: "Dining Room", text: "All tables are clean and sanitized", type: "pf", pts: 3, critical: false, task: true, taskTitle: "Sanitize all dining room tables", taskRole: "Crew Member", taskPriority: "High", taskDue: 1 },
-    { id: "ST-001", cat: "Serving Table", text: "Hot food holding temps are within range (≥140°F)", type: "temp", pts: 5, critical: true, task: true, taskTitle: "Adjust holding temp — FOOD SAFETY RISK", taskRole: "Manager", taskPriority: "Critical", taskDue: 0 },
-    { id: "BOH-001", cat: "Back of House", text: "Walk-in cooler temps within range (35–41°F)", type: "temp", pts: 5, critical: true, task: true, taskTitle: "Adjust cooler temp — FOOD SAFETY RISK", taskRole: "Manager", taskPriority: "Critical", taskDue: 0 },
+    { id: "EXT-001", cat: "Exterior", text: "Parking lot is free of trash and debris", type: "pf", pts: 3, critical: false, task: true, passCriteria: "No visible litter or debris", taskTitle: "Clean parking lot", taskRole: "Crew Member", taskPriority: "High", taskDue: 1 },
+    { id: "DR-001", cat: "Dining Room", text: "All tables are clean and sanitized", type: "pf", pts: 3, critical: false, task: true, passCriteria: "Sanitized per protocol", taskTitle: "Sanitize all dining room tables", taskRole: "Crew Member", taskPriority: "High", taskDue: 1 },
+    { id: "ST-001", cat: "Serving Table", text: "Hot food holding temps are within range (≥140°F)", type: "temp", pts: 5, critical: true, task: true, passCriteria: "≥140°F hot holding, ≥165°F cooking", taskTitle: "Adjust holding temp — FOOD SAFETY RISK", taskRole: "Manager", taskPriority: "Critical", taskDue: 0 },
+    { id: "BOH-001", cat: "Back of House", text: "Walk-in cooler temps within range (35–41°F)", type: "temp", pts: 5, critical: true, task: true, passCriteria: "35–41°F walk-in range", taskTitle: "Adjust cooler temp — FOOD SAFETY RISK", taskRole: "Manager", taskPriority: "Critical", taskDue: 0 },
 ];
 // ── Config schema ─────────────────────────────────────────────────────────────
 const configurationSchema = {
@@ -132,31 +132,37 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-prog-fill{height:100%;border-radius:3px;transition:width .3s ease;background:var(--primary)}
           .${p}-cat-tabs{display:flex;gap:0;overflow-x:auto;scrollbar-width:none;border-bottom:2px solid var(--border);margin-bottom:16px}
           .${p}-cat-tabs::-webkit-scrollbar{display:none}
-          .${p}-cat-tab{flex-shrink:0;padding:9px 14px;font-size:12px;font-weight:600;color:var(--gray);cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-2px;white-space:nowrap;background:none;border-left:none;border-right:none;border-top:none;font-family:inherit;transition:color .15s,border-color .15s}
-          .${p}-cat-tab:hover{color:var(--dark)}
-          .${p}-cat-tab.active{color:var(--primary);border-bottom-color:var(--primary)}
+          .${p}-cat-tab{flex-shrink:0!important;padding:9px 12px!important;font-size:11px!important;font-weight:600!important;color:var(--gray)!important;cursor:pointer!important;border-bottom:2.5px solid transparent!important;border-left:none!important;border-right:none!important;border-top:none!important;margin-bottom:-2px!important;white-space:nowrap!important;background:none!important;font-family:inherit!important;transition:color .15s,border-color .15s!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:3px!important;width:auto!important;line-height:normal!important}
+          .${p}-cat-tab:hover{background:none!important;color:var(--dark)!important}
+          .${p}-cat-tab.active{background:none!important;color:var(--primary)!important;border-bottom-color:var(--primary)!important}
+          .${p}-cat-tab-name{font-size:11px!important;font-weight:600!important;line-height:1!important}
+          .${p}-cat-tab-score{font-size:10px!important;font-weight:500!important;opacity:.7!important;line-height:1!important}
           .${p}-cat-badge{display:inline-flex;align-items:center;justify-content:center;background:var(--error);color:#fff;border-radius:9px;font-size:9px;font-weight:700;padding:1px 5px;margin-left:4px}
           .${p}-question{border-bottom:1px solid var(--border);padding:14px 0}
           .${p}-question:last-child{border-bottom:none}
-          .${p}-q-header{display:flex;align-items:flex-start;gap:8px;margin-bottom:8px}
+          .${p}-q-header{display:flex;align-items:flex-start;gap:8px;margin-bottom:6px}
           .${p}-q-id{background:#f3f4f6;color:var(--gray);font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;border:1px solid var(--border);flex-shrink:0;margin-top:2px;white-space:nowrap}
           .${p}-q-text{font-size:14px;line-height:1.4;flex:1}
+          .${p}-q-criteria{font-size:11px;color:var(--gray-lt);margin-bottom:8px;padding-left:2px;display:flex;align-items:center;gap:4px}
           .${p}-q-chips{display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap}
           .${p}-chip{font-size:10px;padding:2px 7px;border-radius:10px;font-weight:600;display:inline-flex;align-items:center;gap:3px}
           .${p}-chip-pts{background:#eef2ff;color:#3730a3}
           .${p}-chip-crit{background:rgba(196,30,58,.08);color:var(--error);border:1px solid rgba(196,30,58,.2)}
           .${p}-chip-task{background:#fffbeb;color:#92400e;border:1px solid #fde68a}
           .${p}-pf-row{display:flex;gap:8px}
-          .${p}-pf-btn{flex:1;padding:9px 6px;border-radius:var(--r-md);font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:#fafafa;color:var(--gray);font-family:inherit;transition:all .15s;text-align:center;display:flex;align-items:center;justify-content:center;gap:4px}
-          .${p}-pf-btn:hover{border-color:var(--primary);color:var(--primary)}
-          .${p}-pf-btn.pass{background:rgba(46,125,74,.08);border-color:var(--success);color:var(--success)}
-          .${p}-pf-btn.fail{background:rgba(196,30,58,.08);border-color:var(--error);color:var(--error)}
-          .${p}-pf-btn.na{background:#f3f4f6;border-color:#9ca3af;color:var(--gray)}
+          .${p}-pf-btn{flex:1!important;padding:9px 6px!important;border-radius:var(--r-md)!important;font-size:13px!important;font-weight:600!important;cursor:pointer!important;border:1.5px solid var(--border)!important;background:#fafafa!important;color:var(--gray)!important;font-family:inherit!important;transition:all .15s!important;text-align:center!important;display:flex!important;align-items:center!important;justify-content:center!important;gap:4px!important;width:auto!important;line-height:normal!important}
+          .${p}-pf-btn:hover{background:rgba(var(--primary-rgb),.07)!important;border-color:var(--primary)!important;color:var(--primary)!important}
+          .${p}-pf-btn.pass{background:rgba(46,125,74,.08)!important;border-color:var(--success)!important;color:var(--success)!important}
+          .${p}-pf-btn.pass:hover{background:var(--success)!important;border-color:var(--success)!important;color:#fff!important}
+          .${p}-pf-btn.fail{background:rgba(196,30,58,.08)!important;border-color:var(--error)!important;color:var(--error)!important}
+          .${p}-pf-btn.fail:hover{background:var(--error)!important;border-color:var(--error)!important;color:#fff!important}
+          .${p}-pf-btn.na{background:#f3f4f6!important;border-color:#9ca3af!important;color:var(--gray)!important}
+          .${p}-pf-btn.na:hover{background:#9ca3af!important;border-color:#9ca3af!important;color:#fff!important}
           .${p}-rating-row{display:flex;gap:6px}
-          .${p}-rating-btn{flex:1;padding:9px 4px;border-radius:var(--r-md);font-size:13px;font-weight:700;cursor:pointer;border:1.5px solid var(--border);background:#fafafa;color:var(--gray);font-family:inherit;transition:all .15s;text-align:center}
-          .${p}-rating-btn.low{background:rgba(196,30,58,.08);border-color:var(--error);color:var(--error)}
-          .${p}-rating-btn.mid{background:#fffbeb;border-color:#d97706;color:#d97706}
-          .${p}-rating-btn.hi{background:rgba(46,125,74,.08);border-color:var(--success);color:var(--success)}
+          .${p}-rating-btn{flex:1!important;padding:9px 4px!important;border-radius:var(--r-md)!important;font-size:13px!important;font-weight:700!important;cursor:pointer!important;border:1.5px solid var(--border)!important;background:#fafafa!important;color:var(--gray)!important;font-family:inherit!important;transition:all .15s!important;text-align:center!important;display:block!important;width:auto!important;line-height:normal!important}
+          .${p}-rating-btn.low{background:rgba(196,30,58,.08)!important;border-color:var(--error)!important;color:var(--error)!important}
+          .${p}-rating-btn.mid{background:#fffbeb!important;border-color:#d97706!important;color:#d97706!important}
+          .${p}-rating-btn.hi{background:rgba(46,125,74,.08)!important;border-color:var(--success)!important;color:var(--success)!important}
           .${p}-rating-hint{display:flex;justify-content:space-between;font-size:10px;color:var(--gray-lt);margin-top:4px}
           .${p}-temp-input{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:var(--r-md);font-size:18px;font-weight:700;font-family:inherit;color:var(--dark);background:#fafafa;text-align:center;transition:border-color .15s,background .15s}
           .${p}-temp-input:focus{outline:none;border-color:var(--primary);background:#fff}
@@ -184,12 +190,12 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-prio-high{background:rgba(163,45,45,.08);color:#a32d2d}
           .${p}-prio-medium{background:#fffbeb;color:#92400e}
           .${p}-prio-low{background:rgba(46,125,74,.08);color:var(--success)}
-          .${p}-btn{padding:10px 16px;border:none;border-radius:var(--r-md);font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:all .2s;white-space:nowrap}
-          .${p}-btn:disabled{opacity:.4;cursor:not-allowed}
-          .${p}-btn-primary{background:var(--primary);color:var(--primary-text);box-shadow:0 3px 10px rgba(var(--primary-rgb),.3)}
-          .${p}-btn-primary:hover:not(:disabled){filter:brightness(.88);transform:translateY(-1px)}
-          .${p}-btn-ghost{background:#f3f4f6;color:var(--gray);border:1.5px solid var(--border)}
-          .${p}-btn-ghost:hover:not(:disabled){border-color:var(--primary);color:var(--primary)}
+          .${p}-btn{padding:10px 16px!important;border:none!important;border-radius:var(--r-md)!important;font-size:13px!important;font-weight:700!important;font-family:inherit!important;cursor:pointer!important;display:inline-flex!important;align-items:center!important;gap:7px!important;transition:all .2s!important;white-space:nowrap!important;width:auto!important;line-height:normal!important}
+          .${p}-btn:disabled{opacity:.4!important;cursor:not-allowed!important}
+          .${p}-btn-primary{background:var(--primary)!important;color:var(--primary-text)!important;box-shadow:0 3px 10px rgba(var(--primary-rgb),.3)!important}
+          .${p}-btn-primary:hover:not(:disabled){background:var(--primary)!important;color:var(--primary-text)!important;filter:brightness(.88)!important;transform:translateY(-1px)!important}
+          .${p}-btn-ghost{background:#f3f4f6!important;color:var(--gray)!important;border:1.5px solid var(--border)!important}
+          .${p}-btn-ghost:hover:not(:disabled){background:rgba(var(--primary-rgb),.05)!important;border-color:var(--primary)!important;color:var(--primary)!important}
           .${p}-btn-full{width:100%;justify-content:center}
           .${p}-nav{display:flex;gap:8px;margin-top:8px}
           .${p}-nav>.${p}-btn{flex:1;justify-content:center}
@@ -248,6 +254,35 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const iUser = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
                 const iPrev = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>`;
                 const iNext = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
+                // ── Category icon bank ────────────────────────────────────────────
+                function catIcon(cat) {
+                    const c = cat.toLowerCase();
+                    const s = `width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"`;
+                    if (/exterior|parking|outside|facade|building/.test(c))
+                        return `<svg ${s}><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>`;
+                    if (/dining|seating|lounge|lobby/.test(c))
+                        return `<svg ${s}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
+                    if (/serving|station|counter/.test(c))
+                        return `<svg ${s}><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>`;
+                    if (/back of house|boh|kitchen|prep|cook/.test(c))
+                        return `<svg ${s}><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M8.46 8.46a5 5 0 0 0 0 7.07"/></svg>`;
+                    if (/restroom|bathroom|toilet|hygiene/.test(c))
+                        return `<svg ${s}><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg>`;
+                    if (/drive.?thru|drive.?through|window|dtx/.test(c))
+                        return `<svg ${s}><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>`;
+                    if (/staff|employee|team|crew|personnel/.test(c))
+                        return `<svg ${s}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
+                    if (/safety|health|food safe/.test(c))
+                        return `<svg ${s}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`;
+                    if (/storage|cooler|freezer|refriger|walk.?in/.test(c))
+                        return `<svg ${s}><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`;
+                    if (/register|pos|checkout|cashier|payment/.test(c))
+                        return `<svg ${s}><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`;
+                    if (/equipment|machine|hvac|electric/.test(c))
+                        return `<svg ${s}><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M4.93 19.07l1.41-1.41M19.07 19.07l-1.41-1.41M2 12h2m16 0h2M12 2v2m0 16v2"/></svg>`;
+                    // default: clipboard
+                    return `<svg ${s}><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>`;
+                }
                 // ── Question logic ────────────────────────────────────────────────
                 function isPass(q, val) {
                     if (!val)
@@ -284,40 +319,55 @@ const factory = (BaseBlockClass, widgetApi) => {
                     });
                 }
                 // ── Sheet parsing ─────────────────────────────────────────────────
+                function normalizeType(t) {
+                    const l = t.toLowerCase();
+                    if (l.includes("pass") && l.includes("fail"))
+                        return "pf";
+                    if (l.includes("rating") || l.includes("1–5") || l.includes("1-5"))
+                        return "rating";
+                    if (l.includes("temp"))
+                        return "temp";
+                    return "pf";
+                }
                 function parseRows(rows) {
                     if (!rows || rows.length < 3)
                         return [];
-                    let hIdx = 0;
-                    for (let i = 0; i < Math.min(4, rows.length); i++) {
-                        if (rows[i].some((c) => /question|text|id/i.test(String(c || "")))) {
+                    // Require BOTH "question id" AND "category" in the same row — avoids matching the title row
+                    let hIdx = -1;
+                    for (let i = 0; i < Math.min(5, rows.length); i++) {
+                        const hasId = rows[i].some((c) => /question\s*id/i.test(String(c || "")));
+                        const hasCat = rows[i].some((c) => /category/i.test(String(c || "")));
+                        if (hasId && hasCat) {
                             hIdx = i;
                             break;
                         }
                     }
+                    if (hIdx < 0)
+                        return [];
                     const hdrs = rows[hIdx].map((c) => String(c || "").toLowerCase().trim());
                     const col = (...names) => { for (const n of names) {
                         const i = hdrs.findIndex(h => h.includes(n));
                         if (i >= 0)
                             return i;
                     } return -1; };
-                    const iId = col("question id", "id");
-                    const iCat = col("category", "cat");
-                    const iText = col("question text", "text", "question");
-                    const iType = col("type");
-                    const iPts = col("pts", "point");
-                    const iCrit = col("critical");
-                    const iTask = col("task flag", "auto-task", "task");
-                    const iTitle = col("task title", "title");
-                    const iRole = col("task role", "role");
-                    const iPrio = col("priority");
-                    const iDue = col("due");
-                    const iActive = 13;
+                    const iId = col("question id");
+                    const iCat = col("category");
+                    const iText = col("checklist item", "checklist", "question /");
+                    const iType = col("response type", "type");
+                    const iPts = col("weight", "pts", "point");
+                    const iCrit = col("pass criteria", "criteria", "pass crit");
+                    const iTask = col("generate task", "auto-task");
+                    const iTitle = col("task title");
+                    const iRole = col("assignee role", "task role", "role");
+                    const iDue = col("task due", "due");
+                    const iPrio = col("task priority", "priority");
+                    const iActive = col("active");
                     const out = [];
                     for (let i = hIdx + 1; i < rows.length; i++) {
                         const r = rows[i];
                         if (!r || !r.length)
                             continue;
-                        const av = String(r[iActive] || "").toLowerCase();
+                        const av = iActive >= 0 ? String(r[iActive] || "").toLowerCase() : "yes";
                         if (av === "false" || av === "no" || av === "0")
                             continue;
                         const text = iText >= 0 ? String(r[iText] || "").trim() : "";
@@ -327,9 +377,10 @@ const factory = (BaseBlockClass, widgetApi) => {
                             id: iId >= 0 ? String(r[iId] || `Q${i}`) : `Q${i}`,
                             cat: iCat >= 0 ? String(r[iCat] || "General").trim() : "General",
                             text,
-                            type: iType >= 0 ? String(r[iType] || "pf").toLowerCase() : "pf",
+                            type: iType >= 0 ? normalizeType(String(r[iType] || "")) : "pf",
                             pts: iPts >= 0 ? parseInt(String(r[iPts] || "1")) || 1 : 1,
-                            critical: iCrit >= 0 ? /true|yes/i.test(String(r[iCrit] || "")) : false,
+                            critical: false,
+                            passCriteria: iCrit >= 0 ? String(r[iCrit] || "").trim() : "",
                             task: iTask >= 0 ? /true|yes/i.test(String(r[iTask] || "")) : false,
                             taskTitle: iTitle >= 0 ? String(r[iTitle] || "").trim() : text,
                             taskRole: iRole >= 0 ? String(r[iRole] || "").trim() : "",
@@ -481,9 +532,12 @@ const factory = (BaseBlockClass, widgetApi) => {
                     const idx = categories.indexOf(activeCat);
                     const isFirst = idx === 0, isLast = idx === categories.length - 1;
                     const tabsHtml = categories.map(cat => {
-                        const fails = questions.filter(q => q.cat === cat && isPass(q, responses[q.id] || "") === false).length;
+                        const catQsList = questions.filter(q => q.cat === cat);
+                        const answered = catQsList.filter(q => responses[q.id]).length;
+                        const fails = catQsList.filter(q => isPass(q, responses[q.id] || "") === false).length;
                         const badge = fails > 0 ? `<span class="${p}-cat-badge">${fails}</span>` : "";
-                        return `<button type="button" class="${p}-cat-tab${cat === activeCat ? " active" : ""}" data-cat="${esc(cat)}">${esc(cat)}${badge}</button>`;
+                        const score = `<span class="${p}-cat-tab-score">${answered}/${catQsList.length}</span>`;
+                        return `<button type="button" class="${p}-cat-tab${cat === activeCat ? " active" : ""}" data-cat="${esc(cat)}">${catIcon(cat)}<span class="${p}-cat-tab-name">${esc(cat)}${badge}</span>${score}</button>`;
                     }).join("");
                     const qHtml = catQs.map(renderQuestion).join("");
                     contentEl.innerHTML = `
@@ -502,7 +556,7 @@ const factory = (BaseBlockClass, widgetApi) => {
           <div class="${p}-nav">
             <button type="button" class="${p}-btn ${p}-btn-ghost" id="${p}-prev">${iPrev} ${isFirst ? "Setup" : "Prev"}</button>
             ${isLast
-                        ? `<button type="button" class="${p}-btn ${p}-btn-primary" id="${p}-gen">${iFlag} Generate Tasks</button>`
+                        ? `<button type="button" class="${p}-btn ${p}-btn-primary" id="${p}-gen">${iFlag} View Overview</button>`
                         : `<button type="button" class="${p}-btn ${p}-btn-primary" id="${p}-next">Next ${iNext}</button>`}
           </div>`;
                     contentEl.querySelectorAll(`.${p}-cat-tab`).forEach(btn => {
@@ -575,8 +629,10 @@ const factory = (BaseBlockClass, widgetApi) => {
             <div class="${p}-task-flag-title">${iFlag} Task will be generated</div>
             <p><strong>${esc(q.taskTitle)}</strong> · ${esc(q.taskRole)} · ${esc(q.taskPriority)} · Due: ${q.taskDue === 0 ? "Immediately" : `${q.taskDue}d`}</p>
           </div>` : "";
+                    const iCheck2 = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
                     return `<div class="${p}-question" data-qid="${esc(q.id)}">
           <div class="${p}-q-header"><span class="${p}-q-id">${esc(q.id)}</span><span class="${p}-q-text">${esc(q.text)}</span></div>
+          ${q.passCriteria ? `<div class="${p}-q-criteria">${iCheck2} ${esc(q.passCriteria)}</div>` : ""}
           <div class="${p}-q-chips">
             <span class="${p}-chip ${p}-chip-pts">${q.pts} pts</span>
             ${q.critical ? `<span class="${p}-chip ${p}-chip-crit">${iWarn} Critical</span>` : ""}
