@@ -119,6 +119,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       let selectedInstId = "";
       let activeCat      = "";
       let auditorName    = "";
+      let nameLoaded     = false;
       let auditDate      = new Date().toISOString().split("T")[0];
       let auditNotes     = "";
       const responses:        Record<string,string> = {};
@@ -126,6 +127,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       type Step = "setup"|"audit"|"generate";
       let step: Step = "setup";
       let cleanupStoreDropdown: (() => void) | null = null;
+      // per-task group picker open state
+      const openGroupPicker: Record<string,boolean> = {};
 
       // ── HTML skeleton ──────────────────────────────────────────────────
       container.innerHTML = `
@@ -147,23 +150,43 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
           @media(max-width:480px){.${p}-row{grid-template-columns:1fr}}
           .${p}-field{display:flex;flex-direction:column;gap:5px}
+
+          /* ── Auditor name display (click-to-edit) ── */
+          .${p}-name-display{min-height:42px;padding:10px 13px;border:1.5px solid transparent;border-radius:var(--r-md);font-size:14px;color:var(--dark);display:flex;align-items:center;gap:8px;cursor:pointer;transition:border-color .15s,background .15s}
+          .${p}-name-display:hover{border-color:var(--border);background:#fafafa}
+          .${p}-name-display:hover .${p}-name-edit-hint{opacity:1}
+          .${p}-name-text{flex:1;font-size:14px;font-weight:500}
+          .${p}-name-edit-hint{font-size:11px;color:var(--gray-lt);opacity:0;transition:opacity .15s;white-space:nowrap}
+          .${p}-name-loading{min-height:42px;padding:10px 13px;display:flex;align-items:center;gap:8px;color:var(--gray-lt);font-size:13px}
+
           .${p}-prog-label{font-size:11px;color:var(--gray-lt);margin-bottom:5px;display:flex;justify-content:space-between}
           .${p}-prog-wrap{background:#f3f4f6;border-radius:3px;height:5px;overflow:hidden;margin-bottom:14px}
           .${p}-prog-fill{height:100%;border-radius:3px;transition:width .3s ease;background:var(--primary)}
-          .${p}-cat-tabs{display:flex;gap:0;overflow-x:auto;scrollbar-width:none;border-bottom:2px solid var(--border);margin-bottom:16px}
+
+          /* ── Category tabs ── */
+          .${p}-cat-tabs-wrap{position:relative;flex:1;overflow:hidden}
+          .${p}-cat-tabs{display:flex;gap:0;overflow-x:auto;scrollbar-width:none;border-bottom:2px solid var(--border)}
           .${p}-cat-tabs::-webkit-scrollbar{display:none}
-          .${p}-cat-tab{flex-shrink:0!important;padding:9px 12px!important;font-size:11px!important;font-weight:600!important;color:var(--gray)!important;cursor:pointer!important;border-bottom:2.5px solid transparent!important;border-left:none!important;border-right:none!important;border-top:none!important;margin-bottom:-2px!important;white-space:nowrap!important;background:none!important;font-family:inherit!important;transition:color .15s,border-color .15s!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:3px!important;width:auto!important;line-height:normal!important}
-          .${p}-cat-tab:hover{background:none!important;color:var(--dark)!important}
-          .${p}-cat-tab.active{background:none!important;color:var(--primary)!important;border-bottom-color:var(--primary)!important}
+          .${p}-cat-tab{flex-shrink:0!important;min-width:200px!important;padding:10px 14px!important;font-size:11px!important;font-weight:600!important;color:var(--gray)!important;cursor:pointer!important;border-bottom:2.5px solid transparent!important;border-left:none!important;border-right:none!important;border-top:none!important;margin-bottom:-2px!important;white-space:nowrap!important;background:none!important;font-family:inherit!important;transition:color .15s,border-color .15s,background .15s!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:3px!important;width:auto!important;line-height:normal!important;border-radius:var(--r-sm) var(--r-sm) 0 0!important}
+          .${p}-cat-tab:hover{background:rgba(var(--primary-rgb),.04)!important;color:var(--dark)!important}
+          .${p}-cat-tab.active{background:rgba(var(--primary-rgb),.07)!important;color:var(--primary)!important;border-bottom-color:var(--primary)!important}
           .${p}-cat-tab-name{font-size:11px!important;font-weight:600!important;line-height:1!important}
           .${p}-cat-tab-score{font-size:10px!important;font-weight:500!important;opacity:.7!important;line-height:1!important}
           .${p}-cat-badge{display:inline-flex;align-items:center;justify-content:center;background:var(--error);color:#fff;border-radius:9px;font-size:9px;font-weight:700;padding:1px 5px;margin-left:4px}
+
+          /* scroll arrows */
+          .${p}-tabs-arrow{position:absolute;top:0;bottom:2px;width:36px;display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;z-index:10;transition:opacity .2s;pointer-events:none;opacity:0}
+          .${p}-tabs-arrow.visible{pointer-events:auto;opacity:1}
+          .${p}-tabs-arrow-left{left:0;background:linear-gradient(to right,#fff 60%,transparent);color:var(--gray);padding-left:4px;justify-content:flex-start}
+          .${p}-tabs-arrow-right{right:0;background:linear-gradient(to left,#fff 60%,transparent);color:var(--gray);padding-right:4px;justify-content:flex-end}
+          .${p}-tabs-arrow:hover{color:var(--primary)}
+
           .${p}-question{border-bottom:1px solid var(--border);padding:14px 0}
           .${p}-question:last-child{border-bottom:none}
           .${p}-q-header{display:flex;align-items:flex-start;gap:8px;margin-bottom:6px}
           .${p}-q-id{background:#f3f4f6;color:var(--gray);font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;border:1px solid var(--border);flex-shrink:0;margin-top:2px;white-space:nowrap}
           .${p}-q-text{font-size:14px;line-height:1.4;flex:1}
-          .${p}-q-criteria{font-size:11px;color:var(--gray-lt);margin-bottom:8px;padding-left:2px;display:flex;align-items:center;gap:4px}
+          .${p}-q-criteria{font-size:11px;color:var(--gray-lt);margin-bottom:8px;padding-left:2px;display:flex;align-items:flex-start;gap:4px;line-height:1.4}
           .${p}-q-chips{display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap}
           .${p}-chip{font-size:10px;padding:2px 7px;border-radius:10px;font-weight:600;display:inline-flex;align-items:center;gap:3px}
           .${p}-chip-pts{background:#eef2ff;color:#3730a3}
@@ -172,6 +195,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-pf-row{display:flex;gap:8px}
           .${p}-pf-btn{flex:1!important;padding:9px 6px!important;border-radius:var(--r-md)!important;font-size:13px!important;font-weight:600!important;cursor:pointer!important;border:1.5px solid var(--border)!important;background:#fafafa!important;color:var(--gray)!important;font-family:inherit!important;transition:all .15s!important;text-align:center!important;display:flex!important;align-items:center!important;justify-content:center!important;gap:4px!important;width:auto!important;line-height:normal!important}
           .${p}-pf-btn:hover{background:rgba(var(--primary-rgb),.07)!important;border-color:var(--primary)!important;color:var(--primary)!important}
+          .${p}-pf-btn[data-val="pass"]:hover{background:rgba(46,125,74,.08)!important;border-color:var(--success)!important;color:var(--success)!important}
+          .${p}-pf-btn[data-val="fail"]:hover{background:rgba(196,30,58,.08)!important;border-color:var(--error)!important;color:var(--error)!important}
           .${p}-pf-btn.pass{background:rgba(46,125,74,.08)!important;border-color:var(--success)!important;color:var(--success)!important}
           .${p}-pf-btn.pass:hover{background:var(--success)!important;border-color:var(--success)!important;color:#fff!important}
           .${p}-pf-btn.fail{background:rgba(196,30,58,.08)!important;border-color:var(--error)!important;color:var(--error)!important}
@@ -188,7 +213,6 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-temp-input:focus{outline:none;border-color:var(--primary);background:#fff}
           .${p}-temp-input.ok{border-color:var(--success);background:rgba(46,125,74,.05)}
           .${p}-temp-input.bad{border-color:var(--error);background:rgba(196,30,58,.05)}
-          .${p}-temp-hint{font-size:11px;color:var(--gray-lt);text-align:center;margin-top:4px}
           .${p}-task-flag{background:#fffbeb;border:1px solid #fde68a;border-radius:var(--r-md);padding:10px 12px;margin-top:10px;display:none}
           .${p}-task-flag.show{display:block}
           .${p}-task-flag-title{font-size:12px;font-weight:700;color:#92400e;margin-bottom:4px;display:flex;align-items:center;gap:5px}
@@ -198,8 +222,14 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-score-bar{height:100%;border-radius:4px;transition:width .6s ease}
           .${p}-meta-grid{background:#f9fafb;border-radius:var(--r-md);padding:12px;display:grid;gap:6px;font-size:12px;color:var(--gray);margin-bottom:16px}
           .${p}-meta-row{display:flex;justify-content:space-between;align-items:center}
-          .${p}-cat-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px}
+
+          /* category breakdown — 3-col grid so count is always truly centered */
+          .${p}-cat-row{display:grid;grid-template-columns:1fr 80px 60px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px}
           .${p}-cat-row:last-child{border-bottom:none}
+          .${p}-cat-row-name{text-align:left}
+          .${p}-cat-row-count{text-align:center;font-size:12px;color:var(--gray-lt)}
+          .${p}-cat-row-pct{text-align:right;font-weight:700}
+
           .${p}-fail-item{padding:12px 0;border-bottom:1px solid var(--border)}
           .${p}-fail-item:last-child{border-bottom:none}
           .${p}-fail-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px}
@@ -236,6 +266,26 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-state{padding:36px 20px;text-align:center;color:var(--gray-lt);font-size:13px}
           .${p}-state strong{display:block;color:var(--gray);font-size:14px;margin-bottom:4px}
           .${p}-group-lbl{font-size:11px;font-weight:600;color:var(--gray);text-transform:uppercase;letter-spacing:.3px;margin-bottom:4px}
+
+          /* ── Per-task group picker (tasks-integration-widget style) ── */
+          .${p}-gp-wrap{position:relative}
+          .${p}-gp-trigger{width:100%;min-height:40px;padding:8px 32px 8px 11px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fafafa;cursor:pointer;display:flex;align-items:center;position:relative;transition:border-color .15s,background .15s;font-size:13px;font-family:inherit;color:var(--dark);text-align:left}
+          .${p}-gp-trigger:hover,.${p}-gp-trigger.open{border-color:var(--primary);background:#fff}
+          .${p}-gp-trigger::after{content:'▾';position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--gray-lt);pointer-events:none;font-size:12px}
+          .${p}-gp-ph{color:var(--gray-lt)}
+          .${p}-gp-dropdown{display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1.5px solid var(--primary);border-radius:var(--r-md);box-shadow:var(--shadow-md);overflow:hidden;z-index:300}
+          .${p}-gp-dropdown.show{display:block;animation:${p}-gpdd .15s ease}
+          @keyframes ${p}-gpdd{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+          .${p}-gp-search{padding:8px 10px;border-bottom:1px solid var(--border)}
+          .${p}-gp-search input{width:100%;padding:6px 9px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:12px;font-family:inherit;background:#fafafa;color:var(--dark);outline:none}
+          .${p}-gp-search input:focus{border-color:var(--primary);background:#fff}
+          .${p}-gp-list{max-height:180px;overflow-y:auto}
+          .${p}-gp-opt{padding:9px 12px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-size:13px;border-bottom:1px solid #f3f4f6;transition:background .1s;color:var(--dark)}
+          .${p}-gp-opt:last-child{border-bottom:none}
+          .${p}-gp-opt:hover{background:rgba(var(--primary-rgb),.05)}
+          .${p}-gp-opt.sel{background:rgba(var(--primary-rgb),.06);font-weight:600;color:var(--primary)}
+          .${p}-gp-none{padding:16px;text-align:center;color:var(--gray-lt);font-size:12px}
+
           .${p}-ms-wrap{position:relative}
           .${p}-ms-trigger{width:100%;min-height:42px;padding:8px 36px 8px 11px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fafafa;cursor:pointer;display:flex;align-items:center;position:relative;transition:border-color .15s,background .15s;font-size:14px;font-family:inherit;color:var(--dark)}
           .${p}-ms-trigger:hover,.${p}-ms-trigger.open{border-color:var(--primary);background:#fff}
@@ -296,6 +346,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const iUser  = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
       const iPrev  = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>`;
       const iNext  = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
+      const iPencil= `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
 
       // ── Category icon bank ────────────────────────────────────────────
       function catIcon(cat: string): string {
@@ -313,16 +364,22 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           return `<svg ${s}><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg>`;
         if(/drive.?thru|drive.?through|window|dtx/.test(c))
           return `<svg ${s}><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>`;
-        if(/staff|employee|team|crew|personnel/.test(c))
+        if(/staff|employee|team|crew|personnel|associate/.test(c))
           return `<svg ${s}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
         if(/safety|health|food safe/.test(c))
           return `<svg ${s}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`;
         if(/storage|cooler|freezer|refriger|walk.?in/.test(c))
           return `<svg ${s}><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`;
-        if(/register|pos|checkout|cashier|payment/.test(c))
+        if(/register|pos|checkout|cashier|payment|cash/.test(c))
           return `<svg ${s}><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`;
         if(/equipment|machine|hvac|electric/.test(c))
           return `<svg ${s}><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M4.93 19.07l1.41-1.41M19.07 19.07l-1.41-1.41M2 12h2m16 0h2M12 2v2m0 16v2"/></svg>`;
+        if(/thermometer|temp/.test(c))
+          return `<svg ${s}><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>`;
+        if(/order|accuracy/.test(c))
+          return `<svg ${s}><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`;
+        if(/protein|marinated|meat/.test(c))
+          return `<svg ${s}><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>`;
         // default: clipboard
         return `<svg ${s}><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>`;
       }
@@ -368,7 +425,6 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
       function parseRows(rows: any[][]): Question[] {
         if(!rows||rows.length<3) return [];
-        // Require BOTH "question id" AND "category" in the same row — avoids matching the title row
         let hIdx=-1;
         for(let i=0;i<Math.min(5,rows.length);i++){
           const hasId  = rows[i].some((c:any)=>/question\s*id/i.test(String(c||"")));
@@ -418,9 +474,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       async function fetchAll(){
         hspinEl.style.display="";
         try {
-          const [instRes,grpRes]=await Promise.all([
-            fetch(`${baseUrl}/installations?limit=200`,apiOpts()),
-            fetch(`${baseUrl}/groups?limit=200`,apiOpts()),
+          const [instRes, grpRes] = await Promise.all([
+            fetch(`${baseUrl}/installations?limit=200`, apiOpts()),
+            // Use search endpoint to get both open (enumeration) and internal groups
+            fetch(`${baseUrl}/groups/search?limit=100&sort=name_ASC`, apiOpts()),
           ]);
           if(instRes.ok){
             const d=await instRes.json();
@@ -431,13 +488,29 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           }
           if(grpRes.ok){
             const d=await grpRes.json();
-            allGroups=(d.data||[]).map((g:any)=>({id:g.id,name:g.config?.localization?.en_US?.title||g.name||g.id}))
+            allGroups=(d.data||d.results||[])
+              .map((g:any)=>({id:g.id,name:g.config?.localization?.en_US?.title||g.name||g.id}))
+              .filter((g:any)=>g.name)
               .sort((a:any,b:any)=>a.name.localeCompare(b.name));
+          }
+          // Fallback: if search returned nothing, try the standard endpoint
+          if(!allGroups.length){
+            try {
+              const fallback = await fetch(`${baseUrl}/groups?limit=200`, apiOpts());
+              if(fallback.ok){
+                const d = await fallback.json();
+                allGroups = (d.data||[])
+                  .map((g:any)=>({id:g.id,name:g.config?.localization?.en_US?.title||g.name||g.id}))
+                  .filter((g:any)=>g.name)
+                  .sort((a:any,b:any)=>a.name.localeCompare(b.name));
+              }
+            } catch(_){}
           }
           try {
             const prof=await widgetApi.getUserInformation();
             auditorName=(`${(prof as any).firstName||""} ${(prof as any).lastName||""}`).trim()||(prof as any).id||"";
           } catch(_){}
+          nameLoaded = true;
           try {
             const sr=await fetch(appsScriptUrl);
             if(sr.ok){
@@ -461,15 +534,15 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           questions=[...DUMMY_QUESTIONS];
           categories=[...new Set(questions.map(q=>q.cat))];
           activeCat=categories[0]||"";
+          nameLoaded = true;
         }
         hspinEl.style.display="none";
-        // Re-render setup now that installs are loaded
         if(step==="setup") renderSetup();
       }
 
       // ── Render dispatch ───────────────────────────────────────────────
       function render(){
-        if(step==="setup")    renderSetup();
+        if(step==="setup")         renderSetup();
         else if(step==="audit")    renderAudit();
         else if(step==="generate") renderGenerate();
       }
@@ -481,6 +554,18 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         const triggerInner=selInst
           ?`<span style="color:var(--dark);font-size:14px">${esc(selInst.title)}</span>`
           :`<span class="${p}-ms-ph">${installations.length===0?`Loading ${esc(storeP.toLowerCase())}…`:`Select a ${esc(storeS)}…`}</span>`;
+
+        // Auditor name field: spinner while loading, click-to-edit display after
+        const nameFieldHtml = nameLoaded
+          ? `<div class="${p}-name-display" id="${p}-name-display" title="Click to edit">
+               <span class="${p}-name-text" id="${p}-name-text">${esc(auditorName||"—")}</span>
+               <span class="${p}-name-edit-hint">${iPencil} edit</span>
+             </div>`
+          : `<div class="${p}-name-loading">
+               <span class="${p}-spin"></span>
+               <span>Loading your name…</span>
+             </div>`;
+
         contentEl.innerHTML=`
           <div class="${p}-card">
             <div class="${p}-card-head"><span class="${p}-step">1</span><span class="${p}-card-title">Store &amp; Auditor Details</span></div>
@@ -504,7 +589,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               <div class="${p}-row full" style="grid-template-columns:1fr">
                 <div class="${p}-field">
                   <label class="${p}-label">Auditor Name</label>
-                  <input type="text" class="${p}-input" id="${p}-aname" placeholder="Your name" value="${esc(auditorName)}">
+                  ${nameFieldHtml}
                 </div>
               </div>
               <div class="${p}-row full" style="grid-template-columns:1fr;margin-bottom:12px">
@@ -516,6 +601,36 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               <button type="button" class="${p}-btn ${p}-btn-primary ${p}-btn-full" id="${p}-begin">${iCheck} Begin Audit</button>
             </div>
           </div>`;
+
+        // ── Click-to-edit name ─────────────────────────────────────────
+        if(nameLoaded){
+          const nameDisplay = contentEl.querySelector(`#${p}-name-display`) as HTMLElement|null;
+          if(nameDisplay){
+            nameDisplay.addEventListener("click",()=>{
+              const input = document.createElement("input");
+              input.type = "text";
+              input.className = `${p}-input`;
+              input.id = `${p}-aname`;
+              input.value = auditorName;
+              input.placeholder = "Your name";
+              nameDisplay.replaceWith(input);
+              input.focus();
+              input.select();
+              const save = () => {
+                auditorName = input.value.trim();
+                const newDisplay = document.createElement("div");
+                newDisplay.className = `${p}-name-display`;
+                newDisplay.id = `${p}-name-display`;
+                newDisplay.title = "Click to edit";
+                newDisplay.innerHTML = `<span class="${p}-name-text">${esc(auditorName||"—")}</span><span class="${p}-name-edit-hint">${iPencil} edit</span>`;
+                input.replaceWith(newDisplay);
+                newDisplay.addEventListener("click", arguments.callee as any);
+              };
+              input.addEventListener("blur", save);
+              input.addEventListener("keydown",(e:KeyboardEvent)=>{ if(e.key==="Enter"){ e.preventDefault(); input.blur(); }});
+            });
+          }
+        }
 
         const trigger  = contentEl.querySelector(`#${p}-trigger`)  as HTMLElement;
         const dropdown = contentEl.querySelector(`#${p}-dropdown`) as HTMLElement;
@@ -567,7 +682,11 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         renderOpts();
 
         contentEl.querySelector(`#${p}-begin`)!.addEventListener("click",()=>{
-          auditorName=(contentEl.querySelector(`#${p}-aname`)  as HTMLInputElement).value.trim();
+          // Read auditor name from whichever element is currently rendered
+          const nameInput = contentEl.querySelector(`#${p}-aname`) as HTMLInputElement|null;
+          const nameText  = contentEl.querySelector(`#${p}-name-text`) as HTMLElement|null;
+          if(nameInput)      auditorName = nameInput.value.trim();
+          else if(nameText)  auditorName = nameText.textContent?.trim() === "—" ? "" : (nameText.textContent?.trim()||"");
           auditDate  =(contentEl.querySelector(`#${p}-adate`)  as HTMLInputElement).value;
           auditNotes =(contentEl.querySelector(`#${p}-anotes`) as HTMLTextAreaElement).value.trim();
           if(!selectedInstId){showBanner("error",`Please select a ${storeS}.`);return;}
@@ -601,8 +720,12 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             <div class="${p}-prog-wrap"><div class="${p}-prog-fill" style="width:${pct}%"></div></div>
           </div>
           <div class="${p}-card">
-            <div class="${p}-card-head" style="padding:0;border-bottom:none">
-              <div class="${p}-cat-tabs" style="flex:1;padding:0 4px">${tabsHtml}</div>
+            <div class="${p}-card-head" style="padding:0;border-bottom:none;overflow:hidden">
+              <div class="${p}-cat-tabs-wrap" id="${p}-tabs-wrap">
+                <div class="${p}-cat-tabs" id="${p}-cat-tabs" style="padding:0 4px">${tabsHtml}</div>
+                <div class="${p}-tabs-arrow ${p}-tabs-arrow-left" id="${p}-tabs-left">‹</div>
+                <div class="${p}-tabs-arrow ${p}-tabs-arrow-right" id="${p}-tabs-right">›</div>
+              </div>
             </div>
             <div class="${p}-card-body" id="${p}-qwrap">
               ${qHtml||`<div class="${p}-state"><strong>No questions</strong></div>`}
@@ -615,8 +738,33 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               :`<button type="button" class="${p}-btn ${p}-btn-primary" id="${p}-next">Next ${iNext}</button>`}
           </div>`;
 
+        // ── Scroll arrows ──────────────────────────────────────────────
+        const tabsEl    = contentEl.querySelector(`#${p}-cat-tabs`)  as HTMLElement;
+        const arrowLeft = contentEl.querySelector(`#${p}-tabs-left`) as HTMLElement;
+        const arrowRight= contentEl.querySelector(`#${p}-tabs-right`) as HTMLElement;
+
+        function updateArrows(){
+          const sl = tabsEl.scrollLeft;
+          const maxSl = tabsEl.scrollWidth - tabsEl.clientWidth;
+          arrowLeft.classList.toggle("visible",  sl > 4);
+          arrowRight.classList.toggle("visible", maxSl > 4 && sl < maxSl - 4);
+        }
+        tabsEl.addEventListener("scroll", updateArrows, {passive:true});
+        // initial arrow state + scroll active tab into view
+        requestAnimationFrame(()=>{
+          updateArrows();
+          const activeTab = tabsEl.querySelector(`.${p}-cat-tab.active`) as HTMLElement|null;
+          if(activeTab) activeTab.scrollIntoView({behavior:"smooth",block:"nearest",inline:"center"});
+        });
+        arrowLeft.addEventListener("click",()=>{ tabsEl.scrollBy({left:-220,behavior:"smooth"}); });
+        arrowRight.addEventListener("click",()=>{ tabsEl.scrollBy({left:220,behavior:"smooth"}); });
+
+        // ── Tab + nav events ───────────────────────────────────────────
         contentEl.querySelectorAll(`.${p}-cat-tab`).forEach(btn=>{
-          btn.addEventListener("click",()=>{activeCat=(btn as HTMLElement).dataset.cat||activeCat;renderAudit();});
+          btn.addEventListener("click",()=>{
+            activeCat=(btn as HTMLElement).dataset.cat||activeCat;
+            renderAudit();
+          });
         });
         const prevBtn=contentEl.querySelector(`#${p}-prev`) as HTMLButtonElement;
         prevBtn.addEventListener("click",()=>{
@@ -669,7 +817,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         const flagHtml=showFlag&&q.taskTitle?`
           <div class="${p}-task-flag show">
             <div class="${p}-task-flag-title">${iFlag} Task will be generated</div>
-            <p><strong>${esc(q.taskTitle)}</strong> · ${esc(q.taskRole)} · ${esc(q.taskPriority)} · Due: ${q.taskDue===0?"Immediately":`${q.taskDue}d`}</p>
+            <p style="font-size:12px;color:#78350f;line-height:1.4;margin:0"><strong>${esc(q.taskTitle)}</strong> · ${esc(q.taskRole)} · ${esc(q.taskPriority)} · Due: ${q.taskDue===0?"Immediately":`${q.taskDue}d`}</p>
           </div>`:""
 
         const iCheck2=`<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
@@ -712,13 +860,11 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         const el=contentEl.querySelector(`.${p}-question[data-qid="${qid}"]`); if(!el) return;
         el.outerHTML=renderQuestion(q);
         bindControls();
-        // progress bar
         const sc=getScore(); const pct=sc.count>0?Math.round((sc.answered/sc.count)*100):0;
         const fill=contentEl.querySelector(`.${p}-prog-fill`) as HTMLElement|null;
         const lbl=contentEl.querySelector(`.${p}-prog-label`) as HTMLElement|null;
         if(fill) fill.style.width=`${pct}%`;
         if(lbl) lbl.innerHTML=`<span>${sc.answered} of ${sc.count} answered</span><span style="font-weight:700;color:var(--dark)">${pct}%</span>`;
-        // tab badges
         categories.forEach(cat=>{
           const fails=questions.filter(q=>q.cat===cat&&isPass(q,responses[q.id]||"")===false).length;
           const tab=contentEl.querySelector(`.${p}-cat-tab[data-cat="${cat}"]`); if(!tab) return;
@@ -737,6 +883,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         const inst=installations.find(i=>i.id===selectedInstId);
         const scoreColor=passing?"var(--success)":"var(--error)";
 
+        // Category breakdown — 3-col grid for true centering
         const catRows=categories.map(cat=>{
           const qs=questions.filter(q=>q.cat===cat);
           const earned=qs.reduce((a,q)=>a+(isPass(q,responses[q.id]||"")?q.pts:0),0);
@@ -744,14 +891,19 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           const ans=qs.filter(q=>isPass(q,responses[q.id]||"")!==null).length;
           const cp=tot>0&&ans>0?Math.round((earned/tot)*100):null;
           const col=cp===null?"var(--gray-lt)":cp>=passThreshold?"var(--success)":"var(--error)";
-          return `<div class="${p}-cat-row"><span>${esc(cat)}</span><span style="font-size:12px;color:var(--gray-lt);margin-right:8px">${ans}/${qs.length}</span><span style="font-weight:700;color:${col}">${cp!==null?cp+"%":"—"}</span></div>`;
+          return `<div class="${p}-cat-row">
+            <span class="${p}-cat-row-name">${esc(cat)}</span>
+            <span class="${p}-cat-row-count">${ans}/${qs.length}</span>
+            <span class="${p}-cat-row-pct" style="color:${col}">${cp!==null?cp+"%":"—"}</span>
+          </div>`;
         }).join("");
 
+        // Failed tasks with per-task group picker
         const failHtml=ft.length===0
           ?`<div class="${p}-state"><strong>No failures</strong>All answered questions passed or were marked N/A.</div>`
           :ft.map(q=>{
             const gid=taskGroupOverrides[q.id]||"";
-            const groupOpts=allGroups.map(g=>`<option value="${esc(g.id)}"${g.id===gid?" selected":""}>${esc(g.name)}</option>`).join("");
+            const selGroup=allGroups.find(g=>g.id===gid);
             const due=q.taskDue===0?"Immediately":`Within ${q.taskDue}d`;
             return `<div class="${p}-fail-item">
               <div class="${p}-fail-head">
@@ -760,9 +912,17 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               </div>
               <div class="${p}-fail-meta">${esc(q.id)} · Due: ${due}</div>
               <div class="${p}-group-lbl">Assign to group</div>
-              <select class="${p}-select" style="margin-top:4px" data-task-qid="${esc(q.id)}">
-                <option value="">— No group —</option>${groupOpts}
-              </select>
+              <div class="${p}-gp-wrap" data-qid="${esc(q.id)}">
+                <button type="button" class="${p}-gp-trigger" data-qid="${esc(q.id)}">
+                  ${selGroup
+                    ? `<span style="color:var(--dark)">${esc(selGroup.name)}</span>`
+                    : `<span class="${p}-gp-ph">— No group —</span>`}
+                </button>
+                <div class="${p}-gp-dropdown" data-qid="${esc(q.id)}">
+                  <div class="${p}-gp-search"><input type="text" placeholder="Search groups…" data-qid="${esc(q.id)}"></div>
+                  <div class="${p}-gp-list" data-qid="${esc(q.id)}"></div>
+                </div>
+              </div>
             </div>`;
           }).join("");
 
@@ -805,12 +965,77 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             <div class="${p}-submit-log" id="${p}-slog"></div>
           </div>`;
 
-        contentEl.querySelectorAll(`[data-task-qid]`).forEach(sel=>{
-          if((sel as HTMLElement).tagName!=="SELECT") return;
-          sel.addEventListener("change",()=>{
-            taskGroupOverrides[(sel as HTMLElement).dataset.taskQid!]=(sel as HTMLSelectElement).value;
+        // ── Group picker logic ─────────────────────────────────────────
+        function renderGpList(qid: string, filter = ""){
+          const list = contentEl.querySelector(`.${p}-gp-list[data-qid="${qid}"]`) as HTMLElement|null;
+          if(!list) return;
+          const fl = filter.toLowerCase();
+          const opts = [{id:"",name:"— No group —"}, ...allGroups].filter(g =>
+            !fl || g.name.toLowerCase().includes(fl)
+          );
+          if(!opts.length){
+            list.innerHTML=`<div class="${p}-gp-none">No groups found</div>`;
+            return;
+          }
+          const selId = taskGroupOverrides[qid]||"";
+          list.innerHTML = opts.map(g=>`
+            <div class="${p}-gp-opt${g.id===selId?" sel":""}" data-gid="${esc(g.id)}" data-gname="${esc(g.name)}" data-qid="${esc(qid)}">
+              <span>${esc(g.name)}</span>
+              ${g.id===selId?iCheck:""}
+            </div>`).join("");
+          list.querySelectorAll(`.${p}-gp-opt`).forEach((opt:Element)=>{
+            opt.addEventListener("click",()=>{
+              const el = opt as HTMLElement;
+              const gid   = el.dataset.gid||"";
+              const gname = el.dataset.gname||"";
+              const qid2  = el.dataset.qid!;
+              taskGroupOverrides[qid2] = gid;
+              // update trigger label
+              const trigger2 = contentEl.querySelector(`.${p}-gp-trigger[data-qid="${qid2}"]`) as HTMLElement|null;
+              if(trigger2) trigger2.innerHTML = gid
+                ? `<span style="color:var(--dark)">${esc(gname)}</span>`
+                : `<span class="${p}-gp-ph">— No group —</span>`;
+              // close dropdown
+              const dd = contentEl.querySelector(`.${p}-gp-dropdown[data-qid="${qid2}"]`) as HTMLElement|null;
+              if(dd) dd.classList.remove("show");
+              trigger2?.classList.remove("open");
+              // re-render list to update checkmarks
+              renderGpList(qid2, "");
+            });
           });
+        }
+
+        // Wire up each per-task picker
+        const closeAllPickers = (exceptQid?:string) => {
+          contentEl.querySelectorAll(`.${p}-gp-dropdown.show`).forEach((dd:Element)=>{
+            const ddEl = dd as HTMLElement;
+            if(ddEl.dataset.qid !== exceptQid){
+              ddEl.classList.remove("show");
+              contentEl.querySelector(`.${p}-gp-trigger[data-qid="${ddEl.dataset.qid}"]`)?.classList.remove("open");
+            }
+          });
+        };
+
+        ft.forEach(q=>{
+          const trigger3 = contentEl.querySelector(`.${p}-gp-trigger[data-qid="${q.id}"]`) as HTMLElement|null;
+          const dd3      = contentEl.querySelector(`.${p}-gp-dropdown[data-qid="${q.id}"]`) as HTMLElement|null;
+          const search3  = contentEl.querySelector(`.${p}-gp-search input[data-qid="${q.id}"]`) as HTMLInputElement|null;
+          if(!trigger3||!dd3) return;
+          renderGpList(q.id, "");
+          trigger3.addEventListener("click",(e)=>{
+            e.stopPropagation();
+            const isOpen = dd3.classList.contains("show");
+            closeAllPickers(isOpen ? undefined : q.id);
+            dd3.classList.toggle("show");
+            trigger3.classList.toggle("open");
+            if(dd3.classList.contains("show")) search3?.focus();
+          });
+          search3?.addEventListener("input",()=>renderGpList(q.id, search3.value));
+          search3?.addEventListener("click",(e)=>e.stopPropagation());
+          dd3.addEventListener("click",(e)=>e.stopPropagation());
         });
+
+        document.addEventListener("click",()=>closeAllPickers());
 
         contentEl.querySelector(`#${p}-back`)!.addEventListener("click",()=>{
           step="audit"; activeCat=categories[categories.length-1]||categories[0]; renderAudit();
@@ -866,7 +1091,6 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           if(!listId) throw new Error("No list ID in response");
           done++; logLine(`Created list: ${listName}`,"ok");
 
-          // Category breakdown for JSON blob
           const catBreakdown:Record<string,{earned:number;total:number;pct:number}>={};
           for(const cat of categories){
             const qs=questions.filter(q=>q.cat===cat);
