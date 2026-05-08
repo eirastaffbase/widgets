@@ -113,6 +113,9 @@ const factory = (BaseBlockClass, widgetApi) => {
                 let activeAuditListId = "";
                 let auditLists = [];
                 let showCompletedAudit = false;
+                let showOtherAuditTasks = false;
+                let currentUserId = "";
+                let userGroupIds = [];
                 const groupMap = new Map(); // groupId → name
                 // ── Render skeleton ────────────────────────────────────────────────
                 container.innerHTML = `
@@ -240,6 +243,10 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-banner.error{background:rgba(196,30,58,.08);border:1px solid rgba(196,30,58,.25);color:var(--error)}
           .${p}-banner.info{background:rgba(var(--primary-rgb),.06);border:1px solid rgba(var(--primary-rgb),.2);color:var(--primary)}
           .${p}-section-label{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--gray-lt);padding:4px 0 8px;margin-top:4px}
+          /* ── Ghost cards (other audit tasks) ── */
+          .${p}-card.ghost{opacity:.42;pointer-events:none;cursor:default;border-left-color:var(--border)}
+          .${p}-other-toggle{width:100%;padding:9px 14px;background:none;border:1.5px dashed var(--border);border-radius:var(--r-md);font-size:12px;font-weight:600;color:var(--gray-lt);cursor:pointer;text-align:center;font-family:inherit;transition:all .15s;touch-action:manipulation;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:6px}
+          .${p}-other-toggle:hover{border-color:var(--gray);color:var(--gray)}
         </style>
 
         <div class="${p}">
@@ -389,9 +396,42 @@ const factory = (BaseBlockClass, widgetApi) => {
                 // ── Store tabs ────────────────────────────────────────────────────
                 function renderStoreTabs() {
                     if (auditMode) {
-                        storeTabs.style.display = "none";
+                        // In audit mode: pills built from auditLists unique installs
+                        const instMap = new Map();
+                        for (const al of auditLists) {
+                            if (!instMap.has(al.installId))
+                                instMap.set(al.installId, { title: al.instTitle || al.installId, count: 0 });
+                            instMap.get(al.installId).count++;
+                        }
+                        if (instMap.size <= 1) {
+                            storeTabs.style.display = "none";
+                            return;
+                        }
+                        storeTabs.style.display = "flex";
+                        storeTabs.innerHTML = `
+            <div role="button" tabindex="0" class="${p}-store-tab ${activeInstallFilter === "all" ? "active" : ""}" data-inst="all">
+              All <span style="opacity:.6;font-weight:400">(${auditLists.length})</span>
+            </div>
+            ${[...instMap.entries()].map(([id, info]) => `
+              <div role="button" tabindex="0" class="${p}-store-tab ${activeInstallFilter === id ? "active" : ""}" data-inst="${esc(id)}">
+                ${esc(info.title || id)} <span style="opacity:.6;font-weight:400">(${info.count})</span>
+              </div>`).join("")}`;
+                        storeTabs.querySelectorAll(`.${p}-store-tab`).forEach(btn => {
+                            btn.addEventListener("click", () => {
+                                var _a;
+                                activeInstallFilter = btn.dataset.inst || "all";
+                                // If current audit belongs to a different store, reset to first match
+                                const filtered = activeInstallFilter === "all" ? auditLists : auditLists.filter(al => al.installId === activeInstallFilter);
+                                if (!filtered.find(al => al.listId === activeAuditListId))
+                                    activeAuditListId = ((_a = filtered[0]) === null || _a === void 0 ? void 0 : _a.listId) || "";
+                                renderStoreTabs();
+                                renderAuditTabs();
+                                renderList();
+                            });
+                        });
                         return;
                     }
+                    // Normal mode
                     const instMap = new Map();
                     for (const t of allTasks) {
                         if (t.taskType === "audit-result")
@@ -433,8 +473,14 @@ const factory = (BaseBlockClass, widgetApi) => {
                         auditTabWrap.style.display = "none";
                         return;
                     }
+                    // Filter by active store pill
+                    const visible = activeInstallFilter === "all" ? auditLists : auditLists.filter(al => al.installId === activeInstallFilter);
+                    if (visible.length === 0) {
+                        auditTabWrap.style.display = "none";
+                        return;
+                    }
                     auditTabWrap.style.display = "";
-                    auditTabsEl.innerHTML = auditLists.map(al => {
+                    auditTabsEl.innerHTML = visible.map(al => {
                         var _a;
                         const pa = al.parsedAudit;
                         const passing = (_a = pa === null || pa === void 0 ? void 0 : pa.passing) !== null && _a !== void 0 ? _a : null;
@@ -449,6 +495,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     auditTabsEl.querySelectorAll(`.${p}-audit-tab`).forEach(btn => {
                         btn.addEventListener("click", () => {
                             activeAuditListId = btn.dataset.listId || "";
+                            showOtherAuditTasks = false;
                             renderAuditTabs();
                             renderList();
                         });
@@ -597,45 +644,78 @@ const factory = (BaseBlockClass, widgetApi) => {
                     // All failure tasks in this audit (excluding system task)
                     const allAuditTasks = allTasks.filter(t => t.listId === al.listId && t.installationId === al.installId && t.taskType !== "audit-result");
                     const isDoneTask = (t) => t.status === "DONE" || t.status === "done" || t.status === "CLOSED";
-                    const doneTasks = allAuditTasks.filter(isDoneTask);
-                    const tasks = showCompletedAudit ? allAuditTasks : allAuditTasks.filter(t => !isDoneTask(t));
-                    countEl.textContent = String(tasks.length);
-                    const allDone = allAuditTasks.length > 0 && doneTasks.length === allAuditTasks.length;
-                    // Toggle button (only if there are completed tasks)
-                    const toggleHtml = doneTasks.length > 0 ? `
+                    // Split into "mine" vs "other" — uses widget-level currentUserId + userGroupIds
+                    const isMyTask = (t) => {
+                        if (!currentUserId)
+                            return true; // if we have no user info, treat everything as mine
+                        const direct = t.assigneeIds.indexOf(currentUserId) !== -1;
+                        const grp = t.groupIds.some(gid => userGroupIds.indexOf(gid) !== -1);
+                        return direct || grp;
+                    };
+                    const myTasks = allAuditTasks.filter(t => isMyTask(t));
+                    const otherTasks = showAll ? [] : allAuditTasks.filter(t => !isMyTask(t));
+                    const doneMine = myTasks.filter(isDoneTask);
+                    const visibleMine = showCompletedAudit ? myTasks : myTasks.filter(t => !isDoneTask(t));
+                    const allMyDone = myTasks.length > 0 && doneMine.length === myTasks.length;
+                    countEl.textContent = String(visibleMine.length);
+                    // "Show completed" toggle header
+                    const completedToggleHtml = doneMine.length > 0 ? `
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-            <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray-lt)">Tasks (${allAuditTasks.length})</span>
+            <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray-lt)">
+              ${showAll ? "All tasks" : "My tasks"} (${myTasks.length})
+            </span>
             <button id="${p}-audit-toggle" type="button" style="font-size:11px;font-weight:600;color:var(--primary);background:none;border:none;cursor:pointer;padding:3px 7px;border-radius:4px;font-family:inherit;touch-action:manipulation">
-              ${showCompletedAudit ? "Hide completed" : "Show completed (" + doneTasks.length + ")"}
+              ${showCompletedAudit ? "Hide completed" : "Show completed (" + doneMine.length + ")"}
             </button>
           </div>` :
-                        allAuditTasks.length > 0 ? `<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray-lt);margin-bottom:10px">Tasks (${allAuditTasks.length})</div>` : "";
+                        myTasks.length > 0 ? `<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray-lt);margin-bottom:10px">${showAll ? "All tasks" : "My tasks"} (${myTasks.length})</div>` : "";
+                    // Main task list HTML
                     let taskHtml;
                     if (allAuditTasks.length === 0) {
                         taskHtml = `<div style="text-align:center;padding:20px;color:var(--gray-lt);font-size:13px">No failure tasks in this audit.</div>`;
                     }
-                    else if (allDone && !showCompletedAudit) {
+                    else if (myTasks.length === 0) {
+                        taskHtml = `<div style="text-align:center;padding:20px;color:var(--gray-lt);font-size:13px">No tasks assigned to you in this audit.</div>`;
+                    }
+                    else if (allMyDone && !showCompletedAudit) {
                         taskHtml = `<div style="text-align:center;padding:20px 16px;background:rgba(46,125,74,.06);border:1px solid rgba(46,125,74,.2);border-radius:10px">
             <div style="font-size:22px;margin-bottom:6px">✓</div>
             <div style="font-size:14px;font-weight:700;color:var(--success)">All tasks completed for this audit!</div>
-            <div style="font-size:12px;color:var(--gray-lt);margin-top:4px">${doneTasks.length} task${doneTasks.length !== 1 ? "s" : ""} marked done</div>
+            <div style="font-size:12px;color:var(--gray-lt);margin-top:4px">${doneMine.length} task${doneMine.length !== 1 ? "s" : ""} marked done</div>
           </div>`;
                     }
-                    else if (tasks.length === 0) {
+                    else if (visibleMine.length === 0) {
                         taskHtml = `<div style="text-align:center;padding:20px;color:var(--gray-lt);font-size:13px">No open tasks — all caught up!</div>`;
                     }
                     else {
-                        taskHtml = `<div class="${p}-list">${tasks.map(t => renderTaskCard(t)).join("")}</div>`;
+                        taskHtml = `<div class="${p}-list">${visibleMine.map(t => renderTaskCard(t)).join("")}</div>`;
                     }
-                    listWrap.innerHTML = summaryHtml + toggleHtml + taskHtml;
-                    // Wire toggle button
+                    // "Other tasks" section (ghost, not interactable) — only when showAll=false
+                    let otherHtml = "";
+                    if (!showAll && otherTasks.length > 0) {
+                        const iChev = showOtherAuditTasks
+                            ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>`
+                            : `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
+                        const ghostCards = otherTasks.map(t => {
+                            const card = renderTaskCard(t);
+                            // inject ghost class and remove checkbox
+                            return card.replace(`class="${p}-card `, `class="${p}-card ghost `).replace(`class="${p}-card"`, `class="${p}-card ghost"`);
+                        }).join("");
+                        otherHtml = `
+            <button id="${p}-other-toggle" type="button" class="${p}-other-toggle">
+              ${iChev} ${showOtherAuditTasks ? "Hide" : "Show"} ${otherTasks.length} other task${otherTasks.length !== 1 ? "s" : ""} in this audit
+            </button>
+            ${showOtherAuditTasks ? `<div class="${p}-list" style="margin-top:8px">${ghostCards}</div>` : ""}`;
+                    }
+                    listWrap.innerHTML = summaryHtml + completedToggleHtml + taskHtml + otherHtml;
+                    // Wire "show completed" toggle
                     const toggleBtn = listWrap.querySelector(`#${p}-audit-toggle`);
-                    if (toggleBtn) {
-                        toggleBtn.addEventListener("click", () => {
-                            showCompletedAudit = !showCompletedAudit;
-                            renderAuditContent();
-                        });
-                    }
+                    if (toggleBtn)
+                        toggleBtn.addEventListener("click", () => { showCompletedAudit = !showCompletedAudit; renderAuditContent(); });
+                    // Wire "other tasks" toggle
+                    const otherBtn = listWrap.querySelector(`#${p}-other-toggle`);
+                    if (otherBtn)
+                        otherBtn.addEventListener("click", () => { showOtherAuditTasks = !showOtherAuditTasks; renderAuditContent(); });
                     bindListEvents();
                 }
                 function bindListEvents() {
@@ -898,7 +978,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 // ── Load data ─────────────────────────────────────────────────────
                 function load() {
                     return __awaiter(this, void 0, void 0, function* () {
-                        var _a, _b, _c;
+                        var _a, _b, _c, _d, _e, _f;
                         refreshBtn.disabled = true;
                         refreshBtn.innerHTML = `<span class="${p}-spin" style="width:14px;height:14px;border-width:2px"></span>`;
                         hideBanner();
@@ -922,25 +1002,39 @@ const factory = (BaseBlockClass, widgetApi) => {
                                 listWrap.innerHTML = `<div class="${p}-state"><strong>No task spaces found</strong>Make sure at least one Tasks installation exists.</div>`;
                                 return;
                             }
-                            // Fetch current user (for filtering when showAll=false)
-                            let currentUserId = "";
-                            let userGroupIds = [];
-                            if (!showAll) {
-                                try {
-                                    const profile = yield widgetApi.getUserInformation();
-                                    currentUserId = profile.id;
-                                    userGroupIds = profile.groupIDs || [];
-                                }
-                                catch (_) { }
-                            }
-                            // Fetch groups → build groupMap
+                            // Fetch current user (always — needed for "other tasks" split in audit mode)
                             try {
-                                const grpRes = yield fetch(`${baseUrl}/groups?limit=200`, apiOpts());
-                                if (grpRes.ok) {
-                                    const gd = yield grpRes.json();
+                                const profile = yield widgetApi.getUserInformation();
+                                currentUserId = profile.id || "";
+                                userGroupIds = profile.groupIDs || [];
+                            }
+                            catch (_) { }
+                            // Fetch groups → build groupMap (search endpoint + /groups supplement)
+                            try {
+                                const [searchRes, legacyRes] = yield Promise.all([
+                                    fetch(`${baseUrl}/groups/search?limit=100&sort=name_ASC`, apiOpts()),
+                                    fetch(`${baseUrl}/groups?limit=200`, apiOpts()),
+                                ]);
+                                const seen = new Set();
+                                if (searchRes.ok) {
+                                    const d = yield searchRes.json();
+                                    const parseEntry = (e) => { var _a, _b, _c, _d, _e, _f; const inner = e.data || e; return { id: inner.id, name: ((_c = (_b = (_a = inner.config) === null || _a === void 0 ? void 0 : _a.localization) === null || _b === void 0 ? void 0 : _b.en_US) === null || _c === void 0 ? void 0 : _c.name) || ((_f = (_e = (_d = inner.config) === null || _d === void 0 ? void 0 : _d.localization) === null || _e === void 0 ? void 0 : _e.en_US) === null || _f === void 0 ? void 0 : _f.title) || inner.name || inner.id }; };
+                                    for (const e of (d.entries || d.data || d.results || d.items || (Array.isArray(d) ? d : []))) {
+                                        const { id, name } = parseEntry(e);
+                                        if (id && name && !seen.has(id)) {
+                                            groupMap.set(id, name);
+                                            seen.add(id);
+                                        }
+                                    }
+                                }
+                                if (legacyRes.ok) {
+                                    const gd = yield legacyRes.json();
                                     for (const g of (gd.data || [])) {
-                                        const name = ((_c = (_b = (_a = g.config) === null || _a === void 0 ? void 0 : _a.localization) === null || _b === void 0 ? void 0 : _b.en_US) === null || _c === void 0 ? void 0 : _c.title) || g.name || g.id;
-                                        groupMap.set(g.id, name);
+                                        const name = ((_c = (_b = (_a = g.config) === null || _a === void 0 ? void 0 : _a.localization) === null || _b === void 0 ? void 0 : _b.en_US) === null || _c === void 0 ? void 0 : _c.title) || ((_f = (_e = (_d = g.config) === null || _d === void 0 ? void 0 : _d.localization) === null || _e === void 0 ? void 0 : _e.en_US) === null || _f === void 0 ? void 0 : _f.name) || g.name || g.id;
+                                        if (g.id && name && !seen.has(g.id)) {
+                                            groupMap.set(g.id, name);
+                                            seen.add(g.id);
+                                        }
                                     }
                                 }
                             }
@@ -970,11 +1064,11 @@ const factory = (BaseBlockClass, widgetApi) => {
                                         for (const t of arr) {
                                             if (!t.id || seen.has(t.id))
                                                 continue;
-                                            if (!showAll && currentUserId) {
+                                            if (!showAll && currentUserId && !auditMode) {
+                                                // In normal mode: only include tasks assigned to current user/groups
                                                 const assigneeIds = t.assigneeIds || [];
                                                 const taskGroupIds = t.groupIds || [];
                                                 const taskType_ = parseTaskType(t.title || "") || parseTaskType(t.description || "");
-                                                // Always include audit-result tasks regardless of assignment
                                                 if (taskType_ !== "audit-result") {
                                                     const directMatch = assigneeIds.indexOf(currentUserId) !== -1;
                                                     const groupMatch = taskGroupIds.some((gid) => userGroupIds.indexOf(gid) !== -1);
@@ -982,6 +1076,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                                                         continue;
                                                 }
                                             }
+                                            // In auditMode: always load all tasks — "mine" vs "other" split happens at render time
                                             seen.add(t.id);
                                             const desc = t.description || "";
                                             const taskType = parseTaskType(t.title || "") || parseTaskType(desc);
@@ -1041,6 +1136,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                             if (auditLists.length > 0)
                                 activeAuditListId = auditLists[0].listId;
                             if (auditMode) {
+                                renderStoreTabs(); // store pills based on audit installs
                                 renderAuditTabs();
                                 renderList();
                             }
