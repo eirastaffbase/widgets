@@ -112,6 +112,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const taskUserOverrides = {};
                 const taskAssignType = {};
                 let allUsers = [];
+                let defaultUserId = ""; // Nicole Adams fallback
                 let step = "setup";
                 let cleanupStoreDropdown = null;
                 // per-task group picker open state
@@ -121,7 +122,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 // ── HTML skeleton ──────────────────────────────────────────────────
                 container.innerHTML = `
         <style>
-          .${p}{--primary:${primaryColor};--primary-rgb:${primaryRgb};--primary-text:${primaryText};--accent:${accentColor};--dark:#1A1A1A;--gray:#6b7280;--gray-lt:#9ca3af;--border:#e5e7eb;--success:#2E7D4A;--error:#C41E3A;--r-sm:6px;--r-md:10px;--r-lg:14px;--shadow-sm:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);--shadow-md:0 4px 16px rgba(0,0,0,.08);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--dark);background:${bgColor || "transparent"};padding:20px}
+          .${p}{--primary:${primaryColor};--primary-rgb:${primaryRgb};--primary-text:${primaryText};--accent:${accentColor};--dark:#1A1A1A;--gray:#6b7280;--gray-lt:#9ca3af;--border:#e5e7eb;--success:#2E7D4A;--error:#C41E3A;--r-sm:6px;--r-md:10px;--r-lg:14px;--shadow-sm:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);--shadow-md:0 4px 16px rgba(0,0,0,.08);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--dark);background:${bgColor || "transparent"};padding:20px;overscroll-behavior:contain}
           .${p} *,.${p} *::before,.${p} *::after{box-sizing:border-box;margin:0;padding:0}
           .${p}-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
           .${p}-title{font-size:18px;font-weight:800;color:var(--dark);display:flex;align-items:center;gap:10px}
@@ -153,7 +154,7 @@ const factory = (BaseBlockClass, widgetApi) => {
 
           /* ── Category tabs ── */
           .${p}-cat-tabs-wrap{position:relative;flex:1;overflow:hidden}
-          .${p}-cat-tabs{display:flex;gap:0;overflow-x:auto;scrollbar-width:none;border-bottom:2px solid var(--border)}
+          .${p}-cat-tabs{display:flex;gap:0;overflow-x:auto;scrollbar-width:none;border-bottom:2px solid var(--border);will-change:transform;-webkit-overflow-scrolling:touch}
           .${p}-cat-tabs::-webkit-scrollbar{display:none}
           .${p}-cat-tab{flex-shrink:0!important;min-width:200px!important;padding:10px 14px!important;font-size:11px!important;font-weight:600!important;color:var(--gray)!important;cursor:pointer!important;border-bottom:2.5px solid transparent!important;border-left:none!important;border-right:none!important;border-top:none!important;margin-bottom:-2px!important;white-space:nowrap!important;background:none!important;font-family:inherit!important;transition:color .15s,border-color .15s,background .15s!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:3px!important;width:auto!important;line-height:normal!important;border-radius:var(--r-sm) var(--r-sm) 0 0!important}
           .${p}-cat-tab:hover{background:rgba(var(--primary-rgb),.04)!important;color:var(--dark)!important}
@@ -297,9 +298,10 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-pf-btn,.${p}-rating-btn,.${p}-cat-tab,.${p}-btn,.${p}-gp-trigger,.${p}-ms-trigger,.${p}-tabs-arrow,.${p}-gp-opt,.${p}-dd-opt{touch-action:manipulation}
 
           /* ── Assign tabs (user + group) in generate step ── */
-          .${p}-ap-tabs{display:flex;gap:4px;margin:8px 0 6px}
-          .${p}-ap-tab{flex:1!important;padding:6px 10px!important;border:1px solid var(--border)!important;border-radius:var(--r-sm)!important;font-size:12px!important;font-weight:600!important;background:#f9fafb!important;color:var(--gray)!important;cursor:pointer!important;text-align:center!important;transition:all .15s!important;font-family:inherit!important;touch-action:manipulation!important;display:block!important;line-height:normal!important;width:auto!important}
-          .${p}-ap-tab.active{background:var(--primary)!important;color:var(--primary-text)!important;border-color:var(--primary)!important}
+          .${p}-ap-tabs{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:8px}
+          .${p}-ap-tab{flex:1!important;padding:7px 10px!important;border:none!important;border-bottom:2.5px solid transparent!important;margin-bottom:-2px!important;font-size:12px!important;font-weight:600!important;background:none!important;color:var(--gray)!important;cursor:pointer!important;text-align:center!important;transition:color .15s,border-color .15s!important;font-family:inherit!important;touch-action:manipulation!important;display:block!important;line-height:normal!important;width:auto!important;border-radius:0!important}
+          .${p}-ap-tab:hover{color:var(--dark)!important}
+          .${p}-ap-tab.active{color:var(--primary)!important;border-bottom-color:var(--primary)!important;background:none!important}
         </style>
 
         <div class="${p}">
@@ -522,25 +524,41 @@ const factory = (BaseBlockClass, widgetApi) => {
                                 }
                                 if (grpRes.ok) {
                                     const d = yield grpRes.json();
-                                    allGroups = (d.data || d.results || [])
-                                        .map((g) => { var _a, _b, _c; return ({ id: g.id, name: ((_c = (_b = (_a = g.config) === null || _a === void 0 ? void 0 : _a.localization) === null || _b === void 0 ? void 0 : _b.en_US) === null || _c === void 0 ? void 0 : _c.title) || g.title || g.name || g.id }); })
-                                        .filter((g) => g.name)
-                                        .sort((a, b) => a.name.localeCompare(b.name));
+                                    // /groups/search returns { entries: [ { data: { id, config.localization.en_US.name, type } } ] }
+                                    const parseEntry = (e) => {
+                                        var _a, _b, _c, _d, _e, _f;
+                                        const inner = e.data || e;
+                                        const name = ((_c = (_b = (_a = inner.config) === null || _a === void 0 ? void 0 : _a.localization) === null || _b === void 0 ? void 0 : _b.en_US) === null || _c === void 0 ? void 0 : _c.name) || ((_f = (_e = (_d = inner.config) === null || _d === void 0 ? void 0 : _d.localization) === null || _e === void 0 ? void 0 : _e.en_US) === null || _f === void 0 ? void 0 : _f.title) || inner.name || inner.title || inner.id;
+                                        return { id: inner.id, name };
+                                    };
+                                    const raw = d.entries || d.data || d.results || d.items || (Array.isArray(d) ? d : []);
+                                    allGroups = raw.map(parseEntry).filter((g) => g.id && g.name).sort((a, b) => a.name.localeCompare(b.name));
                                 }
-                                // Fallback: if search returned nothing, try standard endpoint
-                                if (!allGroups.length) {
-                                    try {
-                                        const fb = yield fetch(`${baseUrl}/groups?limit=200`, apiOpts());
-                                        if (fb.ok) {
-                                            const d = yield fb.json();
-                                            allGroups = (d.data || []).map((g) => { var _a, _b, _c; return ({ id: g.id, name: ((_c = (_b = (_a = g.config) === null || _a === void 0 ? void 0 : _a.localization) === null || _b === void 0 ? void 0 : _b.en_US) === null || _c === void 0 ? void 0 : _c.title) || g.title || g.name || g.id }); }).filter((g) => g.name).sort((a, b) => a.name.localeCompare(b.name));
+                                // Always also fetch /groups as a supplement (catches any groups missed by search)
+                                try {
+                                    const fb = yield fetch(`${baseUrl}/groups?limit=200`, apiOpts());
+                                    if (fb.ok) {
+                                        const d = yield fb.json();
+                                        const fbGroups = (d.data || []).map((g) => { var _a, _b, _c, _d, _e, _f; return ({ id: g.id, name: ((_c = (_b = (_a = g.config) === null || _a === void 0 ? void 0 : _a.localization) === null || _b === void 0 ? void 0 : _b.en_US) === null || _c === void 0 ? void 0 : _c.title) || ((_f = (_e = (_d = g.config) === null || _d === void 0 ? void 0 : _d.localization) === null || _e === void 0 ? void 0 : _e.en_US) === null || _f === void 0 ? void 0 : _f.name) || g.name || g.id }); }).filter((g) => g.id && g.name);
+                                        // Merge — deduplicate by id
+                                        const seen = new Set(allGroups.map((g) => g.id));
+                                        for (const g of fbGroups) {
+                                            if (!seen.has(g.id)) {
+                                                allGroups.push(g);
+                                                seen.add(g.id);
+                                            }
                                         }
+                                        allGroups.sort((a, b) => a.name.localeCompare(b.name));
                                     }
-                                    catch (_) { }
                                 }
+                                catch (_) { }
                                 if (userRes.ok) {
                                     const d = yield userRes.json();
                                     allUsers = (d.data || []).map((u) => { var _a, _b; return ({ id: u.id, name: (`${u.firstName || ""} ${u.lastName || ""}`).trim() || u.id, avatar: ((_b = (_a = u.avatar) === null || _a === void 0 ? void 0 : _a.icon) === null || _b === void 0 ? void 0 : _b.url) || "" }); }).filter((u) => u.name).sort((a, b) => a.name.localeCompare(b.name));
+                                    // Store Nicole Adams as default assignee fallback
+                                    const nicole = allUsers.find(u => u.name.toLowerCase().includes("nicole") && u.name.toLowerCase().includes("adams"));
+                                    if (nicole)
+                                        defaultUserId = nicole.id;
                                 }
                             }
                             catch (_) { }
@@ -863,10 +881,20 @@ const factory = (BaseBlockClass, widgetApi) => {
                         genBtn.addEventListener("click", () => {
                             hideBanner();
                             for (const q of failedTasks()) {
-                                if (!taskGroupOverrides[q.id] && q.taskRole) {
+                                if (taskGroupOverrides[q.id] || taskUserOverrides[q.id])
+                                    continue; // already assigned
+                                if (q.taskRole) {
                                     const m = fuzzyMatchGroup(q.taskRole, allGroups);
-                                    if (m)
+                                    if (m) {
                                         taskGroupOverrides[q.id] = m;
+                                        taskAssignType[q.id] = "group";
+                                        continue;
+                                    }
+                                }
+                                // No group match — fall back to Nicole Adams (or any default user)
+                                if (defaultUserId) {
+                                    taskUserOverrides[q.id] = defaultUserId;
+                                    taskAssignType[q.id] = "user";
                                 }
                             }
                             step = "generate";
@@ -1026,9 +1054,11 @@ const factory = (BaseBlockClass, widgetApi) => {
               <div class="${p}-gp-wrap" data-qid="${esc(q.id)}">
                 <button type="button" class="${p}-gp-trigger" data-qid="${esc(q.id)}">${selLabel}</button>
                 <div class="${p}-gp-dropdown" data-qid="${esc(q.id)}">
-                  <div class="${p}-ap-tabs">
-                    <button type="button" class="${p}-ap-tab${atype === "group" ? " active" : ""}" data-qid="${esc(q.id)}" data-tab="group">Groups</button>
-                    <button type="button" class="${p}-ap-tab${atype === "user" ? " active" : ""}" data-qid="${esc(q.id)}" data-tab="user">People</button>
+                  <div style="padding:8px 10px 0">
+                    <div class="${p}-ap-tabs">
+                      <div role="button" tabindex="0" class="${p}-ap-tab${atype === "group" ? " active" : ""}" data-qid="${esc(q.id)}" data-tab="group">Groups</div>
+                      <div role="button" tabindex="0" class="${p}-ap-tab${atype === "user" ? " active" : ""}" data-qid="${esc(q.id)}" data-tab="user">People</div>
+                    </div>
                   </div>
                   <div class="${p}-gp-search"><input type="text" placeholder="Search…" data-qid="${esc(q.id)}"></div>
                   <div class="${p}-gp-list" data-qid="${esc(q.id)}" data-tab="${atype}"></div>
