@@ -336,8 +336,27 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const auditTabWrap  = auditMode ? container.querySelector(`#${p}-audit-tab-wrap`) as HTMLElement : null;
       const auditTabsEl   = auditMode ? container.querySelector(`#${p}-audit-tabs`) as HTMLElement : null;
 
-      // Detail panel — appended to body so position:fixed works in Staffbase
-      document.querySelectorAll(`[data-mtw-inst="${container.dataset.mtwInst||""}"]`).forEach(el=>el.remove());
+      // Detail panel — appended to body so position:fixed works in Staffbase.
+      // Body-appended elements + document listeners don't get cleaned up on
+      // SPA navigation when the host element is removed, so we manage their
+      // lifecycle explicitly via refs stashed on `this`.
+      const self: any = this;
+
+      // Tear down artifacts from a previous render of this same host (re-renders)
+      if (self._mtwOverlay)  { self._mtwOverlay.remove();  self._mtwOverlay  = undefined; }
+      if (self._mtwDetail)   { self._mtwDetail.remove();   self._mtwDetail   = undefined; }
+      if (self._mtwDocClick) { document.removeEventListener("click",   self._mtwDocClick); self._mtwDocClick = undefined; }
+      if (self._mtwDocKey)   { document.removeEventListener("keydown", self._mtwDocKey);   self._mtwDocKey   = undefined; }
+
+      // Defensive sweep for orphans from prior navigations where
+      // disconnectedCallback never ran (e.g. parent innerHTML wipe).
+      document.querySelectorAll<HTMLElement>(`.${p}-overlay[data-mtw-inst], .${p}-detail[data-mtw-inst]`).forEach(el => {
+        const inst = el.dataset.mtwInst;
+        if (!inst) { el.remove(); return; }
+        const hostStillAlive = !!document.querySelector(`[data-mtw-inst="${inst}"]:not(.${p}-overlay):not(.${p}-detail)`);
+        if (!hostStillAlive) el.remove();
+      });
+
       const instId = Math.random().toString(36).slice(2);
       container.dataset.mtwInst = instId;
 
@@ -345,6 +364,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       overlayEl.className = `${p}-overlay`;
       overlayEl.dataset.mtwInst = instId;
       document.body.appendChild(overlayEl);
+      self._mtwOverlay = overlayEl;
 
       const detailEl = document.createElement("div");
       detailEl.className = `${p}-detail`;
@@ -363,6 +383,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         </div>
       `;
       document.body.appendChild(detailEl);
+      self._mtwDetail = detailEl;
 
       const detailBadges = detailEl.querySelector(`#${p}-detail-badges-${instId}`) as HTMLElement;
       const detailBody   = detailEl.querySelector(`#${p}-detail-body-${instId}`) as HTMLElement;
@@ -551,7 +572,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       }
 
       if(typeBtn) typeBtn.addEventListener("click",e=>{e.stopPropagation();dropdownOpen=!dropdownOpen;renderTypeFilters();});
-      document.addEventListener("click",()=>{if(dropdownOpen){dropdownOpen=false;renderTypeFilters();}});
+      const onDocClick = () => { if (dropdownOpen) { dropdownOpen = false; renderTypeFilters(); } };
+      document.addEventListener("click", onDocClick);
+      self._mtwDocClick = onDocClick;
 
       // ── Render task list ──────────────────────────────────────────────
       function renderList(){
@@ -867,7 +890,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
       overlayEl.addEventListener("click",closeDetail);
       detailClose.addEventListener("click",e=>{e.stopPropagation();closeDetail();});
-      document.addEventListener("keydown",e=>{if(e.key==="Escape"&&detailTask)closeDetail();});
+      const onDocKey = (e: KeyboardEvent) => { if (e.key === "Escape" && detailTask) closeDetail(); };
+      document.addEventListener("keydown", onDocKey);
+      self._mtwDocKey = onDocKey;
       detailToggle.addEventListener("click",async()=>{
         if(!detailTask) return;
         const task=detailTask;
@@ -1102,6 +1127,14 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
       refreshBtn.addEventListener("click",load);
       load();
+    }
+
+    disconnectedCallback() {
+      const self: any = this;
+      if (self._mtwOverlay)  { self._mtwOverlay.remove();  self._mtwOverlay  = undefined; }
+      if (self._mtwDetail)   { self._mtwDetail.remove();   self._mtwDetail   = undefined; }
+      if (self._mtwDocClick) { document.removeEventListener("click",   self._mtwDocClick); self._mtwDocClick = undefined; }
+      if (self._mtwDocKey)   { document.removeEventListener("keydown", self._mtwDocKey);   self._mtwDocKey   = undefined; }
     }
 
     static get observedAttributes(){

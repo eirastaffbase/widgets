@@ -304,14 +304,47 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const typeMenu = !auditMode ? container.querySelector(`#${p}-type-menu`) : null;
                 const auditTabWrap = auditMode ? container.querySelector(`#${p}-audit-tab-wrap`) : null;
                 const auditTabsEl = auditMode ? container.querySelector(`#${p}-audit-tabs`) : null;
-                // Detail panel — appended to body so position:fixed works in Staffbase
-                document.querySelectorAll(`[data-mtw-inst="${container.dataset.mtwInst || ""}"]`).forEach(el => el.remove());
+                // Detail panel — appended to body so position:fixed works in Staffbase.
+                // Body-appended elements + document listeners don't get cleaned up on
+                // SPA navigation when the host element is removed, so we manage their
+                // lifecycle explicitly via refs stashed on `this`.
+                const self = this;
+                // Tear down artifacts from a previous render of this same host (re-renders)
+                if (self._mtwOverlay) {
+                    self._mtwOverlay.remove();
+                    self._mtwOverlay = undefined;
+                }
+                if (self._mtwDetail) {
+                    self._mtwDetail.remove();
+                    self._mtwDetail = undefined;
+                }
+                if (self._mtwDocClick) {
+                    document.removeEventListener("click", self._mtwDocClick);
+                    self._mtwDocClick = undefined;
+                }
+                if (self._mtwDocKey) {
+                    document.removeEventListener("keydown", self._mtwDocKey);
+                    self._mtwDocKey = undefined;
+                }
+                // Defensive sweep for orphans from prior navigations where
+                // disconnectedCallback never ran (e.g. parent innerHTML wipe).
+                document.querySelectorAll(`.${p}-overlay[data-mtw-inst], .${p}-detail[data-mtw-inst]`).forEach(el => {
+                    const inst = el.dataset.mtwInst;
+                    if (!inst) {
+                        el.remove();
+                        return;
+                    }
+                    const hostStillAlive = !!document.querySelector(`[data-mtw-inst="${inst}"]:not(.${p}-overlay):not(.${p}-detail)`);
+                    if (!hostStillAlive)
+                        el.remove();
+                });
                 const instId = Math.random().toString(36).slice(2);
                 container.dataset.mtwInst = instId;
                 const overlayEl = document.createElement("div");
                 overlayEl.className = `${p}-overlay`;
                 overlayEl.dataset.mtwInst = instId;
                 document.body.appendChild(overlayEl);
+                self._mtwOverlay = overlayEl;
                 const detailEl = document.createElement("div");
                 detailEl.className = `${p}-detail`;
                 detailEl.dataset.mtwInst = instId;
@@ -329,6 +362,7 @@ const factory = (BaseBlockClass, widgetApi) => {
         </div>
       `;
                 document.body.appendChild(detailEl);
+                self._mtwDetail = detailEl;
                 const detailBadges = detailEl.querySelector(`#${p}-detail-badges-${instId}`);
                 const detailBody = detailEl.querySelector(`#${p}-detail-body-${instId}`);
                 const detailToggle = detailEl.querySelector(`#${p}-detail-toggle-${instId}`);
@@ -552,10 +586,12 @@ const factory = (BaseBlockClass, widgetApi) => {
                 }
                 if (typeBtn)
                     typeBtn.addEventListener("click", e => { e.stopPropagation(); dropdownOpen = !dropdownOpen; renderTypeFilters(); });
-                document.addEventListener("click", () => { if (dropdownOpen) {
+                const onDocClick = () => { if (dropdownOpen) {
                     dropdownOpen = false;
                     renderTypeFilters();
-                } });
+                } };
+                document.addEventListener("click", onDocClick);
+                self._mtwDocClick = onDocClick;
                 // ── Render task list ──────────────────────────────────────────────
                 function renderList() {
                     if (auditMode) {
@@ -862,8 +898,10 @@ const factory = (BaseBlockClass, widgetApi) => {
                 }
                 overlayEl.addEventListener("click", closeDetail);
                 detailClose.addEventListener("click", e => { e.stopPropagation(); closeDetail(); });
-                document.addEventListener("keydown", e => { if (e.key === "Escape" && detailTask)
-                    closeDetail(); });
+                const onDocKey = (e) => { if (e.key === "Escape" && detailTask)
+                    closeDetail(); };
+                document.addEventListener("keydown", onDocKey);
+                self._mtwDocKey = onDocKey;
                 detailToggle.addEventListener("click", () => __awaiter(this, void 0, void 0, function* () {
                     if (!detailTask)
                         return;
@@ -1159,6 +1197,25 @@ const factory = (BaseBlockClass, widgetApi) => {
                 refreshBtn.addEventListener("click", load);
                 load();
             });
+        }
+        disconnectedCallback() {
+            const self = this;
+            if (self._mtwOverlay) {
+                self._mtwOverlay.remove();
+                self._mtwOverlay = undefined;
+            }
+            if (self._mtwDetail) {
+                self._mtwDetail.remove();
+                self._mtwDetail = undefined;
+            }
+            if (self._mtwDocClick) {
+                document.removeEventListener("click", self._mtwDocClick);
+                self._mtwDocClick = undefined;
+            }
+            if (self._mtwDocKey) {
+                document.removeEventListener("keydown", self._mtwDocKey);
+                self._mtwDocKey = undefined;
+            }
         }
         static get observedAttributes() {
             return ["apitoken", "baseurl", "primarycolor", "accentcolor", "backgroundcolor", "storelabelsingular", "storelabelplural", "showalltasks", "showdonetasks", "auditmode"];
