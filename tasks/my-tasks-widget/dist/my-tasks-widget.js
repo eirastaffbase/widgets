@@ -124,6 +124,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 let auditLists = [];
                 let showCompletedAudit = false;
                 let showOtherAuditTasks = false;
+                let introUsed = false; // staggered entrance only on first list render
                 let currentUserId = "";
                 let allInstalls = []; // for task creation
                 const listsByInst = new Map();
@@ -339,6 +340,16 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-check.pop-undone{animation:${p}-uncheck-pop .28s cubic-bezier(.34,1.56,.64,1) forwards}
           @keyframes ${p}-spark{0%{transform:scale(0) translate(0,0);opacity:1}100%{transform:scale(1) translate(var(--tx),var(--ty));opacity:0}}
           .${p}-spark{position:absolute;width:5px;height:5px;border-radius:50%;pointer-events:none;animation:${p}-spark .5s ease-out forwards}
+          /* Staggered list entrance (first render only) */
+          @keyframes ${p}-rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+          .${p}-list.intro>*{animation:${p}-rise .42s cubic-bezier(.22,1,.36,1) both}
+          ${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => `.${p}-list.intro>*:nth-child(${n}){animation-delay:${(n - 1) * 0.05}s}`).join("")}
+          .${p}-list.intro>*:nth-child(n+11){animation-delay:.5s}
+          /* Comment entrance */
+          @keyframes ${p}-cmt-in{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+          .${p}-cmt-item{animation:${p}-cmt-in .32s ease both}
+          ${[1, 2, 3, 4, 5, 6, 7, 8].map(n => `.${p}-cmt-list .${p}-cmt-item:nth-child(${n}){animation-delay:${(n - 1) * 0.04}s}`).join("")}
+          @media (prefers-reduced-motion:reduce){.${p}-list.intro>*,.${p}-cmt-item{animation:none!important}}
           /* ── Audit result card ── */
           .${p}-audit-card{border-radius:var(--r-lg);padding:16px;margin-bottom:12px;border:1px solid}
           .${p}-audit-card.pass{background:rgba(46,125,74,.05);border-color:rgba(46,125,74,.25)}
@@ -1220,7 +1231,8 @@ const factory = (BaseBlockClass, widgetApi) => {
                     const orderedKeys = [...grouped.keys()].sort((a, b) => { if (a === "__none__")
                         return 1; if (b === "__none__")
                         return -1; return a.localeCompare(b); });
-                    let html = `<div class="${p}-list">`;
+                    let html = `<div class="${p}-list${introUsed ? "" : " intro"}">`;
+                    introUsed = true;
                     for (const key of orderedKeys) {
                         const group = grouped.get(key);
                         const label = key === "__none__" ? "No Type" : key;
@@ -1325,7 +1337,8 @@ const factory = (BaseBlockClass, widgetApi) => {
                         taskHtml = `<div style="text-align:center;padding:20px;color:var(--gray-lt);font-size:13px">No open tasks — all caught up!</div>`;
                     }
                     else {
-                        taskHtml = `<div class="${p}-list">${visibleMine.map(t => renderTaskCard(t)).join("")}</div>`;
+                        taskHtml = `<div class="${p}-list${introUsed ? "" : " intro"}">${visibleMine.map(t => renderTaskCard(t)).join("")}</div>`;
+                        introUsed = true;
                     }
                     // "Other tasks" section (greyed but clickable) — only when Show All is on
                     let otherHtml = "";
@@ -1475,12 +1488,34 @@ const factory = (BaseBlockClass, widgetApi) => {
           ${(pa === null || pa === void 0 ? void 0 : pa.notes) ? `<div class="${p}-detail-desc-label">Notes</div><div class="${p}-detail-desc" style="margin-bottom:18px">${esc(pa.notes)}</div>` : ""}
           ${cats.length ? `<div class="${p}-detail-desc-label">Category breakdown</div><div class="${p}-cat-chart">${bars}</div>` : ""}
         `;
+                    const reduceMotion = (() => { try {
+                        return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+                    }
+                    catch (_) {
+                        return false;
+                    } })();
                     // Animate the bars from 0 → their value once laid out.
                     requestAnimationFrame(() => requestAnimationFrame(() => {
                         detailBody.querySelectorAll(`.${p}-cat-fill`).forEach(el => {
                             el.style.width = (el.dataset.pct || "0") + "%";
                         });
                     }));
+                    // Count the score up from 0 → pct.
+                    const scoreEl = detailBody.querySelector(`.${p}-audit-detail-score`);
+                    if (scoreEl && pct != null && !reduceMotion) {
+                        const target = pct, dur = 750, t0 = performance.now();
+                        scoreEl.textContent = "0%";
+                        const tick = (now) => {
+                            if (detailAudit !== pa)
+                                return; // panel changed
+                            const k = Math.min(1, (now - t0) / dur);
+                            const eased = 1 - Math.pow(1 - k, 3);
+                            scoreEl.textContent = Math.round(eased * target) + "%";
+                            if (k < 1)
+                                requestAnimationFrame(tick);
+                        };
+                        requestAnimationFrame(tick);
+                    }
                 }
                 function closeDetail() {
                     overlayEl.classList.remove("open");
