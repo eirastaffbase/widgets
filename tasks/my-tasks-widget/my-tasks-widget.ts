@@ -46,6 +46,8 @@ const uiSchema: UiSchema = {
   showalltasks:       { "ui:help":"When enabled, tasks from all users are shown — not just yours" },
   showdonetasks:      { "ui:help":"When enabled, completed tasks are included in the view" },
   auditmode:          { "ui:help":"When enabled, shows audit results and history instead of regular tasks" },
+  enablecomments:     { "ui:help":"Experimental: show a comments section in the task detail panel (uses the logged-in user's session)" },
+  debugmode:          { "ui:help":"Show an on-screen log panel with a copy button — useful for debugging inside the mobile app" },
 };
 
 // ── Color utilities ───────────────────────────────────────────────────────────
@@ -1516,7 +1518,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
     }
 
     static get observedAttributes(){
-      return ["apitoken","baseurl","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","showalltasks","showdonetasks","auditmode"];
+      return ["apitoken","baseurl","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","showalltasks","showdonetasks","auditmode","enablecomments","debugmode"];
     }
   };
 };
@@ -1525,7 +1527,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
 const blockDefinition: BlockDefinition = {
   name:"my-tasks-widget", label:"My Tasks Widget",
-  attributes:["apitoken","baseurl","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","showalltasks","showdonetasks","auditmode"],
+  attributes:["apitoken","baseurl","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","showalltasks","showdonetasks","auditmode","enablecomments","debugmode"],
   factory, configurationSchema, uiSchema, blockLevel:"block", iconUrl:"",
 };
 
