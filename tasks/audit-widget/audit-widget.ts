@@ -1405,7 +1405,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               const atype = taskAssignType[q.id]||"group";
               const gid2  = taskGroupOverrides[q.id]||"";
               const uid2  = taskUserOverrides[q.id]||"";
-              if(atype==="user"&&uid2) body.userIds=[uid2];
+              if(atype==="user"&&uid2) body.assigneeIds=[uid2];
               else if(gid2) body.groupIds=[gid2];
               const r=await fetch(`${baseUrl}/tasks/${selectedInstId}/task`,{method:"POST",...apiOpts(),body:JSON.stringify(body)});
               if(r.ok){
