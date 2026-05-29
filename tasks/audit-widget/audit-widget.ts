@@ -1399,7 +1399,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             try {
               const body:Record<string,unknown>={
                 title:q.taskTitle||q.text,
-                description:`Audit finding: ${q.id} — ${q.text}\nAudit: ${listName}\nAuditor: ${auditorName}`,
+                description:`Audit finding: ${q.id} — ${q.text}\nAudit: ${listName}\nAuditor: ${auditorName}\nSeverity: ${q.taskPriority}`,
                 status:"OPEN",priority:prio,taskListId:listId,dueDate:due,
               };
               const atype = taskAssignType[q.id]||"group";

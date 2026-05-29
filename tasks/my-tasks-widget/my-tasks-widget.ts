@@ -32,6 +32,7 @@ const configurationSchema: JSONSchema7 = {
     auditmode:          { type:"boolean", title:"Audit Mode",               default: false },
     enablecomments:     { type:"boolean", title:"Enable Comments (experimental)", default: false },
     allowtaskcreation:  { type:"boolean", title:"Allow Task Creation", default: false },
+    allowtaskassignment:{ type:"boolean", title:"Allow Task Assignment (audit mode)", default: false },
     debugmode:          { type:"boolean", title:"Debug Mode (on-screen logs)", default: false },
   },
 };
@@ -49,6 +50,7 @@ const uiSchema: UiSchema = {
   auditmode:          { "ui:help":"When enabled, shows audit results and history instead of regular tasks" },
   enablecomments:     { "ui:help":"Experimental: show a comments section in the task detail panel (uses the logged-in user's session)" },
   allowtaskcreation:  { "ui:help":"Show a “New Task” button so users can create tasks from this widget" },
+  allowtaskassignment:{ "ui:help":"In audit mode, allow reassigning a task (to a group or person) from its detail panel" },
   debugmode:          { "ui:help":"Show an on-screen log panel with a copy button — useful for debugging inside the mobile app" },
 };
 
@@ -123,6 +125,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const auditMode    = this.getAttribute("auditmode")          === "true";
       const enableComments = this.getAttribute("enablecomments")   === "true";
       const allowCreate    = this.getAttribute("allowtaskcreation") === "true";
+      const allowAssign    = this.getAttribute("allowtaskassignment") === "true";
       const storeSingular  = this.getAttribute("storelabelsingular") || "Store";
       const debugMode      = this.getAttribute("debugmode")        === "true";
 
@@ -138,6 +141,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         listId: string; listName: string;
         groupIds: string[]; assigneeIds: string[];
         attachmentIds: string[];
+        auditSeverity?: string; // "Critical" etc., parsed from audit description
       };
 
       type AuditList = {
@@ -157,6 +161,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       let currentUserId              = "";
       let allInstalls: Array<{id:string;title:string}> = [];           // for task creation
       const listsByInst = new Map<string, Array<{id:string;name:string}>>();
+      let usersList: Array<{id:string;name:string}> | null = null; // lazy, for reassign picker
       let userGroupIds: string[]     = [];
       const groupMap                 = new Map<string,string>(); // groupId → name
 
@@ -391,6 +396,19 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-audit-card:hover{box-shadow:var(--shadow-md)}
           .${p}-audit-card:active{transform:scale(.99)}
           .${p}-audit-card-cta{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:13px;padding-top:11px;border-top:1px solid rgba(0,0,0,.07);font-size:12px;font-weight:700;color:var(--gray)}
+          .${p}-reassign{margin-top:8px;position:relative}
+          .${p}-reassign-btn{display:inline-flex!important;width:auto!important;margin:0!important;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--primary);background:rgba(var(--primary-rgb),.07)!important;border:none!important;border-radius:var(--r-sm);cursor:pointer;font-family:inherit;padding:6px 11px!important;line-height:normal!important}
+          .${p}-reassign-btn:hover{background:rgba(var(--primary-rgb),.13)!important}
+          .${p}-reassign-pop{margin-top:8px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fff;box-shadow:var(--shadow-md);overflow:hidden}
+          .${p}-reassign-search{width:100%;border:none;border-bottom:1px solid var(--border);padding:10px 12px;font-family:inherit;font-size:13px;color:var(--dark);background:#fafafa}
+          .${p}-reassign-search:focus{outline:none;background:#fff}
+          .${p}-reassign-results{max-height:240px;overflow-y:auto}
+          .${p}-reassign-h{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-lt);padding:8px 12px 4px}
+          .${p}-reassign-opt{display:flex;align-items:center;gap:8px;padding:9px 12px;font-size:13px;color:var(--dark);cursor:pointer}
+          .${p}-reassign-opt:hover{background:rgba(var(--primary-rgb),.06)}
+          .${p}-reassign-opt span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+          .${p}-reassign-opt.unassign{color:var(--error);border-top:1px solid var(--border);font-weight:600}
+          .${p}-reassign-empty{padding:9px 12px;font-size:12px;color:var(--gray-lt)}
           .${p}-audit-detail-score{font-size:52px;font-weight:800;line-height:1;letter-spacing:-1px}
           .${p}-audit-detail-sub{font-size:14px;font-weight:700;margin:4px 0 16px}
           .${p}-detail.audit-view .${p}-detail-foot{display:none}
@@ -761,6 +779,54 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           }
         }catch(_){}
         userCache.set(id,info); return info;
+      }
+      async function fetchUsers():Promise<Array<{id:string;name:string}>>{
+        if(usersList) return usersList;
+        try{
+          const r=await fetch(`${baseUrl}/users?limit=200`,apiOpts());
+          if(r.ok){ const d=await r.json(); usersList=(d.data||d||[]).map((u:any)=>({id:u.id,name:[u.firstName,u.lastName].filter(Boolean).join(" ")||u.displayName||u.userName||u.id})); }
+          else usersList=[];
+        }catch(_){ usersList=[]; }
+        return usersList!;
+      }
+      // Reassign picker (audit mode). Searchable groups + people; PATCHes the task.
+      function wireReassign(task:Task){
+        const root=detailBody.querySelector(`#${p}-reassign-${instId}`) as HTMLElement|null;
+        if(!root) return;
+        const btn=root.querySelector(`.${p}-reassign-btn`) as HTMLButtonElement;
+        const pop=root.querySelector(`.${p}-reassign-pop`) as HTMLElement;
+        const search=root.querySelector(`.${p}-reassign-search`) as HTMLInputElement;
+        const results=root.querySelector(`.${p}-reassign-results`) as HTMLElement;
+        const gIco=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
+        const uIco=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
+        const groupsArr=()=>{const o:Array<{id:string;name:string}>=[];groupMap.forEach((name,id)=>o.push({id,name}));return o.sort((a,b)=>a.name.localeCompare(b.name));};
+        const renderResults=(q:string)=>{
+          const ql=q.trim().toLowerCase();
+          const groups=groupsArr().filter(g=>!ql||g.name.toLowerCase().includes(ql)).slice(0,15);
+          const users=(usersList||[]).filter(u=>!ql||u.name.toLowerCase().includes(ql)).slice(0,15);
+          let html="";
+          if(groups.length){ html+=`<div class="${p}-reassign-h">Groups</div>`+groups.map(g=>`<div class="${p}-reassign-opt" data-type="group" data-id="${esc(g.id)}">${gIco}<span>${esc(g.name)}</span></div>`).join(""); }
+          html+=`<div class="${p}-reassign-h">People</div>`+(users.length?users.map(u=>`<div class="${p}-reassign-opt" data-type="user" data-id="${esc(u.id)}">${uIco}<span>${esc(u.name)}</span></div>`).join(""):`<div class="${p}-reassign-empty">${usersList?"No matches":"Loading…"}</div>`);
+          html+=`<div class="${p}-reassign-opt unassign" data-type="none" data-id="">Unassign</div>`;
+          results.innerHTML=html;
+          results.querySelectorAll(`.${p}-reassign-opt`).forEach(o=>o.addEventListener("click",()=>apply((o as HTMLElement).dataset.type!,(o as HTMLElement).dataset.id!)));
+        };
+        const apply=async(type:string,id:string)=>{
+          const body:any = type==="group" ? {groupIds:[id],assigneeIds:[]} : type==="user" ? {assigneeIds:[id],groupIds:[]} : {assigneeIds:[],groupIds:[]};
+          pop.style.display="none"; btn.disabled=true;
+          try{
+            const r=await fetch(`${baseUrl}/tasks/${task.installationId}/task/${task.id}`,{method:"PATCH",...apiOpts(),body:JSON.stringify(body)});
+            if(!r.ok) throw new Error(`HTTP ${r.status}`);
+            task.groupIds=body.groupIds; task.assigneeIds=body.assigneeIds;
+            hideBanner(); renderDetailContent(task); load();
+          }catch(e:any){ showBanner("error",`Couldn't reassign: ${e.message}`); btn.disabled=false; }
+        };
+        btn.addEventListener("click",async()=>{
+          if(pop.style.display!=="none"){ pop.style.display="none"; return; }
+          pop.style.display="block"; renderResults(""); search.value=""; search.focus();
+          if(!usersList){ await fetchUsers(); if(detailTask===task) renderResults(search.value); }
+        });
+        search.addEventListener("input",()=>renderResults(search.value));
       }
       function initials(name:string):string{
         const parts=name.trim().split(/\s+/);
@@ -1254,9 +1320,11 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         const desc=task.description?esc(stripTypeTag(task.description)):"";
         const typeCol=task.taskType?typeColor(task.taskType):"";
         const typeText=task.taskType?contrastColor(typeCol):"";
-        const prioCol=priorityColor(task.priority);
+        const isCrit=(task.auditSeverity||"").toLowerCase()==="critical";
+        const prioCol=isCrit?"#9B1C2E":priorityColor(task.priority);
+        const prioLbl=isCrit?"Critical":priorityLabel(task.priority);
         const typeBadge=task.taskType?`<span class="${p}-type-badge" style="background:${typeCol};color:${typeText}">${esc(task.taskType)}</span>`:"";
-        const prioBadge=task.priority&&task.priority!=="Priority_3"?`<span class="${p}-prio-badge" style="color:${prioCol};border-color:${prioCol}">${priorityLabel(task.priority)}</span>`:"";
+        const prioBadge=(isCrit||(task.priority&&task.priority!=="Priority_3"))?`<span class="${p}-prio-badge${isCrit?" crit":""}" style="color:${prioCol};border-color:${prioCol}">${prioLbl}</span>`:"";
 
         const iconCal=`<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
         const iconStore=`<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`;
@@ -1421,12 +1489,14 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         const dueInfo=formatDate(task.dueDate);
         const typeCol=task.taskType?typeColor(task.taskType):"";
         const typeText=task.taskType?contrastColor(typeCol):"";
-        const prioCol=priorityColor(task.priority);
+        const isCrit=(task.auditSeverity||"").toLowerCase()==="critical";
+        const prioCol=isCrit?"#9B1C2E":priorityColor(task.priority);
+        const prioLbl=isCrit?"Critical":priorityLabel(task.priority);
         const cleanDesc=task.description?stripTypeTag(task.description).trim():"";
 
         detailBadges.innerHTML=`
           ${task.taskType?`<span class="${p}-type-badge" style="background:${typeCol};color:${typeText}">${esc(task.taskType)}</span>`:""}
-          ${task.priority&&task.priority!=="Priority_3"?`<span class="${p}-prio-badge" style="color:${prioCol};border-color:${prioCol}">${priorityLabel(task.priority)}</span>`:""}`;
+          ${(isCrit||(task.priority&&task.priority!=="Priority_3"))?`<span class="${p}-prio-badge${isCrit?" crit":""}" style="color:${prioCol};border-color:${prioCol}">${prioLbl}</span>`:""}`;
 
         const iCal=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
         const iStore=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`;
@@ -1444,7 +1514,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           if(showAssignTabs){
             const groupNames=task.groupIds.map(gid=>groupName(gid)).filter(Boolean);
             const groupHtml=groupNames.map(gn=>`<div class="${p}-detail-meta-row">${iGroup} ${esc(gn)}</div>`).join("")||"<div style='font-size:12px;color:var(--gray-lt)'>No group assigned</div>";
-            const personHtml=task.assigneeIds.length>0?task.assigneeIds.map(aid=>`<div class="${p}-detail-meta-row">${iUser} ${esc(aid)}</div>`).join(""):"<div style='font-size:12px;color:var(--gray-lt)'>No individual assignee</div>";
+            const personHtml=task.assigneeIds.length>0?task.assigneeIds.map(aid=>`<div class="${p}-detail-meta-row" data-uid="${esc(aid)}">${iUser} <span>${esc(aid)}</span></div>`).join(""):"<div style='font-size:12px;color:var(--gray-lt)'>No individual assignee</div>";
             assigneeHtml=`
               <div class="${p}-assign-tabs" id="${p}-assign-tabs-${instId}">
                 <button type="button" class="${p}-assign-tab${detailAssignTab==="group"?" active":""}" data-tab="group">Group</button>
@@ -1466,6 +1536,13 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             ${task.installationTitle?`<div class="${p}-detail-meta-row">${iStore} ${esc(task.installationTitle)}</div>`:""}
             ${task.listName?`<div class="${p}-detail-meta-row">${iList} ${esc(task.listName)}</div>`:""}
             ${assigneeHtml}
+            ${auditMode&&allowAssign?`<div class="${p}-reassign" id="${p}-reassign-${instId}">
+              <button type="button" class="${p}-reassign-btn" data-act="open"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> ${(task.groupIds.length||task.assigneeIds.length)?"Reassign":"Assign"}</button>
+              <div class="${p}-reassign-pop" style="display:none">
+                <input type="text" class="${p}-reassign-search" placeholder="Search people or groups…">
+                <div class="${p}-reassign-results"></div>
+              </div>
+            </div>`:""}
           </div>
           ${(()=>{
             const af = auditMode && cleanDesc ? parseAuditFinding(cleanDesc) : null;
@@ -1512,6 +1589,16 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         `;
 
         renderAttachments(task);
+
+        // Resolve assignee IDs → names (shown in the Person tab).
+        detailBody.querySelectorAll(`.${p}-detail-meta-row[data-uid]`).forEach(row=>{
+          const uid=(row as HTMLElement).dataset.uid||"";
+          fetchUser(uid).then(u=>{ const s=row.querySelector("span"); if(s&&u.name) s.textContent=u.name; });
+        });
+
+        // Reassign control (audit mode + allowtaskassignment)
+        if(auditMode&&allowAssign) wireReassign(task);
+
         if(enableComments){
           renderComments(task);
           // Current user's avatar next to the composer.
@@ -1830,6 +1917,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
                   // Audit-generated tasks have no [type] tag — surface them as an
                   // "Audit" type so they're filterable in the normal (non-audit) view.
                   if(!taskType && (/^\s*Audit finding:/i.test(desc) || /^\s*Audit\s*[—–-]/i.test(lname))) taskType="Audit";
+                  const sevM=desc.match(/(?:^|\n)\s*Severity:\s*([A-Za-z]+)/i);
                   allTasks.push({
                     id:t.id, title:t.title||"(no title)", description:desc,
                     status:t.status||"OPEN", priority:t.priority||"Priority_3",
@@ -1839,6 +1927,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
                     listName:lname,
                     groupIds:t.groupIds||[], assigneeIds:t.assigneeIds||[],
                     attachmentIds:t.attachmentIds||[],
+                    auditSeverity:sevM?sevM[1]:undefined,
                   });
                 }
               }
@@ -1995,7 +2084,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
     }
 
     static get observedAttributes(){
-      return ["apitoken","baseurl","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","showalltasks","showdonetasks","auditmode","enablecomments","allowtaskcreation","debugmode"];
+      return ["apitoken","baseurl","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","showalltasks","showdonetasks","auditmode","enablecomments","allowtaskcreation","allowtaskassignment","debugmode"];
     }
   };
 };
@@ -2004,7 +2093,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
 const blockDefinition: BlockDefinition = {
   name:"my-tasks-widget", label:"My Tasks Widget",
-  attributes:["apitoken","baseurl","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","showalltasks","showdonetasks","auditmode","enablecomments","allowtaskcreation","debugmode"],
+  attributes:["apitoken","baseurl","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","showalltasks","showdonetasks","auditmode","enablecomments","allowtaskcreation","allowtaskassignment","debugmode"],
   factory, configurationSchema, uiSchema, blockLevel:"block", iconUrl:"",
 };
 
