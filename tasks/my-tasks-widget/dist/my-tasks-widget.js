@@ -668,11 +668,11 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const iXsmall = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
                 const iSend = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>`;
                 // ── Comments (user-session auth; NOT the Basic token) ──────────────
-                // Comments must be attributed to a person, so they use the logged-in
-                // user's session (same-origin cookie) — see comments.md. All comment
-                // calls go to a relative /api URL with credentials:"include" and NO
-                // Authorization header. Gated behind the `enablecomments` setting.
-                const apiOrigin = `${location.origin}/api`;
+                // Comments must be attributed to a person, so the POST uses the logged-in
+                // user's session (cookie + CSRF) — see comments.md. We target the real
+                // API host (baseUrl), NOT location.origin: on mobile the app runs under a
+                // capacitor:// origin, where location.origin/api hits the local app shell
+                // and returns index.html instead of reaching Staffbase.
                 function readCsrf() {
                     var _a, _b;
                     // Confirmed source (web + mobile widget context): window.we.authMgr.csrfToken.
@@ -762,7 +762,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 }
                 function postComment(task, text) {
                     return __awaiter(this, void 0, void 0, function* () {
-                        const url = `${apiOrigin}/tasks/${task.installationId}/task/${task.id}/comments`;
+                        const url = `${baseUrl}/tasks/${task.installationId}/task/${task.id}/comments`;
                         const body = JSON.stringify({ content: commentDoc(text) });
                         dlog("POST comment", url, "csrf?", readCsrf() ? "yes" : "no", "body", body);
                         const r = yield fetch(url, sessionOpts({
@@ -1588,6 +1588,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                                 return;
                             cSend.disabled = true;
                             cInput.disabled = true;
+                            let ok = false;
                             try {
                                 const tokens = pending.map(f => `[attachment:${f.id}]`).join(" ");
                                 const full = [text, tokens].filter(Boolean).join(text && tokens ? "\n" : "");
@@ -1610,13 +1611,19 @@ const factory = (BaseBlockClass, widgetApi) => {
                                 cBar === null || cBar === void 0 ? void 0 : cBar.classList.remove("show");
                                 hideBanner();
                                 yield renderComments(task);
+                                ok = true;
                             }
                             catch (e) {
                                 showBanner("error", `Couldn't post comment: ${e.message}`);
                             }
                             cSend.disabled = false;
                             cInput.disabled = false;
-                            cInput.focus();
+                            // On success, blur so the mobile keyboard dismisses; on failure keep
+                            // focus so they can retry without re-tapping the field.
+                            if (ok)
+                                cInput.blur();
+                            else
+                                cInput.focus();
                         });
                         cSend === null || cSend === void 0 ? void 0 : cSend.addEventListener("click", submit);
                         cInput === null || cInput === void 0 ? void 0 : cInput.addEventListener("keydown", (e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter")
@@ -2017,7 +2024,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                         const listOpts = (id) => (listsByInst.get(id) || []).map(l => `<option value="${esc(l.id)}">${esc(l.name)}</option>`).join("");
                         createEl.innerHTML = `
             <div class="${p}-create-head"><h3>New Task</h3>
-              <button type="button" class="${p}-create-close" id="${p}-create-x"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+              <button type="button" class="${p}-create-close" id="${p}-c-x"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
             </div>
             <div class="${p}-create-body">
               <div class="${p}-fld"><label>Title</label><input class="${p}-in" id="${p}-c-title" placeholder="What needs to be done?"></div>
