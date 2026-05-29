@@ -164,6 +164,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         <style>
           .${p}{--primary:${primaryColor};--primary-rgb:${primaryRgb};--primary-text:${primaryText};--accent:${accentColor};--dark:#1A1A1A;--gray:#6b7280;--gray-lt:#9ca3af;--border:#e5e7eb;--success:#2E7D4A;--error:#C41E3A;--r-sm:6px;--r-md:10px;--r-lg:14px;--shadow-sm:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);--shadow-md:0 4px 16px rgba(0,0,0,.08);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--dark);background:${bgColor||"transparent"};padding:20px}
           .${p} *,.${p} *::before,.${p} *::after{box-sizing:border-box;margin:0;padding:0}
+          /* Neutralize Staffbase's global button rule (margin:auto/width:90%) inside the
+             body-appended panels, which sit outside the .${p} reset above. */
+          .${p}-detail button,.${p}-create button{margin:0!important;box-sizing:border-box}
           .${p}-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
           .${p}-title{font-size:18px;font-weight:800;color:var(--dark);display:flex;align-items:center;gap:10px}
           .${p}-title-dot{width:10px;height:10px;border-radius:50%;background:var(--primary);flex-shrink:0}
@@ -221,11 +224,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           /* Audit finding (parsed, audit mode only) */
           .${p}-af{margin-top:2px}
           .${p}-af-code{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--primary);background:rgba(var(--primary-rgb),.1);border-radius:6px;padding:3px 9px;margin-bottom:9px}
-          .${p}-af-finding{font-size:15px;font-weight:600;line-height:1.45;color:var(--dark);margin-bottom:11px}
+          .${p}-af-finding{font-size:14px;font-weight:600;line-height:1.5;color:var(--dark);margin-bottom:11px}
           .${p}-af-pills{display:flex;flex-wrap:wrap;gap:6px}
-          .${p}-af-pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--gray);background:#f3f4f6;border:1px solid var(--border);border-radius:20px;padding:5px 11px}
+          .${p}-af-pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:var(--gray);background:#f3f4f6;border:1px solid var(--border);border-radius:20px;padding:5px 11px}
           .${p}-af-pill svg{width:12px;height:12px;opacity:.7;flex-shrink:0}
-          .${p}-af-pill b{color:var(--dark);font-weight:700}
           .${p}-detail-foot{padding:14px 20px;border-top:1px solid var(--border);flex-shrink:0}
           .${p}-detail-toggle-btn{width:100%;padding:11px;border-radius:var(--r-md);border:none;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px}
           .${p}-detail-toggle-btn.done-btn{background:rgba(var(--primary-rgb),.08);border:1.5px solid rgba(var(--primary-rgb),.2);color:var(--primary)}
@@ -236,7 +238,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-att{margin-top:16px}
           .${p}-att-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
           .${p}-att-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray-lt)}
-          .${p}-att-add{display:inline-flex!important;width:auto!important;align-items:center;gap:5px;font-size:12px;font-weight:600;line-height:normal!important;color:var(--gray);background:none!important;border:none!important;cursor:pointer;font-family:inherit;padding:3px 6px!important;border-radius:var(--r-sm);transition:color .15s,background .15s}
+          .${p}-att-add{display:inline-flex!important;width:auto!important;margin:0!important;align-items:center;gap:5px;font-size:12px;font-weight:600;line-height:normal!important;color:var(--gray);background:none!important;border:none!important;cursor:pointer;font-family:inherit;padding:3px 6px!important;border-radius:var(--r-sm);transition:color .15s,background .15s}
           .${p}-att-add:hover{color:var(--primary);background:rgba(var(--primary-rgb),.06)}
           .${p}-att-add:disabled{opacity:.5;cursor:default}
           .${p}-att-grid{display:flex;flex-wrap:wrap;gap:8px}
@@ -248,7 +250,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-att-meta{min-width:0;display:flex;flex-direction:column;gap:1px}
           .${p}-att-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px;font-weight:500}
           .${p}-att-size{color:var(--gray-lt);font-size:11px}
-          .${p}-att-x{margin-left:2px;border:none;background:none;color:var(--gray-lt);cursor:pointer;padding:3px;display:flex;border-radius:50%;flex-shrink:0;transition:color .15s,background .15s}
+          .${p}-att-x{width:auto!important;margin:0 0 0 2px!important;border:none!important;background:none!important;color:var(--gray-lt);cursor:pointer;padding:3px!important;display:flex!important;border-radius:50%;flex-shrink:0;transition:color .15s,background .15s}
           .${p}-att-x:hover{color:var(--error);background:rgba(196,30,58,.08)}
           .${p}-att-empty{font-size:12px;color:var(--gray-lt)}
           /* ── Comments ── */
@@ -271,20 +273,20 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-cmt-field:focus-within{border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(var(--primary-rgb),.12)}
           .${p}-cmt-input{width:100%;resize:none;max-height:140px;min-height:38px;font-family:inherit;font-size:14px;line-height:1.5;border:none;background:none;color:var(--dark)}
           .${p}-cmt-input:focus{outline:none}
-          .${p}-cmt-actions{display:none;width:100%;justify-content:flex-end!important}
-          .${p}-cmt-actions.show{display:flex!important}
-          .${p}-cmt-send{margin-left:auto!important}
-          .${p}-cmt-send{display:inline-flex!important;width:auto!important;align-items:center!important;gap:7px!important;font-family:inherit!important;font-size:13px!important;font-weight:700!important;line-height:normal!important;white-space:nowrap!important;border:none!important;border-radius:var(--r-md)!important;background:var(--primary)!important;color:var(--primary-text,#fff)!important;cursor:pointer!important;padding:9px 16px!important;box-shadow:0 3px 10px rgba(var(--primary-rgb),.3)!important;transition:all .15s!important}
+          .${p}-cmt-bar{display:none;align-items:center;justify-content:flex-end;gap:6px;margin-top:8px}
+          .${p}-cmt-bar.show{display:flex}
+          .${p}-cmt-attach{display:inline-flex!important;width:auto!important;margin:0!important;align-items:center;justify-content:center;gap:5px;border:none!important;background:none!important;color:var(--gray-lt);cursor:pointer;padding:7px!important;border-radius:50%;line-height:normal!important;font-family:inherit;font-size:12px;font-weight:600}
+          .${p}-cmt-attach:hover{color:var(--primary);background:rgba(var(--primary-rgb),.08)}
+          .${p}-cmt-attach svg{width:15px;height:15px}
+          .${p}-cmt-send{display:none!important;width:auto!important;margin:0!important;align-items:center!important;gap:7px!important;font-family:inherit!important;font-size:13px!important;font-weight:700!important;line-height:normal!important;white-space:nowrap!important;border:none!important;border-radius:var(--r-md)!important;background:var(--primary)!important;color:var(--primary-text,#fff)!important;cursor:pointer!important;padding:9px 16px!important;box-shadow:0 3px 10px rgba(var(--primary-rgb),.3)!important;transition:all .15s!important}
+          .${p}-cmt-send.show{display:inline-flex!important}
           .${p}-cmt-send svg{width:14px;height:14px}
           .${p}-cmt-send:hover{filter:brightness(.9)!important;transform:translateY(-1px)!important}
           .${p}-cmt-send:active{transform:translateY(0)!important}
-          .${p}-cmt-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:2px}
-          .${p}-cmt-attach{display:inline-flex!important;width:auto!important;align-items:center;justify-content:center;gap:5px;border:none!important;background:none!important;color:var(--gray-lt);cursor:pointer;padding:5px!important;border-radius:var(--r-sm);line-height:normal!important;font-family:inherit;font-size:12px;font-weight:600}
-          .${p}-cmt-attach:hover{color:var(--primary);background:rgba(var(--primary-rgb),.08)}
           .${p}-cmt-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
           .${p}-cmt-chip{display:inline-flex;align-items:center;gap:5px;max-width:180px;font-size:11px;font-weight:600;background:rgba(var(--primary-rgb),.08);color:var(--primary);border-radius:12px;padding:3px 4px 3px 9px}
           .${p}-cmt-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-          .${p}-cmt-chip button{border:none;background:none;cursor:pointer;color:inherit;padding:1px;display:flex;opacity:.7}
+          .${p}-cmt-chip button{width:auto!important;margin:0!important;border:none!important;background:none!important;cursor:pointer;color:inherit;padding:1px!important;display:flex!important;opacity:.7}
           .${p}-cmt-chip button:hover{opacity:1}
           .${p}-cmt-att{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--primary)!important;text-decoration:none;background:rgba(var(--primary-rgb),.08);border-radius:6px;padding:3px 9px;margin:3px 4px 3px 0}
           .${p}-cmt-att svg{width:12px;height:12px;flex-shrink:0}
@@ -1330,7 +1332,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
                   ${af.finding?`<div class="${p}-af-finding">${esc(af.finding)}</div>`:""}
                   <div class="${p}-af-pills">
                     ${af.audit?`<span class="${p}-af-pill">${iCal}<span>${esc(af.audit)}</span></span>`:""}
-                    ${af.auditor?`<span class="${p}-af-pill">${iUser}<b>${esc(af.auditor)}</b></span>`:""}
+                    ${af.auditor?`<span class="${p}-af-pill">${iUser}<span>${esc(af.auditor)}</span></span>`:""}
                   </div>
                 </div>`;
             }
@@ -1355,11 +1357,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               <div class="${p}-cmt-field">
                 <textarea class="${p}-cmt-input" id="${p}-cmt-input-${instId}" rows="2" placeholder="Add a comment…"></textarea>
                 <div class="${p}-cmt-chips" id="${p}-cmt-chips-${instId}"></div>
-                <div class="${p}-cmt-bar">
+                <div class="${p}-cmt-bar" id="${p}-cmt-bar-${instId}">
                   <button type="button" class="${p}-cmt-attach" id="${p}-cmt-attach-${instId}" title="Attach file">${iClip}</button>
-                  <div class="${p}-cmt-actions" id="${p}-cmt-actions-${instId}">
-                    <button type="button" class="${p}-cmt-send" id="${p}-cmt-send-${instId}">${iSend} Send</button>
-                  </div>
+                  <button type="button" class="${p}-cmt-send" id="${p}-cmt-send-${instId}">${iSend} Send</button>
                 </div>
                 <input type="file" multiple style="display:none" id="${p}-cmt-file-${instId}">
               </div>
@@ -1378,13 +1378,20 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           });
           const cInput=detailBody.querySelector(`#${p}-cmt-input-${instId}`) as HTMLTextAreaElement|null;
           const cSend =detailBody.querySelector(`#${p}-cmt-send-${instId}`) as HTMLButtonElement|null;
-          const cActions=detailBody.querySelector(`#${p}-cmt-actions-${instId}`) as HTMLElement|null;
+          const cBar   =detailBody.querySelector(`#${p}-cmt-bar-${instId}`)    as HTMLElement|null;
           const cAttach=detailBody.querySelector(`#${p}-cmt-attach-${instId}`) as HTMLButtonElement|null;
           const cFile  =detailBody.querySelector(`#${p}-cmt-file-${instId}`)   as HTMLInputElement|null;
           const cChips =detailBody.querySelector(`#${p}-cmt-chips-${instId}`)  as HTMLElement|null;
           // Files attached to the comment-in-progress (also become task attachments).
           const pending:Array<{id:string;url:string;name:string}> = [];
-          const updateSendVisibility=()=>{ if(cActions) cActions.classList.toggle("show", !!(cInput?.value.trim()||pending.length)); };
+          const hasContent=()=>!!(cInput?.value.trim()||pending.length);
+          // Bar (attach + send) shows on focus or when there's content; Send shows only with content.
+          const updateSendVisibility=()=>{
+            if(cBar) cBar.classList.toggle("show", document.activeElement===cInput || hasContent());
+            if(cSend) cSend.classList.toggle("show", hasContent());
+          };
+          cInput?.addEventListener("focus",()=>{ cBar?.classList.add("show"); });
+          cInput?.addEventListener("blur",()=>{ setTimeout(()=>{ if(!hasContent()) cBar?.classList.remove("show"); },150); });
           const renderChips=()=>{
             if(!cChips) return;
             cChips.innerHTML=pending.map((f,i)=>`<span class="${p}-cmt-chip"><span>${esc(f.name)}</span><button type="button" data-idx="${i}">${iXsmall}</button></span>`).join("");
@@ -1428,7 +1435,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
                 }catch(_){}
               }
               cInput.value=""; cInput.style.height="auto"; pending.length=0; renderChips();
-              cActions?.classList.remove("show"); hideBanner();
+              cSend?.classList.remove("show"); cBar?.classList.remove("show"); hideBanner();
               await renderComments(task);
             }catch(e:any){ showBanner("error",`Couldn't post comment: ${e.message}`); }
             cSend.disabled=false; cInput.disabled=false; cInput.focus();
