@@ -124,6 +124,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 let auditLists = [];
                 let showCompletedAudit = false;
                 let showOtherAuditTasks = false;
+                let showAuditChart = false;
                 let currentUserId = "";
                 let allInstalls = []; // for task creation
                 const listsByInst = new Map();
@@ -346,6 +347,18 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-audit-card-score{font-size:36px;font-weight:800;line-height:1}
           .${p}-audit-card-meta{font-size:12px;color:var(--gray);display:flex;flex-direction:column;gap:4px;margin-top:10px}
           .${p}-audit-card-meta span{display:flex;align-items:center;gap:5px}
+          .${p}-cat-toggle{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:13px;padding-top:11px;border-top:1px solid rgba(0,0,0,.07);font-size:12px;font-weight:700;color:var(--gray);cursor:pointer;-webkit-tap-highlight-color:transparent}
+          .${p}-cat-toggle svg{transition:transform .2s}
+          .${p}-cat-toggle.open svg{transform:rotate(180deg)}
+          .${p}-cat-chart{display:flex;flex-direction:column;gap:10px;margin-top:13px}
+          .${p}-cat-top{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;margin-bottom:4px}
+          .${p}-cat-name{color:var(--dark);font-weight:600}
+          .${p}-cat-pct{color:var(--gray);font-weight:700;flex-shrink:0;margin-left:8px}
+          .${p}-cat-bar{height:7px;background:rgba(0,0,0,.08);border-radius:4px;overflow:hidden}
+          .${p}-cat-fill{display:block;height:100%;border-radius:4px;transition:width .45s ease}
+          .${p}-cat-fill.hi{background:var(--success)}
+          .${p}-cat-fill.mid{background:#d97706}
+          .${p}-cat-fill.lo{background:var(--error)}
           /* ── Assignee tab toggle in detail ── */
           .${p}-assign-tabs{display:flex;gap:4px;margin:8px 0}
           .${p}-assign-tab{flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:12px;font-weight:600;background:#f9fafb;color:var(--gray);cursor:pointer;text-align:center;transition:all .15s;font-family:inherit}
@@ -1109,6 +1122,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                         btn.addEventListener("click", () => {
                             activeAuditListId = btn.dataset.listId || "";
                             showOtherAuditTasks = false;
+                            showAuditChart = false;
                             renderAuditTabs();
                             renderList();
                         });
@@ -1260,6 +1274,23 @@ const factory = (BaseBlockClass, widgetApi) => {
               ${pa.date ? `<span>${iconCal_} ${esc(pa.date)}</span>` : ""}
               ${pa.notes ? `<span style="align-items:flex-start">${iconNote_} <span style="line-height:1.5;font-style:italic">${esc(pa.notes)}</span></span>` : ""}
             </div>
+            ${(() => {
+                        const cats = pa.categories && typeof pa.categories === "object" ? Object.keys(pa.categories) : [];
+                        if (!cats.length)
+                            return "";
+                        const chevron = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
+                        const bars = cats.map((name) => {
+                            const c = pa.categories[name];
+                            const v = Math.max(0, Math.min(100, (c === null || c === void 0 ? void 0 : c.pct) != null ? c.pct : ((c === null || c === void 0 ? void 0 : c.total) ? Math.round((c.earned / c.total) * 100) : 0)));
+                            const tier = v >= 80 ? "hi" : v >= 50 ? "mid" : "lo";
+                            return `<div class="${p}-cat-row">
+                  <div class="${p}-cat-top"><span class="${p}-cat-name">${esc(name)}</span><span class="${p}-cat-pct">${v}%</span></div>
+                  <div class="${p}-cat-bar"><span class="${p}-cat-fill ${tier}" style="width:${v}%"></span></div>
+                </div>`;
+                        }).join("");
+                        return `<div class="${p}-cat-toggle${showAuditChart ? " open" : ""}" id="${p}-cat-toggle">${showAuditChart ? "Hide" : "Category"} breakdown (${cats.length}) ${chevron}</div>
+                ${showAuditChart ? `<div class="${p}-cat-chart">${bars}</div>` : ""}`;
+                    })()}
           </div>` : "";
                     // All failure tasks in this audit (excluding system task)
                     const allAuditTasks = allTasks.filter(t => t.listId === al.listId && t.installationId === al.installId && t.taskType !== "audit-result");
@@ -1337,6 +1368,10 @@ const factory = (BaseBlockClass, widgetApi) => {
                     const otherBtn = listWrap.querySelector(`#${p}-other-toggle`);
                     if (otherBtn)
                         otherBtn.addEventListener("click", () => { showOtherAuditTasks = !showOtherAuditTasks; renderAuditContent(); });
+                    // Wire category-breakdown chart toggle
+                    const catToggle = listWrap.querySelector(`#${p}-cat-toggle`);
+                    if (catToggle)
+                        catToggle.addEventListener("click", () => { showAuditChart = !showAuditChart; renderAuditContent(); });
                     bindListEvents();
                 }
                 function bindListEvents() {
@@ -1410,9 +1445,29 @@ const factory = (BaseBlockClass, widgetApi) => {
                 function closeDetail() {
                     overlayEl.classList.remove("open");
                     detailEl.classList.remove("open");
+                    detailEl.style.bottom = "";
                     detailTask = null;
                 }
                 detailEl.addEventListener("click", e => e.stopPropagation());
+                // Lift the bottom-sheet above the on-screen keyboard (mobile). Pinning to
+                // bottom:0 puts the composer behind the keyboard and it can't scroll past
+                // its own end, so we raise the whole sheet by the keyboard height instead.
+                const vv = window.visualViewport;
+                const onViewport = () => {
+                    if (!detailTask || detailEl.classList.contains("side")) {
+                        detailEl.style.bottom = "";
+                        return;
+                    }
+                    if (!vv)
+                        return;
+                    const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+                    detailEl.style.bottom = kb > 80 ? kb + "px" : "";
+                };
+                if (vv) {
+                    vv.addEventListener("resize", onViewport);
+                    vv.addEventListener("scroll", onViewport);
+                    self._mtwVV = onViewport;
+                }
                 // Parse an audit-generated description into structured fields.
                 // Matches the format produced by the audit widget:
                 //   Audit finding: EXT-007 — Building exterior walls are clean
@@ -1949,14 +2004,19 @@ const factory = (BaseBlockClass, widgetApi) => {
                                             // In auditMode: always load all tasks — "mine" vs "other" split happens at render time
                                             seen.add(t.id);
                                             const desc = t.description || "";
-                                            const taskType = parseTaskType(t.title || "") || parseTaskType(desc);
+                                            const lname = t.taskListId ? (listMap.get(t.taskListId) || "") : "";
+                                            let taskType = parseTaskType(t.title || "") || parseTaskType(desc);
+                                            // Audit-generated tasks have no [type] tag — surface them as an
+                                            // "Audit" type so they're filterable in the normal (non-audit) view.
+                                            if (!taskType && (/^\s*Audit finding:/i.test(desc) || /^\s*Audit\s*[—–-]/i.test(lname)))
+                                                taskType = "Audit";
                                             allTasks.push({
                                                 id: t.id, title: t.title || "(no title)", description: desc,
                                                 status: t.status || "OPEN", priority: t.priority || "Priority_3",
                                                 dueDate: t.dueDate || null, taskType,
                                                 installationId: inst.id, installationTitle: inst.title,
                                                 listId: t.taskListId || "",
-                                                listName: t.taskListId ? (listMap.get(t.taskListId) || "") : "",
+                                                listName: lname,
                                                 groupIds: t.groupIds || [], assigneeIds: t.assigneeIds || [],
                                                 attachmentIds: t.attachmentIds || [],
                                             });
@@ -2153,6 +2213,11 @@ const factory = (BaseBlockClass, widgetApi) => {
             if (self._mtwDocKey) {
                 document.removeEventListener("keydown", self._mtwDocKey);
                 self._mtwDocKey = undefined;
+            }
+            if (self._mtwVV && window.visualViewport) {
+                window.visualViewport.removeEventListener("resize", self._mtwVV);
+                window.visualViewport.removeEventListener("scroll", self._mtwVV);
+                self._mtwVV = undefined;
             }
         }
         static get observedAttributes() {
