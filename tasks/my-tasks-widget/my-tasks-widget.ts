@@ -200,7 +200,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-att{margin-top:16px}
           .${p}-att-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
           .${p}-att-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray-lt)}
-          .${p}-att-add{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--gray);background:none;border:none;cursor:pointer;font-family:inherit;padding:3px 6px;border-radius:var(--r-sm);transition:color .15s,background .15s}
+          .${p}-att-add{display:inline-flex!important;width:auto!important;align-items:center;gap:5px;font-size:12px;font-weight:600;line-height:normal!important;color:var(--gray);background:none!important;border:none!important;cursor:pointer;font-family:inherit;padding:3px 6px!important;border-radius:var(--r-sm);transition:color .15s,background .15s}
           .${p}-att-add:hover{color:var(--primary);background:rgba(var(--primary-rgb),.06)}
           .${p}-att-add:disabled{opacity:.5;cursor:default}
           .${p}-att-grid{display:flex;flex-wrap:wrap;gap:8px}
@@ -235,12 +235,12 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-cmt-field:focus-within{border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(var(--primary-rgb),.12)}
           .${p}-cmt-input{width:100%;resize:none;max-height:140px;min-height:38px;font-family:inherit;font-size:14px;line-height:1.5;border:none;background:none;color:var(--dark)}
           .${p}-cmt-input:focus{outline:none}
-          .${p}-cmt-actions{display:flex;justify-content:flex-end}
-          .${p}-cmt-send{display:inline-flex;align-items:center;gap:6px;font-family:inherit;font-size:13px;font-weight:700;border:none;border-radius:var(--r-md);background:var(--primary);color:var(--primary-text,#fff);cursor:pointer;padding:8px 16px;transition:opacity .15s,transform .1s}
+          .${p}-cmt-actions{display:none;justify-content:flex-end}
+          .${p}-cmt-actions.show{display:flex}
+          .${p}-cmt-send{display:inline-flex!important;width:auto!important;align-items:center!important;gap:7px!important;font-family:inherit!important;font-size:13px!important;font-weight:700!important;line-height:normal!important;white-space:nowrap!important;border:none!important;border-radius:var(--r-md)!important;background:var(--primary)!important;color:var(--primary-text,#fff)!important;cursor:pointer!important;padding:9px 16px!important;box-shadow:0 3px 10px rgba(var(--primary-rgb),.3)!important;transition:all .15s!important}
           .${p}-cmt-send svg{width:14px;height:14px}
-          .${p}-cmt-send:hover{opacity:.9}
-          .${p}-cmt-send:active{transform:scale(.97)}
-          .${p}-cmt-send:disabled{opacity:.45;cursor:default}
+          .${p}-cmt-send:hover{filter:brightness(.9)!important;transform:translateY(-1px)!important}
+          .${p}-cmt-send:active{transform:translateY(0)!important}
           /* ── Debug panel ── */
           .${p}-dbg{position:fixed;left:0;right:0;bottom:0;z-index:2147483647;background:#0d1117;color:#e6edf3;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;border-top:2px solid var(--primary);box-shadow:0 -4px 16px rgba(0,0,0,.3);max-height:45vh;display:flex;flex-direction:column}
           .${p}-dbg.collapsed .${p}-dbg-body{display:none}
@@ -1243,7 +1243,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               <span class="${p}-cmt-av-slot" id="${p}-cmt-me-${instId}"><span class="${p}-cmt-av ${p}-cmt-av-fb">·</span></span>
               <div class="${p}-cmt-field">
                 <textarea class="${p}-cmt-input" id="${p}-cmt-input-${instId}" rows="2" placeholder="Add a comment…"></textarea>
-                <div class="${p}-cmt-actions">
+                <div class="${p}-cmt-actions" id="${p}-cmt-actions-${instId}">
                   <button type="button" class="${p}-cmt-send" id="${p}-cmt-send-${instId}">${iSend} Send</button>
                 </div>
               </div>
@@ -1262,9 +1262,11 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           });
           const cInput=detailBody.querySelector(`#${p}-cmt-input-${instId}`) as HTMLTextAreaElement|null;
           const cSend =detailBody.querySelector(`#${p}-cmt-send-${instId}`) as HTMLButtonElement|null;
-          // Auto-grow textarea.
+          const cActions=detailBody.querySelector(`#${p}-cmt-actions-${instId}`) as HTMLElement|null;
+          // Auto-grow textarea + reveal Send only when there's text.
           cInput?.addEventListener("input",()=>{
             cInput.style.height="auto"; cInput.style.height=Math.min(cInput.scrollHeight,140)+"px";
+            if(cActions) cActions.classList.toggle("show", !!cInput.value.trim());
           });
           const submit=async()=>{
             const text=(cInput?.value||"").trim();
@@ -1272,7 +1274,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             cSend.disabled=true; cInput.disabled=true;
             try{
               await postComment(task,text);
-              cInput.value=""; hideBanner();
+              cInput.value=""; cInput.style.height="auto"; cActions?.classList.remove("show"); hideBanner();
               await renderComments(task);
             }catch(e:any){ showBanner("error",`Couldn't post comment: ${e.message}`); }
             cSend.disabled=false; cInput.disabled=false; cInput.focus();
