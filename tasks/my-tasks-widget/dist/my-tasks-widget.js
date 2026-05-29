@@ -201,9 +201,9 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-cmt-empty{font-size:12px;color:var(--gray-lt);padding:4px 0}
           .${p}-cmt-compose{display:flex;align-items:flex-start;gap:10px}
           .${p}-cmt-av-slot{flex-shrink:0}
-          .${p}-cmt-field{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;border:1px solid var(--border);border-radius:var(--r-md);background:#fff;padding:10px 12px;transition:border-color .15s,box-shadow .15s}
-          .${p}-cmt-field:focus-within{border-color:var(--primary);box-shadow:0 0 0 3px rgba(var(--primary-rgb),.12)}
-          .${p}-cmt-input{width:100%;resize:none;max-height:140px;min-height:38px;font-family:inherit;font-size:13px;line-height:1.5;border:none;background:none;color:var(--dark)}
+          .${p}-cmt-field{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fafafa;padding:10px 13px;transition:border-color .15s,box-shadow .15s}
+          .${p}-cmt-field:focus-within{border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(var(--primary-rgb),.12)}
+          .${p}-cmt-input{width:100%;resize:none;max-height:140px;min-height:38px;font-family:inherit;font-size:14px;line-height:1.5;border:none;background:none;color:var(--dark)}
           .${p}-cmt-input:focus{outline:none}
           .${p}-cmt-actions{display:flex;justify-content:flex-end}
           .${p}-cmt-send{display:inline-flex;align-items:center;gap:6px;font-family:inherit;font-size:13px;font-weight:700;border:none;border-radius:var(--r-md);background:var(--primary);color:var(--primary-text,#fff);cursor:pointer;padding:8px 16px;transition:opacity .15s,transform .1s}

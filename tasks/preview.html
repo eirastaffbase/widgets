@@ -250,6 +250,24 @@ function trackDone() {
   }
 }
 
+// ── Mock comment + user data ────────────────────────────────────────────────────
+
+const MOCK_USERS = {
+  "u-maria":  { id:"u-maria",  firstName:"Maria",  lastName:"Lopez",   avatar:{ icon:{ url:"https://i.pravatar.cc/100?img=5"  } } },
+  "u-james":  { id:"u-james",  firstName:"James",  lastName:"Chen",    avatar:{ icon:{ url:"https://i.pravatar.cc/100?img=12" } } },
+  "u-priya":  { id:"u-priya",  firstName:"Priya",  lastName:"Nair",    avatar:{ icon:{ url:"https://i.pravatar.cc/100?img=32" } } },
+  [MOCK_USER_ID]: { id:MOCK_USER_ID, firstName:"Nicole", lastName:"Preview", avatar:{ icon:{ url:"https://i.pravatar.cc/100?img=47" } } },
+};
+
+const MOCK_COMMENTS = {
+  data: [
+    { id:"c1", authorId:"u-maria", content:"<p>I started the count for the dry storage section — about halfway done.</p>", createdAt: new Date(Date.now()-1000*60*60*26).toISOString() },
+    { id:"c2", authorId:"u-james", content:"<p>Thanks Maria! I'll cover the walk-in cooler this afternoon.</p>",       createdAt: new Date(Date.now()-1000*60*60*3).toISOString() },
+    { id:"c3", authorId:"u-priya", content:"<p>Heads up: a few items in aisle 4 are mislabeled, flagging for the manager.</p>", createdAt: new Date(Date.now()-1000*60*25).toISOString() },
+  ],
+  total: 3, limit: 100, nextCursor: null, prevCursor: null,
+};
+
 // ── Mock fetch ────────────────────────────────────────────────────────────────
 
 const _realFetch = window.fetch.bind(window);
@@ -293,6 +311,21 @@ window.fetch = async (url, opts) => {
       } else {
         result = u.includes("inst1") ? mockJson(MOCK_TASKS_INST1) : mockJson(MOCK_TASKS_INST2);
       }
+    } else if (u.includes("/comments")) {
+      if (opts && opts.method === "POST") {
+        const body = JSON.parse(opts.body || "{}");
+        const text = body?.content?.blocks?.b1?.config?.text || "New comment";
+        const created = { id:"c"+Math.random().toString(36).slice(2), authorId:MOCK_USER_ID, content:`<p>${text}</p>`, createdAt:new Date().toISOString() };
+        MOCK_COMMENTS.data.push(created);
+        MOCK_COMMENTS.total++;
+        result = mockJson(created);
+      } else {
+        result = mockJson(MOCK_COMMENTS);
+      }
+    } else if (u.match(/\/users\/[^/?]+/)) {
+      // Single user lookup (avatars/names on comments)
+      const id = u.split("/users/")[1].split(/[?#]/)[0];
+      result = mockJson(MOCK_USERS[id] || { id, firstName:"Unknown", lastName:"User" });
     } else if (u.includes("/users")) {
       result = mockJson({ data: [] });
     } else if (u.includes("/groups")) {
@@ -318,7 +351,8 @@ window.fetch = async (url, opts) => {
 };
 
 function mockJson(data) {
-  return { ok: true, status: 200, json: async () => data };
+  const body = JSON.stringify(data);
+  return { ok: true, status: 200, json: async () => data, text: async () => body, headers: { get: () => null } };
 }
 
 // ── Render helpers ────────────────────────────────────────────────────────────
