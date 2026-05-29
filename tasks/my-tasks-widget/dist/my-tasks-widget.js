@@ -1259,7 +1259,6 @@ const factory = (BaseBlockClass, widgetApi) => {
                     const iconCal_ = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
                     const iconNote_ = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
                     const scoreColor = passing === true ? "var(--success)" : passing === false ? "var(--error)" : "var(--gray)";
-                    const catCount = pa && pa.categories && typeof pa.categories === "object" ? Object.keys(pa.categories).length : 0;
                     const summaryHtml = pa ? `
           <div class="${p}-audit-card ${passClass}" id="${p}-audit-card" role="button" tabindex="0">
             <div style="display:flex;align-items:flex-start;justify-content:space-between">
@@ -1277,7 +1276,6 @@ const factory = (BaseBlockClass, widgetApi) => {
               ${pa.date ? `<span>${iconCal_} ${esc(pa.date)}</span>` : ""}
               ${pa.notes ? `<span style="align-items:flex-start">${iconNote_} <span style="line-height:1.5;font-style:italic">${esc(pa.notes)}</span></span>` : ""}
             </div>
-            ${catCount ? `<div class="${p}-audit-card-cta">View ${catCount}-category breakdown <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>` : ""}
           </div>` : "";
                     // All failure tasks in this audit (excluding system task)
                     const allAuditTasks = allTasks.filter(t => t.listId === al.listId && t.installationId === al.installId && t.taskType !== "audit-result");
@@ -1661,15 +1659,26 @@ const factory = (BaseBlockClass, widgetApi) => {
                             if (cSend)
                                 cSend.classList.toggle("show", hasContent());
                         };
+                        // Only do the keyboard avoidance on touch devices — on desktop there's
+                        // no on-screen keyboard, so the extra padding/scroll is unwanted.
+                        const isTouch = (() => { try {
+                            return window.matchMedia("(pointer:coarse)").matches;
+                        }
+                        catch (_) {
+                            return "ontouchstart" in window;
+                        } })();
                         cInput === null || cInput === void 0 ? void 0 : cInput.addEventListener("focus", () => {
                             cBar === null || cBar === void 0 ? void 0 : cBar.classList.add("show");
+                            if (!isTouch)
+                                return;
                             // The composer is the last element, so there's nothing below it to
                             // scroll into — add temporary room so it can clear the keyboard, then
                             // scroll it into the visible (keyboard-reduced) viewport.
                             detailBody.style.paddingBottom = "55vh";
                             setTimeout(() => cInput.scrollIntoView({ block: "center", behavior: "smooth" }), 350);
                         });
-                        cInput === null || cInput === void 0 ? void 0 : cInput.addEventListener("blur", () => { setTimeout(() => { detailBody.style.paddingBottom = ""; if (!hasContent())
+                        cInput === null || cInput === void 0 ? void 0 : cInput.addEventListener("blur", () => { setTimeout(() => { if (isTouch)
+                            detailBody.style.paddingBottom = ""; if (!hasContent())
                             cBar === null || cBar === void 0 ? void 0 : cBar.classList.remove("show"); }, 200); });
                         // Send keeps textarea focus until its click fires; attach is a <label for>
                         // that opens the picker natively (reliable on mobile, no input.click()).
