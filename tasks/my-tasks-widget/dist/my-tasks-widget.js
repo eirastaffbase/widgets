@@ -124,7 +124,6 @@ const factory = (BaseBlockClass, widgetApi) => {
                 let auditLists = [];
                 let showCompletedAudit = false;
                 let showOtherAuditTasks = false;
-                let showAuditChart = false;
                 let currentUserId = "";
                 let allInstalls = []; // for task creation
                 const listsByInst = new Map();
@@ -347,9 +346,13 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-audit-card-score{font-size:36px;font-weight:800;line-height:1}
           .${p}-audit-card-meta{font-size:12px;color:var(--gray);display:flex;flex-direction:column;gap:4px;margin-top:10px}
           .${p}-audit-card-meta span{display:flex;align-items:center;gap:5px}
-          .${p}-cat-toggle{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:13px;padding-top:11px;border-top:1px solid rgba(0,0,0,.07);font-size:12px;font-weight:700;color:var(--gray);cursor:pointer;-webkit-tap-highlight-color:transparent}
-          .${p}-cat-toggle svg{transition:transform .2s}
-          .${p}-cat-toggle.open svg{transform:rotate(180deg)}
+          .${p}-audit-card{cursor:pointer;transition:transform .12s,box-shadow .15s;-webkit-tap-highlight-color:transparent}
+          .${p}-audit-card:hover{box-shadow:var(--shadow-md)}
+          .${p}-audit-card:active{transform:scale(.99)}
+          .${p}-audit-card-cta{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:13px;padding-top:11px;border-top:1px solid rgba(0,0,0,.07);font-size:12px;font-weight:700;color:var(--gray)}
+          .${p}-audit-detail-score{font-size:52px;font-weight:800;line-height:1;letter-spacing:-1px}
+          .${p}-audit-detail-sub{font-size:14px;font-weight:700;margin:4px 0 16px}
+          .${p}-detail.audit-view .${p}-detail-foot{display:none}
           .${p}-cat-chart{display:flex;flex-direction:column;gap:10px;margin-top:13px}
           .${p}-cat-top{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;margin-bottom:4px}
           .${p}-cat-name{color:var(--dark);font-weight:600}
@@ -1122,7 +1125,6 @@ const factory = (BaseBlockClass, widgetApi) => {
                         btn.addEventListener("click", () => {
                             activeAuditListId = btn.dataset.listId || "";
                             showOtherAuditTasks = false;
-                            showAuditChart = false;
                             renderAuditTabs();
                             renderList();
                         });
@@ -1257,8 +1259,9 @@ const factory = (BaseBlockClass, widgetApi) => {
                     const iconCal_ = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
                     const iconNote_ = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
                     const scoreColor = passing === true ? "var(--success)" : passing === false ? "var(--error)" : "var(--gray)";
+                    const catCount = pa && pa.categories && typeof pa.categories === "object" ? Object.keys(pa.categories).length : 0;
                     const summaryHtml = pa ? `
-          <div class="${p}-audit-card ${passClass}">
+          <div class="${p}-audit-card ${passClass}" id="${p}-audit-card" role="button" tabindex="0">
             <div style="display:flex;align-items:flex-start;justify-content:space-between">
               <div>
                 <div class="${p}-audit-card-score" style="color:${scoreColor}">${pct != null ? pct + "%" : "—"}</div>
@@ -1274,23 +1277,7 @@ const factory = (BaseBlockClass, widgetApi) => {
               ${pa.date ? `<span>${iconCal_} ${esc(pa.date)}</span>` : ""}
               ${pa.notes ? `<span style="align-items:flex-start">${iconNote_} <span style="line-height:1.5;font-style:italic">${esc(pa.notes)}</span></span>` : ""}
             </div>
-            ${(() => {
-                        const cats = pa.categories && typeof pa.categories === "object" ? Object.keys(pa.categories) : [];
-                        if (!cats.length)
-                            return "";
-                        const chevron = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
-                        const bars = cats.map((name) => {
-                            const c = pa.categories[name];
-                            const v = Math.max(0, Math.min(100, (c === null || c === void 0 ? void 0 : c.pct) != null ? c.pct : ((c === null || c === void 0 ? void 0 : c.total) ? Math.round((c.earned / c.total) * 100) : 0)));
-                            const tier = v >= 80 ? "hi" : v >= 50 ? "mid" : "lo";
-                            return `<div class="${p}-cat-row">
-                  <div class="${p}-cat-top"><span class="${p}-cat-name">${esc(name)}</span><span class="${p}-cat-pct">${v}%</span></div>
-                  <div class="${p}-cat-bar"><span class="${p}-cat-fill ${tier}" style="width:${v}%"></span></div>
-                </div>`;
-                        }).join("");
-                        return `<div class="${p}-cat-toggle${showAuditChart ? " open" : ""}" id="${p}-cat-toggle">${showAuditChart ? "Hide" : "Category"} breakdown (${cats.length}) ${chevron}</div>
-                ${showAuditChart ? `<div class="${p}-cat-chart">${bars}</div>` : ""}`;
-                    })()}
+            ${catCount ? `<div class="${p}-audit-card-cta">View ${catCount}-category breakdown <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>` : ""}
           </div>` : "";
                     // All failure tasks in this audit (excluding system task)
                     const allAuditTasks = allTasks.filter(t => t.listId === al.listId && t.installationId === al.installId && t.taskType !== "audit-result");
@@ -1368,10 +1355,10 @@ const factory = (BaseBlockClass, widgetApi) => {
                     const otherBtn = listWrap.querySelector(`#${p}-other-toggle`);
                     if (otherBtn)
                         otherBtn.addEventListener("click", () => { showOtherAuditTasks = !showOtherAuditTasks; renderAuditContent(); });
-                    // Wire category-breakdown chart toggle
-                    const catToggle = listWrap.querySelector(`#${p}-cat-toggle`);
-                    if (catToggle)
-                        catToggle.addEventListener("click", () => { showAuditChart = !showAuditChart; renderAuditContent(); });
+                    // Click the audit summary card → open it in the sidebar with the chart
+                    const auditCard = listWrap.querySelector(`#${p}-audit-card`);
+                    if (auditCard && pa)
+                        auditCard.addEventListener("click", () => openAuditSummary(pa, al.listName || "Audit"));
                     bindListEvents();
                 }
                 function bindListEvents() {
@@ -1432,21 +1419,77 @@ const factory = (BaseBlockClass, widgetApi) => {
                 }
                 // ── Detail panel ──────────────────────────────────────────────────
                 let detailTask = null;
+                let detailAudit = null; // when the panel shows an audit summary instead of a task
                 let detailAssignTab = "group";
                 function openDetail(task) {
                     detailTask = task;
+                    detailAudit = null;
                     detailAssignTab = "group";
                     const isWide = container.offsetWidth >= 520;
                     detailEl.classList.toggle("side", isWide);
+                    detailEl.classList.remove("audit-view");
                     renderDetailContent(task);
                     overlayEl.classList.add("open");
                     requestAnimationFrame(() => detailEl.classList.add("open"));
+                }
+                // Open the audit summary in the same sidebar/sheet, with an animated
+                // category breakdown chart.
+                function openAuditSummary(pa, label) {
+                    detailAudit = pa;
+                    detailTask = null;
+                    const isWide = container.offsetWidth >= 520;
+                    detailEl.classList.toggle("side", isWide);
+                    detailEl.classList.add("audit-view"); // hides the task footer
+                    renderAuditSummaryDetail(pa, label);
+                    overlayEl.classList.add("open");
+                    requestAnimationFrame(() => detailEl.classList.add("open"));
+                }
+                function renderAuditSummaryDetail(pa, label) {
+                    var _a, _b;
+                    const passing = (_a = pa === null || pa === void 0 ? void 0 : pa.passing) !== null && _a !== void 0 ? _a : null;
+                    const pct = (_b = pa === null || pa === void 0 ? void 0 : pa.score) !== null && _b !== void 0 ? _b : null;
+                    const scoreColor = passing === true ? "var(--success)" : passing === false ? "var(--error)" : "var(--gray)";
+                    detailBadges.innerHTML = `<span class="${p}-prio-badge" style="color:${scoreColor};border-color:${scoreColor}">${passing === true ? "Passing" : passing === false ? "Failing" : "—"}</span>`;
+                    const cats = (pa === null || pa === void 0 ? void 0 : pa.categories) && typeof pa.categories === "object" ? Object.keys(pa.categories) : [];
+                    const iCal2 = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+                    const iStore2 = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`;
+                    const iUser2 = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
+                    const bars = cats.map((name, i) => {
+                        const c = pa.categories[name];
+                        const v = Math.max(0, Math.min(100, (c === null || c === void 0 ? void 0 : c.pct) != null ? c.pct : ((c === null || c === void 0 ? void 0 : c.total) ? Math.round((c.earned / c.total) * 100) : 0)));
+                        const tier = v >= 80 ? "hi" : v >= 50 ? "mid" : "lo";
+                        const detail = c && c.total != null ? `${c.earned}/${c.total}` : "";
+                        return `<div class="${p}-cat-row">
+            <div class="${p}-cat-top"><span class="${p}-cat-name">${esc(name)}</span><span class="${p}-cat-pct">${detail ? `<span style="color:var(--gray-lt);font-weight:500;margin-right:6px">${detail}</span>` : ""}${v}%</span></div>
+            <div class="${p}-cat-bar"><span class="${p}-cat-fill ${tier}" data-pct="${v}" style="width:0;transition-delay:${i * 60}ms"></span></div>
+          </div>`;
+                    }).join("");
+                    detailBody.innerHTML = `
+          <div class="${p}-detail-title">${esc(label.replace(/^Audit\s*[—–-]\s*/i, "").trim() || label)}</div>
+          <div class="${p}-audit-detail-score" style="color:${scoreColor}">${pct != null ? pct + "%" : "—"}</div>
+          <div class="${p}-audit-detail-sub" style="color:${scoreColor}">${passing === true ? "Passing" : passing === false ? "Failing" : "Not scored"}</div>
+          <div class="${p}-detail-meta" style="margin-bottom:18px">
+            ${(pa === null || pa === void 0 ? void 0 : pa.store) ? `<div class="${p}-detail-meta-row">${iStore2} ${esc(pa.store)}</div>` : ""}
+            ${(pa === null || pa === void 0 ? void 0 : pa.auditor) ? `<div class="${p}-detail-meta-row">${iUser2} ${esc(pa.auditor)}</div>` : ""}
+            ${(pa === null || pa === void 0 ? void 0 : pa.date) ? `<div class="${p}-detail-meta-row">${iCal2} ${esc(pa.date)}</div>` : ""}
+            ${(pa === null || pa === void 0 ? void 0 : pa.taskCount) != null ? `<div class="${p}-detail-meta-row">${iClip} ${pa.taskCount} task${pa.taskCount !== 1 ? "s" : ""} flagged</div>` : ""}
+          </div>
+          ${(pa === null || pa === void 0 ? void 0 : pa.notes) ? `<div class="${p}-detail-desc-label">Notes</div><div class="${p}-detail-desc" style="margin-bottom:18px">${esc(pa.notes)}</div>` : ""}
+          ${cats.length ? `<div class="${p}-detail-desc-label">Category breakdown</div><div class="${p}-cat-chart">${bars}</div>` : ""}
+        `;
+                    // Animate the bars from 0 → their value once laid out.
+                    requestAnimationFrame(() => requestAnimationFrame(() => {
+                        detailBody.querySelectorAll(`.${p}-cat-fill`).forEach(el => {
+                            el.style.width = (el.dataset.pct || "0") + "%";
+                        });
+                    }));
                 }
                 function closeDetail() {
                     overlayEl.classList.remove("open");
                     detailEl.classList.remove("open");
                     detailEl.style.bottom = "";
                     detailTask = null;
+                    detailAudit = null;
                 }
                 detailEl.addEventListener("click", e => e.stopPropagation());
                 // Lift the bottom-sheet above the on-screen keyboard (mobile). Pinning to
@@ -1454,7 +1497,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 // its own end, so we raise the whole sheet by the keyboard height instead.
                 const vv = window.visualViewport;
                 const onViewport = () => {
-                    if (!detailTask || detailEl.classList.contains("side")) {
+                    if ((!detailTask && !detailAudit) || detailEl.classList.contains("side")) {
                         detailEl.style.bottom = "";
                         return;
                     }
@@ -1620,10 +1663,13 @@ const factory = (BaseBlockClass, widgetApi) => {
                         };
                         cInput === null || cInput === void 0 ? void 0 : cInput.addEventListener("focus", () => {
                             cBar === null || cBar === void 0 ? void 0 : cBar.classList.add("show");
-                            // Scroll the composer above the on-screen keyboard so you can see what you type.
-                            setTimeout(() => cInput.scrollIntoView({ block: "center", behavior: "smooth" }), 300);
+                            // The composer is the last element, so there's nothing below it to
+                            // scroll into — add temporary room so it can clear the keyboard, then
+                            // scroll it into the visible (keyboard-reduced) viewport.
+                            detailBody.style.paddingBottom = "55vh";
+                            setTimeout(() => cInput.scrollIntoView({ block: "center", behavior: "smooth" }), 350);
                         });
-                        cInput === null || cInput === void 0 ? void 0 : cInput.addEventListener("blur", () => { setTimeout(() => { if (!hasContent())
+                        cInput === null || cInput === void 0 ? void 0 : cInput.addEventListener("blur", () => { setTimeout(() => { detailBody.style.paddingBottom = ""; if (!hasContent())
                             cBar === null || cBar === void 0 ? void 0 : cBar.classList.remove("show"); }, 200); });
                         // Send keeps textarea focus until its click fires; attach is a <label for>
                         // that opens the picker natively (reliable on mobile, no input.click()).
@@ -1780,7 +1826,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 }
                 overlayEl.addEventListener("click", closeDetail);
                 detailClose.addEventListener("click", e => { e.stopPropagation(); closeDetail(); });
-                const onDocKey = (e) => { if (e.key === "Escape" && detailTask)
+                const onDocKey = (e) => { if (e.key === "Escape" && (detailTask || detailAudit))
                     closeDetail(); };
                 document.addEventListener("keydown", onDocKey);
                 self._mtwDocKey = onDocKey;
