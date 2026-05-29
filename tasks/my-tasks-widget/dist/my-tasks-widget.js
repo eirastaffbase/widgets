@@ -616,16 +616,20 @@ const factory = (BaseBlockClass, widgetApi) => {
                 // Authorization header. Gated behind the `enablecomments` setting.
                 const apiOrigin = `${location.origin}/api`;
                 function readCsrf() {
-                    var _a;
-                    // Try the common Staffbase sources, in order.
+                    var _a, _b;
+                    // Confirmed source (web + mobile widget context): window.we.authMgr.csrfToken.
+                    const w = window;
+                    try {
+                        const t = (_b = (_a = w.we) === null || _a === void 0 ? void 0 : _a.authMgr) === null || _b === void 0 ? void 0 : _b.csrfToken;
+                        if (t)
+                            return String(t);
+                    }
+                    catch (_) { }
+                    if (w.csrfToken)
+                        return String(w.csrfToken);
                     const m = document.cookie.match(/(?:^|;\s*)(?:csrf|XSRF-TOKEN|csrftoken)=([^;]+)/i);
                     if (m)
                         return decodeURIComponent(m[1]);
-                    const w = window;
-                    if (w.csrfToken)
-                        return String(w.csrfToken);
-                    if ((_a = w.staffbase) === null || _a === void 0 ? void 0 : _a.csrfToken)
-                        return String(w.staffbase.csrfToken);
                     const meta = document.querySelector('meta[name="csrf-token"]');
                     return (meta === null || meta === void 0 ? void 0 : meta.content) || "";
                 }
@@ -634,7 +638,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     return Object.assign(Object.assign({}, extra), { credentials: "include", headers: Object.assign(Object.assign({}, (csrf ? { "x-csrf-token": csrf } : {})), ((extra === null || extra === void 0 ? void 0 : extra.headers) || {})) });
                 }
                 const CMT_CREATE_CT = "application/vnd.staffbase.tasks.comment-create.v1+json";
-                const CMT_HTML_ACCEPT = "application/vnd.staffbase.comments.comment.html-content.v1+json";
+                const CMT_HTML_ACCEPT = "application/vnd.staffbase.tasks.comment.html-content.v1+json";
                 // Build the Designer content document the create endpoint expects.
                 function commentDoc(text) {
                     const html = `<p>${esc(text)}</p>`;
@@ -722,11 +726,22 @@ const factory = (BaseBlockClass, widgetApi) => {
                     });
                 }
                 function commentText(c) {
-                    var _a;
-                    if (typeof c.content === "string")
-                        return c.content; // rendered HTML
-                    if ((_a = c.content) === null || _a === void 0 ? void 0 : _a.html)
-                        return c.content.html;
+                    const ct = c.content;
+                    if (typeof ct === "string")
+                        return ct; // rendered HTML
+                    if (ct === null || ct === void 0 ? void 0 : ct.html)
+                        return ct.html;
+                    // Structured Designer document: pull html/text from its blocks in order.
+                    if (ct === null || ct === void 0 ? void 0 : ct.blocks) {
+                        const order = Array.isArray(ct.content) ? ct.content : Object.keys(ct.blocks);
+                        const parts = order.map((id) => {
+                            const b = ct.blocks[id];
+                            const cfg = b && b.config || {};
+                            return cfg.html || (cfg.text ? `<p>${esc(cfg.text)}</p>` : "");
+                        }).filter(Boolean);
+                        if (parts.length)
+                            return parts.join("");
+                    }
                     if (c.text)
                         return c.text;
                     return "";

@@ -600,12 +600,12 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       // Authorization header. Gated behind the `enablecomments` setting.
       const apiOrigin = `${location.origin}/api`;
       function readCsrf():string{
-        // Try the common Staffbase sources, in order.
+        // Confirmed source (web + mobile widget context): window.we.authMgr.csrfToken.
+        const w:any=window;
+        try{ const t=w.we?.authMgr?.csrfToken; if(t) return String(t); }catch(_){}
+        if(w.csrfToken) return String(w.csrfToken);
         const m=document.cookie.match(/(?:^|;\s*)(?:csrf|XSRF-TOKEN|csrftoken)=([^;]+)/i);
         if(m) return decodeURIComponent(m[1]);
-        const w:any=window;
-        if(w.csrfToken) return String(w.csrfToken);
-        if(w.staffbase?.csrfToken) return String(w.staffbase.csrfToken);
         const meta=document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement|null;
         return meta?.content||"";
       }
@@ -618,7 +618,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         };
       }
       const CMT_CREATE_CT="application/vnd.staffbase.tasks.comment-create.v1+json";
-      const CMT_HTML_ACCEPT="application/vnd.staffbase.comments.comment.html-content.v1+json";
+      const CMT_HTML_ACCEPT="application/vnd.staffbase.tasks.comment.html-content.v1+json";
       // Build the Designer content document the create endpoint expects.
       function commentDoc(text:string):any{
         const html=`<p>${esc(text)}</p>`;
@@ -679,8 +679,18 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         try{ return JSON.parse(raw); }catch(_){ return null; }
       }
       function commentText(c:any):string{
-        if(typeof c.content==="string") return c.content;          // rendered HTML
-        if(c.content?.html) return c.content.html;
+        const ct=c.content;
+        if(typeof ct==="string") return ct;                        // rendered HTML
+        if(ct?.html) return ct.html;
+        // Structured Designer document: pull html/text from its blocks in order.
+        if(ct?.blocks){
+          const order:string[]=Array.isArray(ct.content)?ct.content:Object.keys(ct.blocks);
+          const parts=order.map((id:string)=>{
+            const b=ct.blocks[id]; const cfg=b&&b.config||{};
+            return cfg.html||(cfg.text?`<p>${esc(cfg.text)}</p>`:"");
+          }).filter(Boolean);
+          if(parts.length) return parts.join("");
+        }
         if(c.text) return c.text;
         return "";
       }
