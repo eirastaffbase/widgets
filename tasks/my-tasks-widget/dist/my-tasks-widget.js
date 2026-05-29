@@ -394,6 +394,16 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-assign-tabs{display:flex;gap:4px;margin:8px 0}
           .${p}-assign-tab{flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:12px;font-weight:600;background:#f9fafb;color:var(--gray);cursor:pointer;text-align:center;transition:all .15s;font-family:inherit}
           .${p}-assign-tab.active{background:var(--primary);color:var(--primary-text);border-color:var(--primary)}
+          /* Neutralize Staffbase's global blue/red button hover/focus/active background
+             on our chrome buttons (their rules aren't !important, so this wins). */
+          .${p}-assign-tab,.${p}-assign-tab:hover,.${p}-assign-tab:focus{background:#f9fafb!important;color:var(--gray)!important}
+          .${p}-assign-tab.active,.${p}-assign-tab.active:hover,.${p}-assign-tab.active:focus{background:var(--primary)!important;color:var(--primary-text)!important}
+          .${p}-refresh-btn,.${p}-refresh-btn:focus{background:#fff!important}
+          .${p}-refresh-btn:hover{background:rgba(var(--primary-rgb),.05)!important}
+          .${p}-detail-close,.${p}-detail-close:hover,.${p}-detail-close:focus,.${p}-create-close,.${p}-create-close:hover,.${p}-create-close:focus{background:#f3f4f6!important;color:var(--gray)!important}
+          .${p}-other-toggle,.${p}-other-toggle:hover,.${p}-other-toggle:focus{background:none!important}
+          .${p}-reassign-btn,.${p}-reassign-btn:focus{background:rgba(var(--primary-rgb),.07)!important}
+          .${p}-reassign-btn:hover{background:rgba(var(--primary-rgb),.13)!important}
           /* ── States ── */
           .${p}-state{padding:40px 20px;text-align:center;color:var(--gray-lt);font-size:13px;line-height:1.6}
           .${p}-state-icon{font-size:32px;margin-bottom:8px;display:block}
@@ -1466,7 +1476,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     // Click the audit summary card → open it in the sidebar with the chart
                     const auditCard = listWrap.querySelector(`#${p}-audit-card`);
                     if (auditCard && pa)
-                        auditCard.addEventListener("click", () => openAuditSummary(pa, al.listName || "Audit"));
+                        auditCard.addEventListener("click", () => openAuditSummary(pa, al.listName || "Audit", al.systemTask));
                     bindListEvents();
                 }
                 function bindListEvents() {
@@ -1544,17 +1554,17 @@ const factory = (BaseBlockClass, widgetApi) => {
                 }
                 // Open the audit summary in the same sidebar/sheet, with an animated
                 // category breakdown chart.
-                function openAuditSummary(pa, label) {
+                function openAuditSummary(pa, label, sysTask) {
                     detailAudit = pa;
                     detailTask = null;
                     const isWide = container.offsetWidth >= 520;
                     detailEl.classList.toggle("side", isWide);
                     detailEl.classList.add("audit-view"); // hides the task footer
-                    renderAuditSummaryDetail(pa, label);
+                    renderAuditSummaryDetail(pa, label, sysTask);
                     overlayEl.classList.add("open");
                     requestAnimationFrame(() => detailEl.classList.add("open"));
                 }
-                function renderAuditSummaryDetail(pa, label) {
+                function renderAuditSummaryDetail(pa, label, sysTask) {
                     var _a, _b;
                     const passing = (_a = pa === null || pa === void 0 ? void 0 : pa.passing) !== null && _a !== void 0 ? _a : null;
                     const pct = (_b = pa === null || pa === void 0 ? void 0 : pa.score) !== null && _b !== void 0 ? _b : null;
@@ -1585,8 +1595,26 @@ const factory = (BaseBlockClass, widgetApi) => {
             ${(pa === null || pa === void 0 ? void 0 : pa.taskCount) != null ? `<div class="${p}-detail-meta-row">${iClip} ${pa.taskCount} task${pa.taskCount !== 1 ? "s" : ""} flagged</div>` : ""}
           </div>
           ${(pa === null || pa === void 0 ? void 0 : pa.notes) ? `<div class="${p}-detail-desc-label">Notes</div><div class="${p}-detail-desc" style="margin-bottom:18px">${esc(pa.notes)}</div>` : ""}
+          ${(sysTask && sysTask.attachmentIds && sysTask.attachmentIds.length) ? `<div class="${p}-detail-desc-label">Attachments</div><div class="${p}-att-grid" id="${p}-audit-att-${instId}" style="margin-bottom:18px"><span class="${p}-att-empty">Loading…</span></div>` : ""}
           ${cats.length ? `<div class="${p}-detail-desc-label">Category breakdown</div><div class="${p}-cat-chart">${bars}</div>` : ""}
         `;
+                    // Render the summary task's attachments (above the bars).
+                    if (sysTask && sysTask.attachmentIds && sysTask.attachmentIds.length) {
+                        const grid = detailBody.querySelector(`#${p}-audit-att-${instId}`);
+                        const ids = sysTask.attachmentIds;
+                        Promise.all(ids.map(mediaMeta)).then(metas => {
+                            if (detailAudit !== pa || !grid)
+                                return;
+                            grid.innerHTML = ids.map((_id, i) => {
+                                var _a, _b;
+                                const m = metas[i];
+                                const name = esc((m === null || m === void 0 ? void 0 : m.fileName) || "file");
+                                const thumb = ((_a = m === null || m === void 0 ? void 0 : m.thumbnail) === null || _a === void 0 ? void 0 : _a.url) ? `<img class="${p}-att-thumb" src="${esc(m.thumbnail.url)}" alt="">` : `<span class="${p}-att-ico">${iFileGeneric}</span>`;
+                                const size = (m === null || m === void 0 ? void 0 : m.size) ? `<span class="${p}-att-size">${humanSize(m.size)}</span>` : "";
+                                return `<div class="${p}-att-tile"><a class="${p}-att-link" href="${esc(((_b = m === null || m === void 0 ? void 0 : m.thumbnail) === null || _b === void 0 ? void 0 : _b.url) || "#")}" target="_blank" rel="noopener">${thumb}<span class="${p}-att-meta"><span class="${p}-att-name">${name}</span>${size}</span></a></div>`;
+                            }).join("");
+                        });
+                    }
                     const reduceMotion = (() => { try {
                         return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
                     }

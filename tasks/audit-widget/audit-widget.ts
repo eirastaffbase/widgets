@@ -125,6 +125,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       let questionsLoaded     = false;
       let auditDate      = new Date().toISOString().split("T")[0];
       let auditNotes     = "";
+      let auditNoteFiles: File[] = []; // attachments added to the audit summary task
       // Secret demo autofill (tap same Pass button 5×)
       let demoQid=""; let demoCount=0; let demoTimer:any;
       const responses:          Record<string,string>          = {};
@@ -260,6 +261,13 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-fail-meta{font-size:11px;color:var(--gray-lt);margin-bottom:8px}
           .${p}-photo{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;font-size:12px;font-weight:600;color:#92400e;background:rgba(255,255,255,.55);border:1.5px dashed #fbbf24;border-radius:8px;cursor:pointer;font-family:inherit;padding:11px 12px;margin-top:10px;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:all .15s}
           .${p}-photo-input{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);pointer-events:none}
+          .${p}-note-file{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);pointer-events:none}
+          .${p}-note-attach{display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;font-weight:600;color:var(--gray);background:#fafafa;border:1.5px dashed var(--border);border-radius:var(--r-md);padding:8px 12px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:all .15s}
+          .${p}-note-attach:hover{border-color:var(--primary);color:var(--primary)}
+          .${p}-note-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+          .${p}-note-chip{display:inline-flex;align-items:center;gap:5px;max-width:200px;font-size:11px;font-weight:600;background:rgba(var(--primary-rgb),.08);color:var(--primary);border-radius:12px;padding:3px 4px 3px 9px}
+          .${p}-note-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+          .${p}-note-chip button{width:auto!important;margin:0!important;border:none!important;background:none!important;cursor:pointer;color:inherit;padding:1px!important;display:flex!important}
           .${p}-photo:hover,.${p}-photo:active{background:#fff;border-color:#f59e0b;color:#78350f}
           .${p}-photo-line{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
           .${p}-photo-chip{display:inline-flex;align-items:center;gap:4px;max-width:160px;font-size:11px;font-weight:600;background:rgba(var(--primary-rgb),.07);color:var(--primary);border-radius:10px;padding:1px 7px}
@@ -780,6 +788,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
                 <div class="${p}-field">
                   <label class="${p}-label">Auditor Notes <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:var(--gray-lt)">(optional)</span></label>
                   <textarea class="${p}-input" id="${p}-anotes" rows="2" placeholder="Context for this audit session…" style="resize:none;line-height:1.5">${esc(auditNotes)}</textarea>
+                  <label class="${p}-note-attach" for="${p}-note-file">${iCamera} Attach photo or file</label>
+                  <input type="file" id="${p}-note-file" class="${p}-note-file" multiple>
+                  <div class="${p}-note-chips" id="${p}-note-chips"></div>
                 </div>
               </div>
               <button type="button" class="${p}-btn ${p}-btn-primary ${p}-btn-full" id="${p}-begin" ${!questionsLoaded?"disabled":""}>${!questionsLoaded?`<span class="${p}-spin" style="border-top-color:#fff;border-color:rgba(255,255,255,.3)"></span> Loading questions…`:`${iCheck} Begin Audit`}</button>
@@ -846,6 +857,26 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         cleanupStoreDropdown=()=>document.removeEventListener("click",outsideClick);
 
         renderOpts();
+
+        // Auditor note attachments
+        const noteFile=contentEl.querySelector(`#${p}-note-file`) as HTMLInputElement|null;
+        const noteChips=contentEl.querySelector(`#${p}-note-chips`) as HTMLElement|null;
+        const renderNoteChips=()=>{
+          if(!noteChips) return;
+          noteChips.innerHTML=auditNoteFiles.map((f,i)=>`<span class="${p}-note-chip"><span>${esc(f.name)}</span><button type="button" data-idx="${i}">${iXsmall}</button></span>`).join("");
+          noteChips.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
+            const idx=parseInt((b as HTMLElement).dataset.idx||"-1",10);
+            if(idx>=0){ auditNoteFiles.splice(idx,1); renderNoteChips(); }
+          }));
+        };
+        noteFile?.addEventListener("change",()=>{
+          for(const f of Array.from(noteFile.files||[])){
+            if(f.size>MEDIA_MAX){ showBanner("error",`"${f.name}" is over 25 MB.`); continue; }
+            auditNoteFiles.push(f);
+          }
+          noteFile.value=""; renderNoteChips();
+        });
+        renderNoteChips();
 
         contentEl.querySelector(`#${p}-begin`)!.addEventListener("click",()=>{
           // Read auditor name from whichever element is currently rendered
@@ -1386,7 +1417,24 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             }),
           });
           done++;
-          if(sysRes.ok) logLine("Created audit summary task","ok");
+          if(sysRes.ok){
+            logLine("Created audit summary task","ok");
+            // Attach auditor note files to the summary task.
+            if(auditNoteFiles.length){
+              try{
+                const created=await sysRes.json();
+                const sysId=created?.id;
+                if(sysId){
+                  const ids:string[]=[];
+                  for(const f of auditNoteFiles){ try{ ids.push(await uploadMedia(f)); }catch(_){} }
+                  if(ids.length){
+                    await fetch(`${baseUrl}/tasks/${selectedInstId}/task/${sysId}`,{method:"PATCH",...apiOpts(),body:JSON.stringify({attachmentIds:ids})});
+                    logLine(`  ↳ attached ${ids.length} note file${ids.length>1?"s":""}`,"ok");
+                  }
+                }
+              }catch(_){ logLine("  ↳ note attach failed","err"); }
+            }
+          }
           else logLine(`Warning: summary task failed (${sysRes.status})`,"err");
 
           for(let i=0;i<ft.length;i++){
