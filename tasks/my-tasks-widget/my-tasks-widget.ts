@@ -1103,8 +1103,16 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               systemTask:sysTask, parsedAudit,
             });
           }
-          // Sort audits newest first (by listName string — "Audit — May 8, 2026 3:45 PM")
-          auditLists.reverse();
+          // Sort audits newest first — parse the datetime out of the list name
+          // ("Audit — May 8, 2026 3:19 PM"); the name carries the time, so it
+          // disambiguates same-day audits that parsedAudit.date (day-only) cannot.
+          const auditTime=(al:AuditList):number=>{
+            const fromName=Date.parse(al.listName.replace(/^Audit\s*—\s*/i,"").trim());
+            if(!isNaN(fromName)) return fromName;
+            const fromJson=al.parsedAudit?.date?Date.parse(al.parsedAudit.date):NaN;
+            return isNaN(fromJson)?0:fromJson;
+          };
+          auditLists.sort((a,b)=>auditTime(b)-auditTime(a));
           if(auditLists.length>0) activeAuditListId=auditLists[0].listId;
 
           if(auditMode){
