@@ -107,6 +107,10 @@ const factory = (BaseBlockClass, widgetApi) => {
                 let questionsLoaded = false;
                 let auditDate = new Date().toISOString().split("T")[0];
                 let auditNotes = "";
+                // Secret demo autofill (tap same Pass button 5×)
+                let demoQid = "";
+                let demoCount = 0;
+                let demoTimer;
                 const responses = {};
                 const taskGroupOverrides = {};
                 const taskUserOverrides = {};
@@ -207,6 +211,13 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-temp-input.ok{border-color:var(--success);background:rgba(46,125,74,.05)}
           .${p}-temp-input.bad{border-color:var(--error);background:rgba(196,30,58,.05)}
           .${p}-temp-hint{font-size:11px;color:var(--gray-lt);margin-top:5px;line-height:1.4;text-align:center}
+          .${p}-timer{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+          .${p}-timer-display{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:22px;font-weight:800;color:var(--dark);min-width:62px;letter-spacing:.5px;font-variant-numeric:tabular-nums}
+          .${p}-timer-display.running{color:var(--primary)}
+          .${p}-timer-btn{width:auto!important;margin:0!important;display:inline-flex!important;align-items:center;justify-content:center;padding:8px 16px!important;border-radius:var(--r-md)!important;font-family:inherit!important;font-size:13px!important;font-weight:700!important;line-height:normal!important;cursor:pointer;border:none!important;background:var(--success)!important;color:#fff!important;transition:filter .15s,transform .1s;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+          .${p}-timer-btn:active{transform:scale(.96)}
+          .${p}-timer-btn.stop{background:var(--error)!important}
+          .${p}-timer-btn.ghost{background:#fafafa!important;border:1.5px solid var(--border)!important;color:var(--gray)!important;font-weight:600!important;margin-left:auto!important}
           .${p}-task-flag{background:#fffbeb;border:1px solid #fde68a;border-radius:var(--r-md);padding:10px 12px;margin-top:10px;display:none}
           .${p}-task-flag.show{display:block}
           .${p}-task-flag-title{font-size:12px;font-weight:700;color:#92400e;margin-bottom:4px;display:flex;align-items:center;gap:5px}
@@ -446,7 +457,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 function isPass(q, val) {
                     if (!val)
                         return null;
-                    if (q.type === "pf")
+                    if (q.type === "pf" || q.type === "time")
                         return val === "pass";
                     if (q.type === "rating")
                         return parseInt(val) >= 3;
@@ -477,6 +488,59 @@ const factory = (BaseBlockClass, widgetApi) => {
                         return isPass(q, responses[q.id] || "") === false;
                     });
                 }
+                // Secret demo: fill only the UNANSWERED items (pass), then fail a few at random.
+                function demoFill() {
+                    const cooler = (q) => q.id.startsWith("BOH") || q.text.toLowerCase().includes("cooler");
+                    const setPass = (q) => {
+                        if (q.type === "rating")
+                            responses[q.id] = "5";
+                        else if (q.type === "temp")
+                            responses[q.id] = cooler(q) ? "38" : "165";
+                        else
+                            responses[q.id] = "pass";
+                    };
+                    const setFail = (q) => {
+                        if (q.type === "rating")
+                            responses[q.id] = "1";
+                        else if (q.type === "temp")
+                            responses[q.id] = cooler(q) ? "60" : "95";
+                        else
+                            responses[q.id] = "fail";
+                    };
+                    const remaining = questions.filter(q => !responses[q.id]);
+                    if (!remaining.length) {
+                        showBanner("info", "Everything's already filled in.");
+                        return;
+                    }
+                    remaining.forEach(setPass);
+                    const n = Math.min(remaining.length, 2 + Math.floor(Math.random() * 3)); // 2–4 fails
+                    [...remaining].sort(() => Math.random() - 0.5).slice(0, n).forEach(setFail);
+                    showBanner("info", `Demo: auto-filled ${remaining.length} remaining item${remaining.length !== 1 ? "s" : ""} ✨`);
+                    renderAudit();
+                }
+                // ── Time-task stopwatch ───────────────────────────────────────────
+                const timeState = {};
+                let timerTick = null;
+                function curElapsed(s) { return s.running ? s.elapsed + (Date.now() - s.startAt) : s.elapsed; }
+                function fmtTimer(ms) { const t = Math.floor(ms / 1000); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`; }
+                function ensureTick() {
+                    const anyRunning = Object.keys(timeState).some(k => timeState[k].running);
+                    if (anyRunning && !timerTick) {
+                        timerTick = setInterval(() => {
+                            for (const qid in timeState) {
+                                if (!timeState[qid].running)
+                                    continue;
+                                const el = contentEl.querySelector(`.${p}-timer-display[data-qid="${qid}"]`);
+                                if (el)
+                                    el.textContent = fmtTimer(curElapsed(timeState[qid]));
+                            }
+                        }, 250);
+                    }
+                    else if (!anyRunning && timerTick) {
+                        clearInterval(timerTick);
+                        timerTick = null;
+                    }
+                }
                 // ── Sheet parsing ─────────────────────────────────────────────────
                 function normalizeType(t) {
                     const l = t.toLowerCase();
@@ -486,6 +550,8 @@ const factory = (BaseBlockClass, widgetApi) => {
                         return "rating";
                     if (l.includes("temp"))
                         return "temp";
+                    if (l.includes("time"))
+                        return "time";
                     return "pf";
                 }
                 function parseRows(rows) {
@@ -536,6 +602,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                             cat: iCat >= 0 ? String(r[iCat] || "General").trim() : "General",
                             text,
                             type: iType >= 0 ? normalizeType(String(r[iType] || "")) : "pf",
+                            timeUnit: iType >= 0 && /time/i.test(String(r[iType] || "")) ? (/min/i.test(String(r[iType] || "")) ? "min" : "sec") : undefined,
                             pts: iPts >= 0 ? parseInt(String(r[iPts] || "1")) || 1 : 1,
                             critical: false,
                             passCriteria: iCrit >= 0 ? String(r[iCrit] || "").trim() : "",
@@ -1000,6 +1067,20 @@ const factory = (BaseBlockClass, widgetApi) => {
                         ctrl = `<input type="number" class="${p}-temp-input${tcls}" inputmode="decimal" placeholder="°F" value="${esc(val)}" data-qid="${esc(q.id)}" data-dtype="temp">
                 <div class="${p}-temp-hint">${hint}</div>`;
                     }
+                    else if (q.type === "time") {
+                        const s = timeState[q.id] || { elapsed: 0, running: false, startAt: 0 };
+                        ctrl = `
+            <div class="${p}-timer">
+              <div class="${p}-timer-display${s.running ? " running" : ""}" data-qid="${esc(q.id)}">${fmtTimer(curElapsed(s))}</div>
+              <button type="button" class="${p}-timer-btn${s.running ? " stop" : ""}" data-qid="${esc(q.id)}" data-tact="toggle">${s.running ? "Stop" : "Start"}</button>
+              <button type="button" class="${p}-timer-btn ghost" data-qid="${esc(q.id)}" data-tact="reset">Reset</button>
+            </div>
+            <div class="${p}-pf-row">
+              <button type="button" class="${p}-pf-btn${val === "pass" ? " pass" : ""}" data-qid="${esc(q.id)}" data-val="pass">Pass</button>
+              <button type="button" class="${p}-pf-btn${val === "fail" ? " fail" : ""}" data-qid="${esc(q.id)}" data-val="fail">Fail</button>
+              <button type="button" class="${p}-pf-btn${val === "na" ? " na" : ""}" data-qid="${esc(q.id)}" data-val="na">N/A</button>
+            </div>`;
+                    }
                     const flagHtml = showFlag && q.taskTitle ? `
           <div class="${p}-task-flag show">
             <div class="${p}-task-flag-title">${iFlag} Task will be generated</div>
@@ -1026,6 +1107,26 @@ const factory = (BaseBlockClass, widgetApi) => {
                             const { qid, val } = btn.dataset;
                             responses[qid] = val;
                             refreshQuestion(qid);
+                            // Secret demo: tap the SAME "Pass" button 5× quickly → auto-fill audit.
+                            if (val === "pass") {
+                                if (demoQid === qid)
+                                    demoCount++;
+                                else {
+                                    demoQid = qid;
+                                    demoCount = 1;
+                                }
+                                clearTimeout(demoTimer);
+                                demoTimer = setTimeout(() => { demoCount = 0; demoQid = ""; }, 2500);
+                                if (demoCount >= 5) {
+                                    demoCount = 0;
+                                    demoQid = "";
+                                    demoFill();
+                                }
+                            }
+                            else {
+                                demoCount = 0;
+                                demoQid = "";
+                            }
                         });
                     });
                     contentEl.querySelectorAll(`.${p}-rating-btn`).forEach(btn => {
@@ -1039,6 +1140,31 @@ const factory = (BaseBlockClass, widgetApi) => {
                         inp.addEventListener("change", () => {
                             const qid = inp.dataset.qid;
                             responses[qid] = inp.value;
+                            refreshQuestion(qid);
+                        });
+                    });
+                    // Time-task stopwatch controls
+                    contentEl.querySelectorAll(`.${p}-timer-btn`).forEach(btn => {
+                        btn.addEventListener("click", () => {
+                            const el = btn;
+                            const qid = el.dataset.qid;
+                            const act = el.dataset.tact;
+                            const s = timeState[qid] || (timeState[qid] = { elapsed: 0, running: false, startAt: 0 });
+                            if (act === "toggle") {
+                                if (s.running) {
+                                    s.elapsed = curElapsed(s);
+                                    s.running = false;
+                                }
+                                else {
+                                    s.startAt = Date.now();
+                                    s.running = true;
+                                }
+                            }
+                            else if (act === "reset") {
+                                s.elapsed = 0;
+                                s.running = false;
+                            }
+                            ensureTick();
                             refreshQuestion(qid);
                         });
                     });
