@@ -412,6 +412,32 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
           .${p}-del-row:hover { background: #fee2e2; color: var(--error); }
           .${p}-del-row svg { pointer-events: none; }
 
+          /* Per-row attachment — subtle clip, revealed on row hover */
+          .${p}-clip-row {
+            width: 26px; height: 26px; border: none; background: none;
+            cursor: pointer; border-radius: var(--r-sm);
+            display: flex; align-items: center; justify-content: center;
+            color: #d1d5db; transition: all .15s; opacity: 0;
+          }
+          .${p}-task-row:hover .${p}-clip-row,
+          .${p}-clip-row.has-files { opacity: 1; }
+          .${p}-clip-row.has-files { color: var(--primary); }
+          .${p}-clip-row:hover { background: rgba(var(--primary-rgb), .08); color: var(--primary); }
+          .${p}-clip-row svg { pointer-events: none; }
+          .${p}-att-line {
+            font-size: 11px; color: var(--gray); margin-top: 4px;
+            display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+          }
+          .${p}-att-line b { color: var(--gray-lt); font-weight: 600; }
+          .${p}-att-chip {
+            display: inline-flex; align-items: center; gap: 4px; max-width: 160px;
+            background: rgba(var(--primary-rgb), .07); color: var(--primary);
+            border-radius: 10px; padding: 1px 7px; font-weight: 600;
+          }
+          .${p}-att-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+          .${p}-att-chip button { border: none; background: none; cursor: pointer; color: inherit; padding: 0; display: flex; opacity: .7; }
+          .${p}-att-chip button:hover { opacity: 1; }
+
           /* Add-row — subtle plus below table, visible on hover */
           .${p}-add-row {
             margin: 4px auto 0;
@@ -736,6 +762,54 @@ const tbody      = container.querySelector(`#${p}-tbody`)!;
         headers: authHeaders(),
       });
 
+      // ── Attachments (Staffbase media TUS upload) ──────────────────────
+      const MEDIA_MAX = 25 * 1024 * 1024; // 25 MB
+      function humanSize(b: number): string {
+        if (b < 1024) return `${b} B`;
+        if (b < 1048576) return `${(b / 1024).toFixed(0)} KB`;
+        return `${(b / 1048576).toFixed(1)} MB`;
+      }
+      function b64utf8(s: string): string {
+        let out = ""; const bytes = new TextEncoder().encode(s);
+        for (const byte of bytes) out += String.fromCharCode(byte);
+        return btoa(out);
+      }
+      async function uploadMedia(file: File): Promise<string> {
+        const create = await fetch(`${baseUrl}/media/tus`, {
+          method: "POST", credentials: "omit",
+          headers: {
+            Authorization: `Basic ${apiToken}`,
+            "Tus-Resumable": "1.0.0",
+            "Upload-Length": String(file.size),
+            "Upload-Metadata": `filename ${b64utf8(file.name)},filetype ${b64utf8(file.type || "application/octet-stream")}`,
+          },
+        });
+        if (create.status !== 201) throw new Error(`upload init failed (${create.status})`);
+        const loc = create.headers.get("Location");
+        if (!loc) throw new Error("no upload URL");
+        const buf = await file.arrayBuffer();
+        const CHUNK = 5 * 1024 * 1024;
+        let offset = 0; let media: any = null;
+        while (offset < buf.byteLength) {
+          const end = Math.min(offset + CHUNK, buf.byteLength);
+          const res = await fetch(loc, {
+            method: "PATCH", credentials: "omit",
+            headers: {
+              Authorization: `Basic ${apiToken}`,
+              "Tus-Resumable": "1.0.0",
+              "Upload-Offset": String(offset),
+              "Content-Type": "application/offset+octet-stream",
+            },
+            body: buf.slice(offset, end),
+          });
+          if (!res.ok) throw new Error(`upload failed (${res.status})`);
+          offset = end;
+          try { media = await res.clone().json(); } catch (_) {}
+        }
+        if (!media?.id) throw new Error("no media id returned");
+        return media.id;
+      }
+
       function esc(s: string) {
         return s
           .replace(/&/g, "&amp;").replace(/"/g, "&quot;")
@@ -797,13 +871,45 @@ const tbody      = container.querySelector(`#${p}-tbody`)!;
              </select></td>`
           : "";
         const tr = document.createElement("tr");
+        tr.className = `${p}-task-row`;
         tr.innerHTML = `
-          <td><input class="${p}-cell ${p}-cell-title" type="text" value="${esc(title)}" placeholder="Task title"></td>
+          <td><input class="${p}-cell ${p}-cell-title" type="text" value="${esc(title)}" placeholder="Task title">
+            <div class="${p}-att-line" style="display:none"></div></td>
           <td><textarea class="${p}-cell ${p}-cell-desc ${p}-cell-description" rows="1" placeholder="Description">${esc(desc)}</textarea></td>
           ${typeOptions}
           <td><input class="${p}-cell ${p}-cell-date" type="date" value="${datePart}"></td>
-          <td><button class="${p}-del-row" title="Remove"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button></td>
+          <td style="white-space:nowrap">
+            <button class="${p}-clip-row" title="Attach files"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
+            <button class="${p}-del-row" title="Remove"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
+            <input type="file" multiple class="${p}-att-input" style="display:none">
+          </td>
         `;
+        // Per-row attachment state — File objects held on the row element
+        const rowFiles: File[] = [];
+        (tr as any)._attFiles = rowFiles;
+        const clipBtn  = tr.querySelector(`.${p}-clip-row`)  as HTMLButtonElement;
+        const attInput = tr.querySelector(`.${p}-att-input`) as HTMLInputElement;
+        const attLine  = tr.querySelector(`.${p}-att-line`)  as HTMLElement;
+        const iXmini = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+        function renderAttLine() {
+          clipBtn.classList.toggle("has-files", rowFiles.length > 0);
+          if (!rowFiles.length) { attLine.style.display = "none"; attLine.innerHTML = ""; return; }
+          attLine.style.display = "flex";
+          attLine.innerHTML = `<b>attached:</b>` + rowFiles.map((f, i) =>
+            `<span class="${p}-att-chip"><span>${esc(f.name)}</span><button type="button" data-i="${i}" title="Remove">${iXmini}</button></span>`
+          ).join("");
+          attLine.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+            rowFiles.splice(Number((b as HTMLElement).dataset.i), 1); renderAttLine();
+          }));
+        }
+        clipBtn.addEventListener("click", () => attInput.click());
+        attInput.addEventListener("change", () => {
+          for (const f of Array.from(attInput.files || [])) {
+            if (f.size > MEDIA_MAX) { showStatus("error", `"${f.name}" exceeds ${humanSize(MEDIA_MAX)}.`); continue; }
+            rowFiles.push(f);
+          }
+          attInput.value = ""; renderAttLine();
+        });
         tr.querySelector(`.${p}-del-row`)!.addEventListener("click", () => {
           tr.remove(); refreshCount(); validate();
         });
@@ -841,6 +947,7 @@ const tbody      = container.querySelector(`#${p}-tbody`)!;
               description,
               // Append T00:00:00.000Z to date-only value — the API requires full ISO format
               dueDate:     dueInput?.value ? `${dueInput.value}T00:00:00.000Z` : null,
+              files:       ((tr as any)._attFiles as File[]) || [],
             };
           })
           .filter(t => t.title.length > 0);
@@ -1175,6 +1282,7 @@ const tbody      = container.querySelector(`#${p}-tbody`)!;
 
         const totalOps = selectedStores.length * (tasks.length + 1);
         let doneOps = 0, okCount = 0, failCount = 0;
+        const mediaCache = new Map<File, string>(); // upload each file once, reuse across stores
 
         for (const store of selectedStores) {
           try {
@@ -1239,7 +1347,30 @@ const tbody      = container.querySelector(`#${p}-tbody`)!;
                   ...apiOpts(),
                   body: JSON.stringify(body),
                 });
-                if (r.ok) created++;
+                if (r.ok) {
+                  created++;
+                  // Attach files: upload each once (cached across stores), then PATCH the new task.
+                  if (t.files.length) {
+                    const data = await r.json().catch(() => null);
+                    const taskId = data?.id ?? data?.data?.id;
+                    if (taskId) {
+                      const ids: string[] = [];
+                      for (const f of t.files) {
+                        try {
+                          let mid = mediaCache.get(f);
+                          if (!mid) { mid = await uploadMedia(f); mediaCache.set(f, mid); }
+                          ids.push(mid);
+                        } catch (_) { /* skip a failed upload, keep the task */ }
+                      }
+                      if (ids.length) {
+                        await fetch(`${baseUrl}/tasks/${store.id}/task/${taskId}`, {
+                          method: "PATCH", ...apiOpts(),
+                          body: JSON.stringify({ attachmentIds: ids }),
+                        }).catch(() => {});
+                      }
+                    }
+                  }
+                }
               } catch (_) { /* non-fatal */ }
               doneOps++;
               await new Promise(r => setTimeout(r, 50));

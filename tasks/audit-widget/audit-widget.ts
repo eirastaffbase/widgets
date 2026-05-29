@@ -128,6 +128,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const taskGroupOverrides: Record<string,string>          = {};
       const taskUserOverrides:  Record<string,string>          = {};
       const taskAssignType:     Record<string,"group"|"user">  = {};
+      const taskFiles:          Record<string,File[]>          = {}; // per-question photo attachments
       let allUsers: Array<{id:string;name:string;avatar:string}> = [];
       let defaultUserId = ""; // Nicole Adams fallback
       type Step = "setup"|"audit"|"generate";
@@ -244,6 +245,16 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-fail-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px}
           .${p}-fail-title{font-size:14px;font-weight:700}
           .${p}-fail-meta{font-size:11px;color:var(--gray-lt);margin-bottom:8px}
+          .${p}-photo{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;font-size:12px;font-weight:600;color:#92400e;background:rgba(255,255,255,.55);border:1.5px dashed #fbbf24;border-radius:8px;cursor:pointer;font-family:inherit;padding:9px 12px;margin-top:10px;-webkit-tap-highlight-color:transparent;transition:all .15s}
+          .${p}-photo:hover,.${p}-photo:active{background:#fff;border-color:#f59e0b;color:#78350f}
+          .${p}-photo-line{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+          .${p}-photo-chip{display:inline-flex;align-items:center;gap:4px;max-width:160px;font-size:11px;font-weight:600;background:rgba(var(--primary-rgb),.07);color:var(--primary);border-radius:10px;padding:1px 7px}
+          .${p}-photo-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+          .${p}-photo-chip button{border:none;background:none;cursor:pointer;color:inherit;padding:0;display:flex;opacity:.7}
+          .${p}-photo-chip button:hover{opacity:1}
+          .${p}-thumbs{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+          .${p}-thumb{width:48px;height:48px;border-radius:8px;overflow:hidden;border:1px solid var(--border);background:#f3f4f6;flex:0 0 auto}
+          .${p}-thumb img{width:100%;height:100%;object-fit:cover;display:block}
           .${p}-prio{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;flex-shrink:0}
           .${p}-prio-critical{background:rgba(196,30,58,.1);color:var(--error)}
           .${p}-prio-high{background:rgba(163,45,45,.08);color:#a32d2d}
@@ -347,6 +358,27 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       function showBanner(t:"error"|"info"|"success", msg:string){bannerEl.className=`${p}-banner ${t}`;bannerEl.style.display="block";bannerEl.textContent=msg;}
       function hideBanner(){bannerEl.style.display="none";}
 
+      // ── Attachments (Staffbase media TUS upload) ──────────────────────
+      const MEDIA_MAX=25*1024*1024; // 25 MB
+      function b64utf8(s:string):string{ let o=""; for(const b of new TextEncoder().encode(s)) o+=String.fromCharCode(b); return btoa(o); }
+      async function uploadMedia(file:File):Promise<string>{
+        const create=await fetch(`${baseUrl}/media/tus`,{
+          method:"POST",credentials:"omit",
+          headers:{Authorization:`Basic ${apiToken}`,"Tus-Resumable":"1.0.0","Upload-Length":String(file.size),"Upload-Metadata":`filename ${b64utf8(file.name)},filetype ${b64utf8(file.type||"application/octet-stream")}`},
+        });
+        if(create.status!==201) throw new Error(`upload init failed (${create.status})`);
+        const loc=create.headers.get("Location"); if(!loc) throw new Error("no upload URL");
+        const buf=await file.arrayBuffer(); const CHUNK=5*1024*1024;
+        let offset=0; let media:any=null;
+        while(offset<buf.byteLength){
+          const end=Math.min(offset+CHUNK,buf.byteLength);
+          const res=await fetch(loc,{method:"PATCH",credentials:"omit",headers:{Authorization:`Basic ${apiToken}`,"Tus-Resumable":"1.0.0","Upload-Offset":String(offset),"Content-Type":"application/offset+octet-stream"},body:buf.slice(offset,end)});
+          if(!res.ok) throw new Error(`upload failed (${res.status})`);
+          offset=end; try{ media=await res.clone().json(); }catch(_){}
+        }
+        if(!media?.id) throw new Error("no media id"); return media.id;
+      }
+
       function prioClass(pr:string){
         if(pr==="Critical") return `${p}-prio-critical`;
         if(pr==="High")     return `${p}-prio-high`;
@@ -365,6 +397,21 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const iPrev  = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>`;
       const iNext  = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
       const iPencil= `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+      const iCamera= `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
+      const iXsmall= `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+      function photoChips(qid:string):string{
+        const files=taskFiles[qid]||[];
+        return files.map((f,i)=>`<span class="${p}-photo-chip"><span>${esc(f.name)}</span><button type="button" data-qid="${esc(qid)}" data-idx="${i}">${iXsmall}</button></span>`).join("");
+      }
+      function photoThumbs(qid:string):string{
+        const files=taskFiles[qid]||[];
+        if(!files.length) return "";
+        const tiles=files.map(f=>{
+          const url=URL.createObjectURL(f);
+          return `<span class="${p}-thumb" title="${esc(f.name)}"><img src="${url}" alt="${esc(f.name)}"></span>`;
+        }).join("");
+        return `<div class="${p}-thumbs">${tiles}</div>`;
+      }
 
       // ── Category icon bank ────────────────────────────────────────────
       function catIcon(cat: string): string {
@@ -884,6 +931,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           <div class="${p}-task-flag show">
             <div class="${p}-task-flag-title">${iFlag} Task will be generated</div>
             <p style="font-size:12px;color:#78350f;line-height:1.4;margin:0"><strong>${esc(q.taskTitle)}</strong> · ${esc(q.taskRole)} · ${esc(q.taskPriority)} · Due: ${q.taskDue===0?"Immediately":`${q.taskDue}d`}</p>
+            <button type="button" class="${p}-photo" data-qid="${esc(q.id)}">${iCamera} Add photo</button>
+            <input type="file" accept="image/*" capture="environment" multiple style="display:none" class="${p}-photo-input" data-qid="${esc(q.id)}">
+            <div class="${p}-photo-line" data-qid="${esc(q.id)}">${photoChips(q.id)}</div>
           </div>`:""
 
         const iCheck2=`<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
@@ -918,6 +968,31 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             responses[qid]=(inp as HTMLInputElement).value;
             refreshQuestion(qid);
           });
+        });
+        // Photo attach inside the "Task will be generated" flag
+        contentEl.querySelectorAll(`.${p}-photo`).forEach(btn=>{
+          const qid=(btn as HTMLElement).dataset.qid!;
+          const input=contentEl.querySelector(`.${p}-photo-input[data-qid="${qid}"]`) as HTMLInputElement|null;
+          const line =contentEl.querySelector(`.${p}-photo-line[data-qid="${qid}"]`) as HTMLElement|null;
+          const refreshChips=()=>{
+            if(!line) return;
+            line.innerHTML=photoChips(qid);
+            line.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
+              const idx=parseInt((b as HTMLElement).dataset.idx||"-1",10);
+              if(idx>=0&&taskFiles[qid]){ taskFiles[qid].splice(idx,1); refreshChips(); }
+            }));
+          };
+          btn.addEventListener("click",()=>input?.click());
+          input?.addEventListener("change",()=>{
+            const ok:File[]=[];
+            for(const f of Array.from(input.files||[])){
+              if(f.size>MEDIA_MAX){ showBanner("error",`"${f.name}" is over 25 MB.`); continue; }
+              ok.push(f);
+            }
+            if(ok.length){ (taskFiles[qid]=taskFiles[qid]||[]).push(...ok); refreshChips(); }
+            input.value="";
+          });
+          refreshChips();
         });
       }
 
@@ -999,6 +1074,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
                   <div class="${p}-gp-list" data-qid="${esc(q.id)}" data-tab="${atype}"></div>
                 </div>
               </div>
+              ${photoThumbs(q.id)}
             </div>`;
           }).join("");
 
@@ -1244,7 +1320,24 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               if(atype==="user"&&uid2) body.userIds=[uid2];
               else if(gid2) body.groupIds=[gid2];
               const r=await fetch(`${baseUrl}/tasks/${selectedInstId}/task`,{method:"POST",...apiOpts(),body:JSON.stringify(body)});
-              if(r.ok) logLine(`✓ ${q.taskTitle||q.text}`,"ok");
+              if(r.ok){
+                logLine(`✓ ${q.taskTitle||q.text}`,"ok");
+                const files=taskFiles[q.id]||[];
+                if(files.length){
+                  try{
+                    const created=await r.json();
+                    const newId=created?.id||created?.taskId;
+                    if(newId){
+                      const ids:string[]=[];
+                      for(const f of files){ try{ ids.push(await uploadMedia(f)); }catch(_){} }
+                      if(ids.length){
+                        await fetch(`${baseUrl}/tasks/${selectedInstId}/task/${newId}`,{method:"PATCH",...apiOpts(),body:JSON.stringify({attachmentIds:ids})});
+                        logLine(`  ↳ attached ${ids.length} photo${ids.length>1?"s":""}`,"ok");
+                      }
+                    }
+                  }catch(_){ logLine(`  ↳ photo attach failed`,"err"); }
+                }
+              }
               else logLine(`✗ ${q.taskTitle||q.text} (${r.status})`,"err");
             } catch(_){ logLine(`✗ ${q.taskTitle||q.text} (network error)`,"err"); }
             done++;

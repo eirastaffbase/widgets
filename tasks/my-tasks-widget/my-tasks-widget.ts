@@ -127,6 +127,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         installationId: string; installationTitle: string;
         listId: string; listName: string;
         groupIds: string[]; assigneeIds: string[];
+        attachmentIds: string[];
       };
 
       type AuditList = {
@@ -189,6 +190,25 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-detail-toggle-btn.done-btn:hover{background:var(--primary);color:var(--primary-text)}
           .${p}-detail-toggle-btn.open-btn{background:#f3f4f6;border:1.5px solid var(--border);color:var(--gray)}
           .${p}-detail-toggle-btn.open-btn:hover{background:var(--border);color:var(--dark)}
+          /* ── Attachments ── */
+          .${p}-att{margin-top:16px}
+          .${p}-att-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+          .${p}-att-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray-lt)}
+          .${p}-att-add{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--gray);background:none;border:none;cursor:pointer;font-family:inherit;padding:3px 6px;border-radius:var(--r-sm);transition:color .15s,background .15s}
+          .${p}-att-add:hover{color:var(--primary);background:rgba(var(--primary-rgb),.06)}
+          .${p}-att-add:disabled{opacity:.5;cursor:default}
+          .${p}-att-grid{display:flex;flex-wrap:wrap;gap:8px}
+          .${p}-att-tile{display:flex;align-items:center;gap:8px;padding:6px 9px;border:1px solid var(--border);border-radius:var(--r-md);background:#fafafa;font-size:12px;color:var(--dark);transition:border-color .15s,background .15s}
+          .${p}-att-tile:hover{border-color:var(--primary);background:#fff}
+          .${p}-att-link{display:flex;align-items:center;gap:8px;color:inherit;text-decoration:none;min-width:0}
+          .${p}-att-thumb{width:34px;height:34px;border-radius:var(--r-sm);object-fit:cover;flex-shrink:0;background:#f3f4f6}
+          .${p}-att-ico{width:34px;height:34px;border-radius:var(--r-sm);background:#f3f4f6;display:flex;align-items:center;justify-content:center;color:var(--gray-lt);flex-shrink:0}
+          .${p}-att-meta{min-width:0;display:flex;flex-direction:column;gap:1px}
+          .${p}-att-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px;font-weight:500}
+          .${p}-att-size{color:var(--gray-lt);font-size:11px}
+          .${p}-att-x{margin-left:2px;border:none;background:none;color:var(--gray-lt);cursor:pointer;padding:3px;display:flex;border-radius:50%;flex-shrink:0;transition:color .15s,background .15s}
+          .${p}-att-x:hover{color:var(--error);background:rgba(196,30,58,.08)}
+          .${p}-att-empty{font-size:12px;color:var(--gray-lt)}
           /* ── Audit tabs ── */
           .${p}-audit-tab-wrap{margin-bottom:12px}
           .${p}-audit-tab-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-lt);margin-bottom:6px}
@@ -413,6 +433,101 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       }
 
       function groupName(id:string):string { return groupMap.get(id)||id; }
+
+      // ── Attachments (Staffbase media TUS upload) ──────────────────────
+      const MEDIA_MAX = 25 * 1024 * 1024; // 25 MB
+      function humanSize(b:number):string{
+        if(b<1024) return `${b} B`;
+        if(b<1048576) return `${(b/1024).toFixed(0)} KB`;
+        return `${(b/1048576).toFixed(1)} MB`;
+      }
+      function b64utf8(s:string):string{
+        let out=""; const bytes=new TextEncoder().encode(s);
+        for(const byte of bytes) out+=String.fromCharCode(byte);
+        return btoa(out);
+      }
+      // Upload a File to Staffbase media via the resumable TUS protocol.
+      async function uploadMedia(file:File):Promise<{id:string;url:string}>{
+        const create=await fetch(`${baseUrl}/media/tus`,{
+          method:"POST",credentials:"omit",
+          headers:{
+            Authorization:`Basic ${apiToken}`,
+            "Tus-Resumable":"1.0.0",
+            "Upload-Length":String(file.size),
+            "Upload-Metadata":`filename ${b64utf8(file.name)},filetype ${b64utf8(file.type||"application/octet-stream")}`,
+          },
+        });
+        if(create.status!==201) throw new Error(`upload init failed (${create.status})`);
+        const loc=create.headers.get("Location");
+        if(!loc) throw new Error("no upload URL");
+        const buf=await file.arrayBuffer();
+        const CHUNK=5*1024*1024;
+        let offset=0; let media:any=null;
+        while(offset<buf.byteLength){
+          const end=Math.min(offset+CHUNK,buf.byteLength);
+          const res=await fetch(loc,{
+            method:"PATCH",credentials:"omit",
+            headers:{
+              Authorization:`Basic ${apiToken}`,
+              "Tus-Resumable":"1.0.0",
+              "Upload-Offset":String(offset),
+              "Content-Type":"application/offset+octet-stream",
+            },
+            body:buf.slice(offset,end),
+          });
+          if(!res.ok) throw new Error(`upload failed (${res.status})`);
+          offset=end;
+          try{ media=await res.clone().json(); }catch(_){}
+        }
+        if(!media?.id) throw new Error("no media id returned");
+        const url=media.resourceInfo?.url||media.transformations?.t_preview?.resourceInfo?.url||"";
+        return {id:media.id,url};
+      }
+      async function mediaMeta(id:string):Promise<any|null>{
+        try{ const r=await fetch(`${baseUrl}/media/medium/${id}/metadata`,apiOpts()); return r.ok?await r.json():null; }
+        catch(_){ return null; }
+      }
+      const iClip=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>`;
+      const iFileGeneric=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
+      const iXsmall=`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+
+      // Render the attachment tiles inside the open detail panel for a task.
+      async function renderAttachments(task:Task){
+        const grid=detailBody.querySelector(`#${p}-att-grid-${instId}`) as HTMLElement|null;
+        if(!grid) return;
+        const ids=task.attachmentIds||[];
+        if(!ids.length){ grid.innerHTML=`<span class="${p}-att-empty">No attachments</span>`; return; }
+        grid.innerHTML=`<span class="${p}-att-empty">Loading…</span>`;
+        const metas=await Promise.all(ids.map(mediaMeta));
+        if(detailTask!==task) return; // panel changed while loading
+        grid.innerHTML=ids.map((id,i)=>{
+          const m=metas[i];
+          const name=esc(m?.fileName||"file");
+          const size=m?.size?`<span class="${p}-att-size">${humanSize(m.size)}</span>`:"";
+          const thumb=m?.thumbnail?.url
+            ?`<img class="${p}-att-thumb" src="${esc(m.thumbnail.url)}" alt="">`
+            :`<span class="${p}-att-ico">${iFileGeneric}</span>`;
+          const href=m?.thumbnail?.url||"";
+          return `<div class="${p}-att-tile">
+            <a class="${p}-att-link" href="${esc(href)}" target="_blank" rel="noopener">
+              ${thumb}<span class="${p}-att-meta"><span class="${p}-att-name">${name}</span>${size}</span>
+            </a>
+            <button type="button" class="${p}-att-x" data-id="${esc(id)}" title="Remove">${iXsmall}</button>
+          </div>`;
+        }).join("");
+        grid.querySelectorAll(`.${p}-att-x`).forEach(btn=>{
+          btn.addEventListener("click",async()=>{
+            const rid=(btn as HTMLElement).dataset.id||"";
+            const next=(task.attachmentIds||[]).filter(x=>x!==rid);
+            (btn as HTMLButtonElement).disabled=true;
+            try{
+              const res=await fetch(`${baseUrl}/tasks/${task.installationId}/task/${task.id}`,{method:"PATCH",...apiOpts(),body:JSON.stringify({attachmentIds:next})});
+              if(!res.ok) throw new Error(`HTTP ${res.status}`);
+              task.attachmentIds=next; renderAttachments(task);
+            }catch(e:any){ showBanner("error",`Could not remove: ${e.message}`); (btn as HTMLButtonElement).disabled=false; }
+          });
+        });
+      }
 
       // ── Distinct types for visible install ────────────────────────────
       function getTypes():{key:string;label:string}[]{
@@ -867,7 +982,45 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             ${assigneeHtml}
           </div>
           ${cleanDesc?`<div class="${p}-detail-desc-label">Description</div><div class="${p}-detail-desc">${esc(cleanDesc)}</div>`:`<div class="${p}-detail-desc empty">No description</div>`}
+          <div class="${p}-att">
+            <div class="${p}-att-head">
+              <span class="${p}-att-label">Attachments</span>
+              <button type="button" class="${p}-att-add" id="${p}-att-add-${instId}">${iClip} Add</button>
+            </div>
+            <div class="${p}-att-grid" id="${p}-att-grid-${instId}"></div>
+            <input type="file" multiple style="display:none" id="${p}-att-input-${instId}">
+          </div>
         `;
+
+        renderAttachments(task);
+
+        // ── Attachment add / upload ────────────────────────────────────
+        const attAdd  = detailBody.querySelector(`#${p}-att-add-${instId}`)   as HTMLButtonElement|null;
+        const attInput= detailBody.querySelector(`#${p}-att-input-${instId}`) as HTMLInputElement|null;
+        if(attAdd&&attInput){
+          attAdd.addEventListener("click",()=>attInput.click());
+          attInput.addEventListener("change",async()=>{
+            const files=Array.from(attInput.files||[]);
+            attInput.value="";
+            if(!files.length) return;
+            const oversize=files.find(f=>f.size>MEDIA_MAX);
+            if(oversize){ showBanner("error",`"${oversize.name}" exceeds ${humanSize(MEDIA_MAX)}.`); return; }
+            attAdd.disabled=true;
+            attAdd.innerHTML=`<span class="${p}-spin" style="width:12px;height:12px;border-width:2px"></span> Uploading…`;
+            try{
+              const ids:string[]=[];
+              for(const f of files){ const m=await uploadMedia(f); ids.push(m.id); }
+              const next=[...(task.attachmentIds||[]),...ids];
+              const res=await fetch(`${baseUrl}/tasks/${task.installationId}/task/${task.id}`,{method:"PATCH",...apiOpts(),body:JSON.stringify({attachmentIds:next})});
+              if(!res.ok) throw new Error(`HTTP ${res.status}`);
+              task.attachmentIds=next;
+              hideBanner();
+            }catch(e:any){ showBanner("error",`Upload failed: ${e.message}`); }
+            attAdd.disabled=false;
+            attAdd.innerHTML=`${iClip} Add`;
+            renderAttachments(task);
+          });
+        }
 
         // Wire assignee tab switch
         detailBody.querySelectorAll(`.${p}-assign-tab`).forEach(btn=>{
@@ -1066,6 +1219,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
                     listId:t.taskListId||"",
                     listName:t.taskListId?(listMap.get(t.taskListId)||""):"",
                     groupIds:t.groupIds||[], assigneeIds:t.assigneeIds||[],
+                    attachmentIds:t.attachmentIds||[],
                   });
                 }
               }
