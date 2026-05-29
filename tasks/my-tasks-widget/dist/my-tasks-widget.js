@@ -355,7 +355,7 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-detail.audit-view .${p}-detail-foot{display:none}
           .${p}-cat-chart{display:flex;flex-direction:column;gap:10px;margin-top:13px}
           .${p}-cat-top{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;margin-bottom:4px}
-          .${p}-cat-name{color:var(--dark);font-weight:600}
+          .${p}-cat-name{color:var(--dark);font-weight:400}
           .${p}-cat-pct{color:var(--gray);font-weight:700;flex-shrink:0;margin-left:8px}
           .${p}-cat-bar{height:7px;background:rgba(0,0,0,.08);border-radius:4px;overflow:hidden}
           .${p}-cat-fill{display:block;height:100%;border-radius:4px;transition:width .45s ease}
