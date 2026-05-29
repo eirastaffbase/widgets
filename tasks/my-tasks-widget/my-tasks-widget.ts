@@ -31,6 +31,7 @@ const configurationSchema: JSONSchema7 = {
     showdonetasks:      { type:"boolean", title:"Include Completed Tasks",  default: true },
     auditmode:          { type:"boolean", title:"Audit Mode",               default: false },
     enablecomments:     { type:"boolean", title:"Enable Comments (experimental)", default: false },
+    allowtaskcreation:  { type:"boolean", title:"Allow Task Creation", default: false },
     debugmode:          { type:"boolean", title:"Debug Mode (on-screen logs)", default: false },
   },
 };
@@ -47,6 +48,7 @@ const uiSchema: UiSchema = {
   showdonetasks:      { "ui:help":"When enabled, completed tasks are included in the view" },
   auditmode:          { "ui:help":"When enabled, shows audit results and history instead of regular tasks" },
   enablecomments:     { "ui:help":"Experimental: show a comments section in the task detail panel (uses the logged-in user's session)" },
+  allowtaskcreation:  { "ui:help":"Show a “New Task” button so users can create tasks from this widget" },
   debugmode:          { "ui:help":"Show an on-screen log panel with a copy button — useful for debugging inside the mobile app" },
 };
 
@@ -120,6 +122,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const showDone     = this.getAttribute("showdonetasks")      !== "false";
       const auditMode    = this.getAttribute("auditmode")          === "true";
       const enableComments = this.getAttribute("enablecomments")   === "true";
+      const allowCreate    = this.getAttribute("allowtaskcreation") === "true";
+      const storeSingular  = this.getAttribute("storelabelsingular") || "Store";
       const debugMode      = this.getAttribute("debugmode")        === "true";
 
       const primaryRgb  = hexToRgb(primaryColor);
@@ -150,6 +154,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       let showCompletedAudit         = false;
       let showOtherAuditTasks        = false;
       let currentUserId              = "";
+      let allInstalls: Array<{id:string;title:string}> = [];           // for task creation
+      const listsByInst = new Map<string, Array<{id:string;name:string}>>();
       let userGroupIds: string[]     = [];
       const groupMap                 = new Map<string,string>(); // groupId → name
 
@@ -165,6 +171,28 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-refresh-btn{width:34px;height:34px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--gray);transition:all .15s}
           .${p}-refresh-btn:hover{border-color:var(--primary);color:var(--primary);background:rgba(var(--primary-rgb),.05)}
           .${p}-refresh-btn:disabled{opacity:.4;cursor:not-allowed}
+          .${p}-header-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+          .${p}-new-btn{display:inline-flex!important;width:auto!important;align-items:center;gap:6px;height:34px;padding:0 14px!important;border:none!important;border-radius:var(--r-md);background:var(--primary)!important;color:var(--primary-text,#fff)!important;font-family:inherit;font-size:13px;font-weight:700;line-height:normal!important;cursor:pointer;white-space:nowrap;box-shadow:0 3px 10px rgba(var(--primary-rgb),.3);transition:all .15s}
+          .${p}-new-btn:hover{filter:brightness(.9);transform:translateY(-1px)}
+          /* ── Create task sheet ── */
+          .${p}-create{--primary:${primaryColor};--primary-rgb:${primaryRgb};--primary-text:${primaryText};--dark:#1A1A1A;--gray:#6b7280;--gray-lt:#9ca3af;--border:#e5e7eb;--error:#C41E3A;--r-sm:6px;--r-md:10px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;position:fixed;left:0;right:0;bottom:0;z-index:100001;background:#fff;border-radius:20px 20px 0 0;max-height:90vh;display:flex;flex-direction:column;transform:translateY(102%);transition:transform .32s cubic-bezier(.32,.72,0,1);overflow:hidden;box-shadow:0 -8px 40px rgba(0,0,0,.18)}
+          .${p}-create.open{transform:translateY(0)}
+          .${p}-create-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 12px;border-bottom:1px solid var(--border)}
+          .${p}-create-head h3{margin:0;font-size:16px;font-weight:800;color:var(--dark)}
+          .${p}-create-close{width:30px;height:30px;border:none;background:#f3f4f6;border-radius:50%;cursor:pointer;color:var(--gray);display:flex;align-items:center;justify-content:center}
+          .${p}-create-body{padding:16px 18px;overflow-y:auto}
+          .${p}-fld{margin-bottom:14px}
+          .${p}-fld label{display:block;font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--gray-lt);margin-bottom:6px}
+          .${p}-in,.${p}-sel{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fafafa;color:var(--dark);font-family:inherit;font-size:14px;line-height:1.4}
+          .${p}-in:focus,.${p}-sel:focus{outline:none;border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(var(--primary-rgb),.12)}
+          textarea.${p}-in{resize:vertical;min-height:64px}
+          .${p}-fld-row{display:flex;gap:10px}
+          .${p}-fld-row .${p}-fld{flex:1;min-width:0}
+          .${p}-create-foot{display:flex;gap:10px;padding:14px 18px;border-top:1px solid var(--border)}
+          .${p}-create-foot button{flex:1;padding:12px!important;border-radius:var(--r-md)!important;font-family:inherit;font-size:14px;font-weight:700;line-height:normal!important;cursor:pointer;width:auto!important}
+          .${p}-btn-cancel{background:#f3f4f6!important;border:none!important;color:var(--gray)}
+          .${p}-btn-save{background:var(--primary)!important;border:none!important;color:var(--primary-text,#fff)!important;box-shadow:0 3px 10px rgba(var(--primary-rgb),.3)}
+          .${p}-btn-save:disabled{opacity:.5;cursor:default}
           .${p}-spin{width:14px;height:14px;border-radius:50%;border:2px solid rgba(var(--primary-rgb),.25);border-top-color:var(--primary);animation:${p}-spin .7s linear infinite;flex-shrink:0;display:inline-block}
           @keyframes ${p}-spin{to{transform:rotate(360deg)}}
           /* ── Detail panel ── */
@@ -190,6 +218,14 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-detail-desc-label{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--gray-lt);margin-bottom:6px}
           .${p}-detail-desc{font-size:13px;color:var(--gray);line-height:1.65;white-space:pre-wrap;word-break:break-word}
           .${p}-detail-desc.empty{font-style:italic;color:var(--gray-lt)}
+          /* Audit finding (parsed, audit mode only) */
+          .${p}-af{margin-top:2px}
+          .${p}-af-code{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--primary);background:rgba(var(--primary-rgb),.1);border-radius:6px;padding:3px 9px;margin-bottom:9px}
+          .${p}-af-finding{font-size:15px;font-weight:600;line-height:1.45;color:var(--dark);margin-bottom:11px}
+          .${p}-af-pills{display:flex;flex-wrap:wrap;gap:6px}
+          .${p}-af-pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--gray);background:#f3f4f6;border:1px solid var(--border);border-radius:20px;padding:5px 11px}
+          .${p}-af-pill svg{width:12px;height:12px;opacity:.7;flex-shrink:0}
+          .${p}-af-pill b{color:var(--dark);font-weight:700}
           .${p}-detail-foot{padding:14px 20px;border-top:1px solid var(--border);flex-shrink:0}
           .${p}-detail-toggle-btn{width:100%;padding:11px;border-radius:var(--r-md);border:none;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px}
           .${p}-detail-toggle-btn.done-btn{background:rgba(var(--primary-rgb),.08);border:1.5px solid rgba(var(--primary-rgb),.2);color:var(--primary)}
@@ -235,12 +271,24 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-cmt-field:focus-within{border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(var(--primary-rgb),.12)}
           .${p}-cmt-input{width:100%;resize:none;max-height:140px;min-height:38px;font-family:inherit;font-size:14px;line-height:1.5;border:none;background:none;color:var(--dark)}
           .${p}-cmt-input:focus{outline:none}
-          .${p}-cmt-actions{display:none;justify-content:flex-end}
-          .${p}-cmt-actions.show{display:flex}
+          .${p}-cmt-actions{display:none;width:100%;justify-content:flex-end!important}
+          .${p}-cmt-actions.show{display:flex!important}
+          .${p}-cmt-send{margin-left:auto!important}
           .${p}-cmt-send{display:inline-flex!important;width:auto!important;align-items:center!important;gap:7px!important;font-family:inherit!important;font-size:13px!important;font-weight:700!important;line-height:normal!important;white-space:nowrap!important;border:none!important;border-radius:var(--r-md)!important;background:var(--primary)!important;color:var(--primary-text,#fff)!important;cursor:pointer!important;padding:9px 16px!important;box-shadow:0 3px 10px rgba(var(--primary-rgb),.3)!important;transition:all .15s!important}
           .${p}-cmt-send svg{width:14px;height:14px}
           .${p}-cmt-send:hover{filter:brightness(.9)!important;transform:translateY(-1px)!important}
           .${p}-cmt-send:active{transform:translateY(0)!important}
+          .${p}-cmt-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:2px}
+          .${p}-cmt-attach{display:inline-flex!important;width:auto!important;align-items:center;justify-content:center;gap:5px;border:none!important;background:none!important;color:var(--gray-lt);cursor:pointer;padding:5px!important;border-radius:var(--r-sm);line-height:normal!important;font-family:inherit;font-size:12px;font-weight:600}
+          .${p}-cmt-attach:hover{color:var(--primary);background:rgba(var(--primary-rgb),.08)}
+          .${p}-cmt-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+          .${p}-cmt-chip{display:inline-flex;align-items:center;gap:5px;max-width:180px;font-size:11px;font-weight:600;background:rgba(var(--primary-rgb),.08);color:var(--primary);border-radius:12px;padding:3px 4px 3px 9px}
+          .${p}-cmt-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+          .${p}-cmt-chip button{border:none;background:none;cursor:pointer;color:inherit;padding:1px;display:flex;opacity:.7}
+          .${p}-cmt-chip button:hover{opacity:1}
+          .${p}-cmt-att{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--primary)!important;text-decoration:none;background:rgba(var(--primary-rgb),.08);border-radius:6px;padding:3px 9px;margin:3px 4px 3px 0}
+          .${p}-cmt-att svg{width:12px;height:12px;flex-shrink:0}
+          .${p}-cmt-att-img{max-width:180px;max-height:140px;border-radius:8px;display:block;margin:5px 0;border:1px solid var(--border)}
           /* ── Debug panel ── */
           .${p}-dbg{position:fixed;left:0;right:0;bottom:0;z-index:2147483647;background:#0d1117;color:#e6edf3;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;border-top:2px solid var(--primary);box-shadow:0 -4px 16px rgba(0,0,0,.3);max-height:45vh;display:flex;flex-direction:column}
           .${p}-dbg.collapsed .${p}-dbg-body{display:none}
@@ -334,7 +382,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-banner.info{background:rgba(var(--primary-rgb),.06);border:1px solid rgba(var(--primary-rgb),.2);color:var(--primary)}
           .${p}-section-label{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--gray-lt);padding:4px 0 8px;margin-top:4px}
           /* ── Ghost cards (other audit tasks) ── */
-          .${p}-card.ghost{opacity:.42;pointer-events:none;cursor:default;border-left-color:var(--border)}
+          .${p}-card.ghost{opacity:.55;border-left-color:var(--border)}
+          .${p}-card.ghost:hover{opacity:.8}
           .${p}-other-toggle{width:100%;padding:9px 14px;background:none;border:1.5px dashed var(--border);border-radius:var(--r-md);font-size:12px;font-weight:600;color:var(--gray-lt);cursor:pointer;text-align:center;font-family:inherit;transition:all .15s;touch-action:manipulation;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:6px}
           .${p}-other-toggle:hover{border-color:var(--gray);color:var(--gray)}
         </style>
@@ -346,9 +395,12 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               ${auditMode?"Audit Results":"My Tasks"}
               <span class="${p}-badge-count" id="${p}-count">0</span>
             </div>
-            <button type="button" class="${p}-refresh-btn" id="${p}-refresh" title="Refresh">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-            </button>
+            <div class="${p}-header-actions">
+              ${allowCreate&&!auditMode?`<button type="button" class="${p}-new-btn" id="${p}-new" title="New task"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>New</span></button>`:""}
+              <button type="button" class="${p}-refresh-btn" id="${p}-refresh" title="Refresh">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              </button>
+            </div>
           </div>
 
           ${auditMode ? `<div class="${p}-audit-tab-wrap" id="${p}-audit-tab-wrap" style="display:none">
@@ -406,6 +458,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       // Tear down artifacts from a previous render of this same host (re-renders)
       if (self._mtwOverlay)  { self._mtwOverlay.remove();  self._mtwOverlay  = undefined; }
       if (self._mtwDetail)   { self._mtwDetail.remove();   self._mtwDetail   = undefined; }
+      if (self._mtwCreate)   { self._mtwCreate.remove();   self._mtwCreate   = undefined; }
       if (self._mtwDocClick) { document.removeEventListener("click",   self._mtwDocClick); self._mtwDocClick = undefined; }
       if (self._mtwDocKey)   { document.removeEventListener("keydown", self._mtwDocKey);   self._mtwDocKey   = undefined; }
 
@@ -706,6 +759,22 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       function commentAuthorId(c:any):string{
         return c.authorId||c.authorID||c.author?.id||"";
       }
+      // Inline comment attachments: comment text carries [attachment:<id>] tokens.
+      const mediaCache=new Map<string,any>();
+      async function metaCached(id:string){ if(mediaCache.has(id)) return mediaCache.get(id); const m=await mediaMeta(id); mediaCache.set(id,m); return m; }
+      const ATT_TOKEN=/\[attachment:([A-Za-z0-9]+)\]/g;
+      function resolveAttachments(html:string):string{
+        return html.replace(ATT_TOKEN,(_m,id)=>{
+          const meta=mediaCache.get(id);
+          const name=esc(meta?.fileName||"attachment");
+          const href=meta?.thumbnail?.url||"";
+          const isImg=/^image\//.test(meta?.mimeType||"");
+          if(isImg&&meta?.thumbnail?.url){
+            return `<a href="${esc(href)}" target="_blank" rel="noopener"><img class="${p}-cmt-att-img" src="${esc(meta.thumbnail.url)}" alt="${name}"></a>`;
+          }
+          return `<a class="${p}-cmt-att" href="${esc(href)||"#"}" target="_blank" rel="noopener">${iClip}<span>${name}</span></a>`;
+        });
+      }
       // Render the comments list inside the open detail panel.
       async function renderComments(task:Task){
         const list=detailBody.querySelector(`#${p}-cmt-list-${instId}`) as HTMLElement|null;
@@ -722,6 +791,11 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         if(!comments.length){ list.innerHTML=`<div class="${p}-cmt-empty">No comments yet. Be the first to comment.</div>`; return; }
         // Resolve author profiles (avatars + names) in parallel.
         const authors=await Promise.all(comments.map(c=>fetchUser(commentAuthorId(c))));
+        // Prefetch metadata for any inline [attachment:id] tokens.
+        const bodies=comments.map(c=>commentText(c));
+        const attIds=new Set<string>();
+        bodies.forEach(b=>{ let m; ATT_TOKEN.lastIndex=0; while((m=ATT_TOKEN.exec(b))) attIds.add(m[1]); });
+        if(attIds.size) await Promise.all([...attIds].map(metaCached));
         if(detailTask!==task) return;
         list.innerHTML=comments.map((c,i)=>{
           const a=authors[i];
@@ -730,7 +804,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             ${avatarHtml(a)}
             <div class="${p}-cmt-main">
               <div class="${p}-cmt-head"><span class="${p}-cmt-author">${esc(a.name)}</span><span class="${p}-cmt-time">${esc(commentTime(c.createdAt||c.created||""))}</span></div>
-              <div class="${p}-cmt-body">${commentText(c)||"<em>(empty)</em>"}</div>
+              <div class="${p}-cmt-body">${resolveAttachments(bodies[i])||"<em>(empty)</em>"}</div>
             </div>
           </div>`;
         }).join("");
@@ -1025,7 +1099,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           return direct||grp;
         };
         const myTasks    = allAuditTasks.filter(t=>isMyTask(t));
-        const otherTasks = showAll ? [] : allAuditTasks.filter(t=>!isMyTask(t));
+        // Other people's tasks are only available when "Show All Tasks" is on.
+        const otherTasks = showAll ? allAuditTasks.filter(t=>!isMyTask(t)) : [];
 
         const doneMine=myTasks.filter(isDoneTask);
         const visibleMine=showCompletedAudit?myTasks:myTasks.filter(t=>!isDoneTask(t));
@@ -1037,13 +1112,13 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         const completedToggleHtml=doneMine.length>0?`
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
             <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray-lt)">
-              ${showAll?"All tasks":"My tasks"} (${myTasks.length})
+              My tasks (${myTasks.length})
             </span>
             <button id="${p}-audit-toggle" type="button" style="font-size:11px;font-weight:600;color:var(--primary);background:none;border:none;cursor:pointer;padding:3px 7px;border-radius:4px;font-family:inherit;touch-action:manipulation">
               ${showCompletedAudit?"Hide completed":"Show completed ("+doneMine.length+")"}
             </button>
           </div>`:
-          myTasks.length>0?`<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray-lt);margin-bottom:10px">${showAll?"All tasks":"My tasks"} (${myTasks.length})</div>`:"";
+          myTasks.length>0?`<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray-lt);margin-bottom:10px">My tasks (${myTasks.length})</div>`:"";
 
         // Main task list HTML
         let taskHtml:string;
@@ -1063,9 +1138,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           taskHtml=`<div class="${p}-list">${visibleMine.map(t=>renderTaskCard(t)).join("")}</div>`;
         }
 
-        // "Other tasks" section (ghost, not interactable) — only when showAll=false
+        // "Other tasks" section (greyed but clickable) — only when Show All is on
         let otherHtml="";
-        if(!showAll&&otherTasks.length>0){
+        if(showAll&&otherTasks.length>0){
           const iChev=showOtherAuditTasks
             ?`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>`
             :`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
@@ -1175,6 +1250,26 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
       detailEl.addEventListener("click",e=>e.stopPropagation());
 
+      // Parse an audit-generated description into structured fields.
+      // Matches the format produced by the audit widget:
+      //   Audit finding: EXT-007 — Building exterior walls are clean
+      //   Audit: Audit — May 28, 2026 9:12 AM
+      //   Auditor: Nicole Adams
+      function parseAuditFinding(desc:string):{code:string;finding:string;audit:string;auditor:string}|null{
+        const lines=desc.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+        let code="",finding="",audit="",auditor="";
+        for(const ln of lines){
+          let m:RegExpMatchArray|null;
+          if((m=ln.match(/^Audit finding:\s*(.+)$/i))){
+            const rest=m[1].trim();
+            const d=rest.match(/^([A-Za-z0-9][\w.-]*)\s*[—–-]\s*(.+)$/);
+            if(d){ code=d[1]; finding=d[2].trim(); } else { finding=rest; }
+          } else if((m=ln.match(/^Audit:\s*(.+)$/i))){ audit=m[1].trim(); }
+          else if((m=ln.match(/^Auditor:\s*(.+)$/i))){ auditor=m[1].trim(); }
+        }
+        if(!finding&&!audit&&!auditor) return null;
+        return {code,finding,audit,auditor};
+      }
       function renderDetailContent(task:Task){
         const isDone=task.status==="DONE"||task.status==="done"||task.status==="CLOSED";
         const dueInfo=formatDate(task.dueDate);
@@ -1226,7 +1321,23 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             ${task.listName?`<div class="${p}-detail-meta-row">${iList} ${esc(task.listName)}</div>`:""}
             ${assigneeHtml}
           </div>
-          ${cleanDesc?`<div class="${p}-detail-desc-label">Description</div><div class="${p}-detail-desc">${esc(cleanDesc)}</div>`:`<div class="${p}-detail-desc empty">No description</div>`}
+          ${(()=>{
+            const af = auditMode && cleanDesc ? parseAuditFinding(cleanDesc) : null;
+            if(af){
+              return `<div class="${p}-detail-desc-label">Audit Finding</div>
+                <div class="${p}-af">
+                  ${af.code?`<span class="${p}-af-code">${esc(af.code)}</span>`:""}
+                  ${af.finding?`<div class="${p}-af-finding">${esc(af.finding)}</div>`:""}
+                  <div class="${p}-af-pills">
+                    ${af.audit?`<span class="${p}-af-pill">${iCal}<span>${esc(af.audit)}</span></span>`:""}
+                    ${af.auditor?`<span class="${p}-af-pill">${iUser}<b>${esc(af.auditor)}</b></span>`:""}
+                  </div>
+                </div>`;
+            }
+            return cleanDesc
+              ? `<div class="${p}-detail-desc-label">Description</div><div class="${p}-detail-desc">${esc(cleanDesc)}</div>`
+              : `<div class="${p}-detail-desc empty">No description</div>`;
+          })()}
           <div class="${p}-att">
             <div class="${p}-att-head">
               <span class="${p}-att-label">Attachments</span>
@@ -1243,9 +1354,14 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               <span class="${p}-cmt-av-slot" id="${p}-cmt-me-${instId}"><span class="${p}-cmt-av ${p}-cmt-av-fb">·</span></span>
               <div class="${p}-cmt-field">
                 <textarea class="${p}-cmt-input" id="${p}-cmt-input-${instId}" rows="2" placeholder="Add a comment…"></textarea>
-                <div class="${p}-cmt-actions" id="${p}-cmt-actions-${instId}">
-                  <button type="button" class="${p}-cmt-send" id="${p}-cmt-send-${instId}">${iSend} Send</button>
+                <div class="${p}-cmt-chips" id="${p}-cmt-chips-${instId}"></div>
+                <div class="${p}-cmt-bar">
+                  <button type="button" class="${p}-cmt-attach" id="${p}-cmt-attach-${instId}" title="Attach file">${iClip}</button>
+                  <div class="${p}-cmt-actions" id="${p}-cmt-actions-${instId}">
+                    <button type="button" class="${p}-cmt-send" id="${p}-cmt-send-${instId}">${iSend} Send</button>
+                  </div>
                 </div>
+                <input type="file" multiple style="display:none" id="${p}-cmt-file-${instId}">
               </div>
             </div>
           </div>`:""}
@@ -1263,18 +1379,56 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           const cInput=detailBody.querySelector(`#${p}-cmt-input-${instId}`) as HTMLTextAreaElement|null;
           const cSend =detailBody.querySelector(`#${p}-cmt-send-${instId}`) as HTMLButtonElement|null;
           const cActions=detailBody.querySelector(`#${p}-cmt-actions-${instId}`) as HTMLElement|null;
-          // Auto-grow textarea + reveal Send only when there's text.
+          const cAttach=detailBody.querySelector(`#${p}-cmt-attach-${instId}`) as HTMLButtonElement|null;
+          const cFile  =detailBody.querySelector(`#${p}-cmt-file-${instId}`)   as HTMLInputElement|null;
+          const cChips =detailBody.querySelector(`#${p}-cmt-chips-${instId}`)  as HTMLElement|null;
+          // Files attached to the comment-in-progress (also become task attachments).
+          const pending:Array<{id:string;url:string;name:string}> = [];
+          const updateSendVisibility=()=>{ if(cActions) cActions.classList.toggle("show", !!(cInput?.value.trim()||pending.length)); };
+          const renderChips=()=>{
+            if(!cChips) return;
+            cChips.innerHTML=pending.map((f,i)=>`<span class="${p}-cmt-chip"><span>${esc(f.name)}</span><button type="button" data-idx="${i}">${iXsmall}</button></span>`).join("");
+            cChips.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
+              const idx=parseInt((b as HTMLElement).dataset.idx||"-1",10);
+              if(idx>=0){ pending.splice(idx,1); renderChips(); updateSendVisibility(); }
+            }));
+          };
+          // Auto-grow textarea + reveal Send when there's text or attachments.
           cInput?.addEventListener("input",()=>{
             cInput.style.height="auto"; cInput.style.height=Math.min(cInput.scrollHeight,140)+"px";
-            if(cActions) cActions.classList.toggle("show", !!cInput.value.trim());
+            updateSendVisibility();
+          });
+          cAttach?.addEventListener("click",()=>cFile?.click());
+          cFile?.addEventListener("change",async()=>{
+            const files=Array.from(cFile.files||[]); cFile.value="";
+            if(!files.length) return;
+            const tooBig=files.find(f=>f.size>MEDIA_MAX);
+            if(tooBig){ showBanner("error",`"${tooBig.name}" exceeds ${humanSize(MEDIA_MAX)}.`); return; }
+            if(cAttach) cAttach.disabled=true;
+            try{
+              for(const f of files){ const m=await uploadMedia(f); pending.push({id:m.id,url:m.url,name:f.name}); }
+              hideBanner();
+            }catch(e:any){ showBanner("error",`Upload failed: ${e.message}`); }
+            if(cAttach) cAttach.disabled=false; renderChips(); updateSendVisibility();
           });
           const submit=async()=>{
             const text=(cInput?.value||"").trim();
-            if(!text||!cSend||!cInput) return;
+            if((!text&&!pending.length)||!cSend||!cInput) return;
             cSend.disabled=true; cInput.disabled=true;
             try{
-              await postComment(task,text);
-              cInput.value=""; cInput.style.height="auto"; cActions?.classList.remove("show"); hideBanner();
+              const tokens=pending.map(f=>`[attachment:${f.id}]`).join(" ");
+              const full=[text,tokens].filter(Boolean).join(text&&tokens?"\n":"");
+              await postComment(task,full);
+              // Also attach the files to the task itself (so they appear in Attachments).
+              if(pending.length){
+                const next=[...(task.attachmentIds||[]),...pending.map(f=>f.id)];
+                try{
+                  await fetch(`${baseUrl}/tasks/${task.installationId}/task/${task.id}`,{method:"PATCH",...apiOpts(),body:JSON.stringify({attachmentIds:next})});
+                  task.attachmentIds=next; renderAttachments(task);
+                }catch(_){}
+              }
+              cInput.value=""; cInput.style.height="auto"; pending.length=0; renderChips();
+              cActions?.classList.remove("show"); hideBanner();
               await renderComments(task);
             }catch(e:any){ showBanner("error",`Couldn't post comment: ${e.message}`); }
             cSend.disabled=false; cInput.disabled=false; cInput.focus();
@@ -1426,6 +1580,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           const installations:Array<{id:string;title:string}>=(instData.data||instData)
             .filter((i:any)=>i.pluginID==="tasks"||i.pluginId==="tasks")
             .map((i:any)=>({id:i.id,title:i.config?.localization?.en_US?.title||i.title||i.name||i.id}));
+          allInstalls=installations;  // expose for task creation
 
           if(!installations.length){
             listWrap.innerHTML=`<div class="${p}-state"><strong>No task spaces found</strong>Make sure at least one Tasks installation exists.</div>`;
@@ -1473,6 +1628,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
                 const listsRaw:any=await listRes.json();
                 const lists:any[]=Array.isArray(listsRaw)?listsRaw:(listsRaw.data||[]);
                 for(const l of lists){listMap.set(l.id,l.name||"");if(l.id)listIds.push(l.id);}
+                listsByInst.set(inst.id, lists.map((l:any)=>({id:l.id,name:l.name||l.id})));
               }
 
               const perList=await Promise.all(listIds.map(lid=>
@@ -1578,6 +1734,76 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       }
 
       refreshBtn.addEventListener("click",load);
+
+      // ── Create task sheet ─────────────────────────────────────────────────
+      if(allowCreate && !auditMode){
+        const newBtn=container.querySelector(`#${p}-new`) as HTMLButtonElement|null;
+        let createEl:HTMLElement|null=null;
+        const closeCreate=()=>{ if(!createEl) return; createEl.classList.remove("open"); overlayEl.classList.remove("open"); };
+        const openCreate=()=>{
+          if(!allInstalls.length){ showBanner("error","No task spaces available yet — try Refresh."); return; }
+          if(!createEl){
+            createEl=document.createElement("div");
+            createEl.className=`${p}-create`;
+            document.body.appendChild(createEl);
+            self._mtwCreate=createEl;
+          }
+          const instOpts=allInstalls.map(i=>`<option value="${esc(i.id)}">${esc(i.title)}</option>`).join("");
+          const firstInst=allInstalls[0].id;
+          const listOpts=(id:string)=>(listsByInst.get(id)||[]).map(l=>`<option value="${esc(l.id)}">${esc(l.name)}</option>`).join("");
+          createEl.innerHTML=`
+            <div class="${p}-create-head"><h3>New Task</h3>
+              <button type="button" class="${p}-create-close" id="${p}-create-x"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+            </div>
+            <div class="${p}-create-body">
+              <div class="${p}-fld"><label>Title</label><input class="${p}-in" id="${p}-c-title" placeholder="What needs to be done?"></div>
+              <div class="${p}-fld"><label>Description</label><textarea class="${p}-in" id="${p}-c-desc" placeholder="Add details (optional)"></textarea></div>
+              ${allInstalls.length>1?`<div class="${p}-fld"><label>${esc(storeSingular)}</label><select class="${p}-sel" id="${p}-c-inst">${instOpts}</select></div>`:`<input type="hidden" id="${p}-c-inst" value="${esc(firstInst)}">`}
+              <div class="${p}-fld"><label>List</label><select class="${p}-sel" id="${p}-c-list">${listOpts(firstInst)}</select></div>
+              <div class="${p}-fld-row">
+                <div class="${p}-fld"><label>Due date</label><input type="date" class="${p}-in" id="${p}-c-due"></div>
+                <div class="${p}-fld"><label>Priority</label><select class="${p}-sel" id="${p}-c-prio"><option value="Priority_3">Normal</option><option value="Priority_2">Medium</option><option value="Priority_1">High</option></select></div>
+              </div>
+            </div>
+            <div class="${p}-create-foot">
+              <button type="button" class="${p}-btn-cancel" id="${p}-c-cancel">Cancel</button>
+              <button type="button" class="${p}-btn-save" id="${p}-c-save">Create Task</button>
+            </div>`;
+          const $=(id:string)=>createEl!.querySelector(`#${p}-${id}`) as any;
+          const instSel=$("c-inst"); const listSel=$("c-list");
+          if(instSel&&instSel.tagName==="SELECT"){
+            instSel.addEventListener("change",()=>{ listSel.innerHTML=listOpts(instSel.value); });
+          }
+          $("c-x").addEventListener("click",closeCreate);
+          $("c-cancel").addEventListener("click",closeCreate);
+          $("c-save").addEventListener("click",async()=>{
+            const title=($("c-title").value||"").trim();
+            if(!title){ $("c-title").focus(); return; }
+            const instId2=$("c-inst").value;
+            const listId=listSel.value;
+            if(!listId){ showBanner("error","That space has no list to add the task to."); return; }
+            const desc=($("c-desc").value||"").trim();
+            const due=$("c-due").value; // yyyy-mm-dd
+            const prio=$("c-prio").value||"Priority_3";
+            const saveBtn=$("c-save") as HTMLButtonElement;
+            saveBtn.disabled=true; saveBtn.textContent="Creating…";
+            try{
+              const body:Record<string,unknown>={ title, status:"OPEN", priority:prio, taskListId:listId };
+              if(desc) body.description=desc;
+              if(due) body.dueDate=`${due}T00:00:00.000Z`;
+              const r=await fetch(`${baseUrl}/tasks/${instId2}/task`,{method:"POST",...apiOpts(),body:JSON.stringify(body)});
+              if(!r.ok) throw new Error(`HTTP ${r.status}`);
+              closeCreate(); hideBanner(); await load();
+            }catch(e:any){ showBanner("error",`Couldn't create task: ${e.message}`); saveBtn.disabled=false; saveBtn.textContent="Create Task"; }
+          });
+          overlayEl.classList.add("open");
+          requestAnimationFrame(()=>createEl!.classList.add("open"));
+          ($("c-title") as HTMLInputElement)?.focus();
+        };
+        newBtn?.addEventListener("click",openCreate);
+        overlayEl.addEventListener("click",closeCreate);
+      }
+
       load();
     }
 
@@ -1585,12 +1811,13 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const self: any = this;
       if (self._mtwOverlay)  { self._mtwOverlay.remove();  self._mtwOverlay  = undefined; }
       if (self._mtwDetail)   { self._mtwDetail.remove();   self._mtwDetail   = undefined; }
+      if (self._mtwCreate)   { self._mtwCreate.remove();   self._mtwCreate   = undefined; }
       if (self._mtwDocClick) { document.removeEventListener("click",   self._mtwDocClick); self._mtwDocClick = undefined; }
       if (self._mtwDocKey)   { document.removeEventListener("keydown", self._mtwDocKey);   self._mtwDocKey   = undefined; }
     }
 
     static get observedAttributes(){
-      return ["apitoken","baseurl","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","showalltasks","showdonetasks","auditmode","enablecomments","debugmode"];
+      return ["apitoken","baseurl","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","showalltasks","showdonetasks","auditmode","enablecomments","allowtaskcreation","debugmode"];
     }
   };
 };
@@ -1599,7 +1826,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
 const blockDefinition: BlockDefinition = {
   name:"my-tasks-widget", label:"My Tasks Widget",
-  attributes:["apitoken","baseurl","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","showalltasks","showdonetasks","auditmode","enablecomments","debugmode"],
+  attributes:["apitoken","baseurl","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","showalltasks","showdonetasks","auditmode","enablecomments","allowtaskcreation","debugmode"],
   factory, configurationSchema, uiSchema, blockLevel:"block", iconUrl:"",
 };
 
