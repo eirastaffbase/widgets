@@ -216,22 +216,29 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-att-x:hover{color:var(--error);background:rgba(196,30,58,.08)}
           .${p}-att-empty{font-size:12px;color:var(--gray-lt)}
           /* ── Comments ── */
-          .${p}-cmt{margin-top:16px}
-          .${p}-cmt-list{display:flex;flex-direction:column;gap:10px;margin-bottom:10px}
-          .${p}-cmt-item{padding:8px 10px;border:1px solid var(--border);border-radius:var(--r-md);background:#fafafa}
-          .${p}-cmt-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:3px}
-          .${p}-cmt-author{font-size:12px;font-weight:600;color:var(--dark)}
+          .${p}-cmt{margin-top:18px;border-top:1px solid var(--border);padding-top:14px}
+          .${p}-cmt-list{display:flex;flex-direction:column;gap:14px;margin-bottom:14px}
+          .${p}-cmt-item{display:flex;gap:10px;align-items:flex-start}
+          .${p}-cmt-av{width:32px;height:32px;border-radius:50%;flex-shrink:0;object-fit:cover;background:#e5e7eb}
+          .${p}-cmt-av-fb{display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;background:var(--primary);text-transform:uppercase}
+          .${p}-cmt-main{flex:1;min-width:0;background:#f6f7f9;border-radius:0 var(--r-md) var(--r-md) var(--r-md);padding:8px 12px}
+          .${p}-cmt-head{display:flex;align-items:baseline;gap:8px;margin-bottom:2px}
+          .${p}-cmt-author{font-size:13px;font-weight:700;color:var(--dark)}
           .${p}-cmt-time{font-size:11px;color:var(--gray-lt);flex-shrink:0}
-          .${p}-cmt-body{font-size:13px;line-height:1.45;color:var(--dark);word-break:break-word}
+          .${p}-cmt-body{font-size:13px;line-height:1.5;color:var(--dark);word-break:break-word}
           .${p}-cmt-body p{margin:0 0 4px}
           .${p}-cmt-body p:last-child{margin-bottom:0}
-          .${p}-cmt-empty{font-size:12px;color:var(--gray-lt)}
-          .${p}-cmt-compose{display:flex;align-items:flex-end;gap:8px}
-          .${p}-cmt-input{flex:1;resize:vertical;min-height:38px;font-family:inherit;font-size:13px;line-height:1.4;padding:8px 10px;border:1px solid var(--border);border-radius:var(--r-md);background:#fff;color:var(--dark)}
-          .${p}-cmt-input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(var(--primary-rgb),.12)}
-          .${p}-cmt-send{flex-shrink:0;width:38px;height:38px;display:flex;align-items:center;justify-content:center;border:none;border-radius:var(--r-md);background:var(--primary);color:#fff;cursor:pointer;transition:opacity .15s}
+          .${p}-cmt-empty{font-size:12px;color:var(--gray-lt);padding:4px 0}
+          .${p}-cmt-compose{display:flex;align-items:flex-start;gap:10px}
+          .${p}-cmt-av-slot{flex-shrink:0}
+          .${p}-cmt-field{flex:1;display:flex;align-items:flex-end;gap:8px;border:1px solid var(--border);border-radius:var(--r-lg);background:#fff;padding:5px 5px 5px 12px;transition:border-color .15s,box-shadow .15s}
+          .${p}-cmt-field:focus-within{border-color:var(--primary);box-shadow:0 0 0 3px rgba(var(--primary-rgb),.12)}
+          .${p}-cmt-input{flex:1;resize:none;max-height:140px;min-height:24px;font-family:inherit;font-size:13px;line-height:1.5;padding:4px 0;border:none;background:none;color:var(--dark)}
+          .${p}-cmt-input:focus{outline:none}
+          .${p}-cmt-send{flex-shrink:0;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:none;border-radius:50%;background:var(--primary);color:#fff;cursor:pointer;transition:opacity .15s,transform .1s}
           .${p}-cmt-send:hover{opacity:.9}
-          .${p}-cmt-send:disabled{opacity:.5;cursor:default}
+          .${p}-cmt-send:active{transform:scale(.92)}
+          .${p}-cmt-send:disabled{opacity:.4;cursor:default}
           /* ── Debug panel ── */
           .${p}-dbg{position:fixed;left:0;right:0;bottom:0;z-index:2147483647;background:#0d1117;color:#e6edf3;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;border-top:2px solid var(--primary);box-shadow:0 -4px 16px rgba(0,0,0,.3);max-height:45vh;display:flex;flex-direction:column}
           .${p}-dbg.collapsed .${p}-dbg-body{display:none}
@@ -617,15 +624,42 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         // confirmed in-app (see comments.md); send the likely variants.
         return { blocks:{ b1:{ type:"text", children:[], config:{ html, text } } }, content:["b1"] };
       }
+      // Reading comments works with the Basic token (confirmed). Only the
+      // POST needs the user session, so the read uses the token path here.
       async function loadComments(task:Task):Promise<any[]>{
-        const url=`${apiOrigin}/tasks/${task.installationId}/task/${task.id}/comments${currentUserId?`?viewedBy=${currentUserId}`:""}`;
-        dlog("GET comments",url,"csrf?",readCsrf()?"yes":"no");
-        const r=await fetch(url,sessionOpts({headers:{Accept:CMT_HTML_ACCEPT}}));
+        const url=`${baseUrl}/tasks/${task.installationId}/task/${task.id}/comments${currentUserId?`?viewedBy=${currentUserId}`:""}`;
+        dlog("GET comments",url);
+        const r=await fetch(url,apiOpts({headers:{Accept:CMT_HTML_ACCEPT}}));
         const raw=await r.text();
         dlog("GET comments ←",r.status,raw.slice(0,400));
         if(!r.ok) throw new Error(`HTTP ${r.status}`);
         let d:any; try{ d=JSON.parse(raw); }catch(_){ d=[]; }
         return Array.isArray(d)?d:(d.data||[]);
+      }
+      // User lookup (for avatars + names on comments), cached.
+      const userCache=new Map<string,{name:string;avatar:string}>();
+      async function fetchUser(id:string):Promise<{name:string;avatar:string}>{
+        if(!id) return {name:"User",avatar:""};
+        const hit=userCache.get(id); if(hit) return hit;
+        let info={name:"User",avatar:""};
+        try{
+          const r=await fetch(`${baseUrl}/users/${id}`,apiOpts());
+          if(r.ok){
+            const u=await r.json();
+            const name=[u.firstName,u.lastName].filter(Boolean).join(" ")||u.displayName||u.userName||"User";
+            const avatar=u.avatar?.icon?.url||u.avatar?.thumb?.url||u.avatar?.original?.url||"";
+            info={name,avatar};
+          }
+        }catch(_){}
+        userCache.set(id,info); return info;
+      }
+      function initials(name:string):string{
+        const parts=name.trim().split(/\s+/);
+        return ((parts[0]?.[0]||"")+(parts[1]?.[0]||"")).toUpperCase()||"?";
+      }
+      function avatarHtml(info:{name:string;avatar:string}):string{
+        if(info.avatar) return `<img class="${p}-cmt-av" src="${esc(info.avatar)}" alt="${esc(info.name)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span class="${p}-cmt-av ${p}-cmt-av-fb" style="display:none">${esc(initials(info.name))}</span>`;
+        return `<span class="${p}-cmt-av ${p}-cmt-av-fb">${esc(initials(info.name))}</span>`;
       }
       async function postComment(task:Task,text:string):Promise<any>{
         const url=`${apiOrigin}/tasks/${task.installationId}/task/${task.id}/comments`;
@@ -657,10 +691,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         if(s<604800) return `${Math.floor(s/86400)}d ago`;
         return new Date(t).toLocaleDateString();
       }
-      function authorName(c:any):string{
-        return c.author?.displayName||c.author?.name||c.authorName||"User";
+      function commentAuthorId(c:any):string{
+        return c.authorId||c.authorID||c.author?.id||"";
       }
-      // Render the comments list + composer inside the open detail panel.
+      // Render the comments list inside the open detail panel.
       async function renderComments(task:Task){
         const list=detailBody.querySelector(`#${p}-cmt-list-${instId}`) as HTMLElement|null;
         if(!list) return;
@@ -673,12 +707,21 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           return;
         }
         if(detailTask!==task) return; // panel changed while loading
-        if(!comments.length){ list.innerHTML=`<div class="${p}-cmt-empty">No comments yet.</div>`; return; }
-        list.innerHTML=comments.map(c=>`
+        if(!comments.length){ list.innerHTML=`<div class="${p}-cmt-empty">No comments yet. Be the first to comment.</div>`; return; }
+        // Resolve author profiles (avatars + names) in parallel.
+        const authors=await Promise.all(comments.map(c=>fetchUser(commentAuthorId(c))));
+        if(detailTask!==task) return;
+        list.innerHTML=comments.map((c,i)=>{
+          const a=authors[i];
+          return `
           <div class="${p}-cmt-item">
-            <div class="${p}-cmt-head"><span class="${p}-cmt-author">${esc(authorName(c))}</span><span class="${p}-cmt-time">${esc(commentTime(c.createdAt||c.created||""))}</span></div>
-            <div class="${p}-cmt-body">${commentText(c)||"<em>(empty)</em>"}</div>
-          </div>`).join("");
+            ${avatarHtml(a)}
+            <div class="${p}-cmt-main">
+              <div class="${p}-cmt-head"><span class="${p}-cmt-author">${esc(a.name)}</span><span class="${p}-cmt-time">${esc(commentTime(c.createdAt||c.created||""))}</span></div>
+              <div class="${p}-cmt-body">${commentText(c)||"<em>(empty)</em>"}</div>
+            </div>
+          </div>`;
+        }).join("");
       }
 
       // Render the attachment tiles inside the open detail panel for a task.
@@ -1185,8 +1228,11 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             <div class="${p}-att-head"><span class="${p}-att-label">Comments</span></div>
             <div class="${p}-cmt-list" id="${p}-cmt-list-${instId}"></div>
             <div class="${p}-cmt-compose">
-              <textarea class="${p}-cmt-input" id="${p}-cmt-input-${instId}" rows="2" placeholder="Add a comment…"></textarea>
-              <button type="button" class="${p}-cmt-send" id="${p}-cmt-send-${instId}" title="Send">${iSend}</button>
+              <span class="${p}-cmt-av-slot" id="${p}-cmt-me-${instId}"><span class="${p}-cmt-av ${p}-cmt-av-fb">·</span></span>
+              <div class="${p}-cmt-field">
+                <textarea class="${p}-cmt-input" id="${p}-cmt-input-${instId}" rows="1" placeholder="Add a comment…"></textarea>
+                <button type="button" class="${p}-cmt-send" id="${p}-cmt-send-${instId}" title="Send" disabled>${iSend}</button>
+              </div>
             </div>
           </div>`:""}
         `;
@@ -1194,8 +1240,19 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         renderAttachments(task);
         if(enableComments){
           renderComments(task);
+          // Current user's avatar next to the composer.
+          if(currentUserId) fetchUser(currentUserId).then(me=>{
+            if(detailTask!==task) return;
+            const slot=detailBody.querySelector(`#${p}-cmt-me-${instId}`) as HTMLElement|null;
+            if(slot) slot.innerHTML=avatarHtml(me);
+          });
           const cInput=detailBody.querySelector(`#${p}-cmt-input-${instId}`) as HTMLTextAreaElement|null;
           const cSend =detailBody.querySelector(`#${p}-cmt-send-${instId}`) as HTMLButtonElement|null;
+          // Auto-grow textarea + enable send only when there's text.
+          cInput?.addEventListener("input",()=>{
+            cInput.style.height="auto"; cInput.style.height=Math.min(cInput.scrollHeight,140)+"px";
+            if(cSend) cSend.disabled=!cInput.value.trim();
+          });
           const submit=async()=>{
             const text=(cInput?.value||"").trim();
             if(!text||!cSend||!cInput) return;
