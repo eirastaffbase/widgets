@@ -275,9 +275,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-cmt-input:focus{outline:none}
           .${p}-cmt-bar{display:none;align-items:center;justify-content:flex-end;gap:6px;margin-top:8px}
           .${p}-cmt-bar.show{display:flex}
-          .${p}-cmt-attach{display:inline-flex!important;width:auto!important;margin:0!important;align-items:center;justify-content:center;gap:5px;border:none!important;background:none!important;color:var(--gray-lt);cursor:pointer;padding:7px!important;border-radius:50%;line-height:normal!important;font-family:inherit;font-size:12px;font-weight:600}
-          .${p}-cmt-attach:hover{color:var(--primary);background:rgba(var(--primary-rgb),.08)}
-          .${p}-cmt-attach svg{width:15px;height:15px}
+          .${p}-cmt-attach{display:inline-flex!important;width:38px!important;height:38px;margin:0!important;align-items:center;justify-content:center;border:none!important;background:none!important;color:var(--gray);cursor:pointer;padding:0!important;border-radius:50%;line-height:normal!important;font-family:inherit;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+          .${p}-cmt-attach:hover,.${p}-cmt-attach:active{color:var(--primary);background:rgba(var(--primary-rgb),.1)}
+          .${p}-cmt-attach svg{width:18px;height:18px}
+          .${p}-cmt-file{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);pointer-events:none}
           .${p}-cmt-send{display:none!important;width:auto!important;margin:0!important;align-items:center!important;gap:7px!important;font-family:inherit!important;font-size:13px!important;font-weight:700!important;line-height:normal!important;white-space:nowrap!important;border:none!important;border-radius:var(--r-md)!important;background:var(--primary)!important;color:var(--primary-text,#fff)!important;cursor:pointer!important;padding:9px 16px!important;box-shadow:0 3px 10px rgba(var(--primary-rgb),.3)!important;transition:all .15s!important}
           .${p}-cmt-send.show{display:inline-flex!important}
           .${p}-cmt-send svg{width:14px;height:14px}
@@ -303,8 +304,12 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           /* ── Audit tabs ── */
           .${p}-audit-tab-wrap{margin-bottom:12px}
           .${p}-audit-tab-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-lt);margin-bottom:6px}
-          .${p}-audit-tabs{display:flex;overflow-x:auto;scrollbar-width:none;border-bottom:2px solid var(--border)}
+          .${p}-audit-scroll{display:flex;align-items:stretch;border-bottom:2px solid var(--border)}
+          .${p}-audit-tabs{display:flex;overflow-x:auto;scrollbar-width:none;flex:1;scroll-behavior:smooth}
           .${p}-audit-tabs::-webkit-scrollbar{display:none}
+          .${p}-audit-arrow{flex-shrink:0;width:30px;margin:0!important;padding:0!important;border:none!important;background:linear-gradient(90deg,#fff,#fff);color:var(--gray);cursor:pointer;display:none;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+          .${p}-audit-arrow.show{display:flex}
+          .${p}-audit-arrow:active{color:var(--primary)}
           .${p}-audit-tab{flex-shrink:0;padding:8px 14px;font-size:12px;font-weight:600;color:var(--gray);cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-2px;white-space:nowrap;background:none;border:none;font-family:inherit;transition:color .15s,border-color .15s;display:flex;align-items:center;gap:6px;user-select:none;touch-action:manipulation;-webkit-tap-highlight-color:transparent;outline:none}
           .${p}-audit-tab:hover{color:var(--dark);background:rgba(var(--primary-rgb),.04)}
           .${p}-audit-tab.active{color:var(--primary);border-bottom-color:var(--primary)}
@@ -407,7 +412,11 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
           ${auditMode ? `<div class="${p}-audit-tab-wrap" id="${p}-audit-tab-wrap" style="display:none">
             <div class="${p}-audit-tab-label">Audit History</div>
-            <div class="${p}-audit-tabs" id="${p}-audit-tabs"></div>
+            <div class="${p}-audit-scroll">
+              <button type="button" class="${p}-audit-arrow" id="${p}-audit-prev" aria-label="Scroll left"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+              <div class="${p}-audit-tabs" id="${p}-audit-tabs"></div>
+              <button type="button" class="${p}-audit-arrow" id="${p}-audit-next" aria-label="Scroll right"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+            </div>
           </div>` : ""}
 
           <div class="${p}-store-tabs" id="${p}-store-tabs" style="display:none"></div>
@@ -450,6 +459,22 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const typeMenu      = !auditMode ? container.querySelector(`#${p}-type-menu`) as HTMLElement : null;
       const auditTabWrap  = auditMode ? container.querySelector(`#${p}-audit-tab-wrap`) as HTMLElement : null;
       const auditTabsEl   = auditMode ? container.querySelector(`#${p}-audit-tabs`) as HTMLElement : null;
+      const auditPrev     = auditMode ? container.querySelector(`#${p}-audit-prev`) as HTMLButtonElement : null;
+      const auditNext     = auditMode ? container.querySelector(`#${p}-audit-next`) as HTMLButtonElement : null;
+      function updateAuditArrows(){
+        if(!auditTabsEl||!auditPrev||!auditNext) return;
+        const max=auditTabsEl.scrollWidth-auditTabsEl.clientWidth;
+        const overflow=max>4;
+        auditPrev.classList.toggle("show", overflow && auditTabsEl.scrollLeft>2);
+        auditNext.classList.toggle("show", overflow && auditTabsEl.scrollLeft<max-2);
+      }
+      if(auditTabsEl&&auditPrev&&auditNext){
+        const step=()=>Math.max(160,auditTabsEl.clientWidth*0.7);
+        auditPrev.addEventListener("click",()=>auditTabsEl.scrollBy({left:-step(),behavior:"smooth"}));
+        auditNext.addEventListener("click",()=>auditTabsEl.scrollBy({left:step(),behavior:"smooth"}));
+        auditTabsEl.addEventListener("scroll",updateAuditArrows,{passive:true});
+        window.addEventListener("resize",updateAuditArrows);
+      }
 
       // Detail panel — appended to body so position:fixed works in Staffbase.
       // Body-appended elements + document listeners don't get cleaned up on
@@ -960,6 +985,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             renderAuditTabs(); renderList();
           });
         });
+        // Keep the active tab in view + refresh scroll arrows.
+        const active=auditTabsEl.querySelector(`.${p}-audit-tab.active`) as HTMLElement|null;
+        if(active) active.scrollIntoView({inline:"center",block:"nearest"});
+        requestAnimationFrame(updateAuditArrows);
       }
 
       // ── Type dropdown ─────────────────────────────────────────────────
@@ -1343,10 +1372,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           <div class="${p}-att">
             <div class="${p}-att-head">
               <span class="${p}-att-label">Attachments</span>
-              <button type="button" class="${p}-att-add" id="${p}-att-add-${instId}">${iClip} Add</button>
+              <label class="${p}-att-add" id="${p}-att-add-${instId}" for="${p}-att-input-${instId}">${iClip} Add</label>
             </div>
             <div class="${p}-att-grid" id="${p}-att-grid-${instId}"></div>
-            <input type="file" multiple style="display:none" id="${p}-att-input-${instId}">
+            <input type="file" multiple class="${p}-cmt-file" id="${p}-att-input-${instId}">
           </div>
           ${enableComments?`
           <div class="${p}-cmt">
@@ -1358,10 +1387,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
                 <textarea class="${p}-cmt-input" id="${p}-cmt-input-${instId}" rows="2" placeholder="Add a comment…"></textarea>
                 <div class="${p}-cmt-chips" id="${p}-cmt-chips-${instId}"></div>
                 <div class="${p}-cmt-bar" id="${p}-cmt-bar-${instId}">
-                  <button type="button" class="${p}-cmt-attach" id="${p}-cmt-attach-${instId}" title="Attach file">${iClip}</button>
+                  <label class="${p}-cmt-attach" id="${p}-cmt-attach-${instId}" for="${p}-cmt-file-${instId}" title="Attach file">${iClip}</label>
                   <button type="button" class="${p}-cmt-send" id="${p}-cmt-send-${instId}">${iSend} Send</button>
                 </div>
-                <input type="file" multiple style="display:none" id="${p}-cmt-file-${instId}">
+                <input type="file" multiple class="${p}-cmt-file" id="${p}-cmt-file-${instId}">
               </div>
             </div>
           </div>`:""}
@@ -1390,8 +1419,15 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             if(cBar) cBar.classList.toggle("show", document.activeElement===cInput || hasContent());
             if(cSend) cSend.classList.toggle("show", hasContent());
           };
-          cInput?.addEventListener("focus",()=>{ cBar?.classList.add("show"); });
-          cInput?.addEventListener("blur",()=>{ setTimeout(()=>{ if(!hasContent()) cBar?.classList.remove("show"); },150); });
+          cInput?.addEventListener("focus",()=>{
+            cBar?.classList.add("show");
+            // Scroll the composer above the on-screen keyboard so you can see what you type.
+            setTimeout(()=>cInput.scrollIntoView({block:"center",behavior:"smooth"}),300);
+          });
+          cInput?.addEventListener("blur",()=>{ setTimeout(()=>{ if(!hasContent()) cBar?.classList.remove("show"); },200); });
+          // Send keeps textarea focus until its click fires; attach is a <label for>
+          // that opens the picker natively (reliable on mobile, no input.click()).
+          cSend?.addEventListener("mousedown",e=>e.preventDefault());
           const renderChips=()=>{
             if(!cChips) return;
             cChips.innerHTML=pending.map((f,i)=>`<span class="${p}-cmt-chip"><span>${esc(f.name)}</span><button type="button" data-idx="${i}">${iXsmall}</button></span>`).join("");
@@ -1405,7 +1441,6 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             cInput.style.height="auto"; cInput.style.height=Math.min(cInput.scrollHeight,140)+"px";
             updateSendVisibility();
           });
-          cAttach?.addEventListener("click",()=>cFile?.click());
           cFile?.addEventListener("change",async()=>{
             const files=Array.from(cFile.files||[]); cFile.value="";
             if(!files.length) return;
@@ -1453,7 +1488,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         const attAdd  = detailBody.querySelector(`#${p}-att-add-${instId}`)   as HTMLButtonElement|null;
         const attInput= detailBody.querySelector(`#${p}-att-input-${instId}`) as HTMLInputElement|null;
         if(attAdd&&attInput){
-          attAdd.addEventListener("click",()=>attInput.click());
+          // attAdd is a <label for> → opens the picker natively (mobile-reliable).
           attInput.addEventListener("change",async()=>{
             const files=Array.from(attInput.files||[]);
             attInput.value="";

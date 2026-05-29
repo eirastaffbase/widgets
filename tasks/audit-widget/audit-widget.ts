@@ -156,6 +156,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-input,.${p}-select{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:var(--r-md);font-size:14px;font-family:inherit;color:var(--dark);background:#fafafa;transition:border-color .15s,box-shadow .15s}
           .${p}-input::placeholder{color:var(--gray-lt)}
           .${p}-input:focus,.${p}-select:focus{outline:none;border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(var(--primary-rgb),.1)}
+          .${p}-input[type="date"]{-webkit-appearance:none;appearance:none;text-align:left;min-height:44px;padding-right:40px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cline x1='16' y1='2' x2='16' y2='6'/%3E%3Cline x1='8' y1='2' x2='8' y2='6'/%3E%3Cline x1='3' y1='10' x2='21' y2='10'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center}
+          .${p}-input[type="date"]::-webkit-date-and-time-value{text-align:left}
+          .${p}-input[type="date"]::-webkit-calendar-picker-indicator{opacity:0;position:absolute;right:0;width:40px;height:100%;cursor:pointer}
           .${p}-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
           @media(max-width:480px){.${p}-row{grid-template-columns:1fr}}
           .${p}-field{display:flex;flex-direction:column;gap:5px}
@@ -245,7 +248,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-fail-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px}
           .${p}-fail-title{font-size:14px;font-weight:700}
           .${p}-fail-meta{font-size:11px;color:var(--gray-lt);margin-bottom:8px}
-          .${p}-photo{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;font-size:12px;font-weight:600;color:#92400e;background:rgba(255,255,255,.55);border:1.5px dashed #fbbf24;border-radius:8px;cursor:pointer;font-family:inherit;padding:9px 12px;margin-top:10px;-webkit-tap-highlight-color:transparent;transition:all .15s}
+          .${p}-photo{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;font-size:12px;font-weight:600;color:#92400e;background:rgba(255,255,255,.55);border:1.5px dashed #fbbf24;border-radius:8px;cursor:pointer;font-family:inherit;padding:11px 12px;margin-top:10px;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:all .15s}
+          .${p}-photo-input{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);pointer-events:none}
           .${p}-photo:hover,.${p}-photo:active{background:#fff;border-color:#f59e0b;color:#78350f}
           .${p}-photo-line{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
           .${p}-photo-chip{display:inline-flex;align-items:center;gap:4px;max-width:160px;font-size:11px;font-weight:600;background:rgba(var(--primary-rgb),.07);color:var(--primary);border-radius:10px;padding:1px 7px}
@@ -931,8 +935,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           <div class="${p}-task-flag show">
             <div class="${p}-task-flag-title">${iFlag} Task will be generated</div>
             <p style="font-size:12px;color:#78350f;line-height:1.4;margin:0"><strong>${esc(q.taskTitle)}</strong> · ${esc(q.taskRole)} · ${esc(q.taskPriority)} · Due: ${q.taskDue===0?"Immediately":`${q.taskDue}d`}</p>
-            <button type="button" class="${p}-photo" data-qid="${esc(q.id)}">${iCamera} Add photo</button>
-            <input type="file" accept="image/*" capture="environment" multiple style="display:none" class="${p}-photo-input" data-qid="${esc(q.id)}">
+            <label class="${p}-photo" data-qid="${esc(q.id)}" for="${p}-pfin-${esc(q.id)}">${iCamera} Add photo</label>
+            <input type="file" accept="image/*" multiple id="${p}-pfin-${esc(q.id)}" class="${p}-photo-input" data-qid="${esc(q.id)}">
             <div class="${p}-photo-line" data-qid="${esc(q.id)}">${photoChips(q.id)}</div>
           </div>`:""
 
@@ -982,7 +986,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               if(idx>=0&&taskFiles[qid]){ taskFiles[qid].splice(idx,1); refreshChips(); }
             }));
           };
-          btn.addEventListener("click",()=>input?.click());
+          // No click handler needed — the <label for> opens the picker natively
+          // (far more reliable on mobile than input.click() on a hidden input).
           input?.addEventListener("change",()=>{
             const ok:File[]=[];
             for(const f of Array.from(input.files||[])){
