@@ -30,6 +30,8 @@ const configurationSchema: JSONSchema7 = {
     showalltasks:       { type:"boolean", title:"Show All Tasks (not just mine)", default: false },
     showdonetasks:      { type:"boolean", title:"Include Completed Tasks",  default: true },
     auditmode:          { type:"boolean", title:"Audit Mode",               default: false },
+    enablecomments:     { type:"boolean", title:"Enable Comments (experimental)", default: false },
+    debugmode:          { type:"boolean", title:"Debug Mode (on-screen logs)", default: false },
   },
 };
 
@@ -115,6 +117,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const showAll      = this.getAttribute("showalltasks")       === "true";
       const showDone     = this.getAttribute("showdonetasks")      !== "false";
       const auditMode    = this.getAttribute("auditmode")          === "true";
+      const enableComments = this.getAttribute("enablecomments")   === "true";
+      const debugMode      = this.getAttribute("debugmode")        === "true";
 
       const primaryRgb  = hexToRgb(primaryColor);
       const primaryText = contrastColor(primaryColor);
@@ -209,6 +213,32 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-att-x{margin-left:2px;border:none;background:none;color:var(--gray-lt);cursor:pointer;padding:3px;display:flex;border-radius:50%;flex-shrink:0;transition:color .15s,background .15s}
           .${p}-att-x:hover{color:var(--error);background:rgba(196,30,58,.08)}
           .${p}-att-empty{font-size:12px;color:var(--gray-lt)}
+          /* ── Comments ── */
+          .${p}-cmt{margin-top:16px}
+          .${p}-cmt-list{display:flex;flex-direction:column;gap:10px;margin-bottom:10px}
+          .${p}-cmt-item{padding:8px 10px;border:1px solid var(--border);border-radius:var(--r-md);background:#fafafa}
+          .${p}-cmt-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:3px}
+          .${p}-cmt-author{font-size:12px;font-weight:600;color:var(--dark)}
+          .${p}-cmt-time{font-size:11px;color:var(--gray-lt);flex-shrink:0}
+          .${p}-cmt-body{font-size:13px;line-height:1.45;color:var(--dark);word-break:break-word}
+          .${p}-cmt-body p{margin:0 0 4px}
+          .${p}-cmt-body p:last-child{margin-bottom:0}
+          .${p}-cmt-empty{font-size:12px;color:var(--gray-lt)}
+          .${p}-cmt-compose{display:flex;align-items:flex-end;gap:8px}
+          .${p}-cmt-input{flex:1;resize:vertical;min-height:38px;font-family:inherit;font-size:13px;line-height:1.4;padding:8px 10px;border:1px solid var(--border);border-radius:var(--r-md);background:#fff;color:var(--dark)}
+          .${p}-cmt-input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(var(--primary-rgb),.12)}
+          .${p}-cmt-send{flex-shrink:0;width:38px;height:38px;display:flex;align-items:center;justify-content:center;border:none;border-radius:var(--r-md);background:var(--primary);color:#fff;cursor:pointer;transition:opacity .15s}
+          .${p}-cmt-send:hover{opacity:.9}
+          .${p}-cmt-send:disabled{opacity:.5;cursor:default}
+          /* ── Debug panel ── */
+          .${p}-dbg{position:fixed;left:0;right:0;bottom:0;z-index:2147483647;background:#0d1117;color:#e6edf3;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;border-top:2px solid var(--primary);box-shadow:0 -4px 16px rgba(0,0,0,.3);max-height:45vh;display:flex;flex-direction:column}
+          .${p}-dbg.collapsed .${p}-dbg-body{display:none}
+          .${p}-dbg-bar{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:#161b22;flex-shrink:0}
+          .${p}-dbg-title{font-size:12px;font-weight:700;letter-spacing:.5px}
+          .${p}-dbg-actions{display:flex;gap:6px}
+          .${p}-dbg-btn{font-family:inherit;font-size:12px;font-weight:600;color:#e6edf3;background:#21262d;border:1px solid #30363d;border-radius:6px;padding:5px 12px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+          .${p}-dbg-btn:active{background:var(--primary);border-color:var(--primary)}
+          .${p}-dbg-body{margin:0;padding:8px 10px;overflow:auto;font-size:11px;line-height:1.45;white-space:pre-wrap;word-break:break-word;-webkit-overflow-scrolling:touch}
           /* ── Audit tabs ── */
           .${p}-audit-tab-wrap{margin-bottom:12px}
           .${p}-audit-tab-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-lt);margin-bottom:6px}
@@ -420,6 +450,66 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       function showBanner(type:"error"|"info", msg:string){bannerEl.className=`${p}-banner ${type}`;bannerEl.style.display="block";bannerEl.textContent=msg;}
       function hideBanner(){bannerEl.style.display="none";}
 
+      // ── On-screen debug log (for mobile webview where console is hidden) ──
+      const debugLog:string[]=[];
+      let debugBodyEl:HTMLElement|null=null;
+      function dlog(...args:any[]){
+        const ts=new Date().toISOString().slice(11,23);
+        const line=ts+" "+args.map(a=>{
+          if(typeof a==="string") return a;
+          try{ return JSON.stringify(a); }catch(_){ return String(a); }
+        }).join(" ");
+        debugLog.push(line);
+        if(debugLog.length>500) debugLog.shift();
+        try{ console.log("[mtw]",...args); }catch(_){}
+        if(debugBodyEl){
+          debugBodyEl.textContent=debugLog.join("\n");
+          debugBodyEl.scrollTop=debugBodyEl.scrollHeight;
+        }
+      }
+      function buildDebugPanel(){
+        if(!debugMode) return;
+        const panel=document.createElement("div");
+        panel.className=`${p}-dbg`;
+        panel.innerHTML=`
+          <div class="${p}-dbg-bar">
+            <span class="${p}-dbg-title">Debug</span>
+            <div class="${p}-dbg-actions">
+              <button type="button" class="${p}-dbg-btn" data-act="copy">Copy</button>
+              <button type="button" class="${p}-dbg-btn" data-act="clear">Clear</button>
+              <button type="button" class="${p}-dbg-btn" data-act="toggle">Hide</button>
+            </div>
+          </div>
+          <pre class="${p}-dbg-body"></pre>`;
+        document.body.appendChild(panel);
+        debugBodyEl=panel.querySelector(`.${p}-dbg-body`) as HTMLElement;
+        const body=debugBodyEl;
+        const copyBtn=panel.querySelector(`[data-act="copy"]`) as HTMLButtonElement;
+        panel.querySelector(`[data-act="clear"]`)!.addEventListener("click",()=>{ debugLog.length=0; if(body) body.textContent=""; });
+        panel.querySelector(`[data-act="toggle"]`)!.addEventListener("click",(e)=>{
+          const collapsed=panel.classList.toggle("collapsed");
+          (e.target as HTMLElement).textContent=collapsed?"Show":"Hide";
+        });
+        copyBtn.addEventListener("click",async()=>{
+          const text=debugLog.join("\n");
+          let ok=false;
+          try{ await navigator.clipboard.writeText(text); ok=true; }
+          catch(_){
+            // Fallback for webviews without async clipboard.
+            try{
+              const ta=document.createElement("textarea");
+              ta.value=text; ta.style.position="fixed"; ta.style.opacity="0";
+              document.body.appendChild(ta); ta.focus(); ta.select();
+              ok=document.execCommand("copy"); document.body.removeChild(ta);
+            }catch(_){ ok=false; }
+          }
+          copyBtn.textContent=ok?"Copied!":"Copy failed";
+          setTimeout(()=>{ copyBtn.textContent="Copy"; },1500);
+        });
+        dlog("debug panel ready · origin",location.origin,"· comments",enableComments);
+      }
+      buildDebugPanel();
+
       function formatDate(iso:string|null):{text:string;overdue:boolean}{
         if(!iso) return{text:"",overdue:false};
         const datePart=iso.split("T")[0];
@@ -490,6 +580,104 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const iClip=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>`;
       const iFileGeneric=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
       const iXsmall=`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+      const iSend=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>`;
+
+      // ── Comments (user-session auth; NOT the Basic token) ──────────────
+      // Comments must be attributed to a person, so they use the logged-in
+      // user's session (same-origin cookie) — see comments.md. All comment
+      // calls go to a relative /api URL with credentials:"include" and NO
+      // Authorization header. Gated behind the `enablecomments` setting.
+      const apiOrigin = `${location.origin}/api`;
+      function readCsrf():string{
+        // Try the common Staffbase sources, in order.
+        const m=document.cookie.match(/(?:^|;\s*)(?:csrf|XSRF-TOKEN|csrftoken)=([^;]+)/i);
+        if(m) return decodeURIComponent(m[1]);
+        const w:any=window;
+        if(w.csrfToken) return String(w.csrfToken);
+        if(w.staffbase?.csrfToken) return String(w.staffbase.csrfToken);
+        const meta=document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement|null;
+        return meta?.content||"";
+      }
+      function sessionOpts(extra?:RequestInit):RequestInit{
+        const csrf=readCsrf();
+        return {
+          ...extra,
+          credentials:"include",
+          headers:{ ...(csrf?{"x-csrf-token":csrf}:{}), ...(extra?.headers||{}) },
+        };
+      }
+      const CMT_CREATE_CT="application/vnd.staffbase.tasks.comment-create.v1+json";
+      const CMT_HTML_ACCEPT="application/vnd.staffbase.comments.comment.html-content.v1+json";
+      // Build the Designer content document the create endpoint expects.
+      function commentDoc(text:string):any{
+        const html=`<p>${esc(text)}</p>`;
+        // `config` carries the visible text. Exact key is still being
+        // confirmed in-app (see comments.md); send the likely variants.
+        return { blocks:{ b1:{ type:"text", children:[], config:{ html, text } } }, content:["b1"] };
+      }
+      async function loadComments(task:Task):Promise<any[]>{
+        const url=`${apiOrigin}/tasks/${task.installationId}/task/${task.id}/comments${currentUserId?`?viewedBy=${currentUserId}`:""}`;
+        dlog("GET comments",url,"csrf?",readCsrf()?"yes":"no");
+        const r=await fetch(url,sessionOpts({headers:{Accept:CMT_HTML_ACCEPT}}));
+        const raw=await r.text();
+        dlog("GET comments ←",r.status,raw.slice(0,400));
+        if(!r.ok) throw new Error(`HTTP ${r.status}`);
+        let d:any; try{ d=JSON.parse(raw); }catch(_){ d=[]; }
+        return Array.isArray(d)?d:(d.data||[]);
+      }
+      async function postComment(task:Task,text:string):Promise<any>{
+        const url=`${apiOrigin}/tasks/${task.installationId}/task/${task.id}/comments`;
+        const body=JSON.stringify({ content: commentDoc(text) });
+        dlog("POST comment",url,"csrf?",readCsrf()?"yes":"no","body",body);
+        const r=await fetch(url,sessionOpts({
+          method:"POST",
+          headers:{ "Content-Type":CMT_CREATE_CT, Accept:CMT_HTML_ACCEPT },
+          body,
+        }));
+        const raw=await r.text();
+        // Capture the real shape of the first successful create for tuning.
+        dlog("POST comment ←",r.status,raw.slice(0,600));
+        if(!r.ok) throw new Error(`HTTP ${r.status}`);
+        try{ return JSON.parse(raw); }catch(_){ return null; }
+      }
+      function commentText(c:any):string{
+        if(typeof c.content==="string") return c.content;          // rendered HTML
+        if(c.content?.html) return c.content.html;
+        if(c.text) return c.text;
+        return "";
+      }
+      function commentTime(iso:string):string{
+        const t=Date.parse(iso); if(isNaN(t)) return "";
+        const s=Math.floor((Date.now()-t)/1000);
+        if(s<60) return "just now";
+        if(s<3600) return `${Math.floor(s/60)}m ago`;
+        if(s<86400) return `${Math.floor(s/3600)}h ago`;
+        if(s<604800) return `${Math.floor(s/86400)}d ago`;
+        return new Date(t).toLocaleDateString();
+      }
+      function authorName(c:any):string{
+        return c.author?.displayName||c.author?.name||c.authorName||"User";
+      }
+      // Render the comments list + composer inside the open detail panel.
+      async function renderComments(task:Task){
+        const list=detailBody.querySelector(`#${p}-cmt-list-${instId}`) as HTMLElement|null;
+        if(!list) return;
+        list.innerHTML=`<div class="${p}-cmt-empty">Loading…</div>`;
+        let comments:any[]=[];
+        try{ comments=await loadComments(task); }
+        catch(e:any){
+          if(detailTask!==task) return;
+          list.innerHTML=`<div class="${p}-cmt-empty">Couldn't load comments (${esc(e.message)}).</div>`;
+          return;
+        }
+        if(detailTask!==task) return; // panel changed while loading
+        if(!comments.length){ list.innerHTML=`<div class="${p}-cmt-empty">No comments yet.</div>`; return; }
+        list.innerHTML=comments.map(c=>`
+          <div class="${p}-cmt-item">
+            <div class="${p}-cmt-head"><span class="${p}-cmt-author">${esc(authorName(c))}</span><span class="${p}-cmt-time">${esc(commentTime(c.createdAt||c.created||""))}</span></div>
+            <div class="${p}-cmt-body">${commentText(c)||"<em>(empty)</em>"}</div>
+          </div>`).join("");
+      }
 
       // Render the attachment tiles inside the open detail panel for a task.
       async function renderAttachments(task:Task){
@@ -990,9 +1178,36 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             <div class="${p}-att-grid" id="${p}-att-grid-${instId}"></div>
             <input type="file" multiple style="display:none" id="${p}-att-input-${instId}">
           </div>
+          ${enableComments?`
+          <div class="${p}-cmt">
+            <div class="${p}-att-head"><span class="${p}-att-label">Comments</span></div>
+            <div class="${p}-cmt-list" id="${p}-cmt-list-${instId}"></div>
+            <div class="${p}-cmt-compose">
+              <textarea class="${p}-cmt-input" id="${p}-cmt-input-${instId}" rows="2" placeholder="Add a comment…"></textarea>
+              <button type="button" class="${p}-cmt-send" id="${p}-cmt-send-${instId}" title="Send">${iSend}</button>
+            </div>
+          </div>`:""}
         `;
 
         renderAttachments(task);
+        if(enableComments){
+          renderComments(task);
+          const cInput=detailBody.querySelector(`#${p}-cmt-input-${instId}`) as HTMLTextAreaElement|null;
+          const cSend =detailBody.querySelector(`#${p}-cmt-send-${instId}`) as HTMLButtonElement|null;
+          const submit=async()=>{
+            const text=(cInput?.value||"").trim();
+            if(!text||!cSend||!cInput) return;
+            cSend.disabled=true; cInput.disabled=true;
+            try{
+              await postComment(task,text);
+              cInput.value=""; hideBanner();
+              await renderComments(task);
+            }catch(e:any){ showBanner("error",`Couldn't post comment: ${e.message}`); }
+            cSend.disabled=false; cInput.disabled=false; cInput.focus();
+          };
+          cSend?.addEventListener("click",submit);
+          cInput?.addEventListener("keydown",(e)=>{ if((e.metaKey||e.ctrlKey)&&e.key==="Enter") submit(); });
+        }
 
         // ── Attachment add / upload ────────────────────────────────────
         const attAdd  = detailBody.querySelector(`#${p}-att-add-${instId}`)   as HTMLButtonElement|null;
@@ -1148,7 +1363,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             const profile=await widgetApi.getUserInformation();
             currentUserId=(profile as any).id||"";
             userGroupIds=(profile as any).groupIDs||[];
-          } catch(_){}
+            dlog("user",currentUserId,"groups",userGroupIds.length);
+          } catch(e:any){ dlog("getUserInformation failed",e?.message||String(e)); }
 
           // Fetch groups → build groupMap (search endpoint + /groups supplement)
           try{
