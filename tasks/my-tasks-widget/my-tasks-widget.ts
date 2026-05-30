@@ -8,7 +8,7 @@ import {
 import { JSONSchema7 } from "json-schema";
 import { UiSchema } from "@rjsf/utils";
 
-import { detectLocale, isRtl, makeT, DEFAULT_LOCALE } from "../shared/i18n";
+import { detectLocale, isRtl, makeT, translateMap, DEFAULT_LOCALE } from "../shared/i18n";
 import { STRINGS } from "./strings";
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
@@ -208,6 +208,13 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       // `tr` (not `t`) — the codebase uses `t` as the task loop variable in many
       // .map/.filter callbacks, which would shadow a translator named `t`.
       let tr                         = makeT(STRINGS, locale);
+      // ── On-demand content translation (free-text task data) ────────────
+      // Ephemeral: nothing is persisted. `ct(text)` returns the cached
+      // translation when translate-mode is on, else the original.
+      let contentTranslated          = false;
+      let translateBusy              = false;
+      const ctCache: {[k:string]:string} = {};
+      const ct = (s:string):string => { if(!contentTranslated||!s) return s; return ctCache[s.trim()]||s; };
       let allInstalls: Array<{id:string;title:string}> = [];           // for task creation
       const listsByInst = new Map<string, Array<{id:string;name:string}>>();
       let usersList: Array<{id:string;name:string}> | null = null; // lazy, for reassign picker
@@ -235,6 +242,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           /* ── Create task sheet ── */
           .${p}-create{--primary:${primaryColor};--primary-rgb:${primaryRgb};--primary-text:${primaryText};--dark:#1A1A1A;--gray:#6b7280;--gray-lt:#9ca3af;--border:#e5e7eb;--error:#C41E3A;--r-sm:6px;--r-md:10px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;position:fixed;left:0;right:0;bottom:0;z-index:100001;background:#fff;border-radius:20px 20px 0 0;max-height:90vh;display:flex;flex-direction:column;transform:translateY(102%);transition:transform .32s cubic-bezier(.32,.72,0,1);overflow:hidden;box-shadow:0 -8px 40px rgba(0,0,0,.18)}
           .${p}-create.open{transform:translateY(0)}
+          .${p}-create.side{left:auto;top:0;right:0;bottom:0;width:min(460px,94vw);max-height:none;border-radius:20px 0 0 20px;transform:translateX(102%)}
+          .${p}-create.side.open{transform:translateX(0)}
           .${p}-create-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 12px;border-bottom:1px solid var(--border)}
           .${p}-create-head h3{margin:0;font-size:16px;font-weight:800;color:var(--dark)}
           .${p}-create-close{width:30px;height:30px;border:none;background:#f3f4f6;border-radius:50%;cursor:pointer;color:var(--gray);display:flex;align-items:center;justify-content:center}
@@ -391,13 +400,13 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           /* ── Filter bar ── */
           .${p}-filters{display:flex;gap:8px;margin-bottom:16px;align-items:center}
           .${p}-type-wrap{position:relative;flex:1;min-width:0}
-          .${p}-type-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:6px;padding:7px 11px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fff;font-size:12px;font-weight:600;color:var(--gray);cursor:pointer;font-family:inherit;transition:all .15s;text-align:left}
+          .${p}-type-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:6px;padding:7px 11px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fff;font-size:12px;font-weight:600;color:var(--gray);cursor:pointer;font-family:inherit;transition:all .15s;text-align:start}
           .${p}-type-btn:hover,.${p}-type-btn.open{border-color:var(--primary);color:var(--primary)}
           .${p}-type-btn svg{flex-shrink:0;transition:transform .15s}
           .${p}-type-btn.open svg{transform:rotate(180deg)}
           .${p}-type-menu{display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1.5px solid var(--border);border-radius:var(--r-md);box-shadow:var(--shadow-md);z-index:100;overflow:hidden}
           .${p}-type-menu.open{display:block}
-          .${p}-type-opt{display:flex;align-items:center;gap:8px;width:100%;padding:8px 12px;border:none;background:none;font-size:12px;font-weight:500;color:var(--gray);cursor:pointer;font-family:inherit;text-align:left;transition:background .1s}
+          .${p}-type-opt{display:flex;align-items:center;gap:8px;width:100%;padding:8px 12px;border:none;background:none;font-size:12px;font-weight:500;color:var(--gray);cursor:pointer;font-family:inherit;text-align:start;transition:background .1s}
           .${p}-type-opt:hover{background:rgba(0,0,0,.04);color:var(--dark)}
           .${p}-type-opt.active{font-weight:700;color:var(--dark);background:rgba(var(--primary-rgb),.06)}
           .${p}-type-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
@@ -406,10 +415,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-status-opt.active{background:var(--primary);color:var(--primary-text)}
           /* ── Task cards ── */
           .${p}-list{display:flex;flex-direction:column;gap:8px}
-          .${p}-card{background:#fff;border-radius:var(--r-lg);box-shadow:var(--shadow-sm);border:1px solid var(--border);border-left:3px solid var(--primary);overflow:hidden;cursor:pointer;transition:transform .15s ease,box-shadow .15s ease,border-left-color .35s ease,opacity .35s ease}
-          .${p}-card:hover:not(.done){transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.09);border-left-color:var(--accent)}
+          .${p}-card{background:#fff;border-radius:var(--r-lg);box-shadow:var(--shadow-sm);border:1px solid var(--border);border-inline-start:3px solid var(--primary);overflow:hidden;cursor:pointer;transition:transform .15s ease,box-shadow .15s ease,border-left-color .35s ease,opacity .35s ease}
+          .${p}-card:hover:not(.done){transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.09);border-inline-start-color:var(--accent)}
           .${p}-card:active:not(.done){transform:translateY(0);box-shadow:var(--shadow-sm)}
-          .${p}-card.done{border-left-color:var(--border);opacity:.72}
+          .${p}-card.done{border-inline-start-color:var(--border);opacity:.72}
           .${p}-card.done:hover{opacity:.88}
           .${p}-card-inner{display:flex;align-items:flex-start;gap:12px;padding:13px 16px}
           .${p}-check-wrap{flex-shrink:0;padding-top:2px;position:relative}
@@ -481,7 +490,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-cat-chart{display:flex;flex-direction:column;gap:10px;margin-top:13px}
           .${p}-cat-top{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;margin-bottom:4px}
           .${p}-cat-name{color:var(--dark);font-weight:400}
-          .${p}-cat-pct{color:var(--gray);font-weight:700;flex-shrink:0;margin-left:8px}
+          .${p}-cat-pct{color:var(--gray);font-weight:700;flex-shrink:0;margin-inline-start:8px}
           .${p}-cat-bar{height:7px;background:rgba(0,0,0,.08);border-radius:4px;overflow:hidden}
           .${p}-cat-fill{display:block;height:100%;border-radius:4px;transition:width .45s ease}
           .${p}-cat-fill.hi{background:var(--success)}
@@ -524,10 +533,13 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-banner.info{background:rgba(var(--primary-rgb),.06);border:1px solid rgba(var(--primary-rgb),.2);color:var(--primary)}
           .${p}-section-label{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--gray-lt);padding:4px 0 8px;margin-top:4px}
           /* ── Ghost cards (other audit tasks) ── */
-          .${p}-card.ghost{opacity:.55;border-left-color:var(--border)}
+          .${p}-card.ghost{opacity:.55;border-inline-start-color:var(--border)}
           .${p}-card.ghost:hover{opacity:.8}
           .${p}-other-toggle{width:100%;padding:9px 14px;background:none;border:1.5px dashed var(--border);border-radius:var(--r-md);font-size:12px;font-weight:600;color:var(--gray-lt);cursor:pointer;text-align:center;font-family:inherit;transition:all .15s;touch-action:manipulation;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:6px}
           .${p}-other-toggle:hover{border-color:var(--gray);color:var(--gray)}
+        
+          /* RTL: flip horizontal directional arrows */
+          [dir="rtl"] .mtw-audit-arrow svg{transform:scaleX(-1)}
         </style>
 
         <div class="${p}">
@@ -539,6 +551,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             </div>
             <div class="${p}-header-actions">
               ${allowCreate&&!auditMode?`<button type="button" class="${p}-new-btn" id="${p}-new" title="${tr("newTask")}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span id="${p}-new-label">${tr("newTask")}</span></button>`:""}
+              <button type="button" class="${p}-refresh-btn" id="${p}-translate" title="${tr("translateBtn")}" style="display:none;width:auto;padding:0 10px;gap:5px">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8l6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6"/></svg>
+                <span id="${p}-translate-lbl"></span>
+              </button>
               <button type="button" class="${p}-refresh-btn" id="${p}-refresh" title="${tr("refresh")}">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
               </button>
@@ -1282,7 +1298,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         if(activeTypeFilters.size===0) return tr("allTypes");
         const types=getTypes();
         const sel=types.filter(t=>activeTypeFilters.has(t.key));
-        if(sel.length===1) return sel[0].label;
+        if(sel.length===1) return ct(sel[0].label);
         return tr("nTypes").replace("{n}",String(sel.length));
       }
 
@@ -1306,7 +1322,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               :`<span class="${p}-type-dot" style="background:var(--border)"></span>`;
             return `<button type="button" class="${p}-type-opt ${checked?"active":""}" data-key="${esc(key)}">
               <span style="width:12px;display:flex;align-items:center;justify-content:center">${checked?iconCheck:""}</span>
-              ${dot}${esc(label)}</button>`;
+              ${dot}${esc(ct(label))}</button>`;
           }).join("")}`;
         typeMenu.querySelectorAll(`.${p}-type-opt`).forEach(btn=>{
           btn.addEventListener("click",e=>{
@@ -1350,7 +1366,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         introUsed=true;
         for(const key of orderedKeys){
           const group=grouped.get(key)!;
-          const label=key==="__none__"?tr("noTypeLabel"):key;
+          const label=key==="__none__"?tr("noTypeLabel"):ct(key);
           html+=`<div class="${p}-section-label">${esc(label)} <span style="font-weight:400">(${group.length})</span></div>`;
           for(const task of group) html+=renderTaskCard(task);
         }
@@ -1390,7 +1406,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
                 <div class="${p}-audit-card-score" style="color:${scoreColor}">${pct!=null?pct+"%":"—"}</div>
                 <div style="font-size:13px;font-weight:700;color:${scoreColor};margin-top:3px">${passing===true?tr("passing"):passing===false?tr("failing"):"—"}</div>
               </div>
-              <div style="font-size:11px;color:var(--gray-lt);text-align:right;line-height:1.6">
+              <div style="font-size:11px;color:var(--gray-lt);text-align:end;line-height:1.6">
                 ${pa.taskCount!=null?`<div style="font-weight:600;color:${scoreColor}">${pa.taskCount} task${pa.taskCount!==1?"s":""} flagged</div>`:""}
               </div>
             </div>
@@ -1513,7 +1529,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         const isCrit=(task.auditSeverity||"").toLowerCase()==="critical";
         const prioCol=isCrit?"#9B1C2E":priorityColor(task.priority);
         const prioLbl=isCrit?tr("critical"):task.priority==="Priority_1"?tr("high"):task.priority==="Priority_2"?tr("medium"):tr("normal");
-        const typeBadge=task.taskType?`<span class="${p}-type-badge" style="background:${typeCol};color:${typeText}">${esc(task.taskType)}</span>`:"";
+        const typeBadge=task.taskType?`<span class="${p}-type-badge" style="background:${typeCol};color:${typeText}">${esc(ct(task.taskType))}</span>`:"";
         const prioBadge=(isCrit||(task.priority&&task.priority!=="Priority_3"))?`<span class="${p}-prio-badge${isCrit?" crit":""}" style="color:${prioCol};border-color:${prioCol}">${prioLbl}</span>`:"";
         const iconRecur=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`;
         const recurBadge=task.isRecurring?`<span class="${p}-recur-badge">${iconRecur}${tr("recurring")}</span>`:"";
@@ -1539,7 +1555,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               </div>
               <div class="${p}-card-body">
                 <div class="${p}-card-top">${typeBadge}${recurBadge}${prioBadge}</div>
-                <div class="${p}-card-title"><span>${esc(task.title)}</span></div>
+                <div class="${p}-card-title"><span>${esc(ct(task.title))}</span></div>
                 ${desc?`<div class="${p}-card-desc">${desc}</div>`:""}
                 <div class="${p}-card-meta">
                   ${dueInfo.text?`<span class="${p}-meta-item ${dueInfo.overdue&&!isDone?"overdue":""}">${iconCal} ${dueInfo.overdue&&!isDone?"Overdue: ":""}${dueInfo.text}</span>`:""}
@@ -1595,7 +1611,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           const tier=v>=80?"hi":v>=50?"mid":"lo";
           const detail=c&&c.total!=null?`${c.earned}/${c.total}`:"";
           return `<div class="${p}-cat-row">
-            <div class="${p}-cat-top"><span class="${p}-cat-name">${esc(name)}</span><span class="${p}-cat-pct">${detail?`<span style="color:var(--gray-lt);font-weight:500;margin-right:6px">${detail}</span>`:""}${v}%</span></div>
+            <div class="${p}-cat-top"><span class="${p}-cat-name">${esc(name)}</span><span class="${p}-cat-pct">${detail?`<span style="color:var(--gray-lt);font-weight:500;margin-inline-end:6px">${detail}</span>`:""}${v}%</span></div>
             <div class="${p}-cat-bar"><span class="${p}-cat-fill ${tier}" data-pct="${v}" style="width:0;transition-delay:${i*60}ms"></span></div>
           </div>`;
         }).join("");
@@ -1707,7 +1723,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
         const iconRecurD=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`;
         detailBadges.innerHTML=`
-          ${task.taskType?`<span class="${p}-type-badge" style="background:${typeCol};color:${typeText}">${esc(task.taskType)}</span>`:""}
+          ${task.taskType?`<span class="${p}-type-badge" style="background:${typeCol};color:${typeText}">${esc(ct(task.taskType))}</span>`:""}
           ${task.isRecurring?`<span class="${p}-recur-badge">${iconRecurD}Recurring</span>`:""}
           ${(isCrit||(task.priority&&task.priority!=="Priority_3"))?`<span class="${p}-prio-badge${isCrit?" crit":""}" style="color:${prioCol};border-color:${prioCol}">${prioLbl}</span>`:""}`;
 
@@ -1743,7 +1759,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         }
 
         detailBody.innerHTML=`
-          <div class="${p}-detail-title ${isDone?"done":""}">${esc(task.title)}</div>
+          <div class="${p}-detail-title ${isDone?"done":""}">${esc(ct(task.title))}</div>
           <div class="${p}-detail-meta">
             ${dueInfo.text?`<div class="${p}-detail-meta-row ${dueInfo.overdue&&!isDone?"overdue":""}">${iCal}${dueInfo.overdue&&!isDone?"Overdue · ":"Due "}${dueInfo.text}</div>`:""}
             ${task.installationTitle?`<div class="${p}-detail-meta-row">${iStore} ${esc(task.installationTitle)}</div>`:""}
@@ -1771,7 +1787,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
                 </div>`;
             }
             return cleanDesc
-              ? `<div class="${p}-detail-desc-label">${tr("description")}</div><div class="${p}-detail-desc">${esc(cleanDesc)}</div>`
+              ? `<div class="${p}-detail-desc-label">${tr("description")}</div><div class="${p}-detail-desc">${esc(ct(cleanDesc))}</div>`
               : `<div class="${p}-detail-desc empty">${tr("noDescription")}</div>`;
           })()}
           <div class="${p}-att">
@@ -2076,6 +2092,51 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         setText(`${p}-type-label`, tr("allTypes"));
         const st=(s:string,v:string)=>{const el=container.querySelector(`.${p}-status-opt[data-status="${s}"]`); if(el) el.textContent=v;};
         st("open",tr("open")); st("done",tr("done")); st("all",tr("both"));
+
+        // Translate button: only meaningful when the viewer isn't on en_US.
+        const trBtn=container.querySelector(`#${p}-translate`) as HTMLElement|null;
+        if(trBtn){
+          if(locale!==DEFAULT_LOCALE){ trBtn.style.display=""; updateTranslateBtn(); trBtn.addEventListener("click",toggleTranslate); }
+          else trBtn.style.display="none";
+        }
+      }
+
+      // ── On-demand content translation ─────────────────────────────────
+      // One batched POST to /api/translations via the logged-in user's session
+      // (same auth path as comments). Source = branch default (en_US).
+      async function translateSend(payload:string):Promise<string>{
+        const r=await fetch(`${baseUrl}/translations`, sessionOpts({
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({sourceLanguage:DEFAULT_LOCALE, targetLanguage:locale, contents:{value:payload}}),
+        }));
+        if(!r.ok) throw new Error("translate "+r.status);
+        const d=await r.json();
+        return d?.contents?.value||"";
+      }
+      function updateTranslateBtn(){
+        const lbl=container.querySelector(`#${p}-translate-lbl`); if(lbl) lbl.textContent=translateBusy?tr("translating"):contentTranslated?tr("showOriginal"):tr("translateBtn");
+      }
+      async function toggleTranslate(){
+        if(translateBusy) return;
+        if(!contentTranslated){
+          const texts:string[]=[];
+          for(const t of allTasks){
+            if(t.title) texts.push(t.title);
+            if(t.taskType) texts.push(t.taskType);
+            const cd=t.description?stripTypeTag(t.description).trim():"";
+            if(cd) texts.push(cd);
+          }
+          if(texts.length){
+            translateBusy=true; updateTranslateBtn();
+            const map=await translateMap(texts, translateSend);
+            Object.assign(ctCache, map); translateBusy=false;
+          }
+          contentTranslated=true;
+        } else { contentTranslated=false; }
+        updateTranslateBtn();
+        renderList();
+        if(detailTask) renderDetailContent(detailTask);
       }
 
       // ── Load data ─────────────────────────────────────────────────────
@@ -2359,6 +2420,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               closeCreate(); hideBanner(); await load();
             }catch(e:any){ showBanner("error",`${tr("createFailedPrefix")} ${e.message}`); saveBtn.disabled=false; saveBtn.textContent=tr("createTask"); }
           });
+          // Side panel on desktop, bottom sheet on mobile (matches detail panel).
+          createEl.classList.toggle("side", window.innerWidth>=720);
           overlayEl.classList.add("open");
           requestAnimationFrame(()=>createEl!.classList.add("open"));
           ($("c-title") as HTMLInputElement)?.focus();

@@ -16,6 +16,15 @@
 //    locale) the helpers resolve to the exact source strings — so a widget that
 //    only ships an `en_US` bundle behaves identically to having no i18n at all.
 // ─────────────────────────────────────────────────────────────────────────────
+var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 const DEFAULT_LOCALE = "en_US";
 // Language prefixes that render right-to-left (from the Staffbase locale table:
 // every entry flagged `direction: right_to_left`).
@@ -100,6 +109,62 @@ function detectLocale(opts) {
  *   const t = makeT(STRINGS, "de_DE");
  *   t("refresh") // German if present, else English, else "refresh"
  */
+// ─────────────────────────────────────────────────────────────────────────────
+// On-demand content translation (Phase B "Translate" button).
+//
+// Free-text user content (task titles, descriptions, custom type names,
+// comments) is translated on demand via Staffbase's POST /api/translations.
+// Items are batched into one request as indexed <p> tags — the endpoint
+// preserves tags and translates only text nodes, so we map results back by
+// index. Transport/auth is supplied by the caller via `send` so this module
+// stays free of endpoint/auth concerns.
+// ─────────────────────────────────────────────────────────────────────────────
+function escHtml(s) {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function unescHtml(s) {
+    return s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+}
+/**
+ * Translate a set of strings in a single batched request.
+ * Returns a map of original-text → translated-text (only for non-empty inputs).
+ * On any failure the map is empty (caller falls back to originals).
+ *
+ * `send(payload)` must POST the payload to /api/translations and resolve with
+ * the translated `contents.value` string.
+ */
+function translateMap(texts, send) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const map = {};
+        const uniq = [];
+        const seen = {};
+        for (const raw of texts) {
+            const t = (raw || "").trim();
+            if (t && !seen[t]) {
+                seen[t] = true;
+                uniq.push(t);
+            }
+        }
+        if (!uniq.length)
+            return map;
+        const payload = uniq.map((t, i) => `<p data-i="${i}">${escHtml(t)}</p>`).join("");
+        let resp;
+        try {
+            resp = yield send(payload);
+        }
+        catch (_) {
+            return map;
+        }
+        const re = /<p data-i="(\d+)">([\s\S]*?)<\/p>/g;
+        let m;
+        while ((m = re.exec(resp))) {
+            const i = parseInt(m[1], 10);
+            if (uniq[i] != null)
+                map[uniq[i]] = unescHtml(m[2]);
+        }
+        return map;
+    });
+}
 function makeT(bundles, locale) {
     const primary = bundles[locale] || {};
     const fallback = bundles[DEFAULT_LOCALE] || {};
@@ -119,6 +184,9 @@ const STRINGS = {
         auditResults: "Audit Results",
         newTask: "New task",
         refresh: "Refresh",
+        translateBtn: "Translate",
+        showOriginal: "Show original",
+        translating: "Translating…",
         auditHistory: "Audit History",
         scrollLeft: "Scroll left",
         scrollRight: "Scroll right",
@@ -213,6 +281,9 @@ const STRINGS = {
         auditResults: "Audit-Ergebnisse",
         newTask: "Neue Aufgabe",
         refresh: "Aktualisieren",
+        translateBtn: "Übersetzen",
+        showOriginal: "Original anzeigen",
+        translating: "Wird übersetzt…",
         auditHistory: "Audit-Verlauf",
         scrollLeft: "Nach links scrollen",
         scrollRight: "Nach rechts scrollen",
@@ -307,6 +378,9 @@ const STRINGS = {
         auditResults: "نتائج التدقيق",
         newTask: "مهمة جديدة",
         refresh: "تحديث",
+        translateBtn: "ترجمة",
+        showOriginal: "إظهار الأصل",
+        translating: "جارٍ الترجمة…",
         auditHistory: "سجل التدقيق",
         scrollLeft: "التمرير لليسار",
         scrollRight: "التمرير لليمين",
@@ -399,7 +473,7 @@ const STRINGS = {
 };
 
 ;// ./my-tasks-widget.ts
-var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
+var my_tasks_widget_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
         function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
@@ -540,7 +614,7 @@ const factory = (BaseBlockClass, widgetApi) => {
     return class MyTasksWidget extends BaseBlockClass {
         constructor() { super(); }
         renderBlock(container) {
-            return __awaiter(this, void 0, void 0, function* () {
+            return my_tasks_widget_awaiter(this, void 0, void 0, function* () {
                 const apiToken = this.getAttribute("apitoken") || DEFAULT_API_TOKEN;
                 const baseUrl = (this.getAttribute("baseurl") || DEFAULT_BASE_URL).replace(/\/$/, "");
                 const primaryColor = this.getAttribute("primarycolor") || DEFAULT_PRIMARY_COLOR;
@@ -577,6 +651,14 @@ const factory = (BaseBlockClass, widgetApi) => {
                 // `tr` (not `t`) — the codebase uses `t` as the task loop variable in many
                 // .map/.filter callbacks, which would shadow a translator named `t`.
                 let tr = makeT(STRINGS, locale);
+                // ── On-demand content translation (free-text task data) ────────────
+                // Ephemeral: nothing is persisted. `ct(text)` returns the cached
+                // translation when translate-mode is on, else the original.
+                let contentTranslated = false;
+                let translateBusy = false;
+                const ctCache = {};
+                const ct = (s) => { if (!contentTranslated || !s)
+                    return s; return ctCache[s.trim()] || s; };
                 let allInstalls = []; // for task creation
                 const listsByInst = new Map();
                 let usersList = null; // lazy, for reassign picker
@@ -603,6 +685,8 @@ const factory = (BaseBlockClass, widgetApi) => {
           /* ── Create task sheet ── */
           .${p}-create{--primary:${primaryColor};--primary-rgb:${primaryRgb};--primary-text:${primaryText};--dark:#1A1A1A;--gray:#6b7280;--gray-lt:#9ca3af;--border:#e5e7eb;--error:#C41E3A;--r-sm:6px;--r-md:10px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;position:fixed;left:0;right:0;bottom:0;z-index:100001;background:#fff;border-radius:20px 20px 0 0;max-height:90vh;display:flex;flex-direction:column;transform:translateY(102%);transition:transform .32s cubic-bezier(.32,.72,0,1);overflow:hidden;box-shadow:0 -8px 40px rgba(0,0,0,.18)}
           .${p}-create.open{transform:translateY(0)}
+          .${p}-create.side{left:auto;top:0;right:0;bottom:0;width:min(460px,94vw);max-height:none;border-radius:20px 0 0 20px;transform:translateX(102%)}
+          .${p}-create.side.open{transform:translateX(0)}
           .${p}-create-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 12px;border-bottom:1px solid var(--border)}
           .${p}-create-head h3{margin:0;font-size:16px;font-weight:800;color:var(--dark)}
           .${p}-create-close{width:30px;height:30px;border:none;background:#f3f4f6;border-radius:50%;cursor:pointer;color:var(--gray);display:flex;align-items:center;justify-content:center}
@@ -759,13 +843,13 @@ const factory = (BaseBlockClass, widgetApi) => {
           /* ── Filter bar ── */
           .${p}-filters{display:flex;gap:8px;margin-bottom:16px;align-items:center}
           .${p}-type-wrap{position:relative;flex:1;min-width:0}
-          .${p}-type-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:6px;padding:7px 11px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fff;font-size:12px;font-weight:600;color:var(--gray);cursor:pointer;font-family:inherit;transition:all .15s;text-align:left}
+          .${p}-type-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:6px;padding:7px 11px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fff;font-size:12px;font-weight:600;color:var(--gray);cursor:pointer;font-family:inherit;transition:all .15s;text-align:start}
           .${p}-type-btn:hover,.${p}-type-btn.open{border-color:var(--primary);color:var(--primary)}
           .${p}-type-btn svg{flex-shrink:0;transition:transform .15s}
           .${p}-type-btn.open svg{transform:rotate(180deg)}
           .${p}-type-menu{display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1.5px solid var(--border);border-radius:var(--r-md);box-shadow:var(--shadow-md);z-index:100;overflow:hidden}
           .${p}-type-menu.open{display:block}
-          .${p}-type-opt{display:flex;align-items:center;gap:8px;width:100%;padding:8px 12px;border:none;background:none;font-size:12px;font-weight:500;color:var(--gray);cursor:pointer;font-family:inherit;text-align:left;transition:background .1s}
+          .${p}-type-opt{display:flex;align-items:center;gap:8px;width:100%;padding:8px 12px;border:none;background:none;font-size:12px;font-weight:500;color:var(--gray);cursor:pointer;font-family:inherit;text-align:start;transition:background .1s}
           .${p}-type-opt:hover{background:rgba(0,0,0,.04);color:var(--dark)}
           .${p}-type-opt.active{font-weight:700;color:var(--dark);background:rgba(var(--primary-rgb),.06)}
           .${p}-type-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
@@ -774,10 +858,10 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-status-opt.active{background:var(--primary);color:var(--primary-text)}
           /* ── Task cards ── */
           .${p}-list{display:flex;flex-direction:column;gap:8px}
-          .${p}-card{background:#fff;border-radius:var(--r-lg);box-shadow:var(--shadow-sm);border:1px solid var(--border);border-left:3px solid var(--primary);overflow:hidden;cursor:pointer;transition:transform .15s ease,box-shadow .15s ease,border-left-color .35s ease,opacity .35s ease}
-          .${p}-card:hover:not(.done){transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.09);border-left-color:var(--accent)}
+          .${p}-card{background:#fff;border-radius:var(--r-lg);box-shadow:var(--shadow-sm);border:1px solid var(--border);border-inline-start:3px solid var(--primary);overflow:hidden;cursor:pointer;transition:transform .15s ease,box-shadow .15s ease,border-left-color .35s ease,opacity .35s ease}
+          .${p}-card:hover:not(.done){transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.09);border-inline-start-color:var(--accent)}
           .${p}-card:active:not(.done){transform:translateY(0);box-shadow:var(--shadow-sm)}
-          .${p}-card.done{border-left-color:var(--border);opacity:.72}
+          .${p}-card.done{border-inline-start-color:var(--border);opacity:.72}
           .${p}-card.done:hover{opacity:.88}
           .${p}-card-inner{display:flex;align-items:flex-start;gap:12px;padding:13px 16px}
           .${p}-check-wrap{flex-shrink:0;padding-top:2px;position:relative}
@@ -849,7 +933,7 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-cat-chart{display:flex;flex-direction:column;gap:10px;margin-top:13px}
           .${p}-cat-top{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;margin-bottom:4px}
           .${p}-cat-name{color:var(--dark);font-weight:400}
-          .${p}-cat-pct{color:var(--gray);font-weight:700;flex-shrink:0;margin-left:8px}
+          .${p}-cat-pct{color:var(--gray);font-weight:700;flex-shrink:0;margin-inline-start:8px}
           .${p}-cat-bar{height:7px;background:rgba(0,0,0,.08);border-radius:4px;overflow:hidden}
           .${p}-cat-fill{display:block;height:100%;border-radius:4px;transition:width .45s ease}
           .${p}-cat-fill.hi{background:var(--success)}
@@ -892,10 +976,13 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-banner.info{background:rgba(var(--primary-rgb),.06);border:1px solid rgba(var(--primary-rgb),.2);color:var(--primary)}
           .${p}-section-label{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--gray-lt);padding:4px 0 8px;margin-top:4px}
           /* ── Ghost cards (other audit tasks) ── */
-          .${p}-card.ghost{opacity:.55;border-left-color:var(--border)}
+          .${p}-card.ghost{opacity:.55;border-inline-start-color:var(--border)}
           .${p}-card.ghost:hover{opacity:.8}
           .${p}-other-toggle{width:100%;padding:9px 14px;background:none;border:1.5px dashed var(--border);border-radius:var(--r-md);font-size:12px;font-weight:600;color:var(--gray-lt);cursor:pointer;text-align:center;font-family:inherit;transition:all .15s;touch-action:manipulation;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:6px}
           .${p}-other-toggle:hover{border-color:var(--gray);color:var(--gray)}
+        
+          /* RTL: flip horizontal directional arrows */
+          [dir="rtl"] .mtw-audit-arrow svg{transform:scaleX(-1)}
         </style>
 
         <div class="${p}">
@@ -907,6 +994,10 @@ const factory = (BaseBlockClass, widgetApi) => {
             </div>
             <div class="${p}-header-actions">
               ${allowCreate && !auditMode ? `<button type="button" class="${p}-new-btn" id="${p}-new" title="${tr("newTask")}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span id="${p}-new-label">${tr("newTask")}</span></button>` : ""}
+              <button type="button" class="${p}-refresh-btn" id="${p}-translate" title="${tr("translateBtn")}" style="display:none;width:auto;padding:0 10px;gap:5px">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8l6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6"/></svg>
+                <span id="${p}-translate-lbl"></span>
+              </button>
               <button type="button" class="${p}-refresh-btn" id="${p}-refresh" title="${tr("refresh")}">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
               </button>
@@ -1096,7 +1187,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 aX.addEventListener("click", closeAttModal);
                 attModal.addEventListener("click", e => { if (e.target === attModal)
                     closeAttModal(); });
-                aDl.addEventListener("click", () => __awaiter(this, void 0, void 0, function* () {
+                aDl.addEventListener("click", () => my_tasks_widget_awaiter(this, void 0, void 0, function* () {
                     if (!dlUrl)
                         return;
                     const name = dlName;
@@ -1209,7 +1300,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                         const collapsed = panel.classList.toggle("collapsed");
                         e.target.textContent = collapsed ? "Show" : "Hide";
                     });
-                    copyBtn.addEventListener("click", () => __awaiter(this, void 0, void 0, function* () {
+                    copyBtn.addEventListener("click", () => my_tasks_widget_awaiter(this, void 0, void 0, function* () {
                         const text = debugLog.join("\n");
                         let ok = false;
                         try {
@@ -1273,7 +1364,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 }
                 // Upload a File to Staffbase media via the resumable TUS protocol.
                 function uploadMedia(file) {
-                    return __awaiter(this, void 0, void 0, function* () {
+                    return my_tasks_widget_awaiter(this, void 0, void 0, function* () {
                         var _a, _b, _c, _d;
                         const create = yield fetch(`${baseUrl}/media/tus`, {
                             method: "POST", credentials: "omit",
@@ -1320,7 +1411,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     });
                 }
                 function mediaMeta(id) {
-                    return __awaiter(this, void 0, void 0, function* () {
+                    return my_tasks_widget_awaiter(this, void 0, void 0, function* () {
                         try {
                             const r = yield fetch(`${baseUrl}/media/medium/${id}/metadata`, apiOpts());
                             return r.ok ? yield r.json() : null;
@@ -1396,7 +1487,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 // Reading comments works with the Basic token (confirmed). Only the
                 // POST needs the user session, so the read uses the token path here.
                 function loadComments(task) {
-                    return __awaiter(this, void 0, void 0, function* () {
+                    return my_tasks_widget_awaiter(this, void 0, void 0, function* () {
                         const url = `${baseUrl}/tasks/${task.installationId}/task/${task.id}/comments${currentUserId ? `?viewedBy=${currentUserId}` : ""}`;
                         dlog("GET comments", url);
                         const r = yield fetch(url, apiOpts({ headers: { Accept: CMT_HTML_ACCEPT } }));
@@ -1417,7 +1508,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 // User lookup (for avatars + names on comments), cached.
                 const userCache = new Map();
                 function fetchUser(id) {
-                    return __awaiter(this, void 0, void 0, function* () {
+                    return my_tasks_widget_awaiter(this, void 0, void 0, function* () {
                         var _a, _b, _c, _d, _e, _f;
                         if (!id)
                             return { name: "User", avatar: "" };
@@ -1440,7 +1531,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     });
                 }
                 function fetchUsers() {
-                    return __awaiter(this, void 0, void 0, function* () {
+                    return my_tasks_widget_awaiter(this, void 0, void 0, function* () {
                         if (usersList)
                             return usersList;
                         try {
@@ -1483,7 +1574,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                         results.innerHTML = html;
                         results.querySelectorAll(`.${p}-reassign-opt`).forEach(o => o.addEventListener("click", () => apply(o.dataset.type, o.dataset.id)));
                     };
-                    const apply = (type, id) => __awaiter(this, void 0, void 0, function* () {
+                    const apply = (type, id) => my_tasks_widget_awaiter(this, void 0, void 0, function* () {
                         const body = type === "group" ? { groupIds: [id], assigneeIds: [] } : type === "user" ? { assigneeIds: [id], groupIds: [] } : { assigneeIds: [], groupIds: [] };
                         pop.style.display = "none";
                         btn.disabled = true;
@@ -1502,7 +1593,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                             btn.disabled = false;
                         }
                     });
-                    btn.addEventListener("click", () => __awaiter(this, void 0, void 0, function* () {
+                    btn.addEventListener("click", () => my_tasks_widget_awaiter(this, void 0, void 0, function* () {
                         if (pop.style.display !== "none") {
                             pop.style.display = "none";
                             return;
@@ -1530,7 +1621,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     return `<span class="${p}-cmt-av ${p}-cmt-av-fb">${esc(initials(info.name))}</span>`;
                 }
                 function postComment(task, text) {
-                    return __awaiter(this, void 0, void 0, function* () {
+                    return my_tasks_widget_awaiter(this, void 0, void 0, function* () {
                         const url = `${baseUrl}/tasks/${task.installationId}/task/${task.id}/comments`;
                         const body = JSON.stringify({ content: commentDoc(text) });
                         dlog("POST comment", url, "csrf?", readCsrf() ? "yes" : "no", "body", body);
@@ -1595,7 +1686,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 // Inline comment attachments: comment text carries [attachment:<id>] tokens.
                 const mediaCache = new Map();
                 function metaCached(id) {
-                    return __awaiter(this, void 0, void 0, function* () { if (mediaCache.has(id))
+                    return my_tasks_widget_awaiter(this, void 0, void 0, function* () { if (mediaCache.has(id))
                         return mediaCache.get(id); const m = yield mediaMeta(id); mediaCache.set(id, m); return m; });
                 }
                 const ATT_TOKEN = /\[attachment:([A-Za-z0-9]+)\]/g;
@@ -1617,7 +1708,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 }
                 // Render the comments list inside the open detail panel.
                 function renderComments(task) {
-                    return __awaiter(this, void 0, void 0, function* () {
+                    return my_tasks_widget_awaiter(this, void 0, void 0, function* () {
                         const list = detailBody.querySelector(`#${p}-cmt-list-${instId}`);
                         if (!list)
                             return;
@@ -1664,7 +1755,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 }
                 // Render the attachment tiles inside the open detail panel for a task.
                 function renderAttachments(task) {
-                    return __awaiter(this, void 0, void 0, function* () {
+                    return my_tasks_widget_awaiter(this, void 0, void 0, function* () {
                         const grid = detailBody.querySelector(`#${p}-att-grid-${instId}`);
                         if (!grid)
                             return;
@@ -1697,7 +1788,7 @@ const factory = (BaseBlockClass, widgetApi) => {
           </div>`;
                         }).join("");
                         grid.querySelectorAll(`.${p}-att-x`).forEach(btn => {
-                            btn.addEventListener("click", () => __awaiter(this, void 0, void 0, function* () {
+                            btn.addEventListener("click", () => my_tasks_widget_awaiter(this, void 0, void 0, function* () {
                                 const rid = btn.dataset.id || "";
                                 const next = (task.attachmentIds || []).filter(x => x !== rid);
                                 btn.disabled = true;
@@ -1876,7 +1967,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     const types = getTypes();
                     const sel = types.filter(t => activeTypeFilters.has(t.key));
                     if (sel.length === 1)
-                        return sel[0].label;
+                        return ct(sel[0].label);
                     return tr("nTypes").replace("{n}", String(sel.length));
                 }
                 function renderTypeFilters() {
@@ -1900,7 +1991,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                             : `<span class="${p}-type-dot" style="background:var(--border)"></span>`;
                         return `<button type="button" class="${p}-type-opt ${checked ? "active" : ""}" data-key="${esc(key)}">
               <span style="width:12px;display:flex;align-items:center;justify-content:center">${checked ? iconCheck : ""}</span>
-              ${dot}${esc(label)}</button>`;
+              ${dot}${esc(ct(label))}</button>`;
                     }).join("")}`;
                     typeMenu.querySelectorAll(`.${p}-type-opt`).forEach(btn => {
                         btn.addEventListener("click", e => {
@@ -1957,7 +2048,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     introUsed = true;
                     for (const key of orderedKeys) {
                         const group = grouped.get(key);
-                        const label = key === "__none__" ? tr("noTypeLabel") : key;
+                        const label = key === "__none__" ? tr("noTypeLabel") : ct(key);
                         html += `<div class="${p}-section-label">${esc(label)} <span style="font-weight:400">(${group.length})</span></div>`;
                         for (const task of group)
                             html += renderTaskCard(task);
@@ -1999,7 +2090,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 <div class="${p}-audit-card-score" style="color:${scoreColor}">${pct != null ? pct + "%" : "—"}</div>
                 <div style="font-size:13px;font-weight:700;color:${scoreColor};margin-top:3px">${passing === true ? tr("passing") : passing === false ? tr("failing") : "—"}</div>
               </div>
-              <div style="font-size:11px;color:var(--gray-lt);text-align:right;line-height:1.6">
+              <div style="font-size:11px;color:var(--gray-lt);text-align:end;line-height:1.6">
                 ${pa.taskCount != null ? `<div style="font-weight:600;color:${scoreColor}">${pa.taskCount} task${pa.taskCount !== 1 ? "s" : ""} flagged</div>` : ""}
               </div>
             </div>
@@ -2118,7 +2209,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     const isCrit = (task.auditSeverity || "").toLowerCase() === "critical";
                     const prioCol = isCrit ? "#9B1C2E" : priorityColor(task.priority);
                     const prioLbl = isCrit ? tr("critical") : task.priority === "Priority_1" ? tr("high") : task.priority === "Priority_2" ? tr("medium") : tr("normal");
-                    const typeBadge = task.taskType ? `<span class="${p}-type-badge" style="background:${typeCol};color:${typeText}">${esc(task.taskType)}</span>` : "";
+                    const typeBadge = task.taskType ? `<span class="${p}-type-badge" style="background:${typeCol};color:${typeText}">${esc(ct(task.taskType))}</span>` : "";
                     const prioBadge = (isCrit || (task.priority && task.priority !== "Priority_3")) ? `<span class="${p}-prio-badge${isCrit ? " crit" : ""}" style="color:${prioCol};border-color:${prioCol}">${prioLbl}</span>` : "";
                     const iconRecur = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`;
                     const recurBadge = task.isRecurring ? `<span class="${p}-recur-badge">${iconRecur}${tr("recurring")}</span>` : "";
@@ -2141,7 +2232,7 @@ const factory = (BaseBlockClass, widgetApi) => {
               </div>
               <div class="${p}-card-body">
                 <div class="${p}-card-top">${typeBadge}${recurBadge}${prioBadge}</div>
-                <div class="${p}-card-title"><span>${esc(task.title)}</span></div>
+                <div class="${p}-card-title"><span>${esc(ct(task.title))}</span></div>
                 ${desc ? `<div class="${p}-card-desc">${desc}</div>` : ""}
                 <div class="${p}-card-meta">
                   ${dueInfo.text ? `<span class="${p}-meta-item ${dueInfo.overdue && !isDone ? "overdue" : ""}">${iconCal} ${dueInfo.overdue && !isDone ? "Overdue: " : ""}${dueInfo.text}</span>` : ""}
@@ -2196,7 +2287,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                         const tier = v >= 80 ? "hi" : v >= 50 ? "mid" : "lo";
                         const detail = c && c.total != null ? `${c.earned}/${c.total}` : "";
                         return `<div class="${p}-cat-row">
-            <div class="${p}-cat-top"><span class="${p}-cat-name">${esc(name)}</span><span class="${p}-cat-pct">${detail ? `<span style="color:var(--gray-lt);font-weight:500;margin-right:6px">${detail}</span>` : ""}${v}%</span></div>
+            <div class="${p}-cat-top"><span class="${p}-cat-name">${esc(name)}</span><span class="${p}-cat-pct">${detail ? `<span style="color:var(--gray-lt);font-weight:500;margin-inline-end:6px">${detail}</span>` : ""}${v}%</span></div>
             <div class="${p}-cat-bar"><span class="${p}-cat-fill ${tier}" data-pct="${v}" style="width:0;transition-delay:${i * 60}ms"></span></div>
           </div>`;
                     }).join("");
@@ -2334,7 +2425,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     const cleanDesc = task.description ? stripTypeTag(task.description).trim() : "";
                     const iconRecurD = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`;
                     detailBadges.innerHTML = `
-          ${task.taskType ? `<span class="${p}-type-badge" style="background:${typeCol};color:${typeText}">${esc(task.taskType)}</span>` : ""}
+          ${task.taskType ? `<span class="${p}-type-badge" style="background:${typeCol};color:${typeText}">${esc(ct(task.taskType))}</span>` : ""}
           ${task.isRecurring ? `<span class="${p}-recur-badge">${iconRecurD}Recurring</span>` : ""}
           ${(isCrit || (task.priority && task.priority !== "Priority_3")) ? `<span class="${p}-prio-badge${isCrit ? " crit" : ""}" style="color:${prioCol};border-color:${prioCol}">${prioLbl}</span>` : ""}`;
                     const iCal = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
@@ -2367,7 +2458,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                         }
                     }
                     detailBody.innerHTML = `
-          <div class="${p}-detail-title ${isDone ? "done" : ""}">${esc(task.title)}</div>
+          <div class="${p}-detail-title ${isDone ? "done" : ""}">${esc(ct(task.title))}</div>
           <div class="${p}-detail-meta">
             ${dueInfo.text ? `<div class="${p}-detail-meta-row ${dueInfo.overdue && !isDone ? "overdue" : ""}">${iCal}${dueInfo.overdue && !isDone ? "Overdue · " : "Due "}${dueInfo.text}</div>` : ""}
             ${task.installationTitle ? `<div class="${p}-detail-meta-row">${iStore} ${esc(task.installationTitle)}</div>` : ""}
@@ -2395,7 +2486,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 </div>`;
                         }
                         return cleanDesc
-                            ? `<div class="${p}-detail-desc-label">${tr("description")}</div><div class="${p}-detail-desc">${esc(cleanDesc)}</div>`
+                            ? `<div class="${p}-detail-desc-label">${tr("description")}</div><div class="${p}-detail-desc">${esc(ct(cleanDesc))}</div>`
                             : `<div class="${p}-detail-desc empty">${tr("noDescription")}</div>`;
                     })()}
           <div class="${p}-att">
@@ -2504,7 +2595,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                             cInput.style.height = Math.min(cInput.scrollHeight, 140) + "px";
                             updateSendVisibility();
                         });
-                        cFile === null || cFile === void 0 ? void 0 : cFile.addEventListener("change", () => __awaiter(this, void 0, void 0, function* () {
+                        cFile === null || cFile === void 0 ? void 0 : cFile.addEventListener("change", () => my_tasks_widget_awaiter(this, void 0, void 0, function* () {
                             const files = Array.from(cFile.files || []);
                             cFile.value = "";
                             if (!files.length)
@@ -2531,7 +2622,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                             renderChips();
                             updateSendVisibility();
                         }));
-                        const submit = () => __awaiter(this, void 0, void 0, function* () {
+                        const submit = () => my_tasks_widget_awaiter(this, void 0, void 0, function* () {
                             const text = ((cInput === null || cInput === void 0 ? void 0 : cInput.value) || "").trim();
                             if ((!text && !pending.length) || !cSend || !cInput)
                                 return;
@@ -2583,7 +2674,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     const attInput = detailBody.querySelector(`#${p}-att-input-${instId}`);
                     if (attAdd && attInput) {
                         // attAdd is a <label for> → opens the picker natively (mobile-reliable).
-                        attInput.addEventListener("change", () => __awaiter(this, void 0, void 0, function* () {
+                        attInput.addEventListener("change", () => my_tasks_widget_awaiter(this, void 0, void 0, function* () {
                             const files = Array.from(attInput.files || []);
                             attInput.value = "";
                             if (!files.length)
@@ -2641,7 +2732,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     closeDetail(); };
                 document.addEventListener("keydown", onDocKey);
                 self._mtwDocKey = onDocKey;
-                detailToggle.addEventListener("click", () => __awaiter(this, void 0, void 0, function* () {
+                detailToggle.addEventListener("click", () => my_tasks_widget_awaiter(this, void 0, void 0, function* () {
                     if (!detailTask)
                         return;
                     const task = detailTask;
@@ -2687,7 +2778,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 }
                 // ── Toggle task status ────────────────────────────────────────────
                 function toggleTask(checkEl) {
-                    return __awaiter(this, void 0, void 0, function* () {
+                    return my_tasks_widget_awaiter(this, void 0, void 0, function* () {
                         const taskId = checkEl.dataset.taskId;
                         const installId = checkEl.dataset.installId;
                         const currentStatus = checkEl.dataset.status;
@@ -2759,7 +2850,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 // time, so it picks up the new locale automatically.
                 let localeApplied = false;
                 function applyLocale() {
-                    return __awaiter(this, void 0, void 0, function* () {
+                    return my_tasks_widget_awaiter(this, void 0, void 0, function* () {
                         var _a;
                         if (localeApplied)
                             return;
@@ -2820,11 +2911,77 @@ const factory = (BaseBlockClass, widgetApi) => {
                         st("open", tr("open"));
                         st("done", tr("done"));
                         st("all", tr("both"));
+                        // Translate button: only meaningful when the viewer isn't on en_US.
+                        const trBtn = container.querySelector(`#${p}-translate`);
+                        if (trBtn) {
+                            if (locale !== DEFAULT_LOCALE) {
+                                trBtn.style.display = "";
+                                updateTranslateBtn();
+                                trBtn.addEventListener("click", toggleTranslate);
+                            }
+                            else
+                                trBtn.style.display = "none";
+                        }
+                    });
+                }
+                // ── On-demand content translation ─────────────────────────────────
+                // One batched POST to /api/translations via the logged-in user's session
+                // (same auth path as comments). Source = branch default (en_US).
+                function translateSend(payload) {
+                    return my_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                        var _a;
+                        const r = yield fetch(`${baseUrl}/translations`, sessionOpts({
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ sourceLanguage: DEFAULT_LOCALE, targetLanguage: locale, contents: { value: payload } }),
+                        }));
+                        if (!r.ok)
+                            throw new Error("translate " + r.status);
+                        const d = yield r.json();
+                        return ((_a = d === null || d === void 0 ? void 0 : d.contents) === null || _a === void 0 ? void 0 : _a.value) || "";
+                    });
+                }
+                function updateTranslateBtn() {
+                    const lbl = container.querySelector(`#${p}-translate-lbl`);
+                    if (lbl)
+                        lbl.textContent = translateBusy ? tr("translating") : contentTranslated ? tr("showOriginal") : tr("translateBtn");
+                }
+                function toggleTranslate() {
+                    return my_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                        if (translateBusy)
+                            return;
+                        if (!contentTranslated) {
+                            const texts = [];
+                            for (const t of allTasks) {
+                                if (t.title)
+                                    texts.push(t.title);
+                                if (t.taskType)
+                                    texts.push(t.taskType);
+                                const cd = t.description ? stripTypeTag(t.description).trim() : "";
+                                if (cd)
+                                    texts.push(cd);
+                            }
+                            if (texts.length) {
+                                translateBusy = true;
+                                updateTranslateBtn();
+                                const map = yield translateMap(texts, translateSend);
+                                Object.assign(ctCache, map);
+                                translateBusy = false;
+                            }
+                            contentTranslated = true;
+                        }
+                        else {
+                            contentTranslated = false;
+                        }
+                        updateTranslateBtn();
+                        renderList();
+                        if (detailTask)
+                            renderDetailContent(detailTask);
                     });
                 }
                 // ── Load data ─────────────────────────────────────────────────────
                 function load() {
-                    return __awaiter(this, void 0, void 0, function* () {
+                    return my_tasks_widget_awaiter(this, void 0, void 0, function* () {
                         var _a, _b, _c, _d, _e, _f;
                         refreshBtn.disabled = true;
                         refreshBtn.innerHTML = `<span class="${p}-spin" style="width:14px;height:14px;border-width:2px"></span>`;
@@ -3109,7 +3266,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                         });
                         $("c-x").addEventListener("click", closeCreate);
                         $("c-cancel").addEventListener("click", closeCreate);
-                        $("c-save").addEventListener("click", () => __awaiter(this, void 0, void 0, function* () {
+                        $("c-save").addEventListener("click", () => my_tasks_widget_awaiter(this, void 0, void 0, function* () {
                             const title = ($("c-title").value || "").trim();
                             if (!title) {
                                 $("c-title").focus();
@@ -3158,6 +3315,8 @@ const factory = (BaseBlockClass, widgetApi) => {
                                 saveBtn.textContent = tr("createTask");
                             }
                         }));
+                        // Side panel on desktop, bottom sheet on mobile (matches detail panel).
+                        createEl.classList.toggle("side", window.innerWidth >= 720);
                         overlayEl.classList.add("open");
                         requestAnimationFrame(() => createEl.classList.add("open"));
                         (_a = $("c-title")) === null || _a === void 0 ? void 0 : _a.focus();

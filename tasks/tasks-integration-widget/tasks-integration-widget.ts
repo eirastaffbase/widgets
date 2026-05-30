@@ -249,7 +249,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             border-radius: var(--r-lg);
             box-shadow: var(--shadow-sm);
             border: 1px solid var(--border);
-            border-left: 3px solid var(--primary);
+            border-inline-start: 3px solid var(--primary);
             margin-bottom: 12px;
             overflow: visible;
             transition: background-color .18s ease, box-shadow .18s ease;
@@ -402,7 +402,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
           .${p}-tbl th {
             background: #f9fafb; color: var(--gray);
-            padding: 9px 12px; text-align: left;
+            padding: 9px 12px; text-align:start;
             font-size: 11px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase;
             border-bottom: 1.5px solid var(--border);
           }
@@ -613,7 +613,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             font-size: 9px; font-weight: 700; flex-shrink: 0;
           }
           .${p}-assign-chip-av img { width: 100%; height: 100%; object-fit: cover; }
-          .${p}-assign-chip-x { cursor: pointer; color: var(--gray); font-size: 14px; line-height: 1; margin-left: 2px; opacity: .6; }
+          .${p}-assign-chip-x { cursor: pointer; color: var(--gray); font-size: 14px; line-height: 1; margin-inline-start: 2px; opacity: .6; }
           .${p}-assign-chip-x:hover { opacity: 1; }
           .${p}-assign-search input {
             width: 100%; box-sizing: border-box; padding: 8px 10px;

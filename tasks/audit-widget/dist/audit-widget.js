@@ -463,7 +463,7 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
           .${p}-title{font-size:18px;font-weight:800;color:var(--dark);display:flex;align-items:center;gap:10px}
           .${p}-title-dot{width:10px;height:10px;border-radius:50%;background:var(--primary);flex-shrink:0}
-          .${p}-card{background:#fff;border-radius:var(--r-lg);box-shadow:var(--shadow-sm);border:1px solid var(--border);border-left:3px solid var(--primary);margin-bottom:12px;overflow:visible}
+          .${p}-card{background:#fff;border-radius:var(--r-lg);box-shadow:var(--shadow-sm);border:1px solid var(--border);border-inline-start:3px solid var(--primary);margin-bottom:12px;overflow:visible}
           .${p}-card-head{display:flex;align-items:center;gap:10px;padding:14px 18px 12px;border-bottom:1px solid var(--border)}
           .${p}-step{width:22px;height:22px;border-radius:50%;background:var(--primary);color:var(--primary-text);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
           .${p}-card-title{font-size:12px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--dark);flex:1}
@@ -472,8 +472,8 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-input,.${p}-select{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:var(--r-md);font-size:14px;font-family:inherit;color:var(--dark);background:#fafafa;transition:border-color .15s,box-shadow .15s}
           .${p}-input::placeholder{color:var(--gray-lt)}
           .${p}-input:focus,.${p}-select:focus{outline:none;border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(var(--primary-rgb),.1)}
-          .${p}-input[type="date"]{-webkit-appearance:none;appearance:none;text-align:left;min-height:44px;padding-right:40px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cline x1='16' y1='2' x2='16' y2='6'/%3E%3Cline x1='8' y1='2' x2='8' y2='6'/%3E%3Cline x1='3' y1='10' x2='21' y2='10'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center}
-          .${p}-input[type="date"]::-webkit-date-and-time-value{text-align:left}
+          .${p}-input[type="date"]{-webkit-appearance:none;appearance:none;text-align:start;min-height:44px;padding-inline-end:40px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cline x1='16' y1='2' x2='16' y2='6'/%3E%3Cline x1='8' y1='2' x2='8' y2='6'/%3E%3Cline x1='3' y1='10' x2='21' y2='10'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center}
+          .${p}-input[type="date"]::-webkit-date-and-time-value{text-align:start}
           .${p}-input[type="date"]::-webkit-calendar-picker-indicator{opacity:0;position:absolute;right:0;width:40px;height:100%;cursor:pointer}
           .${p}-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
           @media(max-width:480px){.${p}-row{grid-template-columns:1fr}}
@@ -495,18 +495,18 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-cat-tabs-wrap{position:relative;flex:1;overflow:hidden}
           .${p}-cat-tabs{display:flex;gap:0;overflow-x:auto;scrollbar-width:none;border-bottom:2px solid var(--border);will-change:transform;-webkit-overflow-scrolling:touch}
           .${p}-cat-tabs::-webkit-scrollbar{display:none}
-          .${p}-cat-tab{flex-shrink:0!important;min-width:200px!important;padding:10px 14px!important;font-size:11px!important;font-weight:600!important;color:var(--gray)!important;cursor:pointer!important;border-bottom:2.5px solid transparent!important;border-left:none!important;border-right:none!important;border-top:none!important;margin-bottom:-2px!important;white-space:nowrap!important;background:none!important;font-family:inherit!important;transition:color .15s,border-color .15s,background .15s!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:3px!important;width:auto!important;line-height:normal!important;border-radius:var(--r-sm) var(--r-sm) 0 0!important}
+          .${p}-cat-tab{flex-shrink:0!important;min-width:200px!important;padding:10px 14px!important;font-size:11px!important;font-weight:600!important;color:var(--gray)!important;cursor:pointer!important;border-bottom:2.5px solid transparent!important;border-inline-start:none!important;border-inline-end:none!important;border-top:none!important;margin-bottom:-2px!important;white-space:nowrap!important;background:none!important;font-family:inherit!important;transition:color .15s,border-color .15s,background .15s!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:3px!important;width:auto!important;line-height:normal!important;border-radius:var(--r-sm) var(--r-sm) 0 0!important}
           .${p}-cat-tab:hover{background:rgba(var(--primary-rgb),.04)!important;color:var(--dark)!important}
           .${p}-cat-tab.active{background:rgba(var(--primary-rgb),.07)!important;color:var(--primary)!important;border-bottom-color:var(--primary)!important}
           .${p}-cat-tab-name{font-size:11px!important;font-weight:600!important;line-height:1!important}
           .${p}-cat-tab-score{font-size:10px!important;font-weight:500!important;opacity:.7!important;line-height:1!important}
-          .${p}-cat-badge{display:inline-flex;align-items:center;justify-content:center;background:var(--error);color:#fff;border-radius:9px;font-size:9px;font-weight:700;padding:1px 5px;margin-left:4px}
+          .${p}-cat-badge{display:inline-flex;align-items:center;justify-content:center;background:var(--error);color:#fff;border-radius:9px;font-size:9px;font-weight:700;padding:1px 5px;margin-inline-start:4px}
 
           /* scroll arrows */
           .${p}-tabs-arrow{position:absolute;top:0;bottom:2px;width:36px;display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;z-index:10;transition:opacity .2s;pointer-events:none;opacity:0}
           .${p}-tabs-arrow.visible{pointer-events:auto;opacity:1}
-          .${p}-tabs-arrow-left{left:0;background:linear-gradient(to right,#fff 60%,transparent);color:var(--gray);padding-left:4px;justify-content:flex-start}
-          .${p}-tabs-arrow-right{right:0;background:linear-gradient(to left,#fff 60%,transparent);color:var(--gray);padding-right:4px;justify-content:flex-end}
+          .${p}-tabs-arrow-left{left:0;background:linear-gradient(to right,#fff 60%,transparent);color:var(--gray);padding-inline-start:4px;justify-content:flex-start}
+          .${p}-tabs-arrow-right{right:0;background:linear-gradient(to left,#fff 60%,transparent);color:var(--gray);padding-inline-end:4px;justify-content:flex-end}
           .${p}-tabs-arrow:hover{color:var(--primary)}
 
           .${p}-question{border-bottom:1px solid var(--border);padding:14px 0}
@@ -514,7 +514,7 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-q-header{display:flex;align-items:flex-start;gap:8px;margin-bottom:6px}
           .${p}-q-id{background:#f3f4f6;color:var(--gray);font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;border:1px solid var(--border);flex-shrink:0;margin-top:2px;white-space:nowrap}
           .${p}-q-text{font-size:14px;line-height:1.4;flex:1}
-          .${p}-q-criteria{font-size:11px;color:var(--gray-lt);margin-bottom:8px;padding-left:2px;display:flex;align-items:flex-start;gap:4px;line-height:1.4}
+          .${p}-q-criteria{font-size:11px;color:var(--gray-lt);margin-bottom:8px;padding-inline-start:2px;display:flex;align-items:flex-start;gap:4px;line-height:1.4}
           .${p}-q-chips{display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap}
           .${p}-chip{font-size:10px;padding:2px 7px;border-radius:10px;font-weight:600;display:inline-flex;align-items:center;gap:3px}
           .${p}-chip-pts{background:#eef2ff;color:#3730a3}
@@ -557,11 +557,11 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-timer-btn:active{transform:scale(.96)}
           .${p}-timer-btn.stop{background:var(--error)!important}
           .${p}-timer-btn.ghost{background:#fafafa!important;border:1.5px solid var(--border)!important;color:var(--gray)!important;font-weight:600!important}
-          .${p}-timer-actions{display:flex;gap:8px;margin-left:auto}
+          .${p}-timer-actions{display:flex;gap:8px;margin-inline-start:auto}
           /* Mobile: let the timer wrap and the Start/Reset buttons drop to their own full-width row. */
           @media(max-width:600px){
             .${p}-timer-display{font-size:20px;min-width:54px}
-            .${p}-timer-actions{width:100%;margin-left:0;margin-top:4px}
+            .${p}-timer-actions{width:100%;margin-inline-start:0;margin-top:4px}
             .${p}-timer-btn{flex:1 1 0;padding:9px 8px!important}
           }
           .${p}-task-flag{background:#fffbeb;border:1px solid #fde68a;border-radius:var(--r-md);padding:10px 12px;margin-top:10px;display:none}
@@ -577,9 +577,9 @@ const factory = (BaseBlockClass, widgetApi) => {
           /* category breakdown — 3-col grid so count is always truly centered */
           .${p}-cat-row{display:grid;grid-template-columns:1fr 80px 60px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px}
           .${p}-cat-row:last-child{border-bottom:none}
-          .${p}-cat-row-name{text-align:left}
+          .${p}-cat-row-name{text-align:start}
           .${p}-cat-row-count{text-align:center;font-size:12px;color:var(--gray-lt)}
-          .${p}-cat-row-pct{text-align:right;font-weight:700}
+          .${p}-cat-row-pct{text-align:end;font-weight:700}
 
           .${p}-fail-item{padding:12px 0;border-bottom:1px solid var(--border)}
           .${p}-fail-item:last-child{border-bottom:none}
@@ -638,7 +638,7 @@ const factory = (BaseBlockClass, widgetApi) => {
 
           /* ── Per-task group picker (tasks-integration-widget style) ── */
           .${p}-gp-wrap{position:relative}
-          .${p}-gp-trigger{width:100%;min-height:40px;padding:8px 32px 8px 11px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fafafa;cursor:pointer;display:flex;align-items:center;position:relative;transition:border-color .15s,background .15s;font-size:13px;font-family:inherit;color:var(--dark);text-align:left}
+          .${p}-gp-trigger{width:100%;min-height:40px;padding:8px 32px 8px 11px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fafafa;cursor:pointer;display:flex;align-items:center;position:relative;transition:border-color .15s,background .15s;font-size:13px;font-family:inherit;color:var(--dark);text-align:start}
           .${p}-gp-trigger:hover,.${p}-gp-trigger.open{border-color:var(--primary);background:#fff}
           .${p}-gp-trigger::after{content:'▾';position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--gray-lt);pointer-events:none;font-size:12px}
           .${p}-gp-ph{color:var(--gray-lt)}
@@ -681,6 +681,9 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-ap-tab{flex:1!important;padding:7px 10px!important;border:none!important;border-bottom:2.5px solid transparent!important;margin-bottom:-2px!important;font-size:12px!important;font-weight:600!important;background:none!important;color:var(--gray)!important;cursor:pointer!important;text-align:center!important;transition:color .15s,border-color .15s!important;font-family:inherit!important;touch-action:manipulation!important;display:block!important;line-height:normal!important;width:auto!important;border-radius:0!important}
           .${p}-ap-tab:hover{color:var(--dark)!important}
           .${p}-ap-tab.active{color:var(--primary)!important;border-bottom-color:var(--primary)!important;background:none!important}
+        
+          /* RTL: flip horizontal directional arrows */
+          [dir="rtl"] .aw-tabs-arrow{transform:scaleX(-1)}
         </style>
 
         <div class="${p}">

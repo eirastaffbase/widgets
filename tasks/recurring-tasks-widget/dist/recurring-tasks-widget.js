@@ -830,7 +830,7 @@ const factory = (BaseBlockClass, widgetApi) => {
 
           /* Cards (matches tasks-integration-widget) */
           .${p}-card { background:#fff; border-radius:var(--r-lg); box-shadow:var(--shadow-sm);
-            border:1px solid var(--border); border-left:3px solid var(--primary); margin-bottom:12px; }
+            border:1px solid var(--border); border-inline-start:3px solid var(--primary); margin-bottom:12px; }
           .${p}-card-head { display:flex; align-items:center; gap:10px; padding:14px 18px 12px; border-bottom:1px solid var(--border); }
           .${p}-step { width:22px; height:22px; border-radius:50%; background:var(--primary); color:var(--primary-text);
             font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
@@ -909,7 +909,7 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-assign-chip-av { width:20px; height:20px; border-radius:50%; overflow:hidden; background:var(--primary);
             color:var(--primary-text); display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; flex-shrink:0; }
           .${p}-assign-chip-av img { width:100%; height:100%; object-fit:cover; }
-          .${p}-assign-chip-x { cursor:pointer; color:var(--gray); font-size:14px; line-height:1; margin-left:2px; opacity:.6; }
+          .${p}-assign-chip-x { cursor:pointer; color:var(--gray); font-size:14px; line-height:1; margin-inline-start:2px; opacity:.6; }
           .${p}-assign-chip-x:hover { opacity:1; }
           .${p}-assign-search input { width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:var(--r-sm);
             font-size:13px; font-family:inherit; outline:none; background:#fafafa; }
@@ -975,7 +975,7 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-status.info    { background:rgba(var(--primary-rgb),.06); border:1px solid rgba(var(--primary-rgb),.2); color:var(--primary); }
 
           /* Schedule list */
-          .${p}-sched { background:#fff; border:1px solid var(--border); border-left:3px solid var(--primary);
+          .${p}-sched { background:#fff; border:1px solid var(--border); border-inline-start:3px solid var(--primary);
             border-radius:var(--r-lg); box-shadow:var(--shadow-sm); padding:14px 16px; margin-bottom:10px; }
           .${p}-sched-top { display:flex; align-items:flex-start; gap:10px; }
           .${p}-sched-main { flex:1; min-width:0; }
@@ -1012,15 +1012,15 @@ const factory = (BaseBlockClass, widgetApi) => {
 
           /* 4-day (agenda) view */
           .${p}-cal-cols { display:grid; grid-template-columns:repeat(3,1fr); }
-          .${p}-cal-col { border-right:1px solid #f3f4f6; min-height:280px; }
-          .${p}-cal-col:last-child { border-right:none; }
+          .${p}-cal-col { border-inline-end:1px solid #f3f4f6; min-height:280px; }
+          .${p}-cal-col:last-child { border-inline-end:none; }
           .${p}-cal-colhead { text-align:center; padding:9px 4px 7px; border-bottom:1px solid var(--border); }
           .${p}-cal-dow2 { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--gray-lt); }
           .${p}-cal-dnum { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:50%;
             font-size:16px; font-weight:800; color:var(--dark); margin-top:3px; }
           .${p}-cal-colhead.today .${p}-cal-dnum { background:var(--primary); color:var(--primary-text); }
           .${p}-cal-evs { padding:6px; display:flex; flex-direction:column; gap:5px; }
-          .${p}-ev { background:rgba(var(--primary-rgb),.10); border-left:3px solid var(--primary); border-radius:6px;
+          .${p}-ev { background:rgba(var(--primary-rgb),.10); border-inline-start:3px solid var(--primary); border-radius:6px;
             padding:5px 8px; cursor:pointer; transition:background .12s; }
           .${p}-ev:hover {
             background-color:rgba(var(--primary-rgb),.06);
@@ -1038,8 +1038,8 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-cal-dow { display:grid; grid-template-columns:repeat(7,1fr); background:#f9fafb; border-bottom:1px solid var(--border); }
           .${p}-cal-dow span { padding:7px 0; text-align:center; font-size:10px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; color:var(--gray-lt); }
           .${p}-cal-grid { display:grid; grid-template-columns:repeat(7,1fr); }
-          .${p}-cal-cell { min-height:78px; border-right:1px solid #f3f4f6; border-bottom:1px solid #f3f4f6; padding:5px 6px; cursor:pointer; transition:background .12s; }
-          .${p}-cal-cell:nth-child(7n) { border-right:none; }
+          .${p}-cal-cell { min-height:78px; border-inline-end:1px solid #f3f4f6; border-bottom:1px solid #f3f4f6; padding:5px 6px; cursor:pointer; transition:background .12s; }
+          .${p}-cal-cell:nth-child(7n) { border-inline-end:none; }
           .${p}-cal-cell.muted { background:#fafafa; }
           .${p}-cal-cell:hover { background:rgba(var(--primary-rgb),.05); }
           .${p}-cal-cell.today .${p}-cal-num { background:var(--primary); color:var(--primary-text); }
@@ -1099,6 +1099,9 @@ const factory = (BaseBlockClass, widgetApi) => {
             .${p}-cal-cell { min-height:60px; }
             .${p}-row { flex-direction:column; gap:0; }
           }
+        
+          /* RTL: flip horizontal directional arrows */
+          [dir="rtl"] .rtw-tabs-arrow{transform:scaleX(-1)} [dir="rtl"] .rtw-cal-nav .rtw-ico-btn svg{transform:scaleX(-1)}
         </style>
 
         <div class="${p}">

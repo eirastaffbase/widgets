@@ -106,6 +106,56 @@ export type Bundles = { [locale: string]: Bundle };
  *   const t = makeT(STRINGS, "de_DE");
  *   t("refresh") // German if present, else English, else "refresh"
  */
+// ─────────────────────────────────────────────────────────────────────────────
+// On-demand content translation (Phase B "Translate" button).
+//
+// Free-text user content (task titles, descriptions, custom type names,
+// comments) is translated on demand via Staffbase's POST /api/translations.
+// Items are batched into one request as indexed <p> tags — the endpoint
+// preserves tags and translates only text nodes, so we map results back by
+// index. Transport/auth is supplied by the caller via `send` so this module
+// stays free of endpoint/auth concerns.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function escHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function unescHtml(s: string): string {
+  return s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+}
+
+/**
+ * Translate a set of strings in a single batched request.
+ * Returns a map of original-text → translated-text (only for non-empty inputs).
+ * On any failure the map is empty (caller falls back to originals).
+ *
+ * `send(payload)` must POST the payload to /api/translations and resolve with
+ * the translated `contents.value` string.
+ */
+export async function translateMap(
+  texts: string[],
+  send: (payload: string) => Promise<string>
+): Promise<{ [original: string]: string }> {
+  const map: { [original: string]: string } = {};
+  const uniq: string[] = [];
+  const seen: { [k: string]: true } = {};
+  for (const raw of texts) {
+    const t = (raw || "").trim();
+    if (t && !seen[t]) { seen[t] = true; uniq.push(t); }
+  }
+  if (!uniq.length) return map;
+  const payload = uniq.map((t, i) => `<p data-i="${i}">${escHtml(t)}</p>`).join("");
+  let resp: string;
+  try { resp = await send(payload); } catch (_) { return map; }
+  const re = /<p data-i="(\d+)">([\s\S]*?)<\/p>/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(resp))) {
+    const i = parseInt(m[1], 10);
+    if (uniq[i] != null) map[uniq[i]] = unescHtml(m[2]);
+  }
+  return map;
+}
+
 export function makeT(bundles: Bundles, locale: string): (key: string) => string {
   const primary = bundles[locale] || {};
   const fallback = bundles[DEFAULT_LOCALE] || {};
