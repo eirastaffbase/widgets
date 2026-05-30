@@ -266,14 +266,28 @@ const factory: BlockFactory = (BaseBlockClass) => {
         return `${base} at ${fmtTime12(r.time)} ${tzAbbrev(r.tz)}`;
       }
 
+      // Current wall-clock in a timezone, as date parts + minutes-since-midnight.
+      function tzNowParts(tz: string): { y: number; m: number; d: number; min: number } {
+        try {
+          const parts: Record<string, string> = {};
+          new Intl.DateTimeFormat("en-US", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false })
+            .formatToParts(new Date()).forEach(x => { parts[x.type] = x.value; });
+          return { y: +parts.year, m: +parts.month, d: +parts.day, min: (+parts.hour % 24) * 60 + (+parts.minute) };
+        } catch (_) {
+          const n = new Date();
+          return { y: n.getFullYear(), m: n.getMonth() + 1, d: n.getDate(), min: n.getHours() * 60 + n.getMinutes() };
+        }
+      }
+
       function nextRun(r: Rule): string {
-        const today = new Date();
+        const now = tzNowParts(r.tz);
+        const schedMin = parseInt(r.time.split(":")[0], 10) * 60 + parseInt(r.time.split(":")[1], 10);
         for (let i = 0; i < 400; i++) {
-          const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
-          if (firesOn(r, d)) {
-            const label = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-            return `${i === 0 ? "Today" : label}, ${fmtTime12(r.time)}`;
-          }
+          const d = new Date(now.y, now.m - 1, now.d + i);
+          if (!firesOn(r, d)) continue;
+          if (i === 0 && now.min >= schedMin) continue; // today's slot already passed
+          const label = i === 0 ? "Today" : i === 1 ? "Tomorrow" : d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+          return `${label}, ${fmtTime12(r.time)}`;
         }
         return "—";
       }
