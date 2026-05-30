@@ -665,6 +665,11 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const ctCache = {};
                 const ct = (s) => { if (!contentTranslated || !s)
                     return s; return ctCache[s.trim()] || s; };
+                // Comments translate independently (their own toggle in the comment list).
+                let cmtTranslated = false;
+                let cmtTrBusy = false;
+                const cmtCache = {};
+                let lastCmt = null;
                 let allInstalls = []; // for task creation
                 const listsByInst = new Map();
                 let usersList = null; // lazy, for reassign picker
@@ -784,7 +789,10 @@ const factory = (BaseBlockClass, widgetApi) => {
           /* ── Comments ── */
           .${p}-cmt{margin-top:18px;border-top:1px solid var(--border);padding-top:14px}
           .${p}-cmt-list{display:flex;flex-direction:column;gap:14px;margin-bottom:14px}
-          .${p}-cmt-item{display:flex;gap:10px;align-items:flex-start}
+          .${p}-cmt-item{display:flex;gap:10px;align-items:flex-start;position:relative}
+          .${p}-cmt-tr{position:absolute;top:-2px;inset-inline-end:0;display:none;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--primary)!important;background:#fff!important;border:1px solid var(--border)!important;border-radius:12px;padding:2px 8px;cursor:pointer;font-family:inherit;z-index:3;line-height:1.4}
+          .${p}-cmt-tr svg{stroke:currentColor!important}
+          .${p}-cmt-item:hover .${p}-cmt-tr,.${p}-cmt-item.show-tr .${p}-cmt-tr{display:inline-flex}
           .${p}-cmt-av{width:32px;height:32px;border-radius:50%;flex-shrink:0;object-fit:cover;background:#e5e7eb}
           .${p}-cmt-av-fb{display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;background:var(--primary);text-transform:uppercase}
           .${p}-cmt-main{flex:1;min-width:0;background:#f6f7f9;border-radius:0 var(--r-md) var(--r-md) var(--r-md);padding:8px 12px}
@@ -1755,17 +1763,60 @@ const factory = (BaseBlockClass, widgetApi) => {
                             yield Promise.all([...attIds].map(metaCached));
                         if (detailTask !== task)
                             return;
-                        list.innerHTML = comments.map((c, i) => {
-                            const a = authors[i];
-                            return `
+                        // Fresh load → reset translate state, cache data, paint.
+                        cmtTranslated = false;
+                        cmtTrBusy = false;
+                        lastCmt = { comments, authors, bodies, task };
+                        paintComments();
+                    });
+                }
+                // Translate icon (shared by header button + per-comment button).
+                const iGlobe = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8l6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6"/></svg>`;
+                // Paint the cached comments (no re-fetch). Used on first render and on
+                // translate toggle. Each comment carries a translate affordance: hover
+                // (desktop) or tap (mobile) reveals it; clicking translates all comments.
+                function paintComments() {
+                    if (!lastCmt)
+                        return;
+                    const list = detailBody.querySelector(`#${p}-cmt-list-${instId}`);
+                    if (!list || detailTask !== lastCmt.task)
+                        return;
+                    const { comments, authors, bodies } = lastCmt;
+                    const showBtn = locale !== DEFAULT_LOCALE;
+                    const btnLbl = cmtTrBusy ? tr("translating") : cmtTranslated ? tr("showOriginal") : tr("translateBtn");
+                    list.innerHTML = comments.map((c, i) => {
+                        const a = authors[i];
+                        const body = cmtTranslated ? (cmtCache[bodies[i].trim()] || bodies[i]) : bodies[i];
+                        return `
           <div class="${p}-cmt-item">
+            ${showBtn ? `<button type="button" class="${p}-cmt-tr" title="${btnLbl}">${iGlobe}<span>${btnLbl}</span></button>` : ""}
             ${avatarHtml(a)}
             <div class="${p}-cmt-main">
               <div class="${p}-cmt-head"><span class="${p}-cmt-author">${esc(a.name)}</span><span class="${p}-cmt-time">${esc(commentTime(c.createdAt || c.created || ""))}</span></div>
-              <div class="${p}-cmt-body" dir="auto">${resolveAttachments(bodies[i]) || "<em>(empty)</em>"}</div>
+              <div class="${p}-cmt-body" dir="auto">${resolveAttachments(body) || "<em>(empty)</em>"}</div>
             </div>
           </div>`;
-                        }).join("");
+                    }).join("");
+                    // Tap a comment (mobile) → reveal its button; hover handles desktop via CSS.
+                    list.querySelectorAll(`.${p}-cmt-item`).forEach(it => it.addEventListener("click", () => it.classList.toggle("show-tr")));
+                    list.querySelectorAll(`.${p}-cmt-tr`).forEach(b => b.addEventListener("click", e => { e.stopPropagation(); toggleComments(); }));
+                }
+                function toggleComments() {
+                    return my_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                        if (cmtTrBusy || !lastCmt)
+                            return;
+                        if (!cmtTranslated) {
+                            cmtTrBusy = true;
+                            paintComments();
+                            const map = yield translateMap(lastCmt.bodies, translateSend);
+                            Object.assign(cmtCache, map);
+                            cmtTrBusy = false;
+                            cmtTranslated = true;
+                        }
+                        else {
+                            cmtTranslated = false;
+                        }
+                        paintComments();
                     });
                 }
                 // Render the attachment tiles inside the open detail panel for a task.
