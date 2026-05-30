@@ -230,7 +230,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-temp-input.ok{border-color:var(--success);background:rgba(46,125,74,.05)}
           .${p}-temp-input.bad{border-color:var(--error);background:rgba(196,30,58,.05)}
           .${p}-temp-hint{font-size:11px;color:var(--gray-lt);margin-top:5px;line-height:1.4;text-align:center}
-          .${p}-timer{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+          .${p}-timer{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
           .${p}-timer-ico{display:flex;align-items:center;color:var(--gray-lt);flex-shrink:0}
           .${p}-timer-display{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:22px;font-weight:800;color:var(--dark);min-width:62px;letter-spacing:.5px;font-variant-numeric:tabular-nums}
           .${p}-timer-display.running{color:var(--primary)}
@@ -244,7 +244,14 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-timer-btn{width:auto!important;margin:0!important;display:inline-flex!important;align-items:center;justify-content:center;padding:8px 16px!important;border-radius:var(--r-md)!important;font-family:inherit!important;font-size:13px!important;font-weight:700!important;line-height:normal!important;cursor:pointer;border:none!important;background:var(--success)!important;color:#fff!important;transition:filter .15s,transform .1s;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
           .${p}-timer-btn:active{transform:scale(.96)}
           .${p}-timer-btn.stop{background:var(--error)!important}
-          .${p}-timer-btn.ghost{background:#fafafa!important;border:1.5px solid var(--border)!important;color:var(--gray)!important;font-weight:600!important;margin-left:auto!important}
+          .${p}-timer-btn.ghost{background:#fafafa!important;border:1.5px solid var(--border)!important;color:var(--gray)!important;font-weight:600!important}
+          .${p}-timer-actions{display:flex;gap:8px;margin-left:auto}
+          /* Mobile: let the timer wrap and the Start/Reset buttons drop to their own full-width row. */
+          @media(max-width:600px){
+            .${p}-timer-display{font-size:20px;min-width:54px}
+            .${p}-timer-actions{width:100%;margin-left:0;margin-top:4px}
+            .${p}-timer-btn{flex:1 1 0;padding:9px 8px!important}
+          }
           .${p}-task-flag{background:#fffbeb;border:1px solid #fde68a;border-radius:var(--r-md);padding:10px 12px;margin-top:10px;display:none}
           .${p}-task-flag.show{display:block}
           .${p}-task-flag-title{font-size:12px;font-weight:700;color:#92400e;margin-bottom:4px;display:flex;align-items:center;gap:5px}
@@ -1067,8 +1074,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               <span class="${p}-timer-ico">${iTimer}</span>
               <div class="${p}-timer-display${s.running?" running":""}${st?" "+p+"-st-"+st.state:""}" data-qid="${esc(q.id)}">${fmtTimer(curElapsed(s))}</div>
               ${st?`<span class="${p}-timer-status ${p}-st-${st.state}" data-qid="${esc(q.id)}">${st.label}</span>`:""}
-              <button type="button" class="${p}-timer-btn${s.running?" stop":""}" data-qid="${esc(q.id)}" data-tact="toggle">${s.running?"Stop":"Start"}</button>
-              <button type="button" class="${p}-timer-btn ghost" data-qid="${esc(q.id)}" data-tact="reset">Reset</button>
+              <div class="${p}-timer-actions">
+                <button type="button" class="${p}-timer-btn${s.running?" stop":""}" data-qid="${esc(q.id)}" data-tact="toggle">${s.running?"Stop":"Start"}</button>
+                <button type="button" class="${p}-timer-btn ghost" data-qid="${esc(q.id)}" data-tact="reset">Reset</button>
+              </div>
             </div>
             ${tgt?`<div class="${p}-timer-goal">${goalLabel(tgt)}</div>`:""}
             <div class="${p}-pf-row">

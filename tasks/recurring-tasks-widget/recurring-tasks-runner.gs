@@ -44,18 +44,19 @@ function setupTrigger() {
 // ── Main entry point (called by the trigger) ─────────────────────────────────
 function runRecurring() {
   var envs = readEnvs();
-  Logger.log("Processing " + envs.length + " enabled environment(s).");
-  var totalCreated = 0, totalSkipped = 0, totalFailed = 0;
+  Logger.log("=== Recurring run @ " + new Date() + " — " + envs.length + " enabled environment(s) ===");
+  var tot = { created: 0, skipped: 0, pending: 0, failed: 0, notToday: 0 };
   envs.forEach(function (env) {
+    Logger.log("[" + env.envName + "] ----------------------------------------");
     try {
       var r = processEnv(env);
-      totalCreated += r.created; totalSkipped += r.skipped; totalFailed += r.failed;
-      Logger.log("[" + env.envName + "] created=" + r.created + " skipped=" + r.skipped + " failed=" + r.failed);
+      tot.created += r.created; tot.skipped += r.skipped; tot.pending += r.pending; tot.failed += r.failed; tot.notToday += r.notToday;
+      Logger.log("[" + env.envName + "] created=" + r.created + " skipped=" + r.skipped + " upcoming-today=" + r.pending + " failed=" + r.failed + " not-scheduled-today=" + r.notToday);
     } catch (e) {
       Logger.log("[" + env.envName + "] ERROR: " + e.message);
     }
   });
-  Logger.log("Done. created=" + totalCreated + " skipped=" + totalSkipped + " failed=" + totalFailed);
+  Logger.log("=== Done. created=" + tot.created + " skipped=" + tot.skipped + " upcoming-today=" + tot.pending + " failed=" + tot.failed + " not-scheduled-today=" + tot.notToday + " ===");
 }
 
 // ── Registry sheet ────────────────────────────────────────────────────────────
@@ -77,7 +78,7 @@ function readEnvs() {
 
 // ── Per-environment processing ──────────────────────────────────────────────
 function processEnv(env) {
-  var created = 0, skipped = 0, failed = 0;
+  var created = 0, skipped = 0, pending = 0, failed = 0, notToday = 0;
   var headers = { Authorization: "Basic " + env.apiToken, "Content-Type": "application/json" };
 
   var installs = apiJson(env.baseUrl + "/installations?limit=200", headers);
@@ -85,6 +86,7 @@ function processEnv(env) {
   var taskInstalls = list.filter(function (i) { return i.pluginID === "tasks" || i.pluginId === "tasks"; });
 
   taskInstalls.forEach(function (inst) {
+    var store = instTitle(inst);
     var lists = apiJson(env.baseUrl + "/tasks/" + inst.id + "/lists", headers);
     lists = Array.isArray(lists) ? lists : ((lists && lists.data) || []);
     lists.forEach(function (l) {
@@ -108,32 +110,40 @@ function processEnv(env) {
         var idM = /(?:^|;)\s*id=([^;]+)/.exec(rrM[1]);
         var sid = idM ? idM[1].trim() : t.id;
 
-        // "Now" in the schedule's timezone.
-        var ymd = Utilities.formatDate(new Date(), rule.tz, "yyyy-MM-dd").split("-").map(Number);
-        var todayStr = Utilities.formatDate(new Date(), rule.tz, "yyyy-MM-dd");
-        var nowMin = parseInt(Utilities.formatDate(new Date(), rule.tz, "HH"), 10) * 60 +
-                     parseInt(Utilities.formatDate(new Date(), rule.tz, "mm"), 10);
+        // "Now" in the schedule's OWN timezone (rule.tz, captured when it was created).
+        var now = new Date();
+        var ymd = Utilities.formatDate(now, rule.tz, "yyyy-MM-dd").split("-").map(Number);
+        var todayStr = Utilities.formatDate(now, rule.tz, "yyyy-MM-dd");
+        var nowHHMM = Utilities.formatDate(now, rule.tz, "HH:mm");
+        var zone = Utilities.formatDate(now, rule.tz, "z"); // e.g. "EST"
+        var nowMin = parseInt(nowHHMM.split(":")[0], 10) * 60 + parseInt(nowHHMM.split(":")[1], 10);
         var schedMin = parseInt(rule.time.split(":")[0], 10) * 60 + parseInt(rule.time.split(":")[1], 10);
+        var label = '"' + (t.title || sid) + '" — ' + store + " @ " + rule.time + " " + zone;
 
-        if (!firesOn(rule, new Date(ymd[0], ymd[1] - 1, ymd[2]))) return;   // not today
-        // Fire once we're at/after the scheduled time. GRACE absorbs Google's trigger
-        // jitter (a run can land a couple minutes before the :00/:15/:30/:45 boundary),
-        // so a task at 11:45 still fires on the ~11:45 run even if it executes at 11:43.
-        if (nowMin < schedMin - TRIGGER_GRACE_MIN) return;                   // not time yet
-        if (markers[sid + "@" + todayStr]) { skipped++; return; }           // already created today
+        if (!firesOn(rule, new Date(ymd[0], ymd[1] - 1, ymd[2]))) { notToday++; return; } // not scheduled today
+        if (markers[sid + "@" + todayStr]) {                                              // already created today
+          Logger.log("  ↺ skipped (already created today): " + label);
+          skipped++; return;
+        }
+        // GRACE absorbs Google's trigger jitter (a run can land a couple minutes before the boundary).
+        if (nowMin < schedMin - TRIGGER_GRACE_MIN) {                                       // upcoming later today
+          Logger.log("  ⏳ upcoming today (not this run): " + label + " (now " + nowHHMM + " " + zone + ")");
+          pending++; return;
+        }
 
         try {
           createTask(env.baseUrl, headers, inst.id, l.id, t, rule, sid, todayStr, ymd);
+          Logger.log("  ✓ created: " + label);
           created++;
         } catch (e) {
+          Logger.log("  ✗ FAILED: " + label + " — " + e.message);
           failed++;
-          Logger.log("  create failed for " + sid + " in " + inst.id + ": " + e.message);
         }
       });
     });
   });
 
-  return { created: created, skipped: skipped, failed: failed };
+  return { created: created, skipped: skipped, pending: pending, failed: failed, notToday: notToday };
 }
 
 function createTask(baseUrl, headers, installId, listId, tmpl, rule, sid, todayStr, ymd) {
@@ -250,3 +260,7 @@ function apiJson(url, headers) {
   try { return JSON.parse(res.getContentText()); } catch (e) { return null; }
 }
 function pad2(n) { return (n < 10 ? "0" : "") + n; }
+function instTitle(inst) {
+  return (inst.config && inst.config.localization && inst.config.localization.en_US && inst.config.localization.en_US.title)
+    || inst.title || inst.name || inst.id;
+}
