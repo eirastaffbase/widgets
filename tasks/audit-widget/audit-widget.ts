@@ -1049,8 +1049,11 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         </div>`;
       }
 
-      function bindControls(){
-        contentEl.querySelectorAll(`.${p}-pf-btn`).forEach(btn=>{
+      // root defaults to the whole audit (initial render); refreshQuestion passes just the
+      // re-rendered question so we don't stack duplicate listeners on the other questions
+      // (which previously made the secret demo fire across different items).
+      function bindControls(root:any=contentEl){
+        root.querySelectorAll(`.${p}-pf-btn`).forEach((btn:Element)=>{
           btn.addEventListener("click",()=>{
             const{qid,val}=(btn as HTMLElement).dataset as{qid:string;val:string};
             responses[qid]=val; refreshQuestion(qid);
@@ -1062,13 +1065,13 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             } else { demoCount=0; demoQid=""; }
           });
         });
-        contentEl.querySelectorAll(`.${p}-rating-btn`).forEach(btn=>{
+        root.querySelectorAll(`.${p}-rating-btn`).forEach((btn:Element)=>{
           btn.addEventListener("click",()=>{
             const{qid,val}=(btn as HTMLElement).dataset as{qid:string;val:string};
             responses[qid]=val; refreshQuestion(qid);
           });
         });
-        contentEl.querySelectorAll(`[data-dtype="temp"]`).forEach(inp=>{
+        root.querySelectorAll(`[data-dtype="temp"]`).forEach((inp:Element)=>{
           inp.addEventListener("change",()=>{
             const qid=(inp as HTMLElement).dataset.qid!;
             responses[qid]=(inp as HTMLInputElement).value;
@@ -1076,7 +1079,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           });
         });
         // Time-task stopwatch controls
-        contentEl.querySelectorAll(`.${p}-timer-btn`).forEach(btn=>{
+        root.querySelectorAll(`.${p}-timer-btn`).forEach((btn:Element)=>{
           btn.addEventListener("click",()=>{
             const el=btn as HTMLElement; const qid=el.dataset.qid!; const act=el.dataset.tact;
             const s=timeState[qid]||(timeState[qid]={elapsed:0,running:false,startAt:0});
@@ -1088,10 +1091,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           });
         });
         // Photo attach inside the "Task will be generated" flag
-        contentEl.querySelectorAll(`.${p}-photo`).forEach(btn=>{
+        root.querySelectorAll(`.${p}-photo`).forEach((btn:Element)=>{
           const qid=(btn as HTMLElement).dataset.qid!;
-          const input=contentEl.querySelector(`.${p}-photo-input[data-qid="${qid}"]`) as HTMLInputElement|null;
-          const line =contentEl.querySelector(`.${p}-photo-line[data-qid="${qid}"]`) as HTMLElement|null;
+          const input=root.querySelector(`.${p}-photo-input[data-qid="${qid}"]`) as HTMLInputElement|null;
+          const line =root.querySelector(`.${p}-photo-line[data-qid="${qid}"]`) as HTMLElement|null;
           const refreshChips=()=>{
             if(!line) return;
             line.innerHTML=photoChips(qid);
@@ -1119,7 +1122,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         const q=questions.find(x=>x.id===qid); if(!q) return;
         const el=contentEl.querySelector(`.${p}-question[data-qid="${qid}"]`); if(!el) return;
         el.outerHTML=renderQuestion(q);
-        bindControls();
+        // Re-bind ONLY the replaced question (not the whole audit) to avoid stacking listeners.
+        const fresh=contentEl.querySelector(`.${p}-question[data-qid="${qid}"]`);
+        if(fresh) bindControls(fresh);
         const sc=getScore(); const pct=sc.count>0?Math.round((sc.answered/sc.count)*100):0;
         const fill=contentEl.querySelector(`.${p}-prog-fill`) as HTMLElement|null;
         const lbl=contentEl.querySelector(`.${p}-prog-label`) as HTMLElement|null;
