@@ -213,8 +213,16 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-temp-input.bad{border-color:var(--error);background:rgba(196,30,58,.05)}
           .${p}-temp-hint{font-size:11px;color:var(--gray-lt);margin-top:5px;line-height:1.4;text-align:center}
           .${p}-timer{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+          .${p}-timer-ico{display:flex;align-items:center;color:var(--gray-lt);flex-shrink:0}
           .${p}-timer-display{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:22px;font-weight:800;color:var(--dark);min-width:62px;letter-spacing:.5px;font-variant-numeric:tabular-nums}
           .${p}-timer-display.running{color:var(--primary)}
+          .${p}-timer-display.${p}-st-pass{color:var(--success)!important}
+          .${p}-timer-display.${p}-st-fail{color:var(--error)!important}
+          .${p}-timer-status{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;padding:3px 9px;border-radius:20px;white-space:nowrap}
+          .${p}-timer-status.${p}-st-pass{background:rgba(46,125,74,.1);color:var(--success)}
+          .${p}-timer-status.${p}-st-fail{background:rgba(196,30,58,.1);color:var(--error)}
+          .${p}-timer-status.${p}-st-pending{background:#f3f4f6;color:var(--gray)}
+          .${p}-timer-goal{font-size:11px;color:var(--gray-lt);margin:-4px 0 10px 28px}
           .${p}-timer-btn{width:auto!important;margin:0!important;display:inline-flex!important;align-items:center;justify-content:center;padding:8px 16px!important;border-radius:var(--r-md)!important;font-family:inherit!important;font-size:13px!important;font-weight:700!important;line-height:normal!important;cursor:pointer;border:none!important;background:var(--success)!important;color:#fff!important;transition:filter .15s,transform .1s;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
           .${p}-timer-btn:active{transform:scale(.96)}
           .${p}-timer-btn.stop{background:var(--error)!important}
@@ -411,6 +419,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const iNext = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
                 const iPencil = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
                 const iCamera = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
+                const iTimer = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><line x1="12" y1="13" x2="12" y2="9"/><line x1="9" y1="2" x2="15" y2="2"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="18.5" y1="6.5" x2="20" y2="5"/></svg>`;
                 const iXsmall = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
                 function photoChips(qid) {
                     const files = taskFiles[qid] || [];
@@ -538,15 +547,75 @@ const factory = (BaseBlockClass, widgetApi) => {
                             for (const qid in timeState) {
                                 if (!timeState[qid].running)
                                     continue;
-                                const el = contentEl.querySelector(`.${p}-timer-display[data-qid="${qid}"]`);
-                                if (el)
-                                    el.textContent = fmtTimer(curElapsed(timeState[qid]));
+                                updateTimerUI(qid);
                             }
                         }, 250);
                     }
                     else if (!anyRunning && timerTick) {
                         clearInterval(timerTick);
                         timerTick = null;
+                    }
+                }
+                // Parse a time goal from the question's pass criteria / text, e.g. "under 3 min",
+                // "within 90s", "at least 30 seconds", "between 1 and 2 min". Returns seconds.
+                function parseTimeTarget(q) {
+                    const src = `${q.passCriteria || ""} ${q.text || ""}`.toLowerCase();
+                    const toSec = (n, u) => { if (/^m/.test(u))
+                        return n * 60; if (!u && q.timeUnit === "min")
+                        return n * 60; return n; };
+                    const nums = [...src.matchAll(/(\d+(?:\.\d+)?)\s*(seconds?|secs?|s|minutes?|mins?|m)?/g)].map(m => toSec(parseFloat(m[1]), m[2] || ""));
+                    if (!nums.length)
+                        return null;
+                    if (/(between|\bto\b|[-–]\s*\d|range)/.test(src) && nums.length >= 2) {
+                        return { kind: "range", lo: Math.min(nums[0], nums[1]), hi: Math.max(nums[0], nums[1]) };
+                    }
+                    if (/\b(over|more than|at least|above|greater|min(?:imum)?|no less than|longer than)\b|≥|>/.test(src))
+                        return { kind: "over", lo: nums[0], hi: 0 };
+                    if (/\b(under|less than|within|below|fewer|max(?:imum)?|no more than|faster than|at most)\b|≤|</.test(src))
+                        return { kind: "under", lo: 0, hi: nums[0] };
+                    if (nums.length >= 2)
+                        return { kind: "range", lo: Math.min(nums[0], nums[1]), hi: Math.max(nums[0], nums[1]) };
+                    return { kind: "under", lo: 0, hi: nums[0] }; // a lone number reads as "within X"
+                }
+                function timeStatus(elapsedSec, t) {
+                    if (t.kind === "under")
+                        return elapsedSec <= t.hi ? { state: "pass", label: "On track" } : { state: "fail", label: "Over goal" };
+                    if (t.kind === "over")
+                        return elapsedSec >= t.lo ? { state: "pass", label: "Goal met" } : { state: "pending", label: "Keep going" };
+                    if (elapsedSec < t.lo)
+                        return { state: "pending", label: "Too early" };
+                    return elapsedSec <= t.hi ? { state: "pass", label: "In range" } : { state: "fail", label: "Over range" };
+                }
+                function goalLabel(t) {
+                    if (t.kind === "under")
+                        return `Goal: under ${fmtTimer(t.hi * 1000)}`;
+                    if (t.kind === "over")
+                        return `Goal: at least ${fmtTimer(t.lo * 1000)}`;
+                    return `Goal: ${fmtTimer(t.lo * 1000)}–${fmtTimer(t.hi * 1000)}`;
+                }
+                // Live-update a running timer's display, color, and status pill without a full re-render.
+                function updateTimerUI(qid) {
+                    const s = timeState[qid];
+                    if (!s)
+                        return;
+                    const disp = contentEl.querySelector(`.${p}-timer-display[data-qid="${qid}"]`);
+                    if (disp)
+                        disp.textContent = fmtTimer(curElapsed(s));
+                    const q = questions.find(x => x.id === qid);
+                    const tgt = q ? parseTimeTarget(q) : null;
+                    if (!tgt)
+                        return;
+                    const st = timeStatus(Math.floor(curElapsed(s) / 1000), tgt);
+                    const cls = [`${p}-st-pass`, `${p}-st-fail`, `${p}-st-pending`];
+                    if (disp) {
+                        disp.classList.remove(...cls);
+                        disp.classList.add(`${p}-st-${st.state}`);
+                    }
+                    const pill = contentEl.querySelector(`.${p}-timer-status[data-qid="${qid}"]`);
+                    if (pill) {
+                        pill.textContent = st.label;
+                        pill.classList.remove(...cls);
+                        pill.classList.add(`${p}-st-${st.state}`);
                     }
                 }
                 // ── Sheet parsing ─────────────────────────────────────────────────
@@ -1107,12 +1176,17 @@ const factory = (BaseBlockClass, widgetApi) => {
                     }
                     else if (q.type === "time") {
                         const s = timeState[q.id] || { elapsed: 0, running: false, startAt: 0 };
+                        const tgt = parseTimeTarget(q);
+                        const st = tgt ? timeStatus(Math.floor(curElapsed(s) / 1000), tgt) : null;
                         ctrl = `
             <div class="${p}-timer">
-              <div class="${p}-timer-display${s.running ? " running" : ""}" data-qid="${esc(q.id)}">${fmtTimer(curElapsed(s))}</div>
+              <span class="${p}-timer-ico">${iTimer}</span>
+              <div class="${p}-timer-display${s.running ? " running" : ""}${st ? " " + p + "-st-" + st.state : ""}" data-qid="${esc(q.id)}">${fmtTimer(curElapsed(s))}</div>
+              ${st ? `<span class="${p}-timer-status ${p}-st-${st.state}" data-qid="${esc(q.id)}">${st.label}</span>` : ""}
               <button type="button" class="${p}-timer-btn${s.running ? " stop" : ""}" data-qid="${esc(q.id)}" data-tact="toggle">${s.running ? "Stop" : "Start"}</button>
               <button type="button" class="${p}-timer-btn ghost" data-qid="${esc(q.id)}" data-tact="reset">Reset</button>
             </div>
+            ${tgt ? `<div class="${p}-timer-goal">${goalLabel(tgt)}</div>` : ""}
             <div class="${p}-pf-row">
               <button type="button" class="${p}-pf-btn${val === "pass" ? " pass" : ""}" data-qid="${esc(q.id)}" data-val="pass">Pass</button>
               <button type="button" class="${p}-pf-btn${val === "fail" ? " fail" : ""}" data-qid="${esc(q.id)}" data-val="fail">Fail</button>
@@ -1195,6 +1269,13 @@ const factory = (BaseBlockClass, widgetApi) => {
                                 if (s.running) {
                                     s.elapsed = curElapsed(s);
                                     s.running = false;
+                                    // On stop, let the timer decide Pass/Fail against the goal (if any).
+                                    const q = questions.find(x => x.id === qid);
+                                    const tgt = q ? parseTimeTarget(q) : null;
+                                    if (tgt) {
+                                        const st = timeStatus(Math.floor(s.elapsed / 1000), tgt);
+                                        responses[qid] = st.state === "pass" ? "pass" : "fail";
+                                    }
                                 }
                                 else {
                                     s.startAt = Date.now();
@@ -1204,6 +1285,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                             else if (act === "reset") {
                                 s.elapsed = 0;
                                 s.running = false;
+                                responses[qid] = "";
                             }
                             ensureTick();
                             refreshQuestion(qid);
@@ -1604,7 +1686,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                                 try {
                                     const body = {
                                         title: q.taskTitle || q.text,
-                                        description: `Audit finding: ${q.id} — ${q.text}\nAudit: ${listName}\nAuditor: ${auditorName}\nSeverity: ${q.taskPriority}`,
+                                        description: `Audit finding: ${q.id} — FAIL: ${q.text}\nAudit: ${listName}\nAuditor: ${auditorName}\nSeverity: ${q.taskPriority}`,
                                         status: "OPEN", priority: prio, taskListId: listId, dueDate: due,
                                     };
                                     const atype = taskAssignType[q.id] || "group";
