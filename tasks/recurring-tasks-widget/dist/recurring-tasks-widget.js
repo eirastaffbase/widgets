@@ -230,7 +230,7 @@ const factory = (BaseBlockClass) => {
             let rule = defaultRule(localTz);
             let editingId = null;
             let view = "list";
-            let calMode = "4day";
+            let calMode = "3day";
             let calCursor = new Date(); // 4day: first visible day · month: any day in the month
             // ── Helpers ────────────────────────────────────────────────────────
             const authHeaders = () => ({ Authorization: `Basic ${apiToken}`, "Content-Type": "application/json" });
@@ -539,7 +539,7 @@ const factory = (BaseBlockClass) => {
           .${p}-cal-modeseg button.active { background:#fff; color:var(--primary); box-shadow:var(--shadow-sm); }
 
           /* 4-day (agenda) view */
-          .${p}-cal-cols { display:grid; grid-template-columns:repeat(4,1fr); }
+          .${p}-cal-cols { display:grid; grid-template-columns:repeat(3,1fr); }
           .${p}-cal-col { border-right:1px solid #f3f4f6; min-height:280px; }
           .${p}-cal-col:last-child { border-right:none; }
           .${p}-cal-colhead { text-align:center; padding:9px 4px 7px; border-bottom:1px solid var(--border); }
@@ -1098,9 +1098,9 @@ const factory = (BaseBlockClass) => {
             function renderCalendar() {
                 const todayK = dayKey(new Date());
                 let rangeLabel = "", bodyHtml = "";
-                if (calMode === "4day") {
-                    const days = Array.from({ length: 4 }, (_, i) => new Date(calCursor.getFullYear(), calCursor.getMonth(), calCursor.getDate() + i));
-                    const a = days[0], b = days[3];
+                if (calMode === "3day") {
+                    const days = Array.from({ length: 3 }, (_, i) => new Date(calCursor.getFullYear(), calCursor.getMonth(), calCursor.getDate() + i));
+                    const a = days[0], b = days[days.length - 1];
                     rangeLabel = a.getMonth() === b.getMonth()
                         ? `${a.toLocaleDateString("en-US", { month: "long", day: "numeric" })} – ${b.getDate()}, ${b.getFullYear()}`
                         : `${a.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${b.toLocaleDateString("en-US", { month: "short", day: "numeric" })}, ${b.getFullYear()}`;
@@ -1144,7 +1144,7 @@ const factory = (BaseBlockClass) => {
             <span class="${p}-cal-range">${esc(rangeLabel)}</span>
             <div class="${p}-cal-ctrls">
               <div class="${p}-cal-modeseg" id="${p}-cal-mode">
-                <button data-mode="4day" class="${calMode === "4day" ? "active" : ""}">4 Day</button>
+                <button data-mode="3day" class="${calMode === "3day" ? "active" : ""}">3 Day</button>
                 <button data-mode="month" class="${calMode === "month" ? "active" : ""}">Month</button>
               </div>
               <div class="${p}-cal-nav">
@@ -1163,8 +1163,8 @@ const factory = (BaseBlockClass) => {
                     const nav = parseInt(b.dataset.nav, 10);
                     if (nav === 0)
                         calCursor = new Date();
-                    else if (calMode === "4day")
-                        calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth(), calCursor.getDate() + nav * 4);
+                    else if (calMode === "3day")
+                        calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth(), calCursor.getDate() + nav * 3);
                     else
                         calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth() + nav, 1);
                     renderCalendar();
@@ -1175,7 +1175,7 @@ const factory = (BaseBlockClass) => {
                 // Month: click a day to jump into its 4-day view
                 viewCalEl.querySelectorAll(`.${p}-cal-cell`).forEach((c) => c.addEventListener("click", () => {
                     const [yy, mm, dd] = c.dataset.d.split("-").map(Number);
-                    calMode = "4day";
+                    calMode = "3day";
                     calCursor = new Date(yy, mm, dd);
                     renderCalendar();
                 }));

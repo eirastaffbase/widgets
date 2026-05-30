@@ -265,6 +265,18 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-att-meta{min-width:0;display:flex;flex-direction:column;gap:1px}
           .${p}-att-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px;font-weight:500}
           .${p}-att-size{color:var(--gray-lt);font-size:11px}
+          /* Attachment preview modal */
+          .${p}-amodal{position:fixed;inset:0;z-index:100002;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;padding:16px}
+          .${p}-amodal.open{display:flex}
+          .${p}-amodal-card{background:#fff;border-radius:var(--r-lg);width:100%;max-width:min(900px,96vw);max-height:92vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 12px 48px rgba(0,0,0,.4)}
+          .${p}-amodal-head{display:flex;align-items:center;gap:8px;padding:11px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
+          .${p}-amodal-name{flex:1;min-width:0;font-size:13px;font-weight:700;color:var(--dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+          .${p}-amodal-dl{display:inline-flex!important;align-items:center;gap:6px;width:auto!important;margin:0!important;font-family:inherit;font-size:13px;font-weight:700;line-height:normal!important;border:none!important;border-radius:var(--r-md)!important;background:var(--primary)!important;color:var(--primary-text,#fff)!important;cursor:pointer;padding:8px 14px!important;flex-shrink:0}
+          .${p}-amodal-x{width:32px;height:32px;flex-shrink:0;border:none!important;border-radius:50%;background:#f3f4f6!important;color:var(--gray)!important;cursor:pointer;display:flex!important;align-items:center;justify-content:center;padding:0!important;margin:0!important}
+          .${p}-amodal-body{flex:1;min-height:0;overflow:auto;background:#f1f3f5;display:flex;align-items:center;justify-content:center}
+          .${p}-amodal-body img{max-width:100%;max-height:88vh;object-fit:contain;display:block}
+          .${p}-amodal-body iframe{width:100%;height:84vh;border:none;background:#fff}
+          .${p}-amodal-none{display:flex;flex-direction:column;align-items:center;gap:12px;padding:48px 24px;color:var(--gray-lt);font-size:13px}
           .${p}-att-x{width:auto!important;margin:0 0 0 2px!important;border:none!important;background:none!important;color:var(--gray-lt);cursor:pointer;padding:3px!important;display:flex!important;border-radius:50%;flex-shrink:0;transition:color .15s,background .15s}
           .${p}-att-x:hover{color:var(--error);background:rgba(196,30,58,.08)}
           .${p}-att-empty{font-size:12px;color:var(--gray-lt)}
@@ -570,6 +582,10 @@ const factory = (BaseBlockClass, widgetApi) => {
                     self._mtwDetail.remove();
                     self._mtwDetail = undefined;
                 }
+                if (self._mtwAModal) {
+                    self._mtwAModal.remove();
+                    self._mtwAModal = undefined;
+                }
                 if (self._mtwCreate) {
                     self._mtwCreate.remove();
                     self._mtwCreate = undefined;
@@ -623,6 +639,75 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const detailBody = detailEl.querySelector(`#${p}-detail-body-${instId}`);
                 const detailToggle = detailEl.querySelector(`#${p}-detail-toggle-${instId}`);
                 const detailClose = detailEl.querySelector(`#${p}-detail-close-${instId}`);
+                // ── Attachment preview modal (images + PDFs) ───────────────────────
+                const attModal = document.createElement("div");
+                attModal.className = `${p}-amodal`;
+                attModal.innerHTML = `
+        <div class="${p}-amodal-card">
+          <div class="${p}-amodal-head">
+            <span class="${p}-amodal-name" id="${p}-amodal-name-${instId}"></span>
+            <button type="button" class="${p}-amodal-dl" id="${p}-amodal-dl-${instId}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download</button>
+            <button type="button" class="${p}-amodal-x" id="${p}-amodal-x-${instId}" aria-label="Close"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+          </div>
+          <div class="${p}-amodal-body" id="${p}-amodal-body-${instId}"></div>
+        </div>`;
+                document.body.appendChild(attModal);
+                self._mtwAModal = attModal;
+                const aName = attModal.querySelector(`#${p}-amodal-name-${instId}`);
+                const aBody = attModal.querySelector(`#${p}-amodal-body-${instId}`);
+                const aDl = attModal.querySelector(`#${p}-amodal-dl-${instId}`);
+                const aX = attModal.querySelector(`#${p}-amodal-x-${instId}`);
+                let dlUrl = "", dlName = "";
+                // previewUrl = the reliable thumbnail (full image for pics, page-1 image for PDFs);
+                // downloadUrl = best-effort original. kind: img | pdf | other.
+                function openAttModal(previewUrl, downloadUrl, name, kind) {
+                    dlUrl = downloadUrl || previewUrl;
+                    dlName = name || "file";
+                    aName.textContent = dlName;
+                    aBody.innerHTML = (kind !== "other" && previewUrl)
+                        ? `<img src="${esc(previewUrl)}" alt="${esc(dlName)}">`
+                        : `<div class="${p}-amodal-none"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span>No preview available — use Download</span></div>`;
+                    attModal.classList.add("open");
+                }
+                function closeAttModal() { attModal.classList.remove("open"); aBody.innerHTML = ""; }
+                aX.addEventListener("click", closeAttModal);
+                attModal.addEventListener("click", e => { if (e.target === attModal)
+                    closeAttModal(); });
+                aDl.addEventListener("click", () => __awaiter(this, void 0, void 0, function* () {
+                    if (!dlUrl)
+                        return;
+                    const name = dlName;
+                    try {
+                        const res = yield fetch(dlUrl);
+                        const blob = yield res.blob();
+                        const navAny = navigator;
+                        const file = new File([blob], name, { type: blob.type || "application/octet-stream" });
+                        // On mobile, the native share sheet offers "Save Image" / "Save to Files".
+                        if (navAny.canShare && navAny.canShare({ files: [file] })) {
+                            yield navAny.share({ files: [file], title: name });
+                            return;
+                        }
+                        const obj = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = obj;
+                        a.download = name;
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        setTimeout(() => URL.revokeObjectURL(obj), 5000);
+                    }
+                    catch (_) {
+                        window.open(dlUrl, "_blank");
+                    }
+                }));
+                // Delegated: clicking any attachment in the detail body opens the preview modal.
+                detailBody.addEventListener("click", e => {
+                    const a = e.target.closest("[data-att-url]");
+                    if (!a)
+                        return;
+                    e.preventDefault();
+                    openAttModal(a.dataset.attPreview || a.dataset.attUrl || "", a.dataset.attUrl || "", a.dataset.attName || "file", a.dataset.attKind || "other");
+                });
                 // ── Drag-to-dismiss the bottom sheet (mobile) ──────────────────────
                 (function setupSheetDrag() {
                     let startY = 0, dy = 0, dragging = false;
@@ -821,6 +906,28 @@ const factory = (BaseBlockClass, widgetApi) => {
                             return null;
                         }
                     });
+                }
+                // Best-effort original-file URL: metadata only exposes a `thumbnail` (t_preview), so we
+                // derive the original by dropping the transform segment and restoring the file extension.
+                function originalUrl(m) {
+                    var _a;
+                    const t = ((_a = m === null || m === void 0 ? void 0 : m.thumbnail) === null || _a === void 0 ? void 0 : _a.url) || "";
+                    if (!t)
+                        return "";
+                    const ext = ((String((m === null || m === void 0 ? void 0 : m.fileName) || "").match(/\.[a-z0-9]+$/i)) || [])[0] || ((m === null || m === void 0 ? void 0 : m.type) === "pdf" ? ".pdf" : "");
+                    let u = t.replace(/\/upload\/[^/]+\//, "/upload/"); // ".../upload/t_preview/<hash>.png" → ".../upload/<hash>.png"
+                    if (ext)
+                        u = u.replace(/\.[a-z0-9]+($|\?)/i, ext + "$1");
+                    return u;
+                }
+                function attKind(m) {
+                    const fn = String((m === null || m === void 0 ? void 0 : m.fileName) || "");
+                    const mime = String((m === null || m === void 0 ? void 0 : m.mimeType) || (m === null || m === void 0 ? void 0 : m.contentType) || "").toLowerCase();
+                    if (/^image\//.test(mime) || /\.(png|jpe?g|gif|webp|bmp|svg|heic|heif)$/i.test(fn))
+                        return "img";
+                    if (mime.indexOf("pdf") >= 0 || (m === null || m === void 0 ? void 0 : m.type) === "pdf" || /\.pdf$/i.test(fn))
+                        return "pdf";
+                    return "other";
                 }
                 const iClip = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>`;
                 const iFileGeneric = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
@@ -1071,15 +1178,18 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const ATT_TOKEN = /\[attachment:([A-Za-z0-9]+)\]/g;
                 function resolveAttachments(html) {
                     return html.replace(ATT_TOKEN, (_m, id) => {
-                        var _a, _b;
+                        var _a;
                         const meta = mediaCache.get(id);
                         const name = esc((meta === null || meta === void 0 ? void 0 : meta.fileName) || "attachment");
-                        const href = ((_a = meta === null || meta === void 0 ? void 0 : meta.thumbnail) === null || _a === void 0 ? void 0 : _a.url) || "";
-                        const isImg = /^image\//.test((meta === null || meta === void 0 ? void 0 : meta.mimeType) || "");
-                        if (isImg && ((_b = meta === null || meta === void 0 ? void 0 : meta.thumbnail) === null || _b === void 0 ? void 0 : _b.url)) {
-                            return `<a href="${esc(href)}" target="_blank" rel="noopener"><img class="${p}-cmt-att-img" src="${esc(meta.thumbnail.url)}" alt="${name}"></a>`;
+                        const fn = (meta === null || meta === void 0 ? void 0 : meta.fileName) || "attachment";
+                        const turl = ((_a = meta === null || meta === void 0 ? void 0 : meta.thumbnail) === null || _a === void 0 ? void 0 : _a.url) || "";
+                        const full = originalUrl(meta) || turl;
+                        const kind = attKind(meta);
+                        const data = `data-att-url="${esc(full)}" data-att-preview="${esc(turl)}" data-att-name="${esc(fn)}" data-att-kind="${kind}"`;
+                        if (kind === "img" && turl) {
+                            return `<a href="${esc(full)}" target="_blank" rel="noopener" ${data}><img class="${p}-cmt-att-img" src="${esc(turl)}" alt="${name}"></a>`;
                         }
-                        return `<a class="${p}-cmt-att" href="${esc(href) || "#"}" target="_blank" rel="noopener">${iClip}<span>${name}</span></a>`;
+                        return `<a class="${p}-cmt-att" href="${esc(full) || "#"}" target="_blank" rel="noopener" ${data}>${iClip}<span>${name}</span></a>`;
                     });
                 }
                 // Render the comments list inside the open detail panel.
@@ -1152,9 +1262,12 @@ const factory = (BaseBlockClass, widgetApi) => {
                             const thumb = ((_a = m === null || m === void 0 ? void 0 : m.thumbnail) === null || _a === void 0 ? void 0 : _a.url)
                                 ? `<img class="${p}-att-thumb" src="${esc(m.thumbnail.url)}" alt="">`
                                 : `<span class="${p}-att-ico">${iFileGeneric}</span>`;
-                            const href = ((_b = m === null || m === void 0 ? void 0 : m.thumbnail) === null || _b === void 0 ? void 0 : _b.url) || "";
+                            const fn = (m === null || m === void 0 ? void 0 : m.fileName) || "file";
+                            const turl = ((_b = m === null || m === void 0 ? void 0 : m.thumbnail) === null || _b === void 0 ? void 0 : _b.url) || "";
+                            const full = originalUrl(m) || turl;
+                            const kind = attKind(m);
                             return `<div class="${p}-att-tile">
-            <a class="${p}-att-link" href="${esc(href)}" target="_blank" rel="noopener">
+            <a class="${p}-att-link" href="${esc(full)}" target="_blank" rel="noopener" data-att-url="${esc(full)}" data-att-preview="${esc(turl)}" data-att-name="${esc(fn)}" data-att-kind="${kind}">
               ${thumb}<span class="${p}-att-meta"><span class="${p}-att-name">${name}</span>${size}</span>
             </a>
             <button type="button" class="${p}-att-x" data-id="${esc(id)}" title="Remove">${iXsmall}</button>
@@ -1691,7 +1804,11 @@ const factory = (BaseBlockClass, widgetApi) => {
                                 const name = esc((m === null || m === void 0 ? void 0 : m.fileName) || "file");
                                 const thumb = ((_a = m === null || m === void 0 ? void 0 : m.thumbnail) === null || _a === void 0 ? void 0 : _a.url) ? `<img class="${p}-att-thumb" src="${esc(m.thumbnail.url)}" alt="">` : `<span class="${p}-att-ico">${iFileGeneric}</span>`;
                                 const size = (m === null || m === void 0 ? void 0 : m.size) ? `<span class="${p}-att-size">${humanSize(m.size)}</span>` : "";
-                                return `<div class="${p}-att-tile"><a class="${p}-att-link" href="${esc(((_b = m === null || m === void 0 ? void 0 : m.thumbnail) === null || _b === void 0 ? void 0 : _b.url) || "#")}" target="_blank" rel="noopener">${thumb}<span class="${p}-att-meta"><span class="${p}-att-name">${name}</span>${size}</span></a></div>`;
+                                const fn = (m === null || m === void 0 ? void 0 : m.fileName) || "file";
+                                const turl = ((_b = m === null || m === void 0 ? void 0 : m.thumbnail) === null || _b === void 0 ? void 0 : _b.url) || "";
+                                const full = originalUrl(m) || turl;
+                                const kind = attKind(m);
+                                return `<div class="${p}-att-tile"><a class="${p}-att-link" href="${esc(full || "#")}" target="_blank" rel="noopener" data-att-url="${esc(full)}" data-att-preview="${esc(turl)}" data-att-name="${esc(fn)}" data-att-kind="${kind}">${thumb}<span class="${p}-att-meta"><span class="${p}-att-name">${name}</span>${size}</span></a></div>`;
                             }).join("");
                         });
                     }
@@ -2561,6 +2678,10 @@ const factory = (BaseBlockClass, widgetApi) => {
             if (self._mtwDetail) {
                 self._mtwDetail.remove();
                 self._mtwDetail = undefined;
+            }
+            if (self._mtwAModal) {
+                self._mtwAModal.remove();
+                self._mtwAModal = undefined;
             }
             if (self._mtwCreate) {
                 self._mtwCreate.remove();
