@@ -222,7 +222,7 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-detail-handle{width:40px;height:5px;border-radius:3px;background:var(--border);margin:9px auto 2px;flex-shrink:0;cursor:grab;touch-action:none}
           .${p}-detail-head{touch-action:none}
           .${p}-detail.side .${p}-detail-handle{display:none}
-          .${p}-detail-head{display:flex;align-items:flex-start;gap:10px;padding:16px 20px 12px;flex-shrink:0;border-bottom:1px solid var(--border)}
+          .${p}-detail-head{display:flex;align-items:center;gap:10px;padding:16px 20px 12px;flex-shrink:0;border-bottom:1px solid var(--border)}
           .${p}-detail-head-badges{display:flex;gap:6px;flex-wrap:wrap;flex:1;align-items:center}
           .${p}-detail-close{width:28px;height:28px;border-radius:50%;border:none;background:#f3f4f6;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--gray);flex-shrink:0;transition:background .15s,color .15s;font-family:inherit}
           .${p}-detail-close:hover{background:var(--border);color:var(--dark)}
