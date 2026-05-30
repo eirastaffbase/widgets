@@ -305,7 +305,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-amodal-x{width:32px;height:32px;flex-shrink:0;border:none!important;border-radius:50%;background:#f3f4f6!important;color:var(--gray)!important;cursor:pointer;display:flex!important;align-items:center;justify-content:center;padding:0!important;margin:0!important}
           .${p}-amodal-body{flex:1;min-height:0;overflow:auto;background:#f1f3f5;display:flex;align-items:center;justify-content:center}
           .${p}-amodal-body img{max-width:100%;max-height:88vh;object-fit:contain;display:block}
-          .${p}-amodal-body iframe{width:100%;height:84vh;border:none;background:#fff}
+          .${p}-amodal-body iframe,.${p}-amodal-body object,.${p}-amodal-pdf{width:100%;height:84vh;border:none;background:#fff}
           .${p}-amodal-none{display:flex;flex-direction:column;align-items:center;gap:12px;padding:48px 24px;color:var(--gray-lt);font-size:13px}
           .${p}-att-x{width:auto!important;margin:0 0 0 2px!important;border:none!important;background:none!important;color:var(--gray-lt);cursor:pointer;padding:3px!important;display:flex!important;border-radius:50%;flex-shrink:0;transition:color .15s,background .15s}
           .${p}-att-x:hover{color:var(--error);background:rgba(196,30,58,.08)}
@@ -680,9 +680,19 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       function openAttModal(previewUrl:string,downloadUrl:string,name:string,kind:string){
         dlUrl=downloadUrl||previewUrl; dlName=name||"file";
         aName.textContent=dlName;
-        aBody.innerHTML = (kind!=="other"&&previewUrl)
-          ? `<img src="${esc(previewUrl)}" alt="${esc(dlName)}">`
-          : `<div class="${p}-amodal-none"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span>No preview available — use Download</span></div>`;
+        const none=`<div class="${p}-amodal-none"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span>No preview available — use Download</span></div>`;
+        if(kind==="pdf"&&downloadUrl){
+          // Native PDF viewer via <object> on the derived .pdf (same URL the app uses); iframe fallback.
+          aBody.innerHTML=`<object class="${p}-amodal-pdf" data="${esc(downloadUrl)}" type="application/pdf"><iframe src="${esc(downloadUrl)}" title="${esc(dlName)}"></iframe></object>`;
+        } else if(kind==="img"){
+          aBody.innerHTML=`<img alt="${esc(dlName)}">`;
+          const img=aBody.querySelector("img") as HTMLImageElement;
+          img.src=downloadUrl||previewUrl;
+          // Fall back to the thumbnail if the full-res derived URL fails to load.
+          img.onerror=()=>{ if(previewUrl&&img.getAttribute("src")!==previewUrl){ img.src=previewUrl; } };
+        } else {
+          aBody.innerHTML=none;
+        }
         attModal.classList.add("open");
       }
       function closeAttModal(){ attModal.classList.remove("open"); aBody.innerHTML=""; }
@@ -2041,6 +2051,20 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             currentUserId=(profile as any).id||"";
             userGroupIds=(profile as any).groupIDs||[];
             dlog("user",currentUserId,"groups",userGroupIds.length);
+            // ── LOCALE PROBE (temporary) ───────────────────────────────
+            // Dump everything we might read a locale from, so we can decide
+            // the detection source. Remove once verified.
+            try{
+              const pr:any=profile;
+              dlog("LOCALE-PROBE profile keys:", Object.keys(pr||{}).join(","));
+              dlog("LOCALE-PROBE profile.locale =", pr?.locale);
+              dlog("LOCALE-PROBE profile.config?.locale =", pr?.config?.locale);
+              dlog("LOCALE-PROBE profile.language =", pr?.language);
+              dlog("LOCALE-PROBE full profile:", pr);
+              dlog("LOCALE-PROBE navigator.language =", (typeof navigator!=="undefined"?navigator.language:"n/a"));
+              dlog("LOCALE-PROBE navigator.languages =", (typeof navigator!=="undefined"?(navigator.languages||[]).join(","):"n/a"));
+              dlog("LOCALE-PROBE document.documentElement.lang =", (typeof document!=="undefined"?document.documentElement.lang:"n/a"));
+            } catch(pe:any){ dlog("LOCALE-PROBE failed", pe?.message||String(pe)); }
           } catch(e:any){ dlog("getUserInformation failed",e?.message||String(e)); }
 
           // Fetch groups → build groupMap (search endpoint + /groups supplement)

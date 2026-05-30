@@ -275,7 +275,7 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-amodal-x{width:32px;height:32px;flex-shrink:0;border:none!important;border-radius:50%;background:#f3f4f6!important;color:var(--gray)!important;cursor:pointer;display:flex!important;align-items:center;justify-content:center;padding:0!important;margin:0!important}
           .${p}-amodal-body{flex:1;min-height:0;overflow:auto;background:#f1f3f5;display:flex;align-items:center;justify-content:center}
           .${p}-amodal-body img{max-width:100%;max-height:88vh;object-fit:contain;display:block}
-          .${p}-amodal-body iframe{width:100%;height:84vh;border:none;background:#fff}
+          .${p}-amodal-body iframe,.${p}-amodal-body object,.${p}-amodal-pdf{width:100%;height:84vh;border:none;background:#fff}
           .${p}-amodal-none{display:flex;flex-direction:column;align-items:center;gap:12px;padding:48px 24px;color:var(--gray-lt);font-size:13px}
           .${p}-att-x{width:auto!important;margin:0 0 0 2px!important;border:none!important;background:none!important;color:var(--gray-lt);cursor:pointer;padding:3px!important;display:flex!important;border-radius:50%;flex-shrink:0;transition:color .15s,background .15s}
           .${p}-att-x:hover{color:var(--error);background:rgba(196,30,58,.08)}
@@ -664,9 +664,23 @@ const factory = (BaseBlockClass, widgetApi) => {
                     dlUrl = downloadUrl || previewUrl;
                     dlName = name || "file";
                     aName.textContent = dlName;
-                    aBody.innerHTML = (kind !== "other" && previewUrl)
-                        ? `<img src="${esc(previewUrl)}" alt="${esc(dlName)}">`
-                        : `<div class="${p}-amodal-none"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span>No preview available — use Download</span></div>`;
+                    const none = `<div class="${p}-amodal-none"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span>No preview available — use Download</span></div>`;
+                    if (kind === "pdf" && downloadUrl) {
+                        // Native PDF viewer via <object> on the derived .pdf (same URL the app uses); iframe fallback.
+                        aBody.innerHTML = `<object class="${p}-amodal-pdf" data="${esc(downloadUrl)}" type="application/pdf"><iframe src="${esc(downloadUrl)}" title="${esc(dlName)}"></iframe></object>`;
+                    }
+                    else if (kind === "img") {
+                        aBody.innerHTML = `<img alt="${esc(dlName)}">`;
+                        const img = aBody.querySelector("img");
+                        img.src = downloadUrl || previewUrl;
+                        // Fall back to the thumbnail if the full-res derived URL fails to load.
+                        img.onerror = () => { if (previewUrl && img.getAttribute("src") !== previewUrl) {
+                            img.src = previewUrl;
+                        } };
+                    }
+                    else {
+                        aBody.innerHTML = none;
+                    }
                     attModal.classList.add("open");
                 }
                 function closeAttModal() { attModal.classList.remove("open"); aBody.innerHTML = ""; }
@@ -2332,7 +2346,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 // ── Load data ─────────────────────────────────────────────────────
                 function load() {
                     return __awaiter(this, void 0, void 0, function* () {
-                        var _a, _b, _c, _d, _e, _f;
+                        var _a, _b, _c, _d, _e, _f, _g;
                         refreshBtn.disabled = true;
                         refreshBtn.innerHTML = `<span class="${p}-spin" style="width:14px;height:14px;border-width:2px"></span>`;
                         hideBanner();
@@ -2363,6 +2377,23 @@ const factory = (BaseBlockClass, widgetApi) => {
                                 currentUserId = profile.id || "";
                                 userGroupIds = profile.groupIDs || [];
                                 dlog("user", currentUserId, "groups", userGroupIds.length);
+                                // ── LOCALE PROBE (temporary) ───────────────────────────────
+                                // Dump everything we might read a locale from, so we can decide
+                                // the detection source. Remove once verified.
+                                try {
+                                    const pr = profile;
+                                    dlog("LOCALE-PROBE profile keys:", Object.keys(pr || {}).join(","));
+                                    dlog("LOCALE-PROBE profile.locale =", pr === null || pr === void 0 ? void 0 : pr.locale);
+                                    dlog("LOCALE-PROBE profile.config?.locale =", (_a = pr === null || pr === void 0 ? void 0 : pr.config) === null || _a === void 0 ? void 0 : _a.locale);
+                                    dlog("LOCALE-PROBE profile.language =", pr === null || pr === void 0 ? void 0 : pr.language);
+                                    dlog("LOCALE-PROBE full profile:", pr);
+                                    dlog("LOCALE-PROBE navigator.language =", (typeof navigator !== "undefined" ? navigator.language : "n/a"));
+                                    dlog("LOCALE-PROBE navigator.languages =", (typeof navigator !== "undefined" ? (navigator.languages || []).join(",") : "n/a"));
+                                    dlog("LOCALE-PROBE document.documentElement.lang =", (typeof document !== "undefined" ? document.documentElement.lang : "n/a"));
+                                }
+                                catch (pe) {
+                                    dlog("LOCALE-PROBE failed", (pe === null || pe === void 0 ? void 0 : pe.message) || String(pe));
+                                }
                             }
                             catch (e) {
                                 dlog("getUserInformation failed", (e === null || e === void 0 ? void 0 : e.message) || String(e));
@@ -2388,7 +2419,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                                 if (legacyRes.ok) {
                                     const gd = yield legacyRes.json();
                                     for (const g of (gd.data || [])) {
-                                        const name = ((_c = (_b = (_a = g.config) === null || _a === void 0 ? void 0 : _a.localization) === null || _b === void 0 ? void 0 : _b.en_US) === null || _c === void 0 ? void 0 : _c.title) || ((_f = (_e = (_d = g.config) === null || _d === void 0 ? void 0 : _d.localization) === null || _e === void 0 ? void 0 : _e.en_US) === null || _f === void 0 ? void 0 : _f.name) || g.name || g.id;
+                                        const name = ((_d = (_c = (_b = g.config) === null || _b === void 0 ? void 0 : _b.localization) === null || _c === void 0 ? void 0 : _c.en_US) === null || _d === void 0 ? void 0 : _d.title) || ((_g = (_f = (_e = g.config) === null || _e === void 0 ? void 0 : _e.localization) === null || _f === void 0 ? void 0 : _f.en_US) === null || _g === void 0 ? void 0 : _g.name) || g.name || g.id;
                                         if (g.id && name && !seen.has(g.id)) {
                                             groupMap.set(g.id, name);
                                             seen.add(g.id);
