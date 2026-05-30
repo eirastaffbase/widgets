@@ -340,7 +340,8 @@ const factory = (BaseBlockClass) => {
 
           .${p}-label { display:block; font-size:12px; font-weight:600; color:var(--gray);
             text-transform:uppercase; letter-spacing:.4px; margin-bottom:6px; }
-          .${p}-help { font-size:12px; color:var(--gray-lt); margin-top:5px; }
+          /* div (not <p>) + !important to dodge Staffbase's global rich-text "p" rule (16px/26px/24px margin). */
+          .${p}-help { font-size:12px!important; line-height:1.45!important; font-weight:400!important; color:var(--gray-lt)!important; margin:5px 0 0!important; }
           .${p}-in, .${p}-select, textarea.${p}-in {
             width:100%; padding:10px 13px; border:1.5px solid var(--border); border-radius:var(--r-md);
             font-size:14px; font-family:inherit; color:var(--dark); background:#fafafa;
@@ -497,7 +498,7 @@ const factory = (BaseBlockClass) => {
           .${p}-ico-btn.danger:hover { background:#fee2e2; color:var(--error); }
           .${p}-empty { text-align:center; padding:40px 20px; color:var(--gray-lt); }
           .${p}-empty svg { width:42px; height:42px; opacity:.4; margin-bottom:12px; }
-          .${p}-empty p { font-size:14px; }
+          .${p}-empty div { font-size:14px!important; line-height:1.5!important; margin:0!important; color:var(--gray-lt)!important; }
 
           /* Calendar shell */
           .${p}-cal { background:#fff; border:1px solid var(--border); border-radius:var(--r-lg); box-shadow:var(--shadow-sm); overflow:hidden; }
@@ -670,7 +671,7 @@ const factory = (BaseBlockClass) => {
                   <div class="${p}-fld"><label class="${p}-label">Start date</label><input type="date" class="${p}-in" id="${p}-f-start"></div>
                   <div class="${p}-fld"><label class="${p}-label">End date <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:var(--gray-lt)">(optional)</span></label><input type="date" class="${p}-in" id="${p}-f-end"></div>
                 </div>
-                <p class="${p}-help">Created at the chosen time (within ~15 min). Starts today by default.</p>
+                <div class="${p}-help">Created at the chosen time (within ~15 min). Starts today by default.</div>
                 <div class="${p}-time-note" id="${p}-f-note"></div>
               </div>
             </div>
@@ -687,7 +688,7 @@ const factory = (BaseBlockClass) => {
                       <div class="${p}-dd-list" id="${p}-opts"><div class="${p}-dd-msg">Loading…</div></div>
                     </div>
                   </div>
-                  <p class="${p}-help">Tasks land in a "Recurring Tasks" list in each ${esc(storeS.toLowerCase())}.</p>
+                  <div class="${p}-help">Tasks land in a "Recurring Tasks" list in each ${esc(storeS.toLowerCase())}.</div>
                 </div>
               </div>
             </div>
@@ -1017,7 +1018,7 @@ const factory = (BaseBlockClass) => {
                 if (!schedules.length) {
                     viewListEl.innerHTML = `<div class="${p}-empty">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            <p>No recurring schedules yet.<br>Click <b>New</b> to create one.</p></div>`;
+            <div>No recurring schedules yet.<br>Click <b>New</b> to create one.</div></div>`;
                     return;
                 }
                 viewListEl.innerHTML = schedules.map(s => {
