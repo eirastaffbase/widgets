@@ -339,6 +339,8 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-card-top{display:flex;align-items:center;gap:7px;margin-bottom:4px;flex-wrap:wrap}
           .${p}-type-badge{padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#fff;flex-shrink:0}
           .${p}-prio-badge{padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:.3px;flex-shrink:0;border:1.5px solid currentColor}
+          .${p}-recur-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:.3px;flex-shrink:0;text-transform:uppercase;background:rgba(var(--primary-rgb),.1);color:var(--primary)}
+          .${p}-recur-badge svg{width:9px;height:9px}
           .${p}-card-title{font-size:14px;font-weight:700;color:var(--dark);line-height:1.3;word-break:break-word;transition:color .3s ease}
           .${p}-card.done .${p}-card-title{color:var(--gray)}
           .${p}-card-title>span{position:relative;display:inline}
@@ -1539,6 +1541,8 @@ const factory = (BaseBlockClass, widgetApi) => {
                     const prioLbl = isCrit ? "Critical" : priorityLabel(task.priority);
                     const typeBadge = task.taskType ? `<span class="${p}-type-badge" style="background:${typeCol};color:${typeText}">${esc(task.taskType)}</span>` : "";
                     const prioBadge = (isCrit || (task.priority && task.priority !== "Priority_3")) ? `<span class="${p}-prio-badge${isCrit ? " crit" : ""}" style="color:${prioCol};border-color:${prioCol}">${prioLbl}</span>` : "";
+                    const iconRecur = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`;
+                    const recurBadge = task.isRecurring ? `<span class="${p}-recur-badge">${iconRecur}Recurring</span>` : "";
                     const iconCal = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
                     const iconStore = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`;
                     const iconList = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`;
@@ -1557,7 +1561,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 </div>
               </div>
               <div class="${p}-card-body">
-                <div class="${p}-card-top">${typeBadge}${prioBadge}</div>
+                <div class="${p}-card-top">${typeBadge}${recurBadge}${prioBadge}</div>
                 <div class="${p}-card-title"><span>${esc(task.title)}</span></div>
                 ${desc ? `<div class="${p}-card-desc">${desc}</div>` : ""}
                 <div class="${p}-card-meta">
@@ -1745,8 +1749,10 @@ const factory = (BaseBlockClass, widgetApi) => {
                     const prioCol = isCrit ? "#9B1C2E" : priorityColor(task.priority);
                     const prioLbl = isCrit ? "Critical" : priorityLabel(task.priority);
                     const cleanDesc = task.description ? stripTypeTag(task.description).trim() : "";
+                    const iconRecurD = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`;
                     detailBadges.innerHTML = `
           ${task.taskType ? `<span class="${p}-type-badge" style="background:${typeCol};color:${typeText}">${esc(task.taskType)}</span>` : ""}
+          ${task.isRecurring ? `<span class="${p}-recur-badge">${iconRecurD}Recurring</span>` : ""}
           ${(isCrit || (task.priority && task.priority !== "Priority_3")) ? `<span class="${p}-prio-badge${isCrit ? " crit" : ""}" style="color:${prioCol};border-color:${prioCol}">${prioLbl}</span>` : ""}`;
                     const iCal = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
                     const iStore = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`;
@@ -2294,6 +2300,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                                                 groupIds: t.groupIds || [], assigneeIds: t.assigneeIds || [],
                                                 attachmentIds: t.attachmentIds || [],
                                                 auditSeverity: sevM ? sevM[1] : undefined,
+                                                isRecurring: RECUR_REGEX.test(desc),
                                             });
                                         }
                                     }

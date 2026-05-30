@@ -12,11 +12,12 @@
 //   1. Paste this file into the Apps Script project bound to the registry sheet.
 //   2. Fill the sheet's first tab: row 1 headers  envName | baseUrl | apiToken | enabled
 //      (enabled = TRUE/yes/1 to activate a row).
-//   3. Run setupHourlyTrigger() once, approve the auth prompt.
+//   3. Run setupTrigger() once, approve the auth prompt.
 //   4. (Optional) Run runRecurring() manually to test; check Executions for logs.
 //
-// Hourly cadence honors each schedule's time-of-day. Schedules never fire more
-// than once per day per store.
+// Runs every 15 minutes (clock-aligned to :00/:15/:30/:45), so it honors each
+// schedule's time-of-day to the quarter hour. Never fires more than once per day
+// per store (dedup marker is keyed by date).
 // ============================================================================
 
 var REGISTRY_SHEET_ID = "1x3giib9AQKaAHZPvS8phtfiALtTBZbcBxZ29qacC80c";
@@ -29,13 +30,14 @@ function levelToPriority(level) { return LEVELS[level] || "Priority_3"; }
 function priorityToLevel(pr) { return pr === "Priority_1" ? "high" : pr === "Priority_2" ? "medium" : "normal"; }
 
 // ── Trigger setup ────────────────────────────────────────────────────────────
-function setupHourlyTrigger() {
-  // Remove existing triggers for this function, then create a fresh hourly one.
+function setupTrigger() {
+  // Remove existing triggers for this function, then create a fresh 15-minute one.
+  // everyMinutes(15) is clock-aligned (:00/:15/:30/:45), not offset from now.
   ScriptApp.getProjectTriggers().forEach(function (t) {
     if (t.getHandlerFunction() === "runRecurring") ScriptApp.deleteTrigger(t);
   });
-  ScriptApp.newTrigger("runRecurring").timeBased().everyHours(1).create();
-  Logger.log("Hourly trigger installed for runRecurring().");
+  ScriptApp.newTrigger("runRecurring").timeBased().everyMinutes(15).create();
+  Logger.log("15-minute trigger installed for runRecurring().");
 }
 
 // ── Main entry point (called by the trigger) ─────────────────────────────────

@@ -670,7 +670,7 @@ const factory = (BaseBlockClass) => {
                   <div class="${p}-fld"><label class="${p}-label">Start date</label><input type="date" class="${p}-in" id="${p}-f-start"></div>
                   <div class="${p}-fld"><label class="${p}-label">End date <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:var(--gray-lt)">(optional)</span></label><input type="date" class="${p}-in" id="${p}-f-end"></div>
                 </div>
-                <p class="${p}-help">Created on the hour. Starts today by default.</p>
+                <p class="${p}-help">Created at the chosen time (within ~15 min). Starts today by default.</p>
                 <div class="${p}-time-note" id="${p}-f-note"></div>
               </div>
             </div>
@@ -732,9 +732,9 @@ const factory = (BaseBlockClass) => {
                 return "—"; const [y, m, d] = iso.split("-").map(Number); return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }); };
             // Populate nth-weekday select
             nthdSel.innerHTML = WEEKDAYS.map(d => `<option value="${d}">${DAY_FULL[d]}</option>`).join("");
-            // Populate hour select (whole hours only — the runner fires on the hour)
-            timeInp.innerHTML = Array.from({ length: 24 }, (_, h) => {
-                const v = `${String(h).padStart(2, "0")}:00`;
+            // Populate time select in 15-minute steps (the runner checks every :00/:15/:30/:45).
+            timeInp.innerHTML = Array.from({ length: 96 }, (_, i) => {
+                const v = `${String(Math.floor(i / 4)).padStart(2, "0")}:${String((i % 4) * 15).padStart(2, "0")}`;
                 return `<option value="${v}">${fmtTime12(v)}</option>`;
             }).join("");
             timeInp.value = "09:00";
