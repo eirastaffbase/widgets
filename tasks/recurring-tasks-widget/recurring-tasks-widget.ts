@@ -428,6 +428,25 @@ const factory: BlockFactory = (BaseBlockClass) => {
             animation:${p}-spin .7s linear infinite; flex-shrink:0; }
           @keyframes ${p}-spin { to { transform:rotate(360deg); } }
 
+          /* Pin our button backgrounds so Staffbase's global ".mouse button:hover{background-color:…}"
+             (and .touch .button.active) can't recolor them on hover/active/focus. */
+          .${p}-btn-primary, .${p}-btn-primary:hover, .${p}-btn-primary:focus,
+          .${p}-detail-edit, .${p}-detail-edit:hover, .${p}-detail-edit:focus { background:var(--primary)!important; color:var(--primary-text)!important; }
+          .${p}-btn-ghost, .${p}-btn-ghost:focus { background:#f3f4f6!important; }
+          .${p}-btn-ghost:hover { background:var(--border)!important; }
+          .${p}-detail-del, .${p}-detail-del:hover, .${p}-detail-del:focus { background:#fee2e2!important; color:var(--error)!important; }
+          .${p}-seg button, .${p}-seg button:hover, .${p}-seg button:focus,
+          .${p}-cal-modeseg button, .${p}-cal-modeseg button:hover, .${p}-cal-modeseg button:focus { background:none!important; }
+          .${p}-seg button.active, .${p}-cal-modeseg button.active { background:#fff!important; }
+          .${p}-ico-btn, .${p}-ico-btn:focus { background:none!important; }
+          .${p}-ico-btn:hover { background:#f3f4f6!important; }
+          .${p}-ico-btn.danger:hover { background:#fee2e2!important; }
+          .${p}-wd button, .${p}-wd button:focus { background:#fafafa!important; }
+          .${p}-wd button:hover { background:rgba(var(--primary-rgb),.07)!important; }
+          .${p}-wd button.on, .${p}-wd button.on:hover, .${p}-wd button.on:focus { background:var(--primary)!important; color:var(--primary-text)!important; }
+          .${p}-detail-close, .${p}-detail-close:focus { background:#f3f4f6!important; }
+          .${p}-detail-close:hover { background:var(--border)!important; }
+
           /* Status banner */
           .${p}-status { display:none; padding:11px 15px; border-radius:var(--r-md); margin-top:12px; font-size:13px; line-height:1.5; }
           .${p}-status.success { background:rgba(46,125,74,.08); border:1px solid rgba(46,125,74,.25); color:var(--success); }
@@ -630,7 +649,7 @@ const factory: BlockFactory = (BaseBlockClass) => {
                   <div class="${p}-fld"><label class="${p}-label">Start date</label><input type="date" class="${p}-in" id="${p}-f-start"></div>
                   <div class="${p}-fld"><label class="${p}-label">End date <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:var(--gray-lt)">(optional)</span></label><input type="date" class="${p}-in" id="${p}-f-end"></div>
                 </div>
-                <p class="${p}-help">The scheduler runs hourly, so tasks are created on the hour you choose. Starts today by default — it can't begin in the past.</p>
+                <p class="${p}-help">Created on the hour. Starts today by default.</p>
                 <div class="${p}-time-note" id="${p}-f-note"></div>
               </div>
             </div>
@@ -647,10 +666,7 @@ const factory: BlockFactory = (BaseBlockClass) => {
                       <div class="${p}-dd-list" id="${p}-opts"><div class="${p}-dd-msg">Loading…</div></div>
                     </div>
                   </div>
-                </div>
-                <div class="${p}-fld" style="margin-bottom:0"><label class="${p}-label">List name</label>
-                  <input class="${p}-in" id="${p}-f-list" placeholder="e.g. Daily Operations">
-                  <p class="${p}-help">Tasks (and the hidden schedule) are placed in this list in each ${esc(storeS.toLowerCase())}. Reused if it already exists.</p>
+                  <p class="${p}-help">Tasks land in a "Recurring Tasks" list in each ${esc(storeS.toLowerCase())}.</p>
                 </div>
               </div>
             </div>
@@ -690,7 +706,7 @@ const factory: BlockFactory = (BaseBlockClass) => {
       const timeInp = $("f-time"), dueInp = $("f-due"), noteEl = $("f-note");
       const startInp = $("f-start"), endInp = $("f-end");
       const titleInp = $("f-title"), descInp = $("f-desc"), typeSel = $("f-type"), typeNewInp = $("f-type-new"), prioSel = $("f-prio");
-      const listNameInp = $("f-list");
+      const RECUR_LIST_NAME = "Recurring Tasks";
       const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
       const fmtDateLabel = (iso: string) => { if (!iso) return "—"; const [y, m, d] = iso.split("-").map(Number); return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }); };
 
@@ -787,7 +803,6 @@ const factory: BlockFactory = (BaseBlockClass) => {
       });
       typeNewInp.addEventListener("input", updateNote);
       titleInp.addEventListener("input", validateForm);
-      listNameInp.addEventListener("input", validateForm);
 
       function validateForm() {
         const r = readRuleFromForm();
@@ -795,7 +810,7 @@ const factory: BlockFactory = (BaseBlockClass) => {
         // Start can't predate today (unless editing a schedule that already started earlier).
         const startOk = editingId !== null || r.start >= todayISO();
         const endOk = !r.end || r.end >= r.start;
-        const ok = titleInp.value.trim().length > 0 && selectedStores.length > 0 && listNameInp.value.trim().length > 0 && weeklyOk && startOk && endOk;
+        const ok = titleInp.value.trim().length > 0 && selectedStores.length > 0 && weeklyOk && startOk && endOk;
         saveBtn.disabled = !ok;
       }
 
@@ -1113,7 +1128,6 @@ const factory: BlockFactory = (BaseBlockClass) => {
         timeInp.value = "09:00"; dueInp.value = "0";
         startInp.value = todayISO(); startInp.min = todayISO();
         endInp.value = ""; endInp.min = todayISO();
-        listNameInp.value = "";
         (container.querySelector(`input[name="${p}-mm"][value="dom"]`) as HTMLInputElement).checked = true;
         renderWeekdayBtns(); renderTrigger(); renderOpts(); renderAssignChips(); renderAssignList();
         syncFreqUI(); updateNote(); validateForm();
@@ -1142,7 +1156,6 @@ const factory: BlockFactory = (BaseBlockClass) => {
             endInp.min = s.rule.start; endInp.value = s.rule.end || "";
             (container.querySelector(`input[name="${p}-mm"][value="${s.rule.monthMode}"]`) as HTMLInputElement).checked = true;
             selectedStores = s.targets.map(t => ({ id: t.storeId, title: t.storeTitle }));
-            listNameInp.value = s.targets[0]?.listName || "";
             selectedAssignees = [
               ...s.assigneeIds.map(uid => { const u = allUsers.find(x => x.id === uid); return { id: uid, name: u?.name || uid, avatar: u?.avatar || "", type: "user" as const }; }),
               ...s.groupIds.map(gid => { const g = allGroups.find(x => x.id === gid); return { id: gid, name: g?.name || gid, avatar: "", type: "group" as const }; }),
@@ -1184,8 +1197,7 @@ const factory: BlockFactory = (BaseBlockClass) => {
         rule = readRuleFromForm();
         const title = titleInp.value.trim();
         const baseDesc = descInp.value.trim();
-        const listName = listNameInp.value.trim();
-        if (!title || !selectedStores.length || !listName) return;
+        if (!title || !selectedStores.length) return;
         if (rule.freq === "WEEKLY" && !rule.byday.length) { showStatus("error", "Pick at least one weekday."); return; }
         if (!editingId && rule.start < todayISO()) { showStatus("error", "Start date can't be in the past."); return; }
         if (rule.end && rule.end < rule.start) { showStatus("error", "End date must be on or after the start date."); return; }
@@ -1209,7 +1221,7 @@ const factory: BlockFactory = (BaseBlockClass) => {
         let ok = 0, fail = 0;
         for (const store of selectedStores) {
           try {
-            const listId = await findOrCreateList(store.id, listName);
+            const listId = await findOrCreateList(store.id, RECUR_LIST_NAME);
             const body: Record<string, unknown> = {
               title, description: templateDesc, status: "OPEN", priority: levelToPriority(rule.level),
               taskListId: listId, assigneeIds, groupIds,
