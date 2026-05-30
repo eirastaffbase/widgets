@@ -288,7 +288,7 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-cmt-field:focus-within{border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(var(--primary-rgb),.12)}
           .${p}-cmt-input{width:100%;resize:none;max-height:140px;min-height:38px;font-family:inherit;font-size:14px;line-height:1.5;border:none;background:none;color:var(--dark)}
           .${p}-cmt-input:focus{outline:none}
-          .${p}-cmt-bar{display:none;align-items:center;justify-content:flex-end;gap:6px;margin-top:8px}
+          .${p}-cmt-bar{display:none;align-items:center;gap:6px;margin-top:8px}
           .${p}-cmt-bar.show{display:flex}
           .${p}-cmt-attach{display:inline-flex!important;width:38px!important;height:38px;margin:0!important;align-items:center;justify-content:center;border:none!important;background:none!important;color:var(--gray);cursor:pointer;padding:0!important;border-radius:50%;line-height:normal!important;font-family:inherit;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
           .${p}-cmt-attach:hover,.${p}-cmt-attach:active{color:var(--primary);background:rgba(var(--primary-rgb),.1)}
@@ -299,8 +299,9 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-cmt-send svg{width:14px;height:14px}
           .${p}-cmt-send:hover{filter:brightness(.9)!important;transform:translateY(-1px)!important}
           .${p}-cmt-send:active{transform:translateY(0)!important}
-          .${p}-cmt-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
-          .${p}-cmt-chip{display:inline-flex;align-items:center;gap:5px;max-width:180px;font-size:11px;font-weight:600;background:rgba(var(--primary-rgb),.08);color:var(--primary);border-radius:12px;padding:3px 4px 3px 9px}
+          .${p}-cmt-chips{display:flex;flex-wrap:nowrap;gap:5px;flex:1;min-width:0;overflow-x:auto;margin:0;scrollbar-width:none}
+          .${p}-cmt-chips::-webkit-scrollbar{display:none}
+          .${p}-cmt-chip{display:inline-flex;align-items:center;gap:5px;max-width:130px;flex-shrink:0;font-size:11px;font-weight:600;background:rgba(var(--primary-rgb),.08);color:var(--primary);border-radius:12px;padding:3px 4px 3px 9px}
           .${p}-cmt-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
           .${p}-cmt-chip button{width:auto!important;margin:0!important;border:none!important;background:none!important;cursor:pointer;color:inherit;padding:1px!important;display:flex!important;opacity:.7}
           .${p}-cmt-chip button:hover{opacity:1}
@@ -1873,8 +1874,8 @@ const factory = (BaseBlockClass, widgetApi) => {
               <span class="${p}-cmt-av-slot" id="${p}-cmt-me-${instId}"><span class="${p}-cmt-av ${p}-cmt-av-fb">·</span></span>
               <div class="${p}-cmt-field">
                 <textarea class="${p}-cmt-input" id="${p}-cmt-input-${instId}" rows="2" placeholder="Add a comment…"></textarea>
-                <div class="${p}-cmt-chips" id="${p}-cmt-chips-${instId}"></div>
                 <div class="${p}-cmt-bar" id="${p}-cmt-bar-${instId}">
+                  <div class="${p}-cmt-chips" id="${p}-cmt-chips-${instId}"></div>
                   <label class="${p}-cmt-attach" id="${p}-cmt-attach-${instId}" for="${p}-cmt-file-${instId}" title="Attach file">${iClip}</label>
                   <button type="button" class="${p}-cmt-send" id="${p}-cmt-send-${instId}">${iSend} Send</button>
                 </div>
