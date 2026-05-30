@@ -67,8 +67,18 @@ function parseTaskType(text) {
     const m = TYPE_REGEX.exec(text);
     return m ? m[1].trim().toLowerCase() : null;
 }
+// Recurrence markers written by the recurring-tasks-widget / scheduler:
+//   [rrule: ...]  — schedule definition on a hidden template task
+//   [recur: id@YYYY-MM-DD] — dedup stamp on a generated recurring task
+const RRULE_REGEX = /\[rrule:\s*[^\]]+\]/i;
+const RECUR_REGEX = /\[recur:\s*[^\]]+\]/i;
 function stripTypeTag(text) {
-    return text.replace(TYPE_REGEX, "").replace(/\s{2,}/g, " ").trim();
+    return text
+        .replace(TYPE_REGEX, "")
+        .replace(RRULE_REGEX, "")
+        .replace(RECUR_REGEX, "")
+        .replace(/\s{2,}/g, " ")
+        .trim();
 }
 // ── Color palette for type badges ─────────────────────────────────────────────
 const TYPE_COLORS = {
@@ -2264,6 +2274,11 @@ const factory = (BaseBlockClass, widgetApi) => {
                                             const desc = t.description || "";
                                             const lname = t.taskListId ? (listMap.get(t.taskListId) || "") : "";
                                             let taskType = parseTaskType(t.title || "") || parseTaskType(desc);
+                                            // Recurring-task templates are hidden system tasks — never show them.
+                                            if (taskType === "recur-template") {
+                                                seen.delete(t.id);
+                                                continue;
+                                            }
                                             // Audit-generated tasks have no [type] tag — surface them as an
                                             // "Audit" type so they're filterable in the normal (non-audit) view.
                                             if (!taskType && (/^\s*Audit finding:/i.test(desc) || /^\s*Audit\s*[—–-]/i.test(lname)))

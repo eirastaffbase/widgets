@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recurring Tasks Widget — Preview</title>
+  <style>
+    body {
+      margin: 0; background: #f3f4f6;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      display: flex; justify-content: center; align-items: flex-start;
+      min-height: 100vh; padding: 32px 16px; box-sizing: border-box;
+    }
+    .preview-wrap { width: 100%; max-width: 620px; }
+    .preview-label {
+      font-size: 11px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase;
+      color: #9ca3af; text-align: center; margin-bottom: 12px;
+    }
+    .preview-note {
+      font-size: 11px; color: #9ca3af; text-align: center; margin-top: 14px; line-height: 1.5;
+    }
+    .widget-shell { background: white; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,.10); overflow: hidden; }
+  </style>
+</head>
+<body>
+  <div class="preview-wrap">
+    <div class="preview-label">Widget Preview — Recurring Tasks</div>
+    <div class="widget-shell"><div id="widget-root"></div></div>
+    <div class="preview-note">Live preview running the built bundle against a mocked Staffbase API.<br>
+      Create / edit / delete schedules and toggle the calendar — all changes are in-memory.</div>
+  </div>
+
+  <script>
+    // ── In-memory mock Staffbase environment ───────────────────────────────────
+    // A couple of pre-seeded template tasks so the List & Calendar views have data.
+    function tmplDesc(blob) { return "Demo recurring task. [type: recur-template] [rrule: " + blob + "]"; }
+    // Anchor schedules ~30 days in the past so occurrences always show around "today".
+    const START = (function () {
+      const d = new Date(Date.now() - 30 * 86400000);
+      return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    })();
+    const DB = {
+      installs: [
+        { id: "inst-nh", pluginID: "tasks", config: { localization: { en_US: { title: "North Hollywood" } } } },
+        { id: "inst-dt", pluginID: "tasks", title: "Downtown LA" },
+        { id: "inst-news", pluginID: "news", title: "News (ignored)" },
+      ],
+      lists: {
+        "inst-nh": [{ id: "l1", name: "Daily Operations" }, { id: "l2", name: "Weekly Checks" }],
+        "inst-dt": [{ id: "l3", name: "Daily Operations" }],
+      },
+      tasks: {
+        l1: [{
+          id: "t-open", title: "Opening safety walk", assigneeIds: [], groupIds: [],
+          description: tmplDesc("id=demo1;f=DAILY;i=1;time=08:00;tz=America/New_York;due=0;lvl=critical;t=safety;s=" + START),
+        }],
+        l2: [{
+          id: "t-inv", title: "Inventory count", assigneeIds: [], groupIds: [],
+          description: tmplDesc("id=demo2;f=WEEKLY;i=1;d=MO,TH;time=09:00;tz=America/New_York;due=1;lvl=medium;t=inventory;s=" + START),
+        }, {
+          id: "t-maint", title: "Equipment inspection", assigneeIds: [], groupIds: [],
+          description: tmplDesc("id=demo3;f=MONTHLY;i=1;mm=nth;nth=1;nthd=MO;time=10:00;tz=America/New_York;due=0;lvl=high;t=maintenance;s=" + START),
+        }],
+        l3: [],
+      },
+      users: [
+        { id: "u1", firstName: "Maria", lastName: "Lopez", avatar: { icon: { url: "" } } },
+        { id: "u2", firstName: "James", lastName: "Chen", avatar: { icon: { url: "" } } },
+        { id: "u3", firstName: "Priya", lastName: "Patel", avatar: { icon: { url: "" } } },
+      ],
+      groups: [
+        { id: "g1", name: "Store Managers" },
+        { id: "g2", name: "Shift Leads" },
+      ],
+    };
+    let idSeq = 100;
+
+    function jsonRes(data, status) {
+      status = status || 200;
+      return Promise.resolve({ ok: status >= 200 && status < 300, status: status, json: () => Promise.resolve(data), text: () => Promise.resolve("") });
+    }
+
+    window.fetch = function (url, opts) {
+      opts = opts || {};
+      const method = (opts.method || "GET").toUpperCase();
+      const u = new URL(url, "https://app.staffbase.com");
+      const path = u.pathname.replace(/^\/api/, "");
+      const body = opts.body ? JSON.parse(opts.body) : null;
+
+      // Installations
+      if (path === "/installations") return jsonRes({ data: DB.installs });
+
+      // Lists:  /tasks/{inst}/lists
+      let m = path.match(/^\/tasks\/([^/]+)\/lists$/);
+      if (m) {
+        const inst = m[1];
+        if (method === "POST") {
+          const newList = { id: "list-" + (idSeq++), name: body.name };
+          (DB.lists[inst] = DB.lists[inst] || []).push(newList);
+          DB.tasks[newList.id] = [];
+          return jsonRes(newList);
+        }
+        return jsonRes(DB.lists[inst] || []);
+      }
+
+      // Task create:  /tasks/{inst}/task   (with optional ?listId=)
+      m = path.match(/^\/tasks\/([^/]+)\/task$/);
+      if (m) {
+        if (method === "POST") {
+          const t = Object.assign({ id: "task-" + (idSeq++) }, body);
+          (DB.tasks[body.taskListId] = DB.tasks[body.taskListId] || []).push(t);
+          return jsonRes(t);
+        }
+        const listId = u.searchParams.get("listId");
+        return jsonRes(DB.tasks[listId] || []);
+      }
+
+      // Task delete:  /tasks/{inst}/task/{taskId}
+      m = path.match(/^\/tasks\/([^/]+)\/task\/([^/]+)$/);
+      if (m && method === "DELETE") {
+        const taskId = m[2];
+        for (const k in DB.tasks) DB.tasks[k] = DB.tasks[k].filter(t => t.id !== taskId);
+        return jsonRes({});
+      }
+
+      if (path === "/users")  return jsonRes({ data: DB.users });
+      if (path === "/groups") return jsonRes({ data: DB.groups });
+
+      return jsonRes({}, 404);
+    };
+
+    // ── Minimal Staffbase SDK shim so the bundle can register & render ──────────
+    class BaseBlock {
+      constructor() { this._attrs = {}; }
+      getAttribute(name) { return this._attrs[name] != null ? this._attrs[name] : null; }
+      setAttribute(name, val) { this._attrs[name] = val; }
+    }
+    window.defineBlock = function (def) {
+      const Klass = def.blockDefinition.factory(BaseBlock, {});
+      const inst = new Klass();
+      // Leave attributes unset → widget uses its built-in defaults (mock API answers).
+      inst.renderBlock(document.getElementById("widget-root"));
+    };
+  </script>
+
+  <!-- Load the actual built widget bundle -->
+  <script src="dist/recurring-tasks-widget.js"></script>
+</body>
+</html>
