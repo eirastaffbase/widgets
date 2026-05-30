@@ -233,7 +233,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-title{font-size:18px;font-weight:800;color:var(--dark);display:flex;align-items:center;gap:10px}
           .${p}-title-dot{width:10px;height:10px;border-radius:50%;background:var(--primary);flex-shrink:0}
           .${p}-badge-count{background:var(--primary);color:var(--primary-text);padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700}
-          .${p}-refresh-btn{width:34px;height:34px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--gray);transition:all .15s}
+          .${p}-refresh-btn{width:34px;height:34px;border:1.5px solid var(--border)!important;border-radius:var(--r-md);background:#fff!important;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--gray)!important;transition:all .15s}
+          .${p}-refresh-btn:hover,.${p}-refresh-btn:focus,.${p}-refresh-btn:active{background:#fff!important;color:var(--primary)!important;border-color:var(--primary)!important}
+          .${p}-refresh-btn svg{stroke:currentColor!important}
           .${p}-refresh-btn:hover{border-color:var(--primary);color:var(--primary);background:rgba(var(--primary-rgb),.05)}
           .${p}-refresh-btn:disabled{opacity:.4;cursor:not-allowed}
           .${p}-header-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
@@ -841,7 +843,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         if(isNaN(d.getTime())) return{text:"",overdue:false};
         const now=new Date(); now.setHours(0,0,0,0);
         const overdue=d<now;
-        return{text:d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}),overdue};
+        let text:string;
+        try{ text=d.toLocaleDateString(locale.replace("_","-"),{month:"short",day:"numeric",year:"numeric"}); }
+        catch(_){ text=d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}); }
+        return{text,overdue};
       }
 
       function groupName(id:string):string { return groupMap.get(id)||id; }
@@ -1128,7 +1133,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             ${avatarHtml(a)}
             <div class="${p}-cmt-main">
               <div class="${p}-cmt-head"><span class="${p}-cmt-author">${esc(a.name)}</span><span class="${p}-cmt-time">${esc(commentTime(c.createdAt||c.created||""))}</span></div>
-              <div class="${p}-cmt-body">${resolveAttachments(bodies[i])||"<em>(empty)</em>"}</div>
+              <div class="${p}-cmt-body" dir="auto">${resolveAttachments(bodies[i])||"<em>(empty)</em>"}</div>
             </div>
           </div>`;
         }).join("");
@@ -1407,7 +1412,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
                 <div style="font-size:13px;font-weight:700;color:${scoreColor};margin-top:3px">${passing===true?tr("passing"):passing===false?tr("failing"):"—"}</div>
               </div>
               <div style="font-size:11px;color:var(--gray-lt);text-align:end;line-height:1.6">
-                ${pa.taskCount!=null?`<div style="font-weight:600;color:${scoreColor}">${pa.taskCount} task${pa.taskCount!==1?"s":""} flagged</div>`:""}
+                ${pa.taskCount!=null?`<div style="font-weight:600;color:${scoreColor}">${tr("nTasksFlagged").replace("{n}",String(pa.taskCount))}</div>`:""}
               </div>
             </div>
             <div class="${p}-audit-card-meta">
@@ -1529,7 +1534,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         const isCrit=(task.auditSeverity||"").toLowerCase()==="critical";
         const prioCol=isCrit?"#9B1C2E":priorityColor(task.priority);
         const prioLbl=isCrit?tr("critical"):task.priority==="Priority_1"?tr("high"):task.priority==="Priority_2"?tr("medium"):tr("normal");
-        const typeBadge=task.taskType?`<span class="${p}-type-badge" style="background:${typeCol};color:${typeText}">${esc(ct(task.taskType))}</span>`:"";
+        const typeBadge=task.taskType?`<span class="${p}-type-badge" style="background:${typeCol};color:${typeText}" dir="auto">${esc(ct(task.taskType))}</span>`:"";
         const prioBadge=(isCrit||(task.priority&&task.priority!=="Priority_3"))?`<span class="${p}-prio-badge${isCrit?" crit":""}" style="color:${prioCol};border-color:${prioCol}">${prioLbl}</span>`:"";
         const iconRecur=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`;
         const recurBadge=task.isRecurring?`<span class="${p}-recur-badge">${iconRecur}${tr("recurring")}</span>`:"";
@@ -1555,10 +1560,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               </div>
               <div class="${p}-card-body">
                 <div class="${p}-card-top">${typeBadge}${recurBadge}${prioBadge}</div>
-                <div class="${p}-card-title"><span>${esc(ct(task.title))}</span></div>
+                <div class="${p}-card-title"><span dir="auto">${esc(ct(task.title))}</span></div>
                 ${desc?`<div class="${p}-card-desc">${desc}</div>`:""}
                 <div class="${p}-card-meta">
-                  ${dueInfo.text?`<span class="${p}-meta-item ${dueInfo.overdue&&!isDone?"overdue":""}">${iconCal} ${dueInfo.overdue&&!isDone?"Overdue: ":""}${dueInfo.text}</span>`:""}
+                  ${dueInfo.text?`<span class="${p}-meta-item ${dueInfo.overdue&&!isDone?"overdue":""}">${iconCal} ${dueInfo.overdue&&!isDone?tr("overdueLabel")+": ":""}<span dir="auto">${dueInfo.text}</span></span>`:""}
                   ${task.installationTitle?`<span class="${p}-meta-item">${iconStore} ${esc(task.installationTitle)}</span>`:""}
                   ${task.listName?`<span class="${p}-meta-item">${iconList} ${esc(task.listName)}</span>`:""}
                   ${groupNames.map(gn=>`<span class="${p}-meta-item">${iconGroup} ${esc(gn)}</span>`).join("")}
@@ -1723,7 +1728,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
         const iconRecurD=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`;
         detailBadges.innerHTML=`
-          ${task.taskType?`<span class="${p}-type-badge" style="background:${typeCol};color:${typeText}">${esc(ct(task.taskType))}</span>`:""}
+          ${task.taskType?`<span class="${p}-type-badge" style="background:${typeCol};color:${typeText}" dir="auto">${esc(ct(task.taskType))}</span>`:""}
           ${task.isRecurring?`<span class="${p}-recur-badge">${iconRecurD}Recurring</span>`:""}
           ${(isCrit||(task.priority&&task.priority!=="Priority_3"))?`<span class="${p}-prio-badge${isCrit?" crit":""}" style="color:${prioCol};border-color:${prioCol}">${prioLbl}</span>`:""}`;
 
@@ -1759,9 +1764,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         }
 
         detailBody.innerHTML=`
-          <div class="${p}-detail-title ${isDone?"done":""}">${esc(ct(task.title))}</div>
+          <div class="${p}-detail-title ${isDone?"done":""}" dir="auto">${esc(ct(task.title))}</div>
           <div class="${p}-detail-meta">
-            ${dueInfo.text?`<div class="${p}-detail-meta-row ${dueInfo.overdue&&!isDone?"overdue":""}">${iCal}${dueInfo.overdue&&!isDone?"Overdue · ":"Due "}${dueInfo.text}</div>`:""}
+            ${dueInfo.text?`<div class="${p}-detail-meta-row ${dueInfo.overdue&&!isDone?"overdue":""}">${iCal}${dueInfo.overdue&&!isDone?tr("overdueLabel")+" · ":tr("dueLabel")+" "}<span dir="auto">${dueInfo.text}</span></div>`:""}
             ${task.installationTitle?`<div class="${p}-detail-meta-row">${iStore} ${esc(task.installationTitle)}</div>`:""}
             ${task.listName?`<div class="${p}-detail-meta-row">${iList} ${esc(task.listName)}</div>`:""}
             ${assigneeHtml}
@@ -1779,7 +1784,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               return `<div class="${p}-detail-desc-label">${tr("auditFinding")}</div>
                 <div class="${p}-af">
                   ${af.code?`<span class="${p}-af-code">${esc(af.code)}</span>`:""}
-                  ${af.finding?`<div class="${p}-af-finding">${esc(af.finding)}</div>`:""}
+                  ${af.finding?`<div class="${p}-af-finding" dir="auto">${esc(ct(af.finding))}</div>`:""}
                   <div class="${p}-af-pills">
                     ${af.audit?`<span class="${p}-af-pill">${iCal}<span>${esc(af.audit)}</span></span>`:""}
                     ${af.auditor?`<span class="${p}-af-pill">${iUser}<span>${esc(af.auditor)}</span></span>`:""}
@@ -1787,7 +1792,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
                 </div>`;
             }
             return cleanDesc
-              ? `<div class="${p}-detail-desc-label">${tr("description")}</div><div class="${p}-detail-desc">${esc(ct(cleanDesc))}</div>`
+              ? `<div class="${p}-detail-desc-label">${tr("description")}</div><div class="${p}-detail-desc" dir="auto">${esc(ct(cleanDesc))}</div>`
               : `<div class="${p}-detail-desc empty">${tr("noDescription")}</div>`;
           })()}
           <div class="${p}-att">
@@ -2125,7 +2130,12 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             if(t.title) texts.push(t.title);
             if(t.taskType) texts.push(t.taskType);
             const cd=t.description?stripTypeTag(t.description).trim():"";
-            if(cd) texts.push(cd);
+            if(cd){
+              texts.push(cd);
+              // Audit findings render a parsed subset (af.finding) rather than the
+              // raw cleaned description, so collect that string too.
+              try{ const af=parseAuditFinding(cd); if(af&&af.finding) texts.push(af.finding); }catch(_){}
+            }
           }
           if(texts.length){
             translateBusy=true; updateTranslateBtn();
