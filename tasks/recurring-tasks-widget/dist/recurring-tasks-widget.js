@@ -18,7 +18,8 @@ function contrastColor(hex) {
     const r = parseInt(h.slice(0, 2), 16) / 255, g = parseInt(h.slice(2, 4), 16) / 255, b = parseInt(h.slice(4, 6), 16) / 255;
     const lin = (c) => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
     const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-    return L > 0.179 ? "#1a1a1a" : "#ffffff";
+    // Lean toward white text: only genuinely light backgrounds get dark text.
+    return L > 0.45 ? "#1a1a1a" : "#ffffff";
 }
 // ── Recurrence model & encoding ─────────────────────────────────────────────────
 //
@@ -213,6 +214,10 @@ const factory = (BaseBlockClass) => {
             const storeP = this.getAttribute("storelabelplural") || "Stores";
             const typeList = (this.getAttribute("tasktypes") || "Finance,Operations,Training,Compliance,Safety")
                 .split(",").map(s => s.trim()).filter(Boolean);
+            // Valid hex colors only; if blank/all-cleared, palette stays empty → original color system.
+            TYPE_PALETTE = (this.getAttribute("typecolors") || "").split(",").map(s => s.trim()).filter(c => /^#?[0-9a-fA-F]{3,8}$/.test(c)).map(c => c[0] === "#" ? c : `#${c}`);
+            // Register types up front (configured list + any seen on schedules) so colors are stable & repeat-free.
+            TYPE_ORDER = Array.from(new Set(typeList.map(t => t.toLowerCase()))).sort();
             const p = "rtw";
             const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
             // ── State ──────────────────────────────────────────────────────────
@@ -253,6 +258,28 @@ const factory = (BaseBlockClass) => {
             const NTH_LABEL = { "1": "1st", "2": "2nd", "3": "3rd", "4": "4th", "-1": "last" };
             const DAY_FULL = { SU: "Sunday", MO: "Monday", TU: "Tuesday", WE: "Wednesday", TH: "Thursday", FR: "Friday", SA: "Saturday" };
             const DAY_SHORT = { SU: "Sun", MO: "Mon", TU: "Tue", WE: "Wed", TH: "Thu", FR: "Fri", SA: "Sat" };
+            const ordinal = (n) => { const s = ["th", "st", "nd", "rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
+            // Compact frequency tag for calendar blocks, e.g. "Mon/Thu every week", "every 29th", "every 2nd 29th".
+            function shortFreq(r) {
+                if (r.freq === "DAILY")
+                    return r.interval === 1 ? "every day" : `every ${r.interval} days`;
+                if (r.freq === "WEEKLY") {
+                    const sel = WEEKDAYS.filter(d => r.byday.includes(d));
+                    const isWeekdays = sel.length === 5 && !sel.includes("SA") && !sel.includes("SU");
+                    const isWeekends = sel.length === 2 && sel.includes("SA") && sel.includes("SU");
+                    if (r.interval === 1 && isWeekdays)
+                        return "every weekday";
+                    if (r.interval === 1 && isWeekends)
+                        return "every weekend";
+                    const days = sel.map(d => DAY_SHORT[d]).join("/") || "—";
+                    return `${days} ${r.interval === 1 ? "every week" : `every ${ordinal(r.interval)} week`}`;
+                }
+                if (r.monthMode === "dom") {
+                    return r.interval === 1 ? `every ${ordinal(r.dom)}` : `every ${ordinal(r.interval)} ${ordinal(r.dom)}`;
+                }
+                const nth = r.nth === -1 ? "last" : ordinal(r.nth);
+                return r.interval === 1 ? `every ${nth} ${DAY_SHORT[r.nthWeekday]}` : `every ${ordinal(r.interval)} mo · ${nth} ${DAY_SHORT[r.nthWeekday]}`;
+            }
             function summarizeRule(r) {
                 let base;
                 if (r.freq === "DAILY") {
@@ -490,7 +517,7 @@ const factory = (BaseBlockClass) => {
           .${p}-pill.next { background:rgba(var(--primary-rgb),.07); border-color:rgba(var(--primary-rgb),.2); color:var(--primary); }
           .${p}-pill.crit { background:rgba(196,30,58,.1); border-color:rgba(196,30,58,.28); color:var(--error); }
           .${p}-pill.high { background:rgba(217,119,6,.1); border-color:rgba(217,119,6,.28); color:#B45309; }
-          .${p}-type-badge { font-size:11px; font-weight:700; border-radius:20px; padding:3px 9px; }
+          .${p}-type-badge { display:inline-flex; align-items:center; font-size:11px; font-weight:700; line-height:1.4; border-radius:20px; padding:3px 9px; }
           .${p}-sched-acts { display:flex; gap:4px; flex-shrink:0; }
           .${p}-ico-btn { width:30px; height:30px; border:none; background:none; border-radius:var(--r-sm); cursor:pointer;
             color:var(--gray-lt); display:flex; align-items:center; justify-content:center; transition:all .15s; }
@@ -523,9 +550,16 @@ const factory = (BaseBlockClass) => {
           .${p}-cal-evs { padding:6px; display:flex; flex-direction:column; gap:5px; }
           .${p}-ev { background:rgba(var(--primary-rgb),.10); border-left:3px solid var(--primary); border-radius:6px;
             padding:5px 8px; cursor:pointer; transition:background .12s; }
-          .${p}-ev:hover { background:rgba(var(--primary-rgb),.17); }
+          .${p}-ev:hover {
+            background-color:rgba(var(--primary-rgb),.06);
+            background-image:repeating-linear-gradient(45deg, rgba(var(--primary-rgb),.14) 0, rgba(var(--primary-rgb),.14) 5px, transparent 5px, transparent 10px);
+          }
           .${p}-ev-time { font-size:10px; font-weight:700; color:var(--primary); }
-          .${p}-ev-title { font-size:12px; font-weight:600; color:var(--dark); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+          .${p}-ev-freq { display:inline-flex; align-items:center; margin-top:4px; padding:2px 8px; border-radius:20px;
+            background:#fff; border:1px solid var(--primary); color:var(--primary); font-size:10px; font-weight:600; line-height:1.4; }
+          .${p}-ev-title { font-size:12px; font-weight:600; color:var(--dark); margin-top:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+          .${p}-ev-desc { font-size:11px; font-weight:400; color:var(--gray); line-height:1.3; margin-top:2px;
+            display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
           .${p}-col-empty { padding:14px 8px; text-align:center; color:#d1d5db; font-size:11px; }
 
           /* Month overview */
@@ -565,7 +599,7 @@ const factory = (BaseBlockClass) => {
           .${p}-detail-handle { width:40px; height:5px; border-radius:3px; background:var(--border); margin:9px auto 2px; flex-shrink:0; cursor:grab; touch-action:none; }
           .${p}-detail.side .${p}-detail-handle { display:none; }
           .${p}-detail-head { display:flex; align-items:flex-start; gap:10px; padding:14px 20px 12px; flex-shrink:0; border-bottom:1px solid var(--border); touch-action:none; }
-          .${p}-detail-badges { display:flex; gap:6px; flex-wrap:wrap; flex:1; }
+          .${p}-detail-badges { display:flex; gap:6px; flex-wrap:wrap; flex:1; align-items:center; }
           .${p}-detail-close { width:28px; height:28px; border-radius:50%; border:none; background:#f3f4f6; cursor:pointer;
             display:flex; align-items:center; justify-content:center; color:var(--gray); flex-shrink:0; font-family:inherit; transition:background .15s,color .15s; }
           .${p}-detail-close:hover { background:var(--border); color:var(--dark); }
@@ -1008,6 +1042,8 @@ const factory = (BaseBlockClass) => {
                 }
                 catch (_) { /* show whatever we got */ }
                 schedules = [...byId.values()].sort((a, b) => a.title.localeCompare(b.title));
+                // Merge any schedule types into the stable, sorted type order for consistent colors.
+                TYPE_ORDER = Array.from(new Set([...typeList.map(t => t.toLowerCase()), ...schedules.map(s => s.rule.taskType).filter(Boolean)])).sort();
                 if (view === "list")
                     renderScheduleList();
                 else
@@ -1073,7 +1109,9 @@ const factory = (BaseBlockClass) => {
                         const occ = occOnDay(d);
                         const evs = occ.length ? occ.map(s => `<div class="${p}-ev" data-id="${esc(s.id)}">
                 <div class="${p}-ev-time">${esc(fmtTime12(s.rule.time))}</div>
+                <span class="${p}-ev-freq">${esc(shortFreq(s.rule))}</span>
                 <div class="${p}-ev-title">${esc(s.title)}</div>
+                ${s.description ? `<div class="${p}-ev-desc">${esc(s.description)}</div>` : ""}
               </div>`).join("") : `<div class="${p}-col-empty">—</div>`;
                         return `<div class="${p}-cal-col">
               <div class="${p}-cal-colhead ${k === todayK ? "today" : ""}">
@@ -1435,24 +1473,41 @@ const factory = (BaseBlockClass) => {
             }
         }
         static get observedAttributes() {
-            return ["apitoken", "baseurl", "primarycolor", "accentcolor", "backgroundcolor", "storelabelsingular", "storelabelplural", "tasktypes"];
+            return ["apitoken", "baseurl", "primarycolor", "accentcolor", "backgroundcolor", "storelabelsingular", "storelabelplural", "tasktypes", "typecolors"];
         }
     };
 };
 // ── Type badge color (shared convention with my-tasks-widget) ─────────────────────
+// Colors come from the configurable `typecolors` palette, assigned round-robin to
+// the distinct types (sorted) — every color is used before any repeats. If no
+// palette is configured (field blank / all cleared), fall back to the original system.
+let TYPE_PALETTE = [];
+let TYPE_ORDER = [];
 const TYPE_COLORS = {
     storetask: "#da2e32", compliance: "#8B4513", maintenance: "#2E7D4A",
     training: "#4A90A4", audit: "#7C3AED", safety: "#D97706", inventory: "#0369A1",
     finance: "#0369A1", operations: "#2E7D4A",
 };
-function typeColor(type) {
-    const key = type.toLowerCase();
+function typeColorOriginal(key) {
     if (TYPE_COLORS[key])
         return TYPE_COLORS[key];
     let h = 0;
     for (let i = 0; i < key.length; i++)
         h = (h * 31 + key.charCodeAt(i)) & 0xffffff;
     return `hsl(${((h >> 16) & 0xff) % 360},55%,40%)`;
+}
+function typeColor(type) {
+    const key = type.toLowerCase();
+    if (!TYPE_PALETTE.length)
+        return typeColorOriginal(key);
+    let i = TYPE_ORDER.indexOf(key);
+    if (i < 0) {
+        let h = 0;
+        for (let c = 0; c < key.length; c++)
+            h = (h * 31 + key.charCodeAt(c)) & 0xffffff;
+        i = h;
+    }
+    return TYPE_PALETTE[i % TYPE_PALETTE.length];
 }
 // ── Config schema ─────────────────────────────────────────────────────────────────
 const configurationSchema = {
@@ -1465,6 +1520,7 @@ const configurationSchema = {
         storelabelsingular: { type: "string", title: "Store Label (singular)", default: "Store" },
         storelabelplural: { type: "string", title: "Store Label (plural)", default: "Stores" },
         tasktypes: { type: "string", title: "Task Types (comma-separated)", default: "Finance,Operations,Training,Compliance,Safety" },
+        typecolors: { type: "string", title: "Type Colors (comma-separated hex)", default: "#DA2E32,#0369A1,#2E7D4A,#D97706,#7C3AED,#4A90A4,#8B4513,#0EA5E9" },
     },
 };
 const uiSchema = {
@@ -1476,12 +1532,13 @@ const uiSchema = {
     storelabelsingular: { "ui:help": "e.g. Store, Location, Branch" },
     storelabelplural: { "ui:help": "e.g. Stores, Locations, Branches" },
     tasktypes: { "ui:help": "Comma-separated list of task type options shown in the Type dropdown" },
+    typecolors: { "ui:help": "Type-badge palette. Colors are assigned to each type in order; all are used before any repeat. Clear it to use the built-in colors." },
 };
 // ── Block registration ──────────────────────────────────────────────────────────────
 const blockDefinition = {
     name: "recurring-tasks-widget",
     label: "Recurring Tasks Widget",
-    attributes: ["apitoken", "baseurl", "primarycolor", "accentcolor", "backgroundcolor", "storelabelsingular", "storelabelplural", "tasktypes"],
+    attributes: ["apitoken", "baseurl", "primarycolor", "accentcolor", "backgroundcolor", "storelabelsingular", "storelabelplural", "tasktypes", "typecolors"],
     factory, configurationSchema, uiSchema, blockLevel: "block", iconUrl: "",
 };
 window.defineBlock({ blockDefinition, author: "Staffbase", version: "1.0.0" });

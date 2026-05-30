@@ -27,6 +27,7 @@ const configurationSchema: JSONSchema7 = {
     backgroundcolor:    { type:"string",  title:"Background Color",         default: "" },
     storelabelsingular: { type:"string",  title:"Store Label (singular)",   default: "Store" },
     storelabelplural:   { type:"string",  title:"Store Label (plural)",     default: "Stores" },
+    typecolors:         { type:"string",  title:"Type Colors (comma-separated hex)", default: "#DA2E32,#0369A1,#2E7D4A,#D97706,#7C3AED,#4A90A4,#8B4513,#0EA5E9" },
     showalltasks:       { type:"boolean", title:"Show All Tasks (not just mine)", default: false },
     showdonetasks:      { type:"boolean", title:"Include Completed Tasks",  default: true },
     auditmode:          { type:"boolean", title:"Audit Mode",               default: false },
@@ -45,6 +46,7 @@ const uiSchema: UiSchema = {
   backgroundcolor:    { "ui:widget":"color", "ui:help":"Widget background color — leave blank for transparent" },
   storelabelsingular: { "ui:help":"e.g. Store, Location, Branch" },
   storelabelplural:   { "ui:help":"e.g. Stores, Locations, Branches" },
+  typecolors:         { "ui:help":"Type-badge palette. Colors are assigned to each type in order; all are used before any repeat." },
   showalltasks:       { "ui:help":"When enabled, tasks from all users are shown — not just yours" },
   showdonetasks:      { "ui:help":"When enabled, completed tasks are included in the view" },
   auditmode:          { "ui:help":"When enabled, shows audit results and history instead of regular tasks" },
@@ -66,7 +68,9 @@ function contrastColor(hex: string): string {
   const r=parseInt(h.slice(0,2),16)/255, g=parseInt(h.slice(2,4),16)/255, b=parseInt(h.slice(4,6),16)/255;
   const lin=(c:number)=>c<=0.03928?c/12.92:Math.pow((c+0.055)/1.055,2.4);
   const L=0.2126*lin(r)+0.7152*lin(g)+0.0722*lin(b);
-  return L>0.179?"#1a1a1a":"#ffffff";
+  // Lean toward white text: only genuinely light backgrounds get dark text, so
+  // mid-tone/saturated colors (e.g. #4A90A4) read as white, not harsh black.
+  return L>0.45?"#1a1a1a":"#ffffff";
 }
 
 // ── Task type parsing ─────────────────────────────────────────────────────────
@@ -94,17 +98,33 @@ function stripTypeTag(text: string): string {
 }
 
 // ── Color palette for type badges ─────────────────────────────────────────────
+// Colors come from the configurable `typecolors` palette, assigned round-robin to
+// the distinct types (sorted, so a type keeps its color) — every color is used
+// before any repeats. TYPE_PALETTE/TYPE_ORDER are set per-instance in renderBlock.
 
+let TYPE_PALETTE: string[] = []; // set per-instance from the `typecolors` config
+let TYPE_ORDER: string[] = [];
+
+// Original system — used when no palette is configured (field blank / all cleared).
 const TYPE_COLORS: Record<string,string> = {
   storetask:"#da2e32", compliance:"#8B4513", maintenance:"#2E7D4A",
   training:"#4A90A4", audit:"#7C3AED", safety:"#D97706", inventory:"#0369A1",
 };
+function typeColorOriginal(key: string): string {
+  if (TYPE_COLORS[key]) return TYPE_COLORS[key];
+  let h = 0; for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) & 0xffffff;
+  return `hsl(${((h >> 16) & 0xff) % 360},55%,40%)`;
+}
 
 function typeColor(type: string): string {
-  if(TYPE_COLORS[type]) return TYPE_COLORS[type];
-  let h=0;
-  for(let i=0;i<type.length;i++) h=(h*31+type.charCodeAt(i))&0xffffff;
-  return `hsl(${((h>>16)&0xff)%360},55%,40%)`;
+  const key = type.toLowerCase();
+  if (!TYPE_PALETTE.length) return typeColorOriginal(key); // no palette → fall back to original system
+  let i = TYPE_ORDER.indexOf(key);
+  if (i < 0) { // not registered yet — deterministic fallback so it's still stable
+    let h = 0; for (let c = 0; c < key.length; c++) h = (h * 31 + key.charCodeAt(c)) & 0xffffff;
+    i = h;
+  }
+  return TYPE_PALETTE[i % TYPE_PALETTE.length];
 }
 
 function priorityLabel(p: string): string {
@@ -131,6 +151,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const primaryColor = this.getAttribute("primarycolor")       || DEFAULT_PRIMARY_COLOR;
       const accentColor  = this.getAttribute("accentcolor")        || DEFAULT_ACCENT_COLOR;
       const bgColor      = this.getAttribute("backgroundcolor")    || "";
+      // Valid hex colors only; if blank/all-cleared, TYPE_PALETTE stays empty → original color system.
+      TYPE_PALETTE = (this.getAttribute("typecolors") || "").split(",").map(s=>s.trim()).filter(c=>/^#?[0-9a-fA-F]{3,8}$/.test(c)).map(c=>c[0]==="#"?c:`#${c}`);
       const showAll      = this.getAttribute("showalltasks")       === "true";
       const showDone     = this.getAttribute("showdonetasks")      !== "false";
       const auditMode    = this.getAttribute("auditmode")          === "true";
@@ -227,7 +249,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-detail-head{touch-action:none}
           .${p}-detail.side .${p}-detail-handle{display:none}
           .${p}-detail-head{display:flex;align-items:flex-start;gap:10px;padding:16px 20px 12px;flex-shrink:0;border-bottom:1px solid var(--border)}
-          .${p}-detail-head-badges{display:flex;gap:6px;flex-wrap:wrap;flex:1}
+          .${p}-detail-head-badges{display:flex;gap:6px;flex-wrap:wrap;flex:1;align-items:center}
           .${p}-detail-close{width:28px;height:28px;border-radius:50%;border:none;background:#f3f4f6;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--gray);flex-shrink:0;transition:background .15s,color .15s;font-family:inherit}
           .${p}-detail-close:hover{background:var(--border);color:var(--dark)}
           .${p}-detail-body{flex:1;overflow-y:auto;padding:20px;min-height:0}
@@ -370,7 +392,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-check.checked .${p}-check-icon{display:block}
           .${p}-card-body{flex:1;min-width:0}
           .${p}-card-top{display:flex;align-items:center;gap:7px;margin-bottom:4px;flex-wrap:wrap}
-          .${p}-type-badge{padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#fff;flex-shrink:0}
+          .${p}-type-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;line-height:1.4;letter-spacing:.5px;text-transform:uppercase;color:#fff;flex-shrink:0}
           .${p}-prio-badge{padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:.3px;flex-shrink:0;border:1.5px solid currentColor}
           .${p}-recur-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:.3px;flex-shrink:0;text-transform:uppercase;background:rgba(var(--primary-rgb),.1);color:var(--primary)}
           .${p}-recur-badge svg{width:9px;height:9px}
@@ -2007,6 +2029,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             return 0;
           });
 
+          // Register distinct types (sorted) so each gets a stable palette color, no repeats until exhausted.
+          TYPE_ORDER = Array.from(new Set(allTasks.map(t=>t.taskType).filter((x): x is string => !!x))).sort();
+
           // Identify audit lists (lists containing an audit-result system task)
           const auditListIds=new Map<string,Task>(); // listId → system task
           for(const t of allTasks){
@@ -2168,7 +2193,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
     }
 
     static get observedAttributes(){
-      return ["apitoken","baseurl","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","showalltasks","showdonetasks","auditmode","enablecomments","allowtaskcreation","allowtaskassignment","debugmode"];
+      return ["apitoken","baseurl","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","typecolors","showalltasks","showdonetasks","auditmode","enablecomments","allowtaskcreation","allowtaskassignment","debugmode"];
     }
   };
 };
@@ -2177,7 +2202,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
 const blockDefinition: BlockDefinition = {
   name:"my-tasks-widget", label:"My Tasks Widget",
-  attributes:["apitoken","baseurl","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","showalltasks","showdonetasks","auditmode","enablecomments","allowtaskcreation","allowtaskassignment","debugmode"],
+  attributes:["apitoken","baseurl","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","typecolors","showalltasks","showdonetasks","auditmode","enablecomments","allowtaskcreation","allowtaskassignment","debugmode"],
   factory, configurationSchema, uiSchema, blockLevel:"block", iconUrl:"",
 };
 

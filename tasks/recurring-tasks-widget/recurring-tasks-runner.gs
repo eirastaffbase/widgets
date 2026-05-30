@@ -23,6 +23,7 @@
 var REGISTRY_SHEET_ID = "1x3giib9AQKaAHZPvS8phtfiALtTBZbcBxZ29qacC80c";
 var TEMPLATE_TYPE = "recur-template";
 var WEEKDAYS = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
+var TRIGGER_GRACE_MIN = 7; // tolerate trigger jitter so a run slightly before the boundary still fires
 // Priority levels (mirror recurring-tasks-widget). "critical" & "high" both map to
 // Priority_1 (Staffbase only has 3); the distinct level lives in the rule.
 var LEVELS = { normal: "Priority_3", medium: "Priority_2", high: "Priority_1", critical: "Priority_1" };
@@ -115,7 +116,10 @@ function processEnv(env) {
         var schedMin = parseInt(rule.time.split(":")[0], 10) * 60 + parseInt(rule.time.split(":")[1], 10);
 
         if (!firesOn(rule, new Date(ymd[0], ymd[1] - 1, ymd[2]))) return;   // not today
-        if (nowMin < schedMin) return;                                       // not time yet
+        // Fire once we're at/after the scheduled time. GRACE absorbs Google's trigger
+        // jitter (a run can land a couple minutes before the :00/:15/:30/:45 boundary),
+        // so a task at 11:45 still fires on the ~11:45 run even if it executes at 11:43.
+        if (nowMin < schedMin - TRIGGER_GRACE_MIN) return;                   // not time yet
         if (markers[sid + "@" + todayStr]) { skipped++; return; }           // already created today
 
         try {
