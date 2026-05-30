@@ -87,12 +87,16 @@ function parseTaskType(text: string): string|null {
 //   [recur: id@YYYY-MM-DD] — dedup stamp on a generated recurring task
 const RRULE_REGEX = /\[rrule:\s*[^\]]+\]/i;
 const RECUR_REGEX = /\[recur:\s*[^\]]+\]/i;
+// Priority level stamp on generated recurring tasks (Critical & High both map to
+// Priority_1, so this distinguishes them). e.g. [lvl: critical]
+const LVL_REGEX = /\[lvl:\s*([^\]]+)\]/i;
 
 function stripTypeTag(text: string): string {
   return text
     .replace(TYPE_REGEX,"")
     .replace(RRULE_REGEX,"")
     .replace(RECUR_REGEX,"")
+    .replace(LVL_REGEX,"")
     .replace(/\s{2,}/g," ")
     .trim();
 }
@@ -392,9 +396,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-check.checked .${p}-check-icon{display:block}
           .${p}-card-body{flex:1;min-width:0}
           .${p}-card-top{display:flex;align-items:center;gap:7px;margin-bottom:4px;flex-wrap:wrap}
-          .${p}-type-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;line-height:1.4;letter-spacing:.5px;text-transform:uppercase;color:#fff;flex-shrink:0}
-          .${p}-prio-badge{padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:.3px;flex-shrink:0;border:1.5px solid currentColor}
-          .${p}-recur-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:.3px;flex-shrink:0;text-transform:uppercase;background:rgba(var(--primary-rgb),.1);color:var(--primary)}
+          .${p}-type-badge{display:inline-flex;align-items:center;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:700;line-height:1.4;letter-spacing:.5px;text-transform:uppercase;color:#fff;flex-shrink:0}
+          .${p}-prio-badge{display:inline-flex;align-items:center;padding:1.5px 7px;border-radius:4px;font-size:10px;font-weight:700;line-height:1.4;letter-spacing:.3px;flex-shrink:0;border:1.5px solid currentColor}
+          .${p}-recur-badge{display:inline-flex;align-items:center;gap:3px;padding:3px 7px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:.3px;flex-shrink:0;text-transform:uppercase;background:rgba(var(--primary-rgb),.1);color:var(--primary)}
           .${p}-recur-badge svg{width:9px;height:9px}
           .${p}-card-title{font-size:14px;font-weight:700;color:var(--dark);line-height:1.3;word-break:break-word;transition:color .3s ease}
           .${p}-card.done .${p}-card-title{color:var(--gray)}
@@ -2002,6 +2006,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
                   // "Audit" type so they're filterable in the normal (non-audit) view.
                   if(!taskType && (/^\s*Audit finding:/i.test(desc) || /^\s*Audit\s*[—–-]/i.test(lname))) taskType="Audit";
                   const sevM=desc.match(/(?:^|\n)\s*Severity:\s*([A-Za-z]+)/i);
+                  // Recurring tasks stamped [lvl: critical] surface as Critical (same badge as audit criticals).
+                  const lvlM=desc.match(LVL_REGEX);
+                  const lvlCritical=!!lvlM && lvlM[1].trim().toLowerCase()==="critical";
                   allTasks.push({
                     id:t.id, title:t.title||"(no title)", description:desc,
                     status:t.status||"OPEN", priority:t.priority||"Priority_3",
@@ -2011,7 +2018,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
                     listName:lname,
                     groupIds:t.groupIds||[], assigneeIds:t.assigneeIds||[],
                     attachmentIds:t.attachmentIds||[],
-                    auditSeverity:sevM?sevM[1]:undefined,
+                    auditSeverity:lvlCritical?"Critical":(sevM?sevM[1]:undefined),
                     isRecurring:RECUR_REGEX.test(desc),
                   });
                 }
@@ -2122,7 +2129,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               </div>
               <div class="${p}-fld-row">
                 <div class="${p}-fld"><label>Due date</label><input type="date" class="${p}-in" id="${p}-c-due"></div>
-                <div class="${p}-fld"><label>Priority</label><select class="${p}-sel" id="${p}-c-prio"><option value="Priority_3">Normal</option><option value="Priority_2">Medium</option><option value="Priority_1">High</option></select></div>
+                <div class="${p}-fld"><label>Priority</label><select class="${p}-sel" id="${p}-c-prio"><option value="Priority_3">Normal</option><option value="Priority_2">Medium</option><option value="Priority_1">High</option><option value="critical">Critical</option></select></div>
               </div>
             </div>
             <div class="${p}-create-foot">
@@ -2155,7 +2162,12 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             let finalDesc=desc;
             if(taskType) finalDesc=finalDesc?`${finalDesc} [type: ${taskType}]`:`[type: ${taskType}]`;
             const due=$("c-due").value; // yyyy-mm-dd
-            const prio=$("c-prio").value||"Priority_3";
+            // "Critical" isn't a Staffbase priority — map it to Priority_1 and stamp [lvl: critical]
+            // (same convention the recurring runner uses) so it round-trips as Critical, not High.
+            const prioVal=$("c-prio").value||"Priority_3";
+            const isCritical=prioVal==="critical";
+            const prio=isCritical?"Priority_1":prioVal;
+            if(isCritical) finalDesc=finalDesc?`${finalDesc} [lvl: critical]`:`[lvl: critical]`;
             const saveBtn=$("c-save") as HTMLButtonElement;
             saveBtn.disabled=true; saveBtn.textContent="Creating…";
             try{

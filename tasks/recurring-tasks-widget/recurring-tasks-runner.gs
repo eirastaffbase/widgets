@@ -140,6 +140,10 @@ function createTask(baseUrl, headers, installId, listId, tmpl, rule, sid, todayS
   var realDesc = stripTags(tmpl.description || "");
   var desc = realDesc;
   if (rule.taskType) desc += (desc ? " " : "") + "[type: " + rule.taskType + "]";
+  // Critical & High both map to Priority_1 in Staffbase, so stamp a hidden [lvl: critical]
+  // tag the widgets can read to distinguish Critical from High. (Separate from the
+  // [recur:] dedup marker, which must stay exactly "sid@date".)
+  if (rule.level === "critical") desc += (desc ? " " : "") + "[lvl: critical]";
   desc += (desc ? " " : "") + "[recur: " + sid + "@" + todayStr + "]";
 
   var due = new Date(ymd[0], ymd[1] - 1, ymd[2] + rule.dueOffset);
@@ -234,6 +238,7 @@ function stripTags(text) {
     .replace(/\[rrule:\s*[^\]]+\]/i, "")
     .replace(/\[type:\s*[^\]]+\]/i, "")
     .replace(/\[recur:\s*[^\]]+\]/i, "")
+    .replace(/\[lvl:\s*[^\]]+\]/i, "")
     .replace(/\s{2,}/g, " ")
     .trim();
 }
