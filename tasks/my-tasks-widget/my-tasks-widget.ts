@@ -8,6 +8,9 @@ import {
 import { JSONSchema7 } from "json-schema";
 import { UiSchema } from "@rjsf/utils";
 
+import { detectLocale, isRtl, makeT, DEFAULT_LOCALE } from "../shared/i18n";
+import { STRINGS } from "./strings";
+
 // ── Defaults ──────────────────────────────────────────────────────────────────
 
 const DEFAULT_API_TOKEN =
@@ -197,6 +200,14 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       let showOtherAuditTasks        = false;
       let introUsed                  = false; // staggered entrance only on first list render
       let currentUserId              = "";
+      // ── Locale / i18n ──────────────────────────────────────────────────
+      // Resolved once on load from the user's Staffbase locale (see load()).
+      // Until then we render in the default locale, so first paint is identical
+      // to the pre-i18n behavior for en_US users.
+      let locale                     = DEFAULT_LOCALE;
+      // `tr` (not `t`) — the codebase uses `t` as the task loop variable in many
+      // .map/.filter callbacks, which would shadow a translator named `t`.
+      let tr                         = makeT(STRINGS, locale);
       let allInstalls: Array<{id:string;title:string}> = [];           // for task creation
       const listsByInst = new Map<string, Array<{id:string;name:string}>>();
       let usersList: Array<{id:string;name:string}> | null = null; // lazy, for reassign picker
@@ -523,23 +534,23 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           <div class="${p}-header">
             <div class="${p}-title">
               <span class="${p}-title-dot"></span>
-              ${auditMode?"Audit Results":"My Tasks"}
+              <span id="${p}-title-text">${auditMode?tr("auditResults"):tr("myTasks")}</span>
               <span class="${p}-badge-count" id="${p}-count">0</span>
             </div>
             <div class="${p}-header-actions">
-              ${allowCreate&&!auditMode?`<button type="button" class="${p}-new-btn" id="${p}-new" title="New task"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>New</span></button>`:""}
-              <button type="button" class="${p}-refresh-btn" id="${p}-refresh" title="Refresh">
+              ${allowCreate&&!auditMode?`<button type="button" class="${p}-new-btn" id="${p}-new" title="${tr("newTask")}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span id="${p}-new-label">${tr("newTask")}</span></button>`:""}
+              <button type="button" class="${p}-refresh-btn" id="${p}-refresh" title="${tr("refresh")}">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
               </button>
             </div>
           </div>
 
           ${auditMode ? `<div class="${p}-audit-tab-wrap" id="${p}-audit-tab-wrap" style="display:none">
-            <div class="${p}-audit-tab-label">Audit History</div>
+            <div class="${p}-audit-tab-label" id="${p}-audit-tab-label">${tr("auditHistory")}</div>
             <div class="${p}-audit-scroll">
-              <button type="button" class="${p}-audit-arrow" id="${p}-audit-prev" aria-label="Scroll left"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+              <button type="button" class="${p}-audit-arrow" id="${p}-audit-prev" aria-label="${tr("scrollLeft")}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
               <div class="${p}-audit-tabs" id="${p}-audit-tabs"></div>
-              <button type="button" class="${p}-audit-arrow" id="${p}-audit-next" aria-label="Scroll right"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+              <button type="button" class="${p}-audit-arrow" id="${p}-audit-next" aria-label="${tr("scrollRight")}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
             </div>
           </div>` : ""}
 
@@ -550,15 +561,15 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           <div class="${p}-filters">
             <div class="${p}-type-wrap" id="${p}-type-wrap">
               <button type="button" class="${p}-type-btn" id="${p}-type-btn">
-                <span id="${p}-type-label">All Types</span>
+                <span id="${p}-type-label">${tr("allTypes")}</span>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
               </button>
               <div class="${p}-type-menu" id="${p}-type-menu"></div>
             </div>
             <div class="${p}-status-toggle">
-              <button type="button" class="${p}-status-opt active" data-status="open">Open</button>
-              <button type="button" class="${p}-status-opt" data-status="done">Done</button>
-              ${showDone?`<button type="button" class="${p}-status-opt" data-status="all">Both</button>`:""}
+              <button type="button" class="${p}-status-opt active" data-status="open">${tr("open")}</button>
+              <button type="button" class="${p}-status-opt" data-status="done">${tr("done")}</button>
+              ${showDone?`<button type="button" class="${p}-status-opt" data-status="all">${tr("both")}</button>`:""}
             </div>
           </div>` : ""}
 
@@ -680,7 +691,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       function openAttModal(previewUrl:string,downloadUrl:string,name:string,kind:string){
         dlUrl=downloadUrl||previewUrl; dlName=name||"file";
         aName.textContent=dlName;
-        const none=`<div class="${p}-amodal-none"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span>No preview available — use Download</span></div>`;
+        const none=`<div class="${p}-amodal-none"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span>${tr("noPreview")}</span></div>`;
         if(kind==="pdf"&&downloadUrl){
           // Native PDF viewer via <object> on the derived .pdf (same URL the app uses); iframe fallback.
           aBody.innerHTML=`<object class="${p}-amodal-pdf" data="${esc(downloadUrl)}" type="application/pdf"><iframe src="${esc(downloadUrl)}" title="${esc(dlName)}"></iframe></object>`;
@@ -768,11 +779,11 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         panel.className=`${p}-dbg`;
         panel.innerHTML=`
           <div class="${p}-dbg-bar">
-            <span class="${p}-dbg-title">Debug</span>
+            <span class="${p}-dbg-title">${tr("debug")}</span>
             <div class="${p}-dbg-actions">
-              <button type="button" class="${p}-dbg-btn" data-act="copy">Copy</button>
-              <button type="button" class="${p}-dbg-btn" data-act="clear">Clear</button>
-              <button type="button" class="${p}-dbg-btn" data-act="toggle">Hide</button>
+              <button type="button" class="${p}-dbg-btn" data-act="copy">${tr("copy")}</button>
+              <button type="button" class="${p}-dbg-btn" data-act="clear">${tr("clear")}</button>
+              <button type="button" class="${p}-dbg-btn" data-act="toggle">${tr("hide")}</button>
             </div>
           </div>
           <pre class="${p}-dbg-body"></pre>`;
@@ -798,8 +809,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               ok=document.execCommand("copy"); document.body.removeChild(ta);
             }catch(_){ ok=false; }
           }
-          copyBtn.textContent=ok?"Copied!":"Copy failed";
-          setTimeout(()=>{ copyBtn.textContent="Copy"; },1500);
+          copyBtn.textContent=ok?tr("copied"):tr("copyFailed");
+          setTimeout(()=>{ copyBtn.textContent=tr("copy"); },1500);
         });
         dlog("debug panel ready · origin",location.origin,"· comments",enableComments);
       }
@@ -979,9 +990,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           const groups=groupsArr().filter(g=>!ql||g.name.toLowerCase().includes(ql)).slice(0,15);
           const users=(usersList||[]).filter(u=>!ql||u.name.toLowerCase().includes(ql)).slice(0,15);
           let html="";
-          if(groups.length){ html+=`<div class="${p}-reassign-h">Groups</div>`+groups.map(g=>`<div class="${p}-reassign-opt" data-type="group" data-id="${esc(g.id)}">${gIco}<span>${esc(g.name)}</span></div>`).join(""); }
-          html+=`<div class="${p}-reassign-h">People</div>`+(users.length?users.map(u=>`<div class="${p}-reassign-opt" data-type="user" data-id="${esc(u.id)}">${uIco}<span>${esc(u.name)}</span></div>`).join(""):`<div class="${p}-reassign-empty">${usersList?"No matches":"Loading…"}</div>`);
-          html+=`<div class="${p}-reassign-opt unassign" data-type="none" data-id="">Unassign</div>`;
+          if(groups.length){ html+=`<div class="${p}-reassign-h">${tr("groups")}</div>`+groups.map(g=>`<div class="${p}-reassign-opt" data-type="group" data-id="${esc(g.id)}">${gIco}<span>${esc(g.name)}</span></div>`).join(""); }
+          html+=`<div class="${p}-reassign-h">${tr("people")}</div>`+(users.length?users.map(u=>`<div class="${p}-reassign-opt" data-type="user" data-id="${esc(u.id)}">${uIco}<span>${esc(u.name)}</span></div>`).join(""):`<div class="${p}-reassign-empty">${usersList?tr("noMatches"):tr("loading")}</div>`);
+          html+=`<div class="${p}-reassign-opt unassign" data-type="none" data-id="">${tr("unassign")}</div>`;
           results.innerHTML=html;
           results.querySelectorAll(`.${p}-reassign-opt`).forEach(o=>o.addEventListener("click",()=>apply((o as HTMLElement).dataset.type!,(o as HTMLElement).dataset.id!)));
         };
@@ -1076,7 +1087,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       async function renderComments(task:Task){
         const list=detailBody.querySelector(`#${p}-cmt-list-${instId}`) as HTMLElement|null;
         if(!list) return;
-        list.innerHTML=`<div class="${p}-cmt-empty">Loading…</div>`;
+        list.innerHTML=`<div class="${p}-cmt-empty">${tr("loading")}</div>`;
         let comments:any[]=[];
         try{ comments=await loadComments(task); }
         catch(e:any){
@@ -1085,7 +1096,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           return;
         }
         if(detailTask!==task) return; // panel changed while loading
-        if(!comments.length){ list.innerHTML=`<div class="${p}-cmt-empty">No comments yet. Be the first to comment.</div>`; return; }
+        if(!comments.length){ list.innerHTML=`<div class="${p}-cmt-empty">${tr("noCommentsYet")}</div>`; return; }
         // Resolve author profiles (avatars + names) in parallel.
         const authors=await Promise.all(comments.map(c=>fetchUser(commentAuthorId(c))));
         // Prefetch metadata for any inline [attachment:id] tokens.
@@ -1112,8 +1123,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         const grid=detailBody.querySelector(`#${p}-att-grid-${instId}`) as HTMLElement|null;
         if(!grid) return;
         const ids=task.attachmentIds||[];
-        if(!ids.length){ grid.innerHTML=`<span class="${p}-att-empty">No attachments</span>`; return; }
-        grid.innerHTML=`<span class="${p}-att-empty">Loading…</span>`;
+        if(!ids.length){ grid.innerHTML=`<span class="${p}-att-empty">${tr("noAttachments")}</span>`; return; }
+        grid.innerHTML=`<span class="${p}-att-empty">${tr("loading")}</span>`;
         const metas=await Promise.all(ids.map(mediaMeta));
         if(detailTask!==task) return; // panel changed while loading
         grid.innerHTML=ids.map((id,i)=>{
@@ -1324,8 +1335,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         countEl.textContent=String(tasks.length);
         if(!tasks.length){
           const emptyMsg=allTasks.filter(t=>t.taskType!=="audit-result").length===0
-            ?"No tasks found"
-            :activeStatusFilter==="open"?"No open tasks — you're all caught up!":"No completed tasks yet";
+            ?tr("noTasksFound")
+            :activeStatusFilter==="open"?tr("allCaughtUpPersonal"):tr("noCompletedTasks");
           listWrap.innerHTML=`<div class="${p}-state">
             <span class="${p}-state-icon">${activeStatusFilter==="open"&&allTasks.length>0?"✓":"📋"}</span>
             <strong>${emptyMsg}</strong>
@@ -1352,11 +1363,11 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       function renderAuditContent(){
         if(auditLists.length===0){
           countEl.textContent="0";
-          listWrap.innerHTML=`<div class="${p}-state"><strong>No audits found</strong>Submit an audit using the Audit Widget to see results here.</div>`;
+          listWrap.innerHTML=`<div class="${p}-state"><strong>${tr("noAuditsFound")}</strong>${tr("auditEmptyHint")}</div>`;
           return;
         }
         const al=auditLists.find(a=>a.listId===activeAuditListId)||auditLists[0];
-        if(!al){listWrap.innerHTML=`<div class="${p}-state">Select an audit above.</div>`;return;}
+        if(!al){listWrap.innerHTML=`<div class="${p}-state">${tr("selectAudit")}</div>`;return;}
         // Ensure active is set
         if(!activeAuditListId) activeAuditListId=al.listId;
 
@@ -1419,7 +1430,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               My tasks (${myTasks.length})
             </span>
             <button id="${p}-audit-toggle" type="button" style="font-size:11px;font-weight:600;color:var(--primary);background:none;border:none;cursor:pointer;padding:3px 7px;border-radius:4px;font-family:inherit;touch-action:manipulation">
-              ${showCompletedAudit?"Hide completed":"Show completed ("+doneMine.length+")"}
+              ${showCompletedAudit?tr("hideCompleted"):tr("showCompletedN").replace("{n}",String(doneMine.length))}
             </button>
           </div>`:
           myTasks.length>0?`<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray-lt);margin-bottom:10px">My tasks (${myTasks.length})</div>`:"";
@@ -1427,17 +1438,17 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         // Main task list HTML
         let taskHtml:string;
         if(allAuditTasks.length===0){
-          taskHtml=`<div style="text-align:center;padding:20px;color:var(--gray-lt);font-size:13px">No failure tasks in this audit.</div>`;
+          taskHtml=`<div style="text-align:center;padding:20px;color:var(--gray-lt);font-size:13px">${tr("noFailureTasks")}</div>`;
         } else if(myTasks.length===0){
-          taskHtml=`<div style="text-align:center;padding:20px;color:var(--gray-lt);font-size:13px">No tasks assigned to you in this audit.</div>`;
+          taskHtml=`<div style="text-align:center;padding:20px;color:var(--gray-lt);font-size:13px">${tr("noTasksAssigned")}</div>`;
         } else if(allMyDone&&!showCompletedAudit){
           taskHtml=`<div style="text-align:center;padding:20px 16px;background:rgba(46,125,74,.06);border:1px solid rgba(46,125,74,.2);border-radius:10px">
             <div style="font-size:22px;margin-bottom:6px">✓</div>
-            <div style="font-size:14px;font-weight:700;color:var(--success)">All tasks completed for this audit!</div>
-            <div style="font-size:12px;color:var(--gray-lt);margin-top:4px">${doneMine.length} task${doneMine.length!==1?"s":""} marked done</div>
+            <div style="font-size:14px;font-weight:700;color:var(--success)">${tr("allTasksComplete")}</div>
+            <div style="font-size:12px;color:var(--gray-lt);margin-top:4px">${tr("nTasksMarkedDone").replace("{n}",String(doneMine.length))}</div>
           </div>`;
         } else if(visibleMine.length===0){
-          taskHtml=`<div style="text-align:center;padding:20px;color:var(--gray-lt);font-size:13px">No open tasks — all caught up!</div>`;
+          taskHtml=`<div style="text-align:center;padding:20px;color:var(--gray-lt);font-size:13px">${tr("allCaughtUp")}</div>`;
         } else {
           taskHtml=`<div class="${p}-list${introUsed?"":" intro"}">${visibleMine.map(t=>renderTaskCard(t)).join("")}</div>`;
           introUsed=true;
@@ -1522,7 +1533,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               <div class="${p}-check-wrap">
                 <div class="${p}-check ${isDone?"checked":""}"
                      data-task-id="${esc(task.id)}" data-install-id="${esc(task.installationId)}" data-status="${esc(task.status)}"
-                     title="${isDone?"Mark as open":"Mark as done"}">
+                     title="${isDone?tr("markAsOpen"):tr("markAsDone")}">
                   <span class="${p}-check-icon">${iconCheck}</span>
                 </div>
               </div>
@@ -1591,16 +1602,16 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         detailBody.innerHTML=`
           <div class="${p}-detail-title">${esc(label.replace(/^Audit\s*[—–-]\s*/i,"").trim()||label)}</div>
           <div class="${p}-audit-detail-score" style="color:${scoreColor}">${pct!=null?pct+"%":"—"}</div>
-          <div class="${p}-audit-detail-sub" style="color:${scoreColor}">${passing===true?"Passing":passing===false?"Failing":"Not scored"}</div>
+          <div class="${p}-audit-detail-sub" style="color:${scoreColor}">${passing===true?tr("passing"):passing===false?tr("failing"):tr("notScored")}</div>
           <div class="${p}-detail-meta" style="margin-bottom:18px">
             ${pa?.store?`<div class="${p}-detail-meta-row">${iStore2} ${esc(pa.store)}</div>`:""}
             ${pa?.auditor?`<div class="${p}-detail-meta-row">${iUser2} ${esc(pa.auditor)}</div>`:""}
             ${pa?.date?`<div class="${p}-detail-meta-row">${iCal2} ${esc(pa.date)}</div>`:""}
-            ${pa?.taskCount!=null?`<div class="${p}-detail-meta-row">${iClip} ${pa.taskCount} task${pa.taskCount!==1?"s":""} flagged</div>`:""}
+            ${pa?.taskCount!=null?`<div class="${p}-detail-meta-row">${iClip} ${tr("nTasksFlagged").replace("{n}",String(pa.taskCount))}</div>`:""}
           </div>
-          ${pa?.notes?`<div class="${p}-detail-desc-label">Notes</div><div class="${p}-detail-desc" style="margin-bottom:18px">${esc(pa.notes)}</div>`:""}
-          ${(sysTask&&sysTask.attachmentIds&&sysTask.attachmentIds.length)?`<div class="${p}-detail-desc-label">Attachments</div><div class="${p}-att-grid" id="${p}-audit-att-${instId}" style="margin-bottom:18px"><span class="${p}-att-empty">Loading…</span></div>`:""}
-          ${cats.length?`<div class="${p}-detail-desc-label">Category breakdown</div><div class="${p}-cat-chart">${bars}</div>`:""}
+          ${pa?.notes?`<div class="${p}-detail-desc-label">${tr("notes")}</div><div class="${p}-detail-desc" style="margin-bottom:18px">${esc(pa.notes)}</div>`:""}
+          ${(sysTask&&sysTask.attachmentIds&&sysTask.attachmentIds.length)?`<div class="${p}-detail-desc-label">${tr("attachments")}</div><div class="${p}-att-grid" id="${p}-audit-att-${instId}" style="margin-bottom:18px"><span class="${p}-att-empty">${tr("loading")}</span></div>`:""}
+          ${cats.length?`<div class="${p}-detail-desc-label">${tr("categoryBreakdown")}</div><div class="${p}-cat-chart">${bars}</div>`:""}
         `;
         // Render the summary task's attachments (above the bars).
         if(sysTask&&sysTask.attachmentIds&&sysTask.attachmentIds.length){
@@ -1715,12 +1726,12 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         if(hasGroup||hasAssignee){
           if(showAssignTabs){
             const groupNames=task.groupIds.map(gid=>groupName(gid)).filter(Boolean);
-            const groupHtml=groupNames.map(gn=>`<div class="${p}-detail-meta-row">${iGroup} ${esc(gn)}</div>`).join("")||"<div style='font-size:12px;color:var(--gray-lt)'>No group assigned</div>";
-            const personHtml=task.assigneeIds.length>0?task.assigneeIds.map(aid=>`<div class="${p}-detail-meta-row" data-uid="${esc(aid)}">${iUser} <span>${esc(aid)}</span></div>`).join(""):"<div style='font-size:12px;color:var(--gray-lt)'>No individual assignee</div>";
+            const groupHtml=groupNames.map(gn=>`<div class="${p}-detail-meta-row">${iGroup} ${esc(gn)}</div>`).join("")||`<div style='font-size:12px;color:var(--gray-lt)'>${tr("noGroupAssigned")}</div>`;
+            const personHtml=task.assigneeIds.length>0?task.assigneeIds.map(aid=>`<div class="${p}-detail-meta-row" data-uid="${esc(aid)}">${iUser} <span>${esc(aid)}</span></div>`).join(""):`<div style='font-size:12px;color:var(--gray-lt)'>${tr("noIndividualAssignee")}</div>`;
             assigneeHtml=`
               <div class="${p}-assign-tabs" id="${p}-assign-tabs-${instId}">
-                <button type="button" class="${p}-assign-tab${detailAssignTab==="group"?" active":""}" data-tab="group">Group</button>
-                <button type="button" class="${p}-assign-tab${detailAssignTab==="person"?" active":""}" data-tab="person">Person</button>
+                <button type="button" class="${p}-assign-tab${detailAssignTab==="group"?" active":""}" data-tab="group">${tr("group")}</button>
+                <button type="button" class="${p}-assign-tab${detailAssignTab==="person"?" active":""}" data-tab="person">${tr("person")}</button>
               </div>
               <div id="${p}-assign-content-${instId}">
                 ${detailAssignTab==="group"?groupHtml:personHtml}
@@ -1739,9 +1750,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             ${task.listName?`<div class="${p}-detail-meta-row">${iList} ${esc(task.listName)}</div>`:""}
             ${assigneeHtml}
             ${auditMode&&allowAssign?`<div class="${p}-reassign" id="${p}-reassign-${instId}">
-              <button type="button" class="${p}-reassign-btn" data-act="open"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> ${(task.groupIds.length||task.assigneeIds.length)?"Reassign":"Assign"}</button>
+              <button type="button" class="${p}-reassign-btn" data-act="open"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> ${(task.groupIds.length||task.assigneeIds.length)?tr("reassign"):tr("assign")}</button>
               <div class="${p}-reassign-pop" style="display:none">
-                <input type="text" class="${p}-reassign-search" placeholder="Search people or groups…">
+                <input type="text" class="${p}-reassign-search" placeholder="${tr("searchPeopleGroups")}">
                 <div class="${p}-reassign-results"></div>
               </div>
             </div>`:""}
@@ -1749,7 +1760,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           ${(()=>{
             const af = auditMode && cleanDesc ? parseAuditFinding(cleanDesc) : null;
             if(af){
-              return `<div class="${p}-detail-desc-label">Audit Finding</div>
+              return `<div class="${p}-detail-desc-label">${tr("auditFinding")}</div>
                 <div class="${p}-af">
                   ${af.code?`<span class="${p}-af-code">${esc(af.code)}</span>`:""}
                   ${af.finding?`<div class="${p}-af-finding">${esc(af.finding)}</div>`:""}
@@ -1760,29 +1771,29 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
                 </div>`;
             }
             return cleanDesc
-              ? `<div class="${p}-detail-desc-label">Description</div><div class="${p}-detail-desc">${esc(cleanDesc)}</div>`
-              : `<div class="${p}-detail-desc empty">No description</div>`;
+              ? `<div class="${p}-detail-desc-label">${tr("description")}</div><div class="${p}-detail-desc">${esc(cleanDesc)}</div>`
+              : `<div class="${p}-detail-desc empty">${tr("noDescription")}</div>`;
           })()}
           <div class="${p}-att">
             <div class="${p}-att-head">
-              <span class="${p}-att-label">Attachments</span>
-              <label class="${p}-att-add" id="${p}-att-add-${instId}" for="${p}-att-input-${instId}">${iClip} Add</label>
+              <span class="${p}-att-label">${tr("attachments")}</span>
+              <label class="${p}-att-add" id="${p}-att-add-${instId}" for="${p}-att-input-${instId}">${iClip} ${tr("add")}</label>
             </div>
             <div class="${p}-att-grid" id="${p}-att-grid-${instId}"></div>
             <input type="file" multiple class="${p}-cmt-file" id="${p}-att-input-${instId}">
           </div>
           ${enableComments?`
           <div class="${p}-cmt">
-            <div class="${p}-att-head"><span class="${p}-att-label">Comments</span></div>
+            <div class="${p}-att-head"><span class="${p}-att-label">${tr("comments")}</span></div>
             <div class="${p}-cmt-list" id="${p}-cmt-list-${instId}"></div>
             <div class="${p}-cmt-compose">
               <span class="${p}-cmt-av-slot" id="${p}-cmt-me-${instId}"><span class="${p}-cmt-av ${p}-cmt-av-fb">·</span></span>
               <div class="${p}-cmt-field">
-                <textarea class="${p}-cmt-input" id="${p}-cmt-input-${instId}" rows="2" placeholder="Add a comment…"></textarea>
+                <textarea class="${p}-cmt-input" id="${p}-cmt-input-${instId}" rows="2" placeholder="${tr("addComment")}"></textarea>
                 <div class="${p}-cmt-bar" id="${p}-cmt-bar-${instId}">
                   <div class="${p}-cmt-chips" id="${p}-cmt-chips-${instId}"></div>
-                  <label class="${p}-cmt-attach" id="${p}-cmt-attach-${instId}" for="${p}-cmt-file-${instId}" title="Attach file">${iClip}</label>
-                  <button type="button" class="${p}-cmt-send" id="${p}-cmt-send-${instId}">${iSend} Send</button>
+                  <label class="${p}-cmt-attach" id="${p}-cmt-attach-${instId}" for="${p}-cmt-file-${instId}" title="${tr("attachFile")}">${iClip}</label>
+                  <button type="button" class="${p}-cmt-send" id="${p}-cmt-send-${instId}">${iSend} ${tr("send")}</button>
                 </div>
                 <input type="file" multiple class="${p}-cmt-file" id="${p}-cmt-file-${instId}">
               </div>
@@ -2021,6 +2032,52 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         });
       }
 
+      // ── Locale resolution ─────────────────────────────────────────────
+      // Resolve the viewer's locale (once), rebind `t`, set text direction,
+      // and refresh the static header/filter labels that were painted in the
+      // default locale. List/detail/create content re-reads `t` at render
+      // time, so it picks up the new locale automatically.
+      let localeApplied = false;
+      async function applyLocale(){
+        if(localeApplied) return;
+        localeApplied = true;
+        const available = Object.keys(STRINGS);
+        let configLocale = "";
+        try{
+          if(currentUserId){
+            const r = await fetch(`${baseUrl}/users/${currentUserId}`, apiOpts());
+            if(r.ok){ const u = await r.json(); configLocale = (u?.config?.locale)||""; }
+          }
+        } catch(e:any){ dlog("locale fetch failed", e?.message||String(e)); }
+        locale = detectLocale({ configLocale, available });
+        tr = makeT(STRINGS, locale);
+        const rtl = isRtl(locale);
+        dlog("locale", locale, "configLocale", configLocale||"(none)", "rtl", rtl);
+
+        // Text direction on the widget root and on the body-attached panels
+        // (overlay/detail/attachment modal live outside `container`, so they
+        // don't inherit its dir).
+        const dir = rtl?"rtl":"ltr";
+        try{ container.setAttribute("dir", dir); }catch(_){}
+        try{ overlayEl?.setAttribute("dir", dir); }catch(_){}
+        try{ detailEl?.setAttribute("dir", dir); }catch(_){}
+        try{ attModal?.setAttribute("dir", dir); }catch(_){}
+
+        // Refresh static labels painted before the locale was known.
+        const setText=(id:string,val:string)=>{const el=container.querySelector(`#${id}`); if(el) el.textContent=val;};
+        const setAttr=(id:string,attr:string,val:string)=>{const el=container.querySelector(`#${id}`); if(el) el.setAttribute(attr,val);};
+        setText(`${p}-title-text`, auditMode?tr("auditResults"):tr("myTasks"));
+        setText(`${p}-new-label`, tr("newTask"));
+        setAttr(`${p}-new`,"title",tr("newTask"));
+        setAttr(`${p}-refresh`,"title",tr("refresh"));
+        setText(`${p}-audit-tab-label`, tr("auditHistory"));
+        setAttr(`${p}-audit-prev`,"aria-label",tr("scrollLeft"));
+        setAttr(`${p}-audit-next`,"aria-label",tr("scrollRight"));
+        setText(`${p}-type-label`, tr("allTypes"));
+        const st=(s:string,v:string)=>{const el=container.querySelector(`.${p}-status-opt[data-status="${s}"]`); if(el) el.textContent=v;};
+        st("open",tr("open")); st("done",tr("done")); st("all",tr("both"));
+      }
+
       // ── Load data ─────────────────────────────────────────────────────
       async function load(){
         refreshBtn.disabled=true;
@@ -2028,7 +2085,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         hideBanner();
         allTasks=[]; auditLists=[]; activeAuditListId="";
         activeInstallFilter="all"; activeTypeFilters.clear(); dropdownOpen=false;
-        listWrap.innerHTML=`<div class="${p}-state"><span class="${p}-spin" style="width:24px;height:24px;border-width:3px;margin:0 auto 12px;display:block"></span>Loading…</div>`;
+        listWrap.innerHTML=`<div class="${p}-state"><span class="${p}-spin" style="width:24px;height:24px;border-width:3px;margin:0 auto 12px;display:block"></span>${tr("loading")}</div>`;
 
         try {
           // Fetch installations
@@ -2041,7 +2098,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           allInstalls=installations;  // expose for task creation
 
           if(!installations.length){
-            listWrap.innerHTML=`<div class="${p}-state"><strong>No task spaces found</strong>Make sure at least one Tasks installation exists.</div>`;
+            listWrap.innerHTML=`<div class="${p}-state"><strong>${tr("noTaskSpaces")}</strong>${tr("noTaskSpacesHint")}</div>`;
             return;
           }
 
@@ -2051,21 +2108,14 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             currentUserId=(profile as any).id||"";
             userGroupIds=(profile as any).groupIDs||[];
             dlog("user",currentUserId,"groups",userGroupIds.length);
-            // ── LOCALE PROBE (temporary) ───────────────────────────────
-            // Dump everything we might read a locale from, so we can decide
-            // the detection source. Remove once verified.
-            try{
-              const pr:any=profile;
-              dlog("LOCALE-PROBE profile keys:", Object.keys(pr||{}).join(","));
-              dlog("LOCALE-PROBE profile.locale =", pr?.locale);
-              dlog("LOCALE-PROBE profile.config?.locale =", pr?.config?.locale);
-              dlog("LOCALE-PROBE profile.language =", pr?.language);
-              dlog("LOCALE-PROBE full profile:", pr);
-              dlog("LOCALE-PROBE navigator.language =", (typeof navigator!=="undefined"?navigator.language:"n/a"));
-              dlog("LOCALE-PROBE navigator.languages =", (typeof navigator!=="undefined"?(navigator.languages||[]).join(","):"n/a"));
-              dlog("LOCALE-PROBE document.documentElement.lang =", (typeof document!=="undefined"?document.documentElement.lang:"n/a"));
-            } catch(pe:any){ dlog("LOCALE-PROBE failed", pe?.message||String(pe)); }
           } catch(e:any){ dlog("getUserInformation failed",e?.message||String(e)); }
+
+          // Detect the viewer's locale and bind the translation fn.
+          // getUserInformation() does NOT carry locale (verified), so we read
+          // config.locale from GET /api/users/{id} — the only field that
+          // reflects the user's Staffbase language. navigator.language is the
+          // fallback. Available locales come from the branch.
+          await applyLocale();
 
           // Fetch groups → build groupMap (search endpoint + /groups supplement)
           try{
@@ -2213,7 +2263,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             }
           }
         } catch(e:any){
-          listWrap.innerHTML=`<div class="${p}-state"><strong>Failed to load tasks</strong>${esc(e.message)}</div>`;
+          listWrap.innerHTML=`<div class="${p}-state"><strong>${tr("failedToLoad")}</strong>${esc(e.message)}</div>`;
         }
 
         refreshBtn.disabled=false;
@@ -2241,30 +2291,30 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           const existingTypes=[...new Set(allTasks.filter(t=>t.taskType&&t.taskType!=="audit-result").map(t=>t.taskType as string))].sort();
           const typeOpts=existingTypes.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join("");
           createEl.innerHTML=`
-            <div class="${p}-create-head"><h3>New Task</h3>
+            <div class="${p}-create-head"><h3>${tr("newTaskHeading")}</h3>
               <button type="button" class="${p}-create-close" id="${p}-c-x"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
             </div>
             <div class="${p}-create-body">
-              <div class="${p}-fld"><label>Title</label><input class="${p}-in" id="${p}-c-title" placeholder="What needs to be done?"></div>
-              <div class="${p}-fld"><label>Description</label><textarea class="${p}-in" id="${p}-c-desc" placeholder="Add details (optional)"></textarea></div>
+              <div class="${p}-fld"><label>${tr("title")}</label><input class="${p}-in" id="${p}-c-title" placeholder="${tr("titlePlaceholder")}"></div>
+              <div class="${p}-fld"><label>${tr("description")}</label><textarea class="${p}-in" id="${p}-c-desc" placeholder="${tr("descriptionPlaceholder")}"></textarea></div>
               ${allInstalls.length>1?`<div class="${p}-fld"><label>${esc(storeSingular)}</label><select class="${p}-sel" id="${p}-c-inst">${instOpts}</select></div>`:`<input type="hidden" id="${p}-c-inst" value="${esc(firstInst)}">`}
-              <div class="${p}-fld"><label>List</label><select class="${p}-sel" id="${p}-c-list">${listOpts(firstInst)}</select></div>
-              <div class="${p}-fld"><label>Type</label>
+              <div class="${p}-fld"><label>${tr("list")}</label><select class="${p}-sel" id="${p}-c-list">${listOpts(firstInst)}</select></div>
+              <div class="${p}-fld"><label>${tr("type")}</label>
                 <select class="${p}-sel" id="${p}-c-type">
-                  <option value="">— No type —</option>
+                  <option value="">${tr("noType")}</option>
                   ${typeOpts}
-                  <option value="__new__">+ Create new type…</option>
+                  <option value="__new__">${tr("createNewType")}</option>
                 </select>
-                <input class="${p}-in" id="${p}-c-type-new" placeholder="New type name" style="display:none;margin-top:8px">
+                <input class="${p}-in" id="${p}-c-type-new" placeholder="${tr("newTypePlaceholder")}" style="display:none;margin-top:8px">
               </div>
               <div class="${p}-fld-row">
-                <div class="${p}-fld"><label>Due date</label><input type="date" class="${p}-in" id="${p}-c-due"></div>
-                <div class="${p}-fld"><label>Priority</label><select class="${p}-sel" id="${p}-c-prio"><option value="Priority_3">Normal</option><option value="Priority_2">Medium</option><option value="Priority_1">High</option><option value="critical">Critical</option></select></div>
+                <div class="${p}-fld"><label>${tr("dueDate")}</label><input type="date" class="${p}-in" id="${p}-c-due"></div>
+                <div class="${p}-fld"><label>${tr("priority")}</label><select class="${p}-sel" id="${p}-c-prio"><option value="Priority_3">${tr("normal")}</option><option value="Priority_2">${tr("medium")}</option><option value="Priority_1">${tr("high")}</option><option value="critical">${tr("critical")}</option></select></div>
               </div>
             </div>
             <div class="${p}-create-foot">
-              <button type="button" class="${p}-btn-cancel" id="${p}-c-cancel">Cancel</button>
-              <button type="button" class="${p}-btn-save" id="${p}-c-save">Create Task</button>
+              <button type="button" class="${p}-btn-cancel" id="${p}-c-cancel">${tr("cancel")}</button>
+              <button type="button" class="${p}-btn-save" id="${p}-c-save">${tr("createTask")}</button>
             </div>`;
           const $=(id:string)=>createEl!.querySelector(`#${p}-${id}`) as any;
           const instSel=$("c-inst"); const listSel=$("c-list");
@@ -2299,7 +2349,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             const prio=isCritical?"Priority_1":prioVal;
             if(isCritical) finalDesc=finalDesc?`${finalDesc} [lvl: critical]`:`[lvl: critical]`;
             const saveBtn=$("c-save") as HTMLButtonElement;
-            saveBtn.disabled=true; saveBtn.textContent="Creating…";
+            saveBtn.disabled=true; saveBtn.textContent=tr("creating");
             try{
               const body:Record<string,unknown>={ title, status:"OPEN", priority:prio, taskListId:listId };
               if(finalDesc) body.description=finalDesc;
@@ -2307,7 +2357,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               const r=await fetch(`${baseUrl}/tasks/${instId2}/task`,{method:"POST",...apiOpts(),body:JSON.stringify(body)});
               if(!r.ok) throw new Error(`HTTP ${r.status}`);
               closeCreate(); hideBanner(); await load();
-            }catch(e:any){ showBanner("error",`Couldn't create task: ${e.message}`); saveBtn.disabled=false; saveBtn.textContent="Create Task"; }
+            }catch(e:any){ showBanner("error",`${tr("createFailedPrefix")} ${e.message}`); saveBtn.disabled=false; saveBtn.textContent=tr("createTask"); }
           });
           overlayEl.classList.add("open");
           requestAnimationFrame(()=>createEl!.classList.add("open"));
