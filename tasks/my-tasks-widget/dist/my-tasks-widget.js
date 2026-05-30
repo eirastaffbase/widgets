@@ -180,7 +180,8 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-detail.open{transform:translateY(0)}
           .${p}-detail.side{left:auto;top:0;right:0;bottom:0;width:min(420px,92vw);max-height:none;border-radius:20px 0 0 20px;transform:translateX(102%)}
           .${p}-detail.side.open{transform:translateX(0)}
-          .${p}-detail-handle{width:36px;height:4px;border-radius:2px;background:var(--border);margin:10px auto 0;flex-shrink:0}
+          .${p}-detail-handle{width:40px;height:5px;border-radius:3px;background:var(--border);margin:9px auto 2px;flex-shrink:0;cursor:grab;touch-action:none}
+          .${p}-detail-head{touch-action:none}
           .${p}-detail.side .${p}-detail-handle{display:none}
           .${p}-detail-head{display:flex;align-items:flex-start;gap:10px;padding:16px 20px 12px;flex-shrink:0;border-bottom:1px solid var(--border)}
           .${p}-detail-head-badges{display:flex;gap:6px;flex-wrap:wrap;flex:1}
@@ -199,7 +200,7 @@ const factory = (BaseBlockClass, widgetApi) => {
           /* Audit finding (parsed, audit mode only) */
           .${p}-af{margin-top:2px}
           .${p}-af-code{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--primary);background:rgba(var(--primary-rgb),.1);border-radius:6px;padding:3px 9px;margin-bottom:9px}
-          .${p}-af-finding{font-size:14px;font-weight:600;line-height:1.5;color:var(--dark);margin-bottom:11px}
+          .${p}-af-finding{font-size:13px;font-weight:400;line-height:1.5;color:var(--gray);margin-bottom:11px}
           .${p}-af-pills{display:flex;flex-wrap:wrap;gap:6px}
           .${p}-af-pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:var(--gray);background:#f3f4f6;border:1px solid var(--border);border-radius:20px;padding:5px 11px}
           .${p}-af-pill svg{width:12px;height:12px;opacity:.7;flex-shrink:0}
@@ -381,6 +382,7 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-audit-detail-score{font-size:52px;font-weight:800;line-height:1;letter-spacing:-1px}
           .${p}-audit-detail-sub{font-size:14px;font-weight:700;margin:4px 0 16px}
           .${p}-detail.audit-view .${p}-detail-foot{display:none}
+          .${p}-detail.audit-view .${p}-detail-body{padding-bottom:44px}
           .${p}-cat-chart{display:flex;flex-direction:column;gap:10px;margin-top:13px}
           .${p}-cat-top{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;margin-bottom:4px}
           .${p}-cat-name{color:var(--dark);font-weight:400}
@@ -565,6 +567,27 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const detailBody = detailEl.querySelector(`#${p}-detail-body-${instId}`);
                 const detailToggle = detailEl.querySelector(`#${p}-detail-toggle-${instId}`);
                 const detailClose = detailEl.querySelector(`#${p}-detail-close-${instId}`);
+                // ── Drag-to-dismiss the bottom sheet (mobile) ──────────────────────
+                (function setupSheetDrag() {
+                    let startY = 0, dy = 0, dragging = false;
+                    const begin = (y) => { if (detailEl.classList.contains("side"))
+                        return; dragging = true; startY = y; dy = 0; detailEl.style.transition = "none"; };
+                    const move = (y) => { if (!dragging)
+                        return; dy = Math.max(0, y - startY); detailEl.style.transform = `translateY(${dy}px)`; overlayEl.style.opacity = String(Math.max(0, 1 - dy / 420)); };
+                    const end = () => { if (!dragging)
+                        return; dragging = false; detailEl.style.transition = ""; detailEl.style.transform = ""; overlayEl.style.opacity = ""; if (dy > 110)
+                        closeDetail(); };
+                    [`.${p}-detail-handle`, `.${p}-detail-head`].forEach(sel => {
+                        const el = detailEl.querySelector(sel);
+                        if (!el)
+                            return;
+                        el.addEventListener("touchstart", (e) => begin(e.touches[0].clientY), { passive: true });
+                        el.addEventListener("touchmove", (e) => { move(e.touches[0].clientY); if (dragging && dy > 0)
+                            e.preventDefault(); }, { passive: false });
+                        el.addEventListener("touchend", end);
+                        el.addEventListener("touchcancel", end);
+                    });
+                })();
                 // ── Helpers ───────────────────────────────────────────────────────
                 const apiOpts = (extra) => (Object.assign(Object.assign({}, extra), { credentials: "omit", headers: { Authorization: `Basic ${apiToken}`, "Content-Type": "application/json" } }));
                 function esc(s) { return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
@@ -1545,7 +1568,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     detailTask = task;
                     detailAudit = null;
                     detailAssignTab = "group";
-                    const isWide = container.offsetWidth >= 520;
+                    const isWide = window.innerWidth >= 720; // side panel on desktop, bottom sheet on mobile (viewport-based, not column width)
                     detailEl.classList.toggle("side", isWide);
                     detailEl.classList.remove("audit-view");
                     renderDetailContent(task);
@@ -1557,7 +1580,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 function openAuditSummary(pa, label, sysTask) {
                     detailAudit = pa;
                     detailTask = null;
-                    const isWide = container.offsetWidth >= 520;
+                    const isWide = window.innerWidth >= 720; // side panel on desktop, bottom sheet on mobile (viewport-based, not column width)
                     detailEl.classList.toggle("side", isWide);
                     detailEl.classList.add("audit-view"); // hides the task footer
                     renderAuditSummaryDetail(pa, label, sysTask);
