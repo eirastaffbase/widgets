@@ -253,51 +253,64 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           return parts.find(x => x.type === "timeZoneName")?.value || tz;
         } catch (_) { return tz; }
       }
+      // Locale tag for Intl (en_US → en-US). Read at call time so it reflects
+      // the resolved viewer locale.
+      const loc = () => locale.replace("_", "-");
+      // Localized weekday name for a WEEKDAYS code (SU…SA). Jan 7 2024 = Sunday.
+      const dayName = (code: string, style: "short" | "long"): string => {
+        const idx = WEEKDAYS.indexOf(code);
+        if (idx < 0) return code;
+        try { return new Date(2024, 0, 7 + idx).toLocaleDateString(loc(), { weekday: style }); }
+        catch (_) { return code; }
+      };
+      const ord = (nth: string): string => tr("ord" + (nth === "-1" ? "Last" : nth));
       function fmtTime12(t: string): string {
-        const [hStr, m] = t.split(":"); let h = parseInt(hStr, 10);
-        const ap = h >= 12 ? "PM" : "AM"; h = h % 12 || 12;
-        return `${h}:${m} ${ap}`;
+        const [hStr, m] = t.split(":");
+        try { return new Date(2024, 0, 1, parseInt(hStr, 10), parseInt(m, 10)).toLocaleTimeString(loc(), { hour: "numeric", minute: "2-digit" }); }
+        catch (_) { let h = parseInt(hStr, 10); const ap = h >= 12 ? "PM" : "AM"; h = h % 12 || 12; return `${h}:${m} ${ap}`; }
       }
-      const NTH_LABEL: Record<string, string> = { "1": "1st", "2": "2nd", "3": "3rd", "4": "4th", "-1": "last" };
-      const DAY_FULL: Record<string, string> = { SU:"Sunday", MO:"Monday", TU:"Tuesday", WE:"Wednesday", TH:"Thursday", FR:"Friday", SA:"Saturday" };
-      const DAY_SHORT: Record<string, string> = { SU:"Sun", MO:"Mon", TU:"Tue", WE:"Wed", TH:"Thu", FR:"Fri", SA:"Sat" };
-      const ordinal = (n: number) => { const s = ["th","st","nd","rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
+      const ordinal = (n: number) => {
+        const lang = locale.split("_")[0];
+        if (lang === "de") return n + ".";
+        if (lang === "ar") return String(n);
+        const s = ["th","st","nd","rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]);
+      };
 
       // Compact frequency tag for calendar blocks, e.g. "Mon/Thu every week", "every 29th", "every 2nd 29th".
       function shortFreq(r: Rule): string {
-        if (r.freq === "DAILY") return r.interval === 1 ? "every day" : `every ${r.interval} days`;
+        if (r.freq === "DAILY") return r.interval === 1 ? tr("sfEveryDay") : tr("sfEveryNDays").replace("{n}", String(r.interval));
         if (r.freq === "WEEKLY") {
           const sel = WEEKDAYS.filter(d => r.byday.includes(d));
           const isWeekdays = sel.length === 5 && !sel.includes("SA") && !sel.includes("SU");
           const isWeekends = sel.length === 2 && sel.includes("SA") && sel.includes("SU");
-          if (r.interval === 1 && isWeekdays) return "every weekday";
-          if (r.interval === 1 && isWeekends) return "every weekend";
-          const days = sel.map(d => DAY_SHORT[d]).join("/") || "—";
-          return `${days} ${r.interval === 1 ? "every week" : `every ${ordinal(r.interval)} week`}`;
+          if (r.interval === 1 && isWeekdays) return tr("sfEveryWeekday");
+          if (r.interval === 1 && isWeekends) return tr("sfEveryWeekend");
+          const days = sel.map(d => dayName(d, "short")).join("/") || "—";
+          return (r.interval === 1 ? tr("sfDaysWeekly") : tr("sfDaysEveryNWeek").replace("{ord}", ordinal(r.interval))).replace("{days}", days);
         }
         if (r.monthMode === "dom") {
-          return r.interval === 1 ? `every ${ordinal(r.dom)}` : `every ${ordinal(r.interval)} ${ordinal(r.dom)}`;
+          return r.interval === 1 ? tr("sfEveryDom").replace("{ord}", ordinal(r.dom)) : tr("sfEveryNDom").replace("{int}", ordinal(r.interval)).replace("{ord}", ordinal(r.dom));
         }
-        const nth = r.nth === -1 ? "last" : ordinal(r.nth);
-        return r.interval === 1 ? `every ${nth} ${DAY_SHORT[r.nthWeekday]}` : `every ${ordinal(r.interval)} mo · ${nth} ${DAY_SHORT[r.nthWeekday]}`;
+        const nth = r.nth === -1 ? ord("-1") : ordinal(r.nth);
+        return (r.interval === 1 ? tr("sfEveryNth") : tr("sfEveryNMoNth").replace("{int}", ordinal(r.interval))).replace("{nth}", nth).replace("{day}", dayName(r.nthWeekday, "short"));
       }
 
       function summarizeRule(r: Rule): string {
         let base: string;
         if (r.freq === "DAILY") {
-          base = r.interval === 1 ? "Every day" : `Every ${r.interval} days`;
+          base = r.interval === 1 ? tr("everyDay") : tr("everyNDays").replace("{n}", String(r.interval));
         } else if (r.freq === "WEEKLY") {
-          const days = r.byday.length ? r.byday.map(d => DAY_SHORT[d]).join(", ") : "—";
+          const days = r.byday.length ? r.byday.map(d => dayName(d, "short")).join(", ") : "—";
           const isWeekdays = r.byday.length === 5 && ["MO","TU","WE","TH","FR"].every(d => r.byday.includes(d));
-          const every = r.interval === 1 ? "Weekly" : `Every ${r.interval} weeks`;
-          base = isWeekdays && r.interval === 1 ? "Every weekday" : `${every} on ${days}`;
+          const every = r.interval === 1 ? tr("weekly") : tr("everyNWeeks").replace("{n}", String(r.interval));
+          base = isWeekdays && r.interval === 1 ? tr("everyWeekday") : tr("ruleOnDays").replace("{every}", every).replace("{days}", days);
         } else {
-          const every = r.interval === 1 ? "Monthly" : `Every ${r.interval} months`;
+          const every = r.interval === 1 ? tr("monthly") : tr("everyNMonths").replace("{n}", String(r.interval));
           base = r.monthMode === "dom"
-            ? `${every} on day ${r.dom}`
-            : `${every} on the ${NTH_LABEL[String(r.nth)]} ${DAY_FULL[r.nthWeekday]}`;
+            ? tr("ruleOnDom").replace("{every}", every).replace("{dom}", String(r.dom))
+            : tr("ruleOnNth").replace("{every}", every).replace("{ord}", ord(String(r.nth))).replace("{day}", dayName(r.nthWeekday, "long"));
         }
-        return `${base} at ${fmtTime12(r.time)} ${tzAbbrev(r.tz)}`;
+        return tr("ruleAtTime").replace("{base}", base).replace("{time}", fmtTime12(r.time)).replace("{tz}", tzAbbrev(r.tz));
       }
 
       // Current wall-clock in a timezone, as date parts + minutes-since-midnight.
@@ -320,7 +333,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           const d = new Date(now.y, now.m - 1, now.d + i);
           if (!firesOn(r, d)) continue;
           if (i === 0 && now.min >= schedMin) continue; // today's slot already passed
-          const label = i === 0 ? "Today" : i === 1 ? "Tomorrow" : d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+          let label: string;
+          try { label = i === 0 ? tr("today") : i === 1 ? tr("tomorrow") : d.toLocaleDateString(loc(), { weekday: "short", month: "short", day: "numeric" }); }
+          catch (_) { label = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }); }
           return `${label}, ${fmtTime12(r.time)}`;
         }
         return "—";
@@ -553,7 +568,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-cal-nav { display:flex; gap:2px; }
           .${p}-cal-modeseg { display:inline-flex; background:#f3f4f6; border-radius:var(--r-md); padding:3px; }
           .${p}-cal-modeseg button { border:none; background:none; cursor:pointer; font-family:inherit; font-size:11px; font-weight:700;
-            color:var(--gray); padding:5px 10px; border-radius:7px; transition:all .15s; }
+            color:var(--gray); padding:5px 14px; border-radius:7px; transition:all .15s; white-space:nowrap; min-width:64px; text-align:center; }
           .${p}-cal-modeseg button.active { background:#fff; color:var(--primary); box-shadow:var(--shadow-sm); }
 
           /* 4-day (agenda) view */
@@ -782,10 +797,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const titleInp = $("f-title"), descInp = $("f-desc"), typeSel = $("f-type"), typeNewInp = $("f-type-new"), prioSel = $("f-prio");
       const RECUR_LIST_NAME = "Recurring Tasks";
       const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
-      const fmtDateLabel = (iso: string) => { if (!iso) return "—"; const [y, m, d] = iso.split("-").map(Number); return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }); };
+      const fmtDateLabel = (iso: string) => { if (!iso) return "—"; const [y, m, d] = iso.split("-").map(Number); try { return new Date(y, m - 1, d).toLocaleDateString(loc(), { month: "short", day: "numeric", year: "numeric" }); } catch (_) { return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }); } };
 
       // Populate nth-weekday select
-      nthdSel.innerHTML = WEEKDAYS.map(d => `<option value="${d}">${DAY_FULL[d]}</option>`).join("");
+      nthdSel.innerHTML = WEEKDAYS.map(d => `<option value="${d}">${dayName(d, "long")}</option>`).join("");
       // Populate time select in 15-minute steps (the runner checks every :00/:15/:30/:45).
       timeInp.innerHTML = Array.from({ length: 96 }, (_, i) => {
         const v = `${String(Math.floor(i / 4)).padStart(2, "0")}:${String((i % 4) * 15).padStart(2, "0")}`;
@@ -821,7 +836,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       // ── Recurrence form behavior ──────────────────────────────────────────
       function renderWeekdayBtns() {
         wdBox.innerHTML = WEEKDAYS.map(d =>
-          `<button type="button" data-d="${d}" class="${rule.byday.includes(d) ? "on" : ""}">${DAY_SHORT[d][0]}</button>`).join("");
+          `<button type="button" data-d="${d}" class="${rule.byday.includes(d) ? "on" : ""}">${dayName(d, "short")[0]}</button>`).join("");
         wdBox.querySelectorAll("button").forEach((b: HTMLElement) =>
           b.addEventListener("click", () => {
             const d = b.dataset.d!;
@@ -860,7 +875,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
       function updateNote() {
         rule = readRuleFromForm();
-        noteEl.innerHTML = `${iconClock}<span>Tasks will be created — ${esc(summarizeRule(rule))}</span>`;
+        noteEl.innerHTML = `${iconClock}<span>${esc(tr("tasksWillBeCreated").replace("{summary}", summarizeRule(rule)))}</span>`;
       }
 
       [freqSel, intervalInp, domInp, nthSel, nthdSel, timeInp, dueInp, prioSel].forEach(el =>
@@ -1085,7 +1100,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
                   ${prioPill}
                   ${typeBadge}
                   <span class="${p}-pill">${iconStore}${storeLabel}</span>
-                  <span class="${p}-pill next">${iconClock}Next: ${esc(nextRun(s.rule))}</span>
+                  <span class="${p}-pill next">${iconClock}${tr("nextPrefix")} ${esc(nextRun(s.rule))}</span>
                 </div>
               </div>
               ${chevron}
@@ -1312,7 +1327,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
         saveBtn.disabled = false; saveBtn.textContent = editingId ? tr("saveChanges") : tr("createSchedule");
         if (fail === 0) {
-          showStatus("success", `Schedule saved to ${ok} ${ok === 1 ? storeS.toLowerCase() : storeP.toLowerCase()}. Tasks will be created automatically — ${summarizeRule(rule)}.`);
+          showStatus("success", tr("scheduleSavedMsg").replace("{n}", String(ok)).replace("{store}", ok === 1 ? storeS.toLowerCase() : storeP.toLowerCase()).replace("{summary}", summarizeRule(rule)));
           await loadSchedules();
           setTimeout(() => setView("list"), 900);
         } else if (ok > 0) {
@@ -1376,7 +1391,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         const stores = s.targets.map(t => `<div>${esc(t.storeTitle)} <span style="color:var(--gray-lt)">— ${esc(t.listName)}</span></div>`).join("");
         const range = s.rule.end
           ? `${fmtDateLabel(s.rule.start)} → ${fmtDateLabel(s.rule.end)}`
-          : `Starts ${fmtDateLabel(s.rule.start)} · no end date`;
+          : tr("rangeStarts").replace("{date}", fmtDateLabel(s.rule.start));
         detailBody.innerHTML = `
           <div class="${p}-detail-title">${esc(s.title)}</div>
           <div class="${p}-detail-meta">

@@ -1,5 +1,254 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	"use strict";
+
+;// ../shared/i18n.ts
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared i18n engine for the Staffbase task widgets.
+//
+// Imported by each widget via a relative path (e.g. `../shared/i18n`). webpack
+// inlines it into each bundle — there is no runtime/package dependency.
+//
+// Design rules:
+//  - Dependency-free, ES2015-compatible (matches each widget's tsconfig target).
+//  - DOM/browser globals are accessed defensively (guarded) so the module is
+//    safe to load in any widget context.
+//  - The default/source locale is always `en_US`. For `en_US` (or any unmatched
+//    locale) the helpers resolve to the exact source strings — so a widget that
+//    only ships an `en_US` bundle behaves identically to having no i18n at all.
+// ─────────────────────────────────────────────────────────────────────────────
+const DEFAULT_LOCALE = "en_US";
+// Language prefixes that render right-to-left (from the Staffbase locale table:
+// every entry flagged `direction: right_to_left`).
+const RTL_LANGS = ["ar", "fa", "he", "ur", "ps"];
+/** Split a raw locale string into a normalized `{ lang, region }`. */
+function parts(raw) {
+    // Accept `en-US`, `en_US`, `EN`, `zh-hk`, etc.
+    const cleaned = (raw || "").trim().replace(/-/g, "_");
+    const seg = cleaned.split("_");
+    const lang = (seg[0] || "").toLowerCase();
+    const region = (seg[1] || "").toUpperCase();
+    return { lang, region };
+}
+/** Normalize any locale string to canonical `lang_REGION` (or just `lang`). */
+function normalizeLocale(raw) {
+    const { lang, region } = parts(raw);
+    if (!lang)
+        return "";
+    return region ? lang + "_" + region : lang;
+}
+/**
+ * Resolve a requested locale against the set of bundles we actually ship.
+ * Match order: exact → same-language → DEFAULT_LOCALE.
+ *
+ *   resolveLocale("es_MX", ["en_US","es_ES"]) -> "es_ES"
+ *   resolveLocale("de-DE", ["en_US","de_DE"]) -> "de_DE"
+ *   resolveLocale("pt_PT", ["en_US","de_DE"]) -> "en_US"
+ */
+function resolveLocale(raw, available) {
+    const norm = normalizeLocale(raw);
+    if (!norm)
+        return DEFAULT_LOCALE;
+    // Exact (compare normalized on both sides so casing/dashes don't matter).
+    for (const a of available) {
+        if (normalizeLocale(a) === norm)
+            return a;
+    }
+    // Same language, any region.
+    const lang = parts(norm).lang;
+    for (const a of available) {
+        if (parts(a).lang === lang)
+            return a;
+    }
+    return DEFAULT_LOCALE;
+}
+/** True when the locale's language renders right-to-left. */
+function isRtl(locale) {
+    return RTL_LANGS.indexOf(parts(locale).lang) !== -1;
+}
+/**
+ * Pick the best locale for the current viewer.
+ * Priority: explicit `configLocale` (authoritative Staffbase user locale) →
+ * `navigator.language` (browser fallback) → DEFAULT_LOCALE.
+ *
+ * `configLocale` is read by the widget from `GET /api/users/{id}` → config.locale
+ * (the only field that reflects the user's Staffbase language). It is passed in
+ * rather than fetched here so this module stays free of auth/transport concerns.
+ */
+function detectLocale(opts) {
+    const navLang = typeof navigator !== "undefined"
+        ? navigator.language || ""
+        : "";
+    const candidates = [opts.configLocale || "", navLang];
+    for (const c of candidates) {
+        if (!c)
+            continue;
+        const r = resolveLocale(c, opts.available);
+        // resolveLocale returns DEFAULT when nothing matched; only accept a
+        // candidate if it actually produced a non-default match OR the default is
+        // genuinely the best (its own language).
+        if (r !== DEFAULT_LOCALE || parts(c).lang === parts(DEFAULT_LOCALE).lang) {
+            return r;
+        }
+    }
+    return resolveLocale(DEFAULT_LOCALE, opts.available);
+}
+/**
+ * Build a translation function bound to `locale`.
+ * Lookup order per key: requested locale → DEFAULT_LOCALE → the key itself.
+ * Missing translations therefore degrade to English, never to blank/broken UI.
+ *
+ *   const t = makeT(STRINGS, "de_DE");
+ *   t("refresh") // German if present, else English, else "refresh"
+ */
+function makeT(bundles, locale) {
+    const primary = bundles[locale] || {};
+    const fallback = bundles[DEFAULT_LOCALE] || {};
+    return function t(key) {
+        if (primary[key] != null)
+            return primary[key];
+        if (fallback[key] != null)
+            return fallback[key];
+        return key;
+    };
+}
+
+;// ./strings.ts
+const STRINGS = {
+    en_US: {
+        targetStores: "Target {stores}",
+        findStores: "Find {stores}",
+        loadingStores: "Loading {stores}…",
+        searchStores: "Search {stores}…",
+        selectStore: "Select a {store}…",
+        noStoresFound: "No {stores} found",
+        failedLoadStores: "Failed to load {stores}",
+        errorLoading: "Error loading",
+        loading: "Loading…",
+        pullReviewTasks: "Pull & Review Tasks",
+        taskListName: "Task List Name",
+        taskListNamePlaceholder: "e.g., Q2 Store Checklist",
+        pullFromExternal: "Pull from External Services",
+        reviewEditTasks: "Review & Edit Tasks",
+        nTasks: "{n} tasks",
+        title: "Title",
+        taskTitlePlaceholder: "Task title",
+        description: "Description",
+        type: "Type",
+        noneOption: "— none —",
+        dueDate: "Due Date",
+        addTask: "Add task",
+        attachFiles: "Attach files",
+        remove: "Remove",
+        attached: "attached:",
+        assignTo: "Assign To",
+        optional: "(optional)",
+        searchUsersGroups: "Search users and groups…",
+        users: "Users",
+        groups: "Groups",
+        noUsersFound: "No users found",
+        noGroupsFound: "No groups found",
+        failedToLoad: "Failed to load",
+        updateExistingList: "Update Existing List",
+        selectListToUpdate: "Select a list to update",
+        createNewList: "— Create a new list —",
+        replaceHint: "If selected, all tasks in that list are replaced. Leave blank to create a new list.",
+        working: "Working…",
+        updateYourTasks: "Update your Tasks",
+        noTasksInSheet: "No tasks found in the sheet.",
+        nTasksAdded: "{n} tasks added",
+        done: "Done!",
+    },
+    de_DE: {
+        targetStores: "Ziel-{stores}",
+        findStores: "{stores} finden",
+        loadingStores: "{stores} werden geladen…",
+        searchStores: "{stores} suchen…",
+        selectStore: "{store} auswählen…",
+        noStoresFound: "Keine {stores} gefunden",
+        failedLoadStores: "{stores} konnten nicht geladen werden",
+        errorLoading: "Fehler beim Laden",
+        loading: "Wird geladen…",
+        pullReviewTasks: "Aufgaben abrufen & prüfen",
+        taskListName: "Name der Aufgabenliste",
+        taskListNamePlaceholder: "z. B. Q2 Filial-Checkliste",
+        pullFromExternal: "Aus externen Diensten abrufen",
+        reviewEditTasks: "Aufgaben prüfen & bearbeiten",
+        nTasks: "{n} Aufgaben",
+        title: "Titel",
+        taskTitlePlaceholder: "Aufgabentitel",
+        description: "Beschreibung",
+        type: "Typ",
+        noneOption: "— keine —",
+        dueDate: "Fälligkeitsdatum",
+        addTask: "Aufgabe hinzufügen",
+        attachFiles: "Dateien anhängen",
+        remove: "Entfernen",
+        attached: "angehängt:",
+        assignTo: "Zuweisen an",
+        optional: "(optional)",
+        searchUsersGroups: "Benutzer und Gruppen suchen…",
+        users: "Benutzer",
+        groups: "Gruppen",
+        noUsersFound: "Keine Benutzer gefunden",
+        noGroupsFound: "Keine Gruppen gefunden",
+        failedToLoad: "Laden fehlgeschlagen",
+        updateExistingList: "Bestehende Liste aktualisieren",
+        selectListToUpdate: "Liste zum Aktualisieren auswählen",
+        createNewList: "— Neue Liste erstellen —",
+        replaceHint: "Wenn ausgewählt, werden alle Aufgaben in dieser Liste ersetzt. Leer lassen, um eine neue Liste zu erstellen.",
+        working: "Wird bearbeitet…",
+        updateYourTasks: "Aufgaben aktualisieren",
+        noTasksInSheet: "Keine Aufgaben in der Tabelle gefunden.",
+        nTasksAdded: "{n} Aufgaben hinzugefügt",
+        done: "Fertig!",
+    },
+    ar_SA: {
+        targetStores: "{stores} المستهدفة",
+        findStores: "ابحث عن {stores}",
+        loadingStores: "جارٍ تحميل {stores}…",
+        searchStores: "ابحث في {stores}…",
+        selectStore: "اختر {store}…",
+        noStoresFound: "لم يتم العثور على {stores}",
+        failedLoadStores: "فشل تحميل {stores}",
+        errorLoading: "خطأ في التحميل",
+        loading: "جارٍ التحميل…",
+        pullReviewTasks: "سحب ومراجعة المهام",
+        taskListName: "اسم قائمة المهام",
+        taskListNamePlaceholder: "مثال: قائمة تدقيق الربع الثاني",
+        pullFromExternal: "السحب من الخدمات الخارجية",
+        reviewEditTasks: "مراجعة وتحرير المهام",
+        nTasks: "{n} مهام",
+        title: "العنوان",
+        taskTitlePlaceholder: "عنوان المهمة",
+        description: "الوصف",
+        type: "النوع",
+        noneOption: "— بلا —",
+        dueDate: "تاريخ الاستحقاق",
+        addTask: "إضافة مهمة",
+        attachFiles: "إرفاق ملفات",
+        remove: "إزالة",
+        attached: "مرفق:",
+        assignTo: "إسناد إلى",
+        optional: "(اختياري)",
+        searchUsersGroups: "ابحث عن مستخدمين ومجموعات…",
+        users: "المستخدمون",
+        groups: "المجموعات",
+        noUsersFound: "لم يتم العثور على مستخدمين",
+        noGroupsFound: "لم يتم العثور على مجموعات",
+        failedToLoad: "فشل التحميل",
+        updateExistingList: "تحديث قائمة موجودة",
+        selectListToUpdate: "اختر قائمة لتحديثها",
+        createNewList: "— إنشاء قائمة جديدة —",
+        replaceHint: "في حال التحديد، سيتم استبدال جميع المهام في تلك القائمة. اتركه فارغًا لإنشاء قائمة جديدة.",
+        working: "جارٍ العمل…",
+        updateYourTasks: "تحديث مهامك",
+        noTasksInSheet: "لم يتم العثور على مهام في الورقة.",
+        nTasksAdded: "{n} مهام مُضافة",
+        done: "تم!",
+    },
+};
+
+;// ./tasks-integration-widget.ts
 var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -9,6 +258,8 @@ var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _argume
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+
+
 // ── Defaults ──────────────────────────────────────────────────────────────────
 const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwhJDxf4hgE_zIfZjvedGmqQnH8_nJ2UIEwMtcQ8Hbk2RBNXnslyqSV718k3k0RYXy1/exec";
 const DEFAULT_API_TOKEN = "NjljMjU3N2JjZmFjZWYxMzc4MzIzYTNkOkp6VEpkaGlfclRyRDk4bjlBZ2pIdXFkcmI3UjQhdl1LTm1RV1hwOHBIdUd+Unl3clk7MjYhSS1JdiprLGdOaVI=";
@@ -135,13 +386,14 @@ const uiSchema = {
     },
 };
 // ── Widget factory ────────────────────────────────────────────────────────────
-const factory = (BaseBlockClass, _widgetApi) => {
+const factory = (BaseBlockClass, widgetApi) => {
     return class TasksIntegrationWidget extends BaseBlockClass {
         constructor() {
             super();
         }
         renderBlock(container) {
             return __awaiter(this, void 0, void 0, function* () {
+                var _a;
                 const appsScriptUrl = this.getAttribute("appsscripturl") || DEFAULT_APPS_SCRIPT_URL;
                 const apiToken = this.getAttribute("apitoken") || DEFAULT_API_TOKEN;
                 const baseUrl = (this.getAttribute("baseurl") || DEFAULT_BASE_URL).replace(/\/$/, "");
@@ -165,6 +417,32 @@ const factory = (BaseBlockClass, _widgetApi) => {
                 let allGroups = [];
                 let selectedAssignees = [];
                 const p = "tiw";
+                // ── Locale / i18n ──────────────────────────────────────────────────
+                // Translator bound as `tx` (this widget uses `tr` as a table-row var).
+                let locale = DEFAULT_LOCALE;
+                let tx = makeT(STRINGS, locale);
+                // Resolve before first paint: getUserInformation() → id → config.locale.
+                // apiOpts is defined later, so we do a minimal inline fetch with the token.
+                try {
+                    const prof = yield widgetApi.getUserInformation();
+                    let configLocale = "";
+                    const uid = (prof === null || prof === void 0 ? void 0 : prof.id) || "";
+                    if (uid) {
+                        const r = yield fetch(`${baseUrl}/users/${uid}`, { credentials: "omit", headers: { Authorization: `Basic ${apiToken}` } });
+                        if (r.ok) {
+                            const u = yield r.json();
+                            configLocale = ((_a = u === null || u === void 0 ? void 0 : u.config) === null || _a === void 0 ? void 0 : _a.locale) || "";
+                        }
+                    }
+                    locale = detectLocale({ configLocale, available: Object.keys(STRINGS) });
+                    tx = makeT(STRINGS, locale);
+                }
+                catch (_) { /* keep default */ }
+                const rtl = isRtl(locale);
+                try {
+                    container.setAttribute("dir", rtl ? "rtl" : "ltr");
+                }
+                catch (_) { }
                 // SVG icons (inlined so no external deps needed)
                 const iconDownload = `<svg width="18" height="18" viewBox="0 0 512 512" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M472.7 189.5c-15.76-10-36.21-16.79-58.59-19.54-6.65-39.1-24.22-72.52-51.27-97.26C334.15 46.45 296.21 32 256 32c-35.35 0-68 11.08-94.37 32a149.7 149.7 0 0 0-45.29 60.42c-30.67 4.32-57 14.61-76.71 30C13.7 174.83 0 203.56 0 237.6 0 305 55.92 352 136 352h104V208h32v144h124c72.64 0 116-34.24 116-91.6 0-30.05-13.59-54.57-39.3-70.9zM240 419.42 191.98 371l-22.61 23L256 480l86.63-86-22.61-23L272 419.42V352h-32v67.42z"/></svg>`;
                 const iconUpload = `<svg width="18" height="18" viewBox="0 0 512 512" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M504 256c0 136.967-111.033 248-248 248S8 392.967 8 256 119.033 8 256 8s248 111.033 248 248zM227.314 387.314l184-184c6.248-6.248 6.248-16.379 0-22.627l-22.627-22.627c-6.248-6.249-16.379-6.249-22.628 0L216 308.118l-70.059-70.059c-6.248-6.248-16.379-6.248-22.628 0l-22.627 22.627c-6.248 6.248-6.248 16.379 0 22.627l104 104c6.249 6.249 16.379 6.249 22.628.001z"/></svg>`;
@@ -614,20 +892,20 @@ const factory = (BaseBlockClass, _widgetApi) => {
           <div class="${p}-card">
             <div class="${p}-card-head">
               <span class="${p}-step">1</span>
-              <span class="${p}-card-title">Target ${storeP}</span>
+              <span class="${p}-card-title">${tx("targetStores").replace("{stores}", storeP)}</span>
             </div>
             <div class="${p}-card-body">
-              <label class="${p}-label">Find ${storeP}</label>
+              <label class="${p}-label">${tx("findStores").replace("{stores}", storeP)}</label>
               <div class="${p}-ms-wrap">
                 <div class="${p}-ms-trigger" id="${p}-trigger">
-                  <span class="${p}-ms-ph">Loading ${storeP.toLowerCase()}…</span>
+                  <span class="${p}-ms-ph">${tx("loadingStores").replace("{stores}", storeP.toLowerCase())}</span>
                 </div>
                 <div class="${p}-dropdown" id="${p}-dropdown">
                   <div class="${p}-dd-search">
-                    <input type="text" id="${p}-search" placeholder="Search ${storeP.toLowerCase()}…">
+                    <input type="text" id="${p}-search" placeholder="${tx("searchStores").replace("{stores}", storeP.toLowerCase())}">
                   </div>
                   <div class="${p}-dd-list" id="${p}-opts">
-                    <div class="${p}-dd-msg">Loading…</div>
+                    <div class="${p}-dd-msg">${tx("loading")}</div>
                   </div>
                 </div>
               </div>
@@ -638,14 +916,14 @@ const factory = (BaseBlockClass, _widgetApi) => {
           <div class="${p}-card">
             <div class="${p}-card-head">
               <span class="${p}-step">2</span>
-              <span class="${p}-card-title">Pull &amp; Review Tasks</span>
+              <span class="${p}-card-title">${tx("pullReviewTasks")}</span>
             </div>
             <div class="${p}-card-body">
-              <label class="${p}-label">Task List Name</label>
+              <label class="${p}-label">${tx("taskListName")}</label>
               <div class="${p}-input-group">
                 <input type="text" class="${p}-input" id="${p}-listname"
-                       placeholder="e.g., Q2 Store Checklist">
-                <button type="button" class="${p}-icon-btn" id="${p}-pull-btn" title="Pull from External Services">
+                       placeholder="${tx("taskListNamePlaceholder")}">
+                <button type="button" class="${p}-icon-btn" id="${p}-pull-btn" title="${tx("pullFromExternal")}">
                   ${iconDownload}
                 </button>
               </div>
@@ -653,24 +931,24 @@ const factory = (BaseBlockClass, _widgetApi) => {
               <!-- Editable task table -->
               <div class="${p}-tbl-zone" id="${p}-tbl-section" style="margin-top:16px">
                 <div class="${p}-tbl-meta">
-                  <span class="${p}-tbl-label">Review &amp; Edit Tasks</span>
-                  <span class="${p}-badge-count" id="${p}-task-count">0 tasks</span>
+                  <span class="${p}-tbl-label">${tx("reviewEditTasks")}</span>
+                  <span class="${p}-badge-count" id="${p}-task-count">${tx("nTasks").replace("{n}", "0")}</span>
                 </div>
                 <div class="${p}-tbl-wrap">
                   <table class="${p}-tbl">
                     <thead>
                       <tr>
-                        <th style="width:30%">Title</th>
-                        <th>Description</th>
-                        ${enableTypes ? `<th style="width:130px">Type</th>` : ""}
-                        <th style="width:140px">Due Date</th>
+                        <th style="width:30%">${tx("title")}</th>
+                        <th>${tx("description")}</th>
+                        ${enableTypes ? `<th style="width:130px">${tx("type")}</th>` : ""}
+                        <th style="width:140px">${tx("dueDate")}</th>
                         <th style="width:36px"></th>
                       </tr>
                     </thead>
                     <tbody id="${p}-tbody"></tbody>
                   </table>
                 </div>
-                <button type="button" class="${p}-add-row" id="${p}-add-row" aria-label="Add task">+</button>
+                <button type="button" class="${p}-add-row" id="${p}-add-row" aria-label="${tx("addTask")}">+</button>
               </div>
             </div>
           </div>
@@ -679,19 +957,19 @@ const factory = (BaseBlockClass, _widgetApi) => {
           <div class="${p}-card">
             <div class="${p}-card-head">
               <span class="${p}-step">3</span>
-              <span class="${p}-card-title">Assign To <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:#9ca3af">(optional)</span></span>
+              <span class="${p}-card-title">${tx("assignTo")} <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:#9ca3af">${tx("optional")}</span></span>
             </div>
             <div class="${p}-card-body">
               <div class="${p}-assign-chips" id="${p}-assign-chips"></div>
               <div class="${p}-assign-search">
-                <input type="text" id="${p}-assign-search" placeholder="Search users and groups…">
+                <input type="text" id="${p}-assign-search" placeholder="${tx("searchUsersGroups")}">
               </div>
               <div class="${p}-assign-tabs">
-                <div role="button" tabindex="0" class="${p}-assign-tab active" id="${p}-tab-users">Users</div>
-                <div role="button" tabindex="0" class="${p}-assign-tab" id="${p}-tab-groups">Groups</div>
+                <div role="button" tabindex="0" class="${p}-assign-tab active" id="${p}-tab-users">${tx("users")}</div>
+                <div role="button" tabindex="0" class="${p}-assign-tab" id="${p}-tab-groups">${tx("groups")}</div>
               </div>
               <div class="${p}-assign-list" id="${p}-assign-list">
-                <div class="${p}-assign-empty">Loading…</div>
+                <div class="${p}-assign-empty">${tx("loading")}</div>
               </div>
             </div>
           </div>
@@ -701,14 +979,14 @@ const factory = (BaseBlockClass, _widgetApi) => {
           <div class="${p}-card">
             <div class="${p}-card-head">
               <span class="${p}-step">4</span>
-              <span class="${p}-card-title">Update Existing List <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:#9ca3af">(optional)</span></span>
+              <span class="${p}-card-title">${tx("updateExistingList")} <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:#9ca3af">${tx("optional")}</span></span>
             </div>
             <div class="${p}-card-body">
-              <label class="${p}-label">Select a list to update</label>
+              <label class="${p}-label">${tx("selectListToUpdate")}</label>
               <select class="${p}-select" id="${p}-existing">
-                <option value="">— Create a new list —</option>
+                <option value="">${tx("createNewList")}</option>
               </select>
-              <p class="${p}-help">If selected, all tasks in that list are replaced. Leave blank to create a new list.</p>
+              <p class="${p}-help">${tx("replaceHint")}</p>
             </div>
           </div>
           ` : ""}
@@ -716,14 +994,14 @@ const factory = (BaseBlockClass, _widgetApi) => {
           <!-- Submit -->
           <div style="margin-top:4px">
             <button type="button" class="${p}-btn ${p}-btn-primary" id="${p}-submit" disabled>
-              ${iconUpload} Update your Tasks
+              ${iconUpload} ${tx("updateYourTasks")}
             </button>
             <p id="${p}-hint" style="margin-top:8px;font-size:12px;color:var(--gray-lt);min-height:16px"></p>
           </div>
 
           <div class="${p}-progress" id="${p}-progress">
             <div class="${p}-prog-meta">
-              <span id="${p}-prog-label">Working…</span>
+              <span id="${p}-prog-label">${tx("working")}</span>
               <span id="${p}-prog-pct">0%</span>
             </div>
             <div class="${p}-prog-bar">
@@ -856,7 +1134,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
                 }
                 function refreshCount() {
                     const n = tbody.querySelectorAll("tr").length;
-                    taskCount.textContent = `${n} task${n !== 1 ? "s" : ""}`;
+                    taskCount.textContent = tx("nTasks").replace("{n}", String(n));
                 }
                 function validate() {
                     const noStores = selectedStores.length === 0;
@@ -884,22 +1162,22 @@ const factory = (BaseBlockClass, _widgetApi) => {
                     // Extract date part from ISO string directly to avoid timezone shift
                     const datePart = dueDate ? dueDate.split("T")[0] : "";
                     const typeOptions = enableTypes
-                        ? `<td data-label="Type"><select class="${p}-cell ${p}-cell-type" style="padding:7px 6px">
-               <option value="">— none —</option>
+                        ? `<td data-label="${tx("type")}"><select class="${p}-cell ${p}-cell-type" style="padding:7px 6px">
+               <option value="">${tx("noneOption")}</option>
                ${typeList.map(t => `<option value="${esc(t)}"${t === taskType ? " selected" : ""}>${esc(t)}</option>`).join("")}
              </select></td>`
                         : "";
                     const tr = document.createElement("tr");
                     tr.className = `${p}-task-row`;
                     tr.innerHTML = `
-          <td data-label="Title"><input class="${p}-cell ${p}-cell-title" type="text" value="${esc(title)}" placeholder="Task title">
+          <td data-label="${tx("title")}"><input class="${p}-cell ${p}-cell-title" type="text" value="${esc(title)}" placeholder="${tx("taskTitlePlaceholder")}">
             <div class="${p}-att-line" style="display:none"></div></td>
-          <td data-label="Description"><textarea class="${p}-cell ${p}-cell-desc ${p}-cell-description" rows="1" placeholder="Description">${esc(desc)}</textarea></td>
+          <td data-label="${tx("description")}"><textarea class="${p}-cell ${p}-cell-desc ${p}-cell-description" rows="1" placeholder="${tx("description")}">${esc(desc)}</textarea></td>
           ${typeOptions}
-          <td data-label="Due Date"><input class="${p}-cell ${p}-cell-date" type="date" value="${datePart}"></td>
+          <td data-label="${tx("dueDate")}"><input class="${p}-cell ${p}-cell-date" type="date" value="${datePart}"></td>
           <td class="${p}-row-actions" style="white-space:nowrap">
-            <button class="${p}-clip-row" title="Attach files"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
-            <button class="${p}-del-row" title="Remove"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
+            <button class="${p}-clip-row" title="${tx("attachFiles")}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
+            <button class="${p}-del-row" title="${tx("remove")}"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
             <input type="file" multiple class="${p}-att-input" style="display:none">
           </td>
         `;
@@ -918,7 +1196,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
                             return;
                         }
                         attLine.style.display = "flex";
-                        attLine.innerHTML = `<b>attached:</b>` + rowFiles.map((f, i) => `<span class="${p}-att-chip"><span>${esc(f.name)}</span><button type="button" data-i="${i}" title="Remove">${iXmini}</button></span>`).join("");
+                        attLine.innerHTML = `<b>${tx("attached")}</b>` + rowFiles.map((f, i) => `<span class="${p}-att-chip"><span>${esc(f.name)}</span><button type="button" data-i="${i}" title="${tx("remove")}">${iXmini}</button></span>`).join("");
                         attLine.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
                             rowFiles.splice(Number(b.dataset.i), 1);
                             renderAttLine();
@@ -981,7 +1259,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
                 function renderOpts(filter = "") {
                     const matches = storeProjects.filter(s => s.title.toLowerCase().includes(filter.toLowerCase()));
                     if (!matches.length) {
-                        optsList.innerHTML = `<div class="${p}-dd-msg">No ${storeP.toLowerCase()} found</div>`;
+                        optsList.innerHTML = `<div class="${p}-dd-msg">${tx("noStoresFound").replace("{stores}", storeP.toLowerCase())}</div>`;
                         return;
                     }
                     optsList.innerHTML = matches.map(s => {
@@ -1010,7 +1288,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
                 }
                 function renderTrigger() {
                     if (!selectedStores.length) {
-                        trigger.innerHTML = `<span class="${p}-ms-ph">Select a ${storeS}…</span>`;
+                        trigger.innerHTML = `<span class="${p}-ms-ph">${tx("selectStore").replace("{store}", storeS)}</span>`;
                         return;
                     }
                     trigger.innerHTML = selectedStores.map(s => `<span class="${p}-tag">${esc(s.title)}
@@ -1059,17 +1337,17 @@ const factory = (BaseBlockClass, _widgetApi) => {
                             })
                                 .sort((a, b) => a.title.localeCompare(b.title));
                             if (!storeProjects.length) {
-                                optsList.innerHTML = `<div class="${p}-dd-msg">No ${storeP.toLowerCase()} found</div>`;
-                                trigger.innerHTML = `<span class="${p}-ms-ph">No ${storeP.toLowerCase()} found</span>`;
+                                optsList.innerHTML = `<div class="${p}-dd-msg">${tx("noStoresFound").replace("{stores}", storeP.toLowerCase())}</div>`;
+                                trigger.innerHTML = `<span class="${p}-ms-ph">${tx("noStoresFound").replace("{stores}", storeP.toLowerCase())}</span>`;
                             }
                             else {
-                                trigger.innerHTML = `<span class="${p}-ms-ph">Select a ${storeS}…</span>`;
+                                trigger.innerHTML = `<span class="${p}-ms-ph">${tx("selectStore").replace("{store}", storeS)}</span>`;
                                 renderOpts();
                             }
                         }
                         catch (_) {
-                            optsList.innerHTML = `<div class="${p}-dd-msg">Failed to load ${storeP.toLowerCase()}</div>`;
-                            trigger.innerHTML = `<span class="${p}-ms-ph">Error loading</span>`;
+                            optsList.innerHTML = `<div class="${p}-dd-msg">${tx("failedLoadStores").replace("{stores}", storeP.toLowerCase())}</div>`;
+                            trigger.innerHTML = `<span class="${p}-ms-ph">${tx("errorLoading")}</span>`;
                         }
                     });
                 }
@@ -1078,7 +1356,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
                     return __awaiter(this, void 0, void 0, function* () {
                         if (!existingSel)
                             return;
-                        existingSel.innerHTML = `<option value="">— Create a new list —</option>`;
+                        existingSel.innerHTML = `<option value="">${tx("createNewList")}</option>`;
                         for (const store of selectedStores) {
                             try {
                                 const res = yield fetch(`${baseUrl}/tasks/${store.id}/lists`, Object.assign({}, apiOpts()));
@@ -1133,7 +1411,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
                             renderAssignList();
                         }
                         catch (_) {
-                            assignListEl.innerHTML = `<div class="${p}-assign-empty">Failed to load</div>`;
+                            assignListEl.innerHTML = `<div class="${p}-assign-empty">${tx("failedToLoad")}</div>`;
                         }
                     });
                 }
@@ -1142,7 +1420,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
                     if (assignTab === "user") {
                         const matches = allUsers.filter(u => u.name.toLowerCase().includes(fl));
                         if (!matches.length) {
-                            assignListEl.innerHTML = `<div class="${p}-assign-empty">No users found</div>`;
+                            assignListEl.innerHTML = `<div class="${p}-assign-empty">${tx("noUsersFound")}</div>`;
                             return;
                         }
                         assignListEl.innerHTML = matches.map(u => {
@@ -1162,7 +1440,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
                     else {
                         const matches = allGroups.filter(g => g.name.toLowerCase().includes(fl));
                         if (!matches.length) {
-                            assignListEl.innerHTML = `<div class="${p}-assign-empty">No groups found</div>`;
+                            assignListEl.innerHTML = `<div class="${p}-assign-empty">${tx("noGroupsFound")}</div>`;
                             return;
                         }
                         assignListEl.innerHTML = matches.map(g => {
@@ -1252,7 +1530,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
                         }
                         const tasks = data.tasks || [];
                         if (!tasks.length) {
-                            showStatus("info", "No tasks found in the sheet.");
+                            showStatus("info", tx("noTasksInSheet"));
                         }
                         else {
                             tbody.innerHTML = "";
@@ -1360,7 +1638,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
                                 doneOps++;
                                 yield new Promise(r => setTimeout(r, 50));
                             }
-                            logLine(`\u2713 ${store.title}: ${created} task${created !== 1 ? "s" : ""} added`, "ok");
+                            logLine(`\u2713 ${store.title}: ${tx("nTasksAdded").replace("{n}", String(created))}`, "ok");
                             okCount++;
                         }
                         catch (e) {
@@ -1369,7 +1647,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
                             doneOps += tasks.length + 1;
                         }
                     }
-                    setProgress(100, "Done!");
+                    setProgress(100, tx("done"));
                     if (failCount === 0) {
                         showStatus("success", `All done! "${name}" with ${tasks.length} tasks pushed to ${okCount} ${okCount === 1 ? storeS : storeP}.`);
                     }
@@ -1439,7 +1717,6 @@ const externalBlockDefinition = {
     version: "1.0.0",
 };
 window.defineBlock(externalBlockDefinition);
-
 
 /******/ })()
 ;

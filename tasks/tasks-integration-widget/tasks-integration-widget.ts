@@ -8,6 +8,9 @@ import {
 import { JSONSchema7 } from "json-schema";
 import { UiSchema } from "@rjsf/utils";
 
+import { detectLocale, isRtl, makeT, DEFAULT_LOCALE } from "../shared/i18n";
+import { STRINGS } from "./strings";
+
 // ── Defaults ──────────────────────────────────────────────────────────────────
 
 const DEFAULT_APPS_SCRIPT_URL =
@@ -146,7 +149,7 @@ const uiSchema: UiSchema = {
 
 // ── Widget factory ────────────────────────────────────────────────────────────
 
-const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
+const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
   return class TasksIntegrationWidget extends BaseBlockClass implements BaseBlock {
     constructor() {
       super();
@@ -190,6 +193,26 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
       let selectedAssignees: Array<{ id: string; name: string; avatar: string; type: "user" | "group" }> = [];
 
       const p = "tiw";
+
+      // ── Locale / i18n ──────────────────────────────────────────────────
+      // Translator bound as `tx` (this widget uses `tr` as a table-row var).
+      let locale = DEFAULT_LOCALE;
+      let tx = makeT(STRINGS, locale);
+      // Resolve before first paint: getUserInformation() → id → config.locale.
+      // apiOpts is defined later, so we do a minimal inline fetch with the token.
+      try {
+        const prof: any = await widgetApi.getUserInformation();
+        let configLocale = "";
+        const uid = prof?.id || "";
+        if (uid) {
+          const r = await fetch(`${baseUrl}/users/${uid}`, { credentials: "omit", headers: { Authorization: `Basic ${apiToken}` } });
+          if (r.ok) { const u = await r.json(); configLocale = u?.config?.locale || ""; }
+        }
+        locale = detectLocale({ configLocale, available: Object.keys(STRINGS) });
+        tx = makeT(STRINGS, locale);
+      } catch (_) { /* keep default */ }
+      const rtl = isRtl(locale);
+      try { container.setAttribute("dir", rtl ? "rtl" : "ltr"); } catch (_) {}
 
       // SVG icons (inlined so no external deps needed)
       const iconDownload = `<svg width="18" height="18" viewBox="0 0 512 512" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M472.7 189.5c-15.76-10-36.21-16.79-58.59-19.54-6.65-39.1-24.22-72.52-51.27-97.26C334.15 46.45 296.21 32 256 32c-35.35 0-68 11.08-94.37 32a149.7 149.7 0 0 0-45.29 60.42c-30.67 4.32-57 14.61-76.71 30C13.7 174.83 0 203.56 0 237.6 0 305 55.92 352 136 352h104V208h32v144h124c72.64 0 116-34.24 116-91.6 0-30.05-13.59-54.57-39.3-70.9zM240 419.42 191.98 371l-22.61 23L256 480l86.63-86-22.61-23L272 419.42V352h-32v67.42z"/></svg>`;
@@ -641,20 +664,20 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
           <div class="${p}-card">
             <div class="${p}-card-head">
               <span class="${p}-step">1</span>
-              <span class="${p}-card-title">Target ${storeP}</span>
+              <span class="${p}-card-title">${tx("targetStores").replace("{stores}", storeP)}</span>
             </div>
             <div class="${p}-card-body">
-              <label class="${p}-label">Find ${storeP}</label>
+              <label class="${p}-label">${tx("findStores").replace("{stores}", storeP)}</label>
               <div class="${p}-ms-wrap">
                 <div class="${p}-ms-trigger" id="${p}-trigger">
-                  <span class="${p}-ms-ph">Loading ${storeP.toLowerCase()}…</span>
+                  <span class="${p}-ms-ph">${tx("loadingStores").replace("{stores}", storeP.toLowerCase())}</span>
                 </div>
                 <div class="${p}-dropdown" id="${p}-dropdown">
                   <div class="${p}-dd-search">
-                    <input type="text" id="${p}-search" placeholder="Search ${storeP.toLowerCase()}…">
+                    <input type="text" id="${p}-search" placeholder="${tx("searchStores").replace("{stores}", storeP.toLowerCase())}">
                   </div>
                   <div class="${p}-dd-list" id="${p}-opts">
-                    <div class="${p}-dd-msg">Loading…</div>
+                    <div class="${p}-dd-msg">${tx("loading")}</div>
                   </div>
                 </div>
               </div>
@@ -665,14 +688,14 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
           <div class="${p}-card">
             <div class="${p}-card-head">
               <span class="${p}-step">2</span>
-              <span class="${p}-card-title">Pull &amp; Review Tasks</span>
+              <span class="${p}-card-title">${tx("pullReviewTasks")}</span>
             </div>
             <div class="${p}-card-body">
-              <label class="${p}-label">Task List Name</label>
+              <label class="${p}-label">${tx("taskListName")}</label>
               <div class="${p}-input-group">
                 <input type="text" class="${p}-input" id="${p}-listname"
-                       placeholder="e.g., Q2 Store Checklist">
-                <button type="button" class="${p}-icon-btn" id="${p}-pull-btn" title="Pull from External Services">
+                       placeholder="${tx("taskListNamePlaceholder")}">
+                <button type="button" class="${p}-icon-btn" id="${p}-pull-btn" title="${tx("pullFromExternal")}">
                   ${iconDownload}
                 </button>
               </div>
@@ -680,24 +703,24 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
               <!-- Editable task table -->
               <div class="${p}-tbl-zone" id="${p}-tbl-section" style="margin-top:16px">
                 <div class="${p}-tbl-meta">
-                  <span class="${p}-tbl-label">Review &amp; Edit Tasks</span>
-                  <span class="${p}-badge-count" id="${p}-task-count">0 tasks</span>
+                  <span class="${p}-tbl-label">${tx("reviewEditTasks")}</span>
+                  <span class="${p}-badge-count" id="${p}-task-count">${tx("nTasks").replace("{n}","0")}</span>
                 </div>
                 <div class="${p}-tbl-wrap">
                   <table class="${p}-tbl">
                     <thead>
                       <tr>
-                        <th style="width:30%">Title</th>
-                        <th>Description</th>
-                        ${enableTypes ? `<th style="width:130px">Type</th>` : ""}
-                        <th style="width:140px">Due Date</th>
+                        <th style="width:30%">${tx("title")}</th>
+                        <th>${tx("description")}</th>
+                        ${enableTypes ? `<th style="width:130px">${tx("type")}</th>` : ""}
+                        <th style="width:140px">${tx("dueDate")}</th>
                         <th style="width:36px"></th>
                       </tr>
                     </thead>
                     <tbody id="${p}-tbody"></tbody>
                   </table>
                 </div>
-                <button type="button" class="${p}-add-row" id="${p}-add-row" aria-label="Add task">+</button>
+                <button type="button" class="${p}-add-row" id="${p}-add-row" aria-label="${tx("addTask")}">+</button>
               </div>
             </div>
           </div>
@@ -706,19 +729,19 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
           <div class="${p}-card">
             <div class="${p}-card-head">
               <span class="${p}-step">3</span>
-              <span class="${p}-card-title">Assign To <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:#9ca3af">(optional)</span></span>
+              <span class="${p}-card-title">${tx("assignTo")} <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:#9ca3af">${tx("optional")}</span></span>
             </div>
             <div class="${p}-card-body">
               <div class="${p}-assign-chips" id="${p}-assign-chips"></div>
               <div class="${p}-assign-search">
-                <input type="text" id="${p}-assign-search" placeholder="Search users and groups…">
+                <input type="text" id="${p}-assign-search" placeholder="${tx("searchUsersGroups")}">
               </div>
               <div class="${p}-assign-tabs">
-                <div role="button" tabindex="0" class="${p}-assign-tab active" id="${p}-tab-users">Users</div>
-                <div role="button" tabindex="0" class="${p}-assign-tab" id="${p}-tab-groups">Groups</div>
+                <div role="button" tabindex="0" class="${p}-assign-tab active" id="${p}-tab-users">${tx("users")}</div>
+                <div role="button" tabindex="0" class="${p}-assign-tab" id="${p}-tab-groups">${tx("groups")}</div>
               </div>
               <div class="${p}-assign-list" id="${p}-assign-list">
-                <div class="${p}-assign-empty">Loading…</div>
+                <div class="${p}-assign-empty">${tx("loading")}</div>
               </div>
             </div>
           </div>
@@ -728,14 +751,14 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
           <div class="${p}-card">
             <div class="${p}-card-head">
               <span class="${p}-step">4</span>
-              <span class="${p}-card-title">Update Existing List <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:#9ca3af">(optional)</span></span>
+              <span class="${p}-card-title">${tx("updateExistingList")} <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:#9ca3af">${tx("optional")}</span></span>
             </div>
             <div class="${p}-card-body">
-              <label class="${p}-label">Select a list to update</label>
+              <label class="${p}-label">${tx("selectListToUpdate")}</label>
               <select class="${p}-select" id="${p}-existing">
-                <option value="">— Create a new list —</option>
+                <option value="">${tx("createNewList")}</option>
               </select>
-              <p class="${p}-help">If selected, all tasks in that list are replaced. Leave blank to create a new list.</p>
+              <p class="${p}-help">${tx("replaceHint")}</p>
             </div>
           </div>
           ` : ""}
@@ -743,14 +766,14 @@ const factory: BlockFactory = (BaseBlockClass, _widgetApi) => {
           <!-- Submit -->
           <div style="margin-top:4px">
             <button type="button" class="${p}-btn ${p}-btn-primary" id="${p}-submit" disabled>
-              ${iconUpload} Update your Tasks
+              ${iconUpload} ${tx("updateYourTasks")}
             </button>
             <p id="${p}-hint" style="margin-top:8px;font-size:12px;color:var(--gray-lt);min-height:16px"></p>
           </div>
 
           <div class="${p}-progress" id="${p}-progress">
             <div class="${p}-prog-meta">
-              <span id="${p}-prog-label">Working…</span>
+              <span id="${p}-prog-label">${tx("working")}</span>
               <span id="${p}-prog-pct">0%</span>
             </div>
             <div class="${p}-prog-bar">
@@ -882,7 +905,7 @@ const tbody      = container.querySelector(`#${p}-tbody`)!;
 
       function refreshCount() {
         const n = tbody.querySelectorAll("tr").length;
-        taskCount.textContent = `${n} task${n !== 1 ? "s" : ""}`;
+        taskCount.textContent = tx("nTasks").replace("{n}", String(n));
       }
 
       function validate() {
@@ -909,22 +932,22 @@ const tbody      = container.querySelector(`#${p}-tbody`)!;
         // Extract date part from ISO string directly to avoid timezone shift
         const datePart = dueDate ? dueDate.split("T")[0] : "";
         const typeOptions = enableTypes
-          ? `<td data-label="Type"><select class="${p}-cell ${p}-cell-type" style="padding:7px 6px">
-               <option value="">— none —</option>
+          ? `<td data-label="${tx("type")}"><select class="${p}-cell ${p}-cell-type" style="padding:7px 6px">
+               <option value="">${tx("noneOption")}</option>
                ${typeList.map(t => `<option value="${esc(t)}"${t === taskType ? " selected" : ""}>${esc(t)}</option>`).join("")}
              </select></td>`
           : "";
         const tr = document.createElement("tr");
         tr.className = `${p}-task-row`;
         tr.innerHTML = `
-          <td data-label="Title"><input class="${p}-cell ${p}-cell-title" type="text" value="${esc(title)}" placeholder="Task title">
+          <td data-label="${tx("title")}"><input class="${p}-cell ${p}-cell-title" type="text" value="${esc(title)}" placeholder="${tx("taskTitlePlaceholder")}">
             <div class="${p}-att-line" style="display:none"></div></td>
-          <td data-label="Description"><textarea class="${p}-cell ${p}-cell-desc ${p}-cell-description" rows="1" placeholder="Description">${esc(desc)}</textarea></td>
+          <td data-label="${tx("description")}"><textarea class="${p}-cell ${p}-cell-desc ${p}-cell-description" rows="1" placeholder="${tx("description")}">${esc(desc)}</textarea></td>
           ${typeOptions}
-          <td data-label="Due Date"><input class="${p}-cell ${p}-cell-date" type="date" value="${datePart}"></td>
+          <td data-label="${tx("dueDate")}"><input class="${p}-cell ${p}-cell-date" type="date" value="${datePart}"></td>
           <td class="${p}-row-actions" style="white-space:nowrap">
-            <button class="${p}-clip-row" title="Attach files"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
-            <button class="${p}-del-row" title="Remove"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
+            <button class="${p}-clip-row" title="${tx("attachFiles")}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
+            <button class="${p}-del-row" title="${tx("remove")}"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
             <input type="file" multiple class="${p}-att-input" style="display:none">
           </td>
         `;
@@ -939,8 +962,8 @@ const tbody      = container.querySelector(`#${p}-tbody`)!;
           clipBtn.classList.toggle("has-files", rowFiles.length > 0);
           if (!rowFiles.length) { attLine.style.display = "none"; attLine.innerHTML = ""; return; }
           attLine.style.display = "flex";
-          attLine.innerHTML = `<b>attached:</b>` + rowFiles.map((f, i) =>
-            `<span class="${p}-att-chip"><span>${esc(f.name)}</span><button type="button" data-i="${i}" title="Remove">${iXmini}</button></span>`
+          attLine.innerHTML = `<b>${tx("attached")}</b>` + rowFiles.map((f, i) =>
+            `<span class="${p}-att-chip"><span>${esc(f.name)}</span><button type="button" data-i="${i}" title="${tx("remove")}">${iXmini}</button></span>`
           ).join("");
           attLine.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
             rowFiles.splice(Number((b as HTMLElement).dataset.i), 1); renderAttLine();
@@ -1003,7 +1026,7 @@ const tbody      = container.querySelector(`#${p}-tbody`)!;
           s.title.toLowerCase().includes(filter.toLowerCase())
         );
         if (!matches.length) {
-          optsList.innerHTML = `<div class="${p}-dd-msg">No ${storeP.toLowerCase()} found</div>`;
+          optsList.innerHTML = `<div class="${p}-dd-msg">${tx("noStoresFound").replace("{stores}",storeP.toLowerCase())}</div>`;
           return;
         }
         optsList.innerHTML = matches.map(s => {
@@ -1033,7 +1056,7 @@ const tbody      = container.querySelector(`#${p}-tbody`)!;
 
       function renderTrigger() {
         if (!selectedStores.length) {
-          trigger.innerHTML = `<span class="${p}-ms-ph">Select a ${storeS}…</span>`;
+          trigger.innerHTML = `<span class="${p}-ms-ph">${tx("selectStore").replace("{store}",storeS)}</span>`;
           return;
         }
         trigger.innerHTML = selectedStores.map(s =>
@@ -1090,22 +1113,22 @@ const tbody      = container.querySelector(`#${p}-tbody`)!;
             .sort((a: any, b: any) => a.title.localeCompare(b.title));
 
           if (!storeProjects.length) {
-            optsList.innerHTML = `<div class="${p}-dd-msg">No ${storeP.toLowerCase()} found</div>`;
-            trigger.innerHTML  = `<span class="${p}-ms-ph">No ${storeP.toLowerCase()} found</span>`;
+            optsList.innerHTML = `<div class="${p}-dd-msg">${tx("noStoresFound").replace("{stores}",storeP.toLowerCase())}</div>`;
+            trigger.innerHTML  = `<span class="${p}-ms-ph">${tx("noStoresFound").replace("{stores}",storeP.toLowerCase())}</span>`;
           } else {
-            trigger.innerHTML = `<span class="${p}-ms-ph">Select a ${storeS}…</span>`;
+            trigger.innerHTML = `<span class="${p}-ms-ph">${tx("selectStore").replace("{store}",storeS)}</span>`;
             renderOpts();
           }
         } catch (_) {
-          optsList.innerHTML = `<div class="${p}-dd-msg">Failed to load ${storeP.toLowerCase()}</div>`;
-          trigger.innerHTML  = `<span class="${p}-ms-ph">Error loading</span>`;
+          optsList.innerHTML = `<div class="${p}-dd-msg">${tx("failedLoadStores").replace("{stores}",storeP.toLowerCase())}</div>`;
+          trigger.innerHTML  = `<span class="${p}-ms-ph">${tx("errorLoading")}</span>`;
         }
       }
 
       // ── Load existing task lists (update mode only) ───────────────────
       async function loadExistingLists() {
         if (!existingSel) return;
-        existingSel.innerHTML = `<option value="">— Create a new list —</option>`;
+        existingSel.innerHTML = `<option value="">${tx("createNewList")}</option>`;
         for (const store of selectedStores) {
           try {
             const res = await fetch(`${baseUrl}/tasks/${store.id}/lists`, {
@@ -1153,7 +1176,7 @@ const tbody      = container.querySelector(`#${p}-tbody`)!;
           }
           renderAssignList();
         } catch (_) {
-          assignListEl.innerHTML = `<div class="${p}-assign-empty">Failed to load</div>`;
+          assignListEl.innerHTML = `<div class="${p}-assign-empty">${tx("failedToLoad")}</div>`;
         }
       }
 
@@ -1162,7 +1185,7 @@ const tbody      = container.querySelector(`#${p}-tbody`)!;
         if (assignTab === "user") {
           const matches = allUsers.filter(u => u.name.toLowerCase().includes(fl));
           if (!matches.length) {
-            assignListEl.innerHTML = `<div class="${p}-assign-empty">No users found</div>`;
+            assignListEl.innerHTML = `<div class="${p}-assign-empty">${tx("noUsersFound")}</div>`;
             return;
           }
           assignListEl.innerHTML = matches.map(u => {
@@ -1181,7 +1204,7 @@ const tbody      = container.querySelector(`#${p}-tbody`)!;
         } else {
           const matches = allGroups.filter(g => g.name.toLowerCase().includes(fl));
           if (!matches.length) {
-            assignListEl.innerHTML = `<div class="${p}-assign-empty">No groups found</div>`;
+            assignListEl.innerHTML = `<div class="${p}-assign-empty">${tx("noGroupsFound")}</div>`;
             return;
           }
           assignListEl.innerHTML = matches.map(g => {
@@ -1285,7 +1308,7 @@ const tbody      = container.querySelector(`#${p}-tbody`)!;
           }> = data.tasks || [];
 
           if (!tasks.length) {
-            showStatus("info", "No tasks found in the sheet.");
+            showStatus("info", tx("noTasksInSheet"));
           } else {
             tbody.innerHTML = "";
             tasks.forEach((t: any) => addRow(t.title, t.description, t.dueDate ?? "", t.taskType ?? ""));
@@ -1420,7 +1443,7 @@ const tbody      = container.querySelector(`#${p}-tbody`)!;
               await new Promise(r => setTimeout(r, 50));
             }
 
-            logLine(`\u2713 ${store.title}: ${created} task${created !== 1 ? "s" : ""} added`, "ok");
+            logLine(`\u2713 ${store.title}: ${tx("nTasksAdded").replace("{n}",String(created))}`, "ok");
             okCount++;
           } catch (e: any) {
             logLine(`\u2717 ${store.title}: ${e.message}`, "err");
@@ -1429,7 +1452,7 @@ const tbody      = container.querySelector(`#${p}-tbody`)!;
           }
         }
 
-        setProgress(100, "Done!");
+        setProgress(100, tx("done"));
 
         if (failCount === 0) {
           showStatus(
