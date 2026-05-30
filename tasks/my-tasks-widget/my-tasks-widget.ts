@@ -2055,6 +2055,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           const instOpts=allInstalls.map(i=>`<option value="${esc(i.id)}">${esc(i.title)}</option>`).join("");
           const firstInst=allInstalls[0].id;
           const listOpts=(id:string)=>(listsByInst.get(id)||[]).map(l=>`<option value="${esc(l.id)}">${esc(l.name)}</option>`).join("");
+          const existingTypes=[...new Set(allTasks.filter(t=>t.taskType&&t.taskType!=="audit-result").map(t=>t.taskType as string))].sort();
+          const typeOpts=existingTypes.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join("");
           createEl.innerHTML=`
             <div class="${p}-create-head"><h3>New Task</h3>
               <button type="button" class="${p}-create-close" id="${p}-c-x"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
@@ -2064,6 +2066,14 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               <div class="${p}-fld"><label>Description</label><textarea class="${p}-in" id="${p}-c-desc" placeholder="Add details (optional)"></textarea></div>
               ${allInstalls.length>1?`<div class="${p}-fld"><label>${esc(storeSingular)}</label><select class="${p}-sel" id="${p}-c-inst">${instOpts}</select></div>`:`<input type="hidden" id="${p}-c-inst" value="${esc(firstInst)}">`}
               <div class="${p}-fld"><label>List</label><select class="${p}-sel" id="${p}-c-list">${listOpts(firstInst)}</select></div>
+              <div class="${p}-fld"><label>Type</label>
+                <select class="${p}-sel" id="${p}-c-type">
+                  <option value="">— No type —</option>
+                  ${typeOpts}
+                  <option value="__new__">+ Create new type…</option>
+                </select>
+                <input class="${p}-in" id="${p}-c-type-new" placeholder="New type name" style="display:none;margin-top:8px">
+              </div>
               <div class="${p}-fld-row">
                 <div class="${p}-fld"><label>Due date</label><input type="date" class="${p}-in" id="${p}-c-due"></div>
                 <div class="${p}-fld"><label>Priority</label><select class="${p}-sel" id="${p}-c-prio"><option value="Priority_3">Normal</option><option value="Priority_2">Medium</option><option value="Priority_1">High</option></select></div>
@@ -2078,6 +2088,12 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           if(instSel&&instSel.tagName==="SELECT"){
             instSel.addEventListener("change",()=>{ listSel.innerHTML=listOpts(instSel.value); });
           }
+          const typeSel=$("c-type"); const typeNew=$("c-type-new");
+          typeSel.addEventListener("change",()=>{
+            const isNew=typeSel.value==="__new__";
+            typeNew.style.display=isNew?"block":"none";
+            if(isNew) typeNew.focus();
+          });
           $("c-x").addEventListener("click",closeCreate);
           $("c-cancel").addEventListener("click",closeCreate);
           $("c-save").addEventListener("click",async()=>{
@@ -2087,13 +2103,18 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             const listId=listSel.value;
             if(!listId){ showBanner("error","That space has no list to add the task to."); return; }
             const desc=($("c-desc").value||"").trim();
+            const taskType=(typeSel.value==="__new__"?(typeNew.value||""):typeSel.value).trim();
+            // Embed the type as a [type: X] tag in the description — same convention
+            // the tasks-integration-widget uses and parseTaskType() reads on load.
+            let finalDesc=desc;
+            if(taskType) finalDesc=finalDesc?`${finalDesc} [type: ${taskType}]`:`[type: ${taskType}]`;
             const due=$("c-due").value; // yyyy-mm-dd
             const prio=$("c-prio").value||"Priority_3";
             const saveBtn=$("c-save") as HTMLButtonElement;
             saveBtn.disabled=true; saveBtn.textContent="Creating…";
             try{
               const body:Record<string,unknown>={ title, status:"OPEN", priority:prio, taskListId:listId };
-              if(desc) body.description=desc;
+              if(finalDesc) body.description=finalDesc;
               if(due) body.dueDate=`${due}T00:00:00.000Z`;
               const r=await fetch(`${baseUrl}/tasks/${instId2}/task`,{method:"POST",...apiOpts(),body:JSON.stringify(body)});
               if(!r.ok) throw new Error(`HTTP ${r.status}`);

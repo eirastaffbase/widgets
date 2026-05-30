@@ -445,6 +445,50 @@ const factory = (BaseBlockClass, _widgetApi) => {
             outline: none;
           }
 
+          /* ── Mobile: stack the task table into scrollable cards ── */
+          @media (max-width: 600px) {
+            .${p} { padding: 14px; }
+            .${p}-card-body { padding: 14px; }
+
+            /* Turn the editable table into a vertically scrollable list */
+            .${p}-tbl-wrap {
+              overflow-x: visible;
+              overflow-y: auto;
+              max-height: 60vh;
+              -webkit-overflow-scrolling: touch;
+            }
+            .${p}-tbl, .${p}-tbl tbody, .${p}-tbl tr, .${p}-tbl td { display: block; width: 100%; }
+            .${p}-tbl thead {
+              position: absolute; width: 1px; height: 1px;
+              overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+            }
+            .${p}-task-row {
+              padding: 12px 12px 14px;
+              border-bottom: 1.5px solid var(--border);
+            }
+            .${p}-tbl tr:last-child { border-bottom: none; }
+            .${p}-tbl td { padding: 6px 0; border-bottom: none; }
+            .${p}-tbl tr:hover td { background: transparent; }
+            .${p}-tbl td[data-label]::before {
+              content: attr(data-label);
+              display: block;
+              font-size: 10px; font-weight: 700; letter-spacing: .5px;
+              text-transform: uppercase; color: var(--gray-lt);
+              margin-bottom: 4px;
+            }
+            /* Title spans full width and is always readable */
+            .${p}-cell-title { font-weight: 600; }
+            /* Action buttons: full-width row, always visible (no hover on touch) */
+            .${p}-row-actions {
+              display: flex; gap: 6px; justify-content: flex-end;
+              white-space: normal !important; padding-top: 8px;
+            }
+            .${p}-clip-row { opacity: 1; }
+            .${p}-del-row, .${p}-clip-row { width: 30px; height: 30px; }
+            /* Add-row is always reachable on touch */
+            .${p}-add-row { opacity: 1; pointer-events: auto; }
+          }
+
           /* ── Select ────────────────────────────────────────── */
           .${p}-select {
             width: 100%; padding: 10px 13px;
@@ -840,7 +884,7 @@ const factory = (BaseBlockClass, _widgetApi) => {
                     // Extract date part from ISO string directly to avoid timezone shift
                     const datePart = dueDate ? dueDate.split("T")[0] : "";
                     const typeOptions = enableTypes
-                        ? `<td><select class="${p}-cell ${p}-cell-type" style="padding:7px 6px">
+                        ? `<td data-label="Type"><select class="${p}-cell ${p}-cell-type" style="padding:7px 6px">
                <option value="">— none —</option>
                ${typeList.map(t => `<option value="${esc(t)}"${t === taskType ? " selected" : ""}>${esc(t)}</option>`).join("")}
              </select></td>`
@@ -848,12 +892,12 @@ const factory = (BaseBlockClass, _widgetApi) => {
                     const tr = document.createElement("tr");
                     tr.className = `${p}-task-row`;
                     tr.innerHTML = `
-          <td><input class="${p}-cell ${p}-cell-title" type="text" value="${esc(title)}" placeholder="Task title">
+          <td data-label="Title"><input class="${p}-cell ${p}-cell-title" type="text" value="${esc(title)}" placeholder="Task title">
             <div class="${p}-att-line" style="display:none"></div></td>
-          <td><textarea class="${p}-cell ${p}-cell-desc ${p}-cell-description" rows="1" placeholder="Description">${esc(desc)}</textarea></td>
+          <td data-label="Description"><textarea class="${p}-cell ${p}-cell-desc ${p}-cell-description" rows="1" placeholder="Description">${esc(desc)}</textarea></td>
           ${typeOptions}
-          <td><input class="${p}-cell ${p}-cell-date" type="date" value="${datePart}"></td>
-          <td style="white-space:nowrap">
+          <td data-label="Due Date"><input class="${p}-cell ${p}-cell-date" type="date" value="${datePart}"></td>
+          <td class="${p}-row-actions" style="white-space:nowrap">
             <button class="${p}-clip-row" title="Attach files"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
             <button class="${p}-del-row" title="Remove"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
             <input type="file" multiple class="${p}-att-input" style="display:none">
