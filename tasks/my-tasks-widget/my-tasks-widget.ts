@@ -477,6 +477,20 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-other-toggle,.${p}-other-toggle:hover,.${p}-other-toggle:focus{background:none!important}
           .${p}-reassign-btn,.${p}-reassign-btn:focus{background:rgba(var(--primary-rgb),.07)!important}
           .${p}-reassign-btn:hover{background:rgba(var(--primary-rgb),.13)!important}
+          .${p}-status-opt,.${p}-status-opt:hover,.${p}-status-opt:focus{background:none!important}
+          .${p}-status-opt.active,.${p}-status-opt.active:hover,.${p}-status-opt.active:focus{background:var(--primary)!important;color:var(--primary-text)!important}
+          .${p}-type-btn,.${p}-type-btn:hover,.${p}-type-btn:focus,.${p}-type-btn.open{background:#fff!important}
+          .${p}-type-opt,.${p}-type-opt:focus{background:none!important}
+          .${p}-type-opt:hover{background:rgba(0,0,0,.04)!important}
+          .${p}-type-opt.active,.${p}-type-opt.active:hover,.${p}-type-opt.active:focus{background:rgba(var(--primary-rgb),.06)!important}
+          .${p}-detail-toggle-btn.done-btn,.${p}-detail-toggle-btn.done-btn:focus{background:rgba(var(--primary-rgb),.08)!important}
+          .${p}-detail-toggle-btn.done-btn:hover{background:var(--primary)!important;color:var(--primary-text)!important}
+          .${p}-detail-toggle-btn.open-btn,.${p}-detail-toggle-btn.open-btn:focus{background:#f3f4f6!important}
+          .${p}-detail-toggle-btn.open-btn:hover{background:var(--border)!important;color:var(--dark)!important}
+          .${p}-reassign-opt,.${p}-reassign-opt:focus{background:none!important}
+          .${p}-reassign-opt:hover{background:rgba(var(--primary-rgb),.06)!important}
+          .${p}-dbg-btn,.${p}-dbg-btn:hover,.${p}-dbg-btn:focus{background:#21262d!important}
+          .${p}-dbg-btn:active{background:var(--primary)!important}
           /* ── States ── */
           .${p}-state{padding:40px 20px;text-align:center;color:var(--gray-lt);font-size:13px;line-height:1.6}
           .${p}-state-icon{font-size:32px;margin-bottom:8px;display:block}
