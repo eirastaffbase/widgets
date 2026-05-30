@@ -8,6 +8,9 @@ import {
 import { JSONSchema7 } from "json-schema";
 import { UiSchema } from "@rjsf/utils";
 
+import { detectLocale, isRtl, makeT, DEFAULT_LOCALE } from "../shared/i18n";
+import { STRINGS } from "./strings";
+
 // ── Defaults ──────────────────────────────────────────────────────────────────
 
 const DEFAULT_APPS_SCRIPT_URL =
@@ -111,6 +114,11 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const primaryText    = contrastColor(primaryColor);
 
       const p = "aw";
+
+      // ── Locale / i18n ──────────────────────────────────────────────────
+      // `tr` (not `t`) to avoid clashing with task/loop vars named `t`.
+      let locale = DEFAULT_LOCALE;
+      let tr     = makeT(STRINGS, locale);
 
       // ── State ──────────────────────────────────────────────────────────
       let questions:     Question[]                       = [];
@@ -373,7 +381,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
         <div class="${p}">
           <div class="${p}-header">
-            <div class="${p}-title"><span class="${p}-title-dot"></span>Audit Form</div>
+            <div class="${p}-title"><span class="${p}-title-dot"></span><span id="${p}-title-text">${tr("auditForm")}</span></div>
             <span class="${p}-spin" id="${p}-hspin" style="display:none"></span>
           </div>
           <div class="${p}-banner" id="${p}-banner"></div>
@@ -658,11 +666,15 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
         // ① Profile — fires immediately, updates name in-place
         const profileP = (async()=>{
+          let profId = "";
           try {
             const prof = await widgetApi.getUserInformation();
-            auditorName = (`${(prof as any).firstName||""} ${(prof as any).lastName||""}`).trim()||(prof as any).id||"";
+            profId = (prof as any).id||"";
+            auditorName = (`${(prof as any).firstName||""} ${(prof as any).lastName||""}`).trim()||profId||"";
           } catch(_){}
           nameLoaded = true;
+          // Resolve locale (needs the user id) and re-render in the right language.
+          applyLocale(profId);
           if(step==="setup"){
             const loadingEl = contentEl.querySelector(`#${p}-name-loading`) as HTMLElement|null;
             if(loadingEl){
@@ -770,6 +782,27 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         else if(step==="generate") renderGenerate();
       }
 
+      // Resolve the viewer's locale (config.locale → navigator → en_US), rebind
+      // `tr`, set text direction, and re-render the current step. Runs once.
+      let localeApplied = false;
+      async function applyLocale(userId:string){
+        if(localeApplied) return;
+        localeApplied = true;
+        const available = Object.keys(STRINGS);
+        let configLocale = "";
+        try{
+          if(userId){
+            const r = await fetch(`${baseUrl}/users/${userId}`, apiOpts());
+            if(r.ok){ const u = await r.json(); configLocale = (u?.config?.locale)||""; }
+          }
+        } catch(_){}
+        locale = detectLocale({ configLocale, available });
+        tr = makeT(STRINGS, locale);
+        try{ container.setAttribute("dir", isRtl(locale)?"rtl":"ltr"); }catch(_){}
+        const titleEl=container.querySelector(`#${p}-title-text`); if(titleEl) titleEl.textContent=tr("auditForm");
+        render();
+      }
+
       // ── Name click-to-edit binder (shared by renderSetup + in-place update) ──
       function bindNameEdit(nameDisplay: HTMLElement){
         nameDisplay.addEventListener("click",function onClick(){
@@ -798,22 +831,22 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         const selInst=installations.find(i=>i.id===selectedInstId);
         const triggerInner=selInst
           ?`<span style="color:var(--dark);font-size:14px">${esc(selInst.title)}</span>`
-          :`<span class="${p}-ms-ph">${!installationsLoaded?`Loading ${esc(storeP.toLowerCase())}…`:`Select a ${esc(storeS)}…`}</span>`;
+          :`<span class="${p}-ms-ph">${!installationsLoaded?tr("loadingStore").replace("{store}",esc(storeP.toLowerCase())):tr("selectStore").replace("{store}",esc(storeS))}</span>`;
 
         // Auditor name field: spinner while loading, click-to-edit display after
         const nameFieldHtml = nameLoaded
-          ? `<div class="${p}-name-display" id="${p}-name-display" title="Click to edit">
+          ? `<div class="${p}-name-display" id="${p}-name-display" title="${tr("clickToEdit")}">
                <span class="${p}-name-text" id="${p}-name-text">${esc(auditorName||"—")}</span>
-               <span class="${p}-name-edit-hint">${iPencil} edit</span>
+               <span class="${p}-name-edit-hint">${iPencil} ${tr("edit")}</span>
              </div>`
           : `<div class="${p}-name-loading" id="${p}-name-loading">
                <span class="${p}-spin"></span>
-               <span>Loading your name…</span>
+               <span>${tr("loadingYourName")}</span>
              </div>`;
 
         contentEl.innerHTML=`
           <div class="${p}-card">
-            <div class="${p}-card-head"><span class="${p}-step">1</span><span class="${p}-card-title">Store &amp; Auditor Details</span></div>
+            <div class="${p}-card-head"><span class="${p}-step">1</span><span class="${p}-card-title">${tr("storeAuditorDetails")}</span></div>
             <div class="${p}-card-body">
               <div class="${p}-row">
                 <div class="${p}-field">
@@ -821,32 +854,32 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
                   <div class="${p}-ms-wrap">
                     <div class="${p}-ms-trigger" id="${p}-trigger">${triggerInner}</div>
                     <div class="${p}-ms-dropdown" id="${p}-dropdown">
-                      <div class="${p}-dd-search"><input type="text" id="${p}-search" placeholder="Search ${esc(storeP.toLowerCase())}…"></div>
-                      <div class="${p}-dd-list" id="${p}-opts"><div class="${p}-dd-msg">Loading…</div></div>
+                      <div class="${p}-dd-search"><input type="text" id="${p}-search" placeholder="${tr("searchStorePlaceholder").replace("{store}",esc(storeP.toLowerCase()))}"></div>
+                      <div class="${p}-dd-list" id="${p}-opts"><div class="${p}-dd-msg">${tr("loading")}</div></div>
                     </div>
                   </div>
                 </div>
                 <div class="${p}-field">
-                  <label class="${p}-label">Audit Date</label>
+                  <label class="${p}-label">${tr("auditDate")}</label>
                   <input type="date" class="${p}-input" id="${p}-adate" value="${auditDate}">
                 </div>
               </div>
               <div class="${p}-row full" style="grid-template-columns:1fr">
                 <div class="${p}-field">
-                  <label class="${p}-label">Auditor Name</label>
+                  <label class="${p}-label">${tr("auditorName")}</label>
                   ${nameFieldHtml}
                 </div>
               </div>
               <div class="${p}-row full" style="grid-template-columns:1fr;margin-bottom:12px">
                 <div class="${p}-field">
-                  <label class="${p}-label">Auditor Notes <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:var(--gray-lt)">(optional)</span></label>
-                  <textarea class="${p}-input" id="${p}-anotes" rows="2" placeholder="Context for this audit session…" style="resize:none;line-height:1.5">${esc(auditNotes)}</textarea>
-                  <label class="${p}-note-attach" for="${p}-note-file">${iCamera} Attach photo or file</label>
+                  <label class="${p}-label">${tr("auditorNotes")} <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:var(--gray-lt)">${tr("optional")}</span></label>
+                  <textarea class="${p}-input" id="${p}-anotes" rows="2" placeholder="${tr("auditorNotesPlaceholder")}" style="resize:none;line-height:1.5">${esc(auditNotes)}</textarea>
+                  <label class="${p}-note-attach" for="${p}-note-file">${iCamera} ${tr("attachPhotoFile")}</label>
                   <input type="file" id="${p}-note-file" class="${p}-note-file" multiple>
                   <div class="${p}-note-chips" id="${p}-note-chips"></div>
                 </div>
               </div>
-              <button type="button" class="${p}-btn ${p}-btn-primary ${p}-btn-full" id="${p}-begin" ${!questionsLoaded?"disabled":""}>${!questionsLoaded?`<span class="${p}-spin" style="border-top-color:#fff;border-color:rgba(255,255,255,.3)"></span> Loading questions…`:`${iCheck} Begin Audit`}</button>
+              <button type="button" class="${p}-btn ${p}-btn-primary ${p}-btn-full" id="${p}-begin" ${!questionsLoaded?"disabled":""}>${!questionsLoaded?`<span class="${p}-spin" style="border-top-color:#fff;border-color:rgba(255,255,255,.3)"></span> ${tr("loadingQuestions")}`:`${iCheck} ${tr("beginAudit")}`}</button>
             </div>
           </div>`;
 
@@ -940,7 +973,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           auditDate  =(contentEl.querySelector(`#${p}-adate`)  as HTMLInputElement).value;
           auditNotes =(contentEl.querySelector(`#${p}-anotes`) as HTMLTextAreaElement).value.trim();
           if(!selectedInstId){showBanner("error",`Please select a ${storeS}.`);return;}
-          if(!auditorName)   {showBanner("error","Please enter your name.");return;}
+          if(!auditorName)   {showBanner("error",tr("enterYourName"));return;}
           hideBanner(); step="audit"; renderAudit();
         });
       }
@@ -966,7 +999,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
         contentEl.innerHTML=`
           <div style="margin-bottom:14px">
-            <div class="${p}-prog-label"><span>${sc.answered} of ${sc.count} answered</span><span style="font-weight:700;color:var(--dark)">${pct}%</span></div>
+            <div class="${p}-prog-label"><span>${tr("nOfMAnswered").replace("{a}",String(sc.answered)).replace("{b}",String(sc.count))}</span><span style="font-weight:700;color:var(--dark)">${pct}%</span></div>
             <div class="${p}-prog-wrap"><div class="${p}-prog-fill" style="width:${pct}%"></div></div>
           </div>
           <div class="${p}-card">
@@ -978,14 +1011,14 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               </div>
             </div>
             <div class="${p}-card-body" id="${p}-qwrap">
-              ${qHtml||`<div class="${p}-state"><strong>No questions</strong></div>`}
+              ${qHtml||`<div class="${p}-state"><strong>${tr("noQuestions")}</strong></div>`}
             </div>
           </div>
           <div class="${p}-nav">
-            <button type="button" class="${p}-btn ${p}-btn-ghost" id="${p}-prev">${iPrev} ${isFirst?"Setup":"Prev"}</button>
+            <button type="button" class="${p}-btn ${p}-btn-ghost" id="${p}-prev">${iPrev} ${isFirst?tr("setup"):tr("prev")}</button>
             ${isLast
-              ?`<button type="button" class="${p}-btn ${p}-btn-primary" id="${p}-gen">${iFlag} View Overview</button>`
-              :`<button type="button" class="${p}-btn ${p}-btn-primary" id="${p}-next">Next ${iNext}</button>`}
+              ?`<button type="button" class="${p}-btn ${p}-btn-primary" id="${p}-gen">${iFlag} ${tr("viewOverview")}</button>`
+              :`<button type="button" class="${p}-btn ${p}-btn-primary" id="${p}-next">${tr("next")} ${iNext}</button>`}
           </div>`;
 
         // ── Scroll arrows ──────────────────────────────────────────────
@@ -1048,16 +1081,16 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         let ctrl="";
         if(q.type==="pf"){
           ctrl=`<div class="${p}-pf-row">
-            <button type="button" class="${p}-pf-btn${val==="pass"?" pass":""}" data-qid="${esc(q.id)}" data-val="pass">Pass</button>
-            <button type="button" class="${p}-pf-btn${val==="fail"?" fail":""}" data-qid="${esc(q.id)}" data-val="fail">Fail</button>
-            <button type="button" class="${p}-pf-btn${val==="na"?" na":""}" data-qid="${esc(q.id)}" data-val="na">N/A</button>
+            <button type="button" class="${p}-pf-btn${val==="pass"?" pass":""}" data-qid="${esc(q.id)}" data-val="pass">${tr("pass")}</button>
+            <button type="button" class="${p}-pf-btn${val==="fail"?" fail":""}" data-qid="${esc(q.id)}" data-val="fail">${tr("fail")}</button>
+            <button type="button" class="${p}-pf-btn${val==="na"?" na":""}" data-qid="${esc(q.id)}" data-val="na">${tr("na")}</button>
           </div>`;
         } else if(q.type==="rating"){
           const rv=val?parseInt(val):0;
           ctrl=`<div class="${p}-rating-row">${[1,2,3,4,5].map(n=>{
             let cls=""; if(rv===n) cls=n<=2?"low":n===3?"mid":"hi";
             return `<button type="button" class="${p}-rating-btn${cls?" "+cls:""}" data-qid="${esc(q.id)}" data-val="${n}">${n}</button>`;
-          }).join("")}</div><div class="${p}-rating-hint"><span>Poor</span><span>Excellent</span></div>`;
+          }).join("")}</div><div class="${p}-rating-hint"><span>${tr("poor")}</span><span>${tr("excellent")}</span></div>`;
         } else if(q.type==="temp"){
           const isCooler=q.id.startsWith("BOH")||q.text.toLowerCase().includes("cooler");
           const hint=isCooler?"35–41°F (walk-in cooler)":"≥140°F (hot holding) · ≥165°F (cooking)";
@@ -1075,8 +1108,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               <div class="${p}-timer-display${s.running?" running":""}${st?" "+p+"-st-"+st.state:""}" data-qid="${esc(q.id)}">${fmtTimer(curElapsed(s))}</div>
               ${st?`<span class="${p}-timer-status ${p}-st-${st.state}" data-qid="${esc(q.id)}">${st.label}</span>`:""}
               <div class="${p}-timer-actions">
-                <button type="button" class="${p}-timer-btn${s.running?" stop":""}" data-qid="${esc(q.id)}" data-tact="toggle">${s.running?"Stop":"Start"}</button>
-                <button type="button" class="${p}-timer-btn ghost" data-qid="${esc(q.id)}" data-tact="reset">Reset</button>
+                <button type="button" class="${p}-timer-btn${s.running?" stop":""}" data-qid="${esc(q.id)}" data-tact="toggle">${s.running?tr("stop"):tr("start")}</button>
+                <button type="button" class="${p}-timer-btn ghost" data-qid="${esc(q.id)}" data-tact="reset">${tr("reset")}</button>
               </div>
             </div>
             ${tgt?`<div class="${p}-timer-goal">${goalLabel(tgt)}</div>`:""}
@@ -1089,9 +1122,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
         const flagHtml=showFlag&&q.taskTitle?`
           <div class="${p}-task-flag show">
-            <div class="${p}-task-flag-title">${iFlag} Task will be generated</div>
-            <p style="font-size:12px;color:#78350f;line-height:1.4;margin:0"><strong>${esc(q.taskTitle)}</strong> · ${esc(q.taskRole)} · ${esc(q.taskPriority)} · Due: ${q.taskDue===0?"Immediately":`${q.taskDue}d`}</p>
-            <label class="${p}-photo" data-qid="${esc(q.id)}" for="${p}-pfin-${esc(q.id)}">${iCamera} Add photo</label>
+            <div class="${p}-task-flag-title">${iFlag} ${tr("taskWillBeGenerated")}</div>
+            <p style="font-size:12px;color:#78350f;line-height:1.4;margin:0"><strong>${esc(q.taskTitle)}</strong> · ${esc(q.taskRole)} · ${esc(q.taskPriority)} · ${tr("dueLabel")} ${q.taskDue===0?tr("immediately"):`${q.taskDue}d`}</p>
+            <label class="${p}-photo" data-qid="${esc(q.id)}" for="${p}-pfin-${esc(q.id)}">${iCamera} ${tr("addPhoto")}</label>
             <input type="file" accept="image/*" multiple id="${p}-pfin-${esc(q.id)}" class="${p}-photo-input" data-qid="${esc(q.id)}">
             <div class="${p}-photo-line" data-qid="${esc(q.id)}">${photoChips(q.id)}</div>
           </div>`:""
@@ -1101,9 +1134,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           <div class="${p}-q-header"><span class="${p}-q-id">${esc(q.id)}</span><span class="${p}-q-text">${esc(q.text)}</span></div>
           ${q.passCriteria?`<div class="${p}-q-criteria">${iCheck2} ${esc(q.passCriteria)}</div>`:""}
           <div class="${p}-q-chips">
-            <span class="${p}-chip ${p}-chip-pts">${q.pts} pts</span>
-            ${q.critical?`<span class="${p}-chip ${p}-chip-crit">${iWarn} Critical</span>`:""}
-            ${q.task?`<span class="${p}-chip ${p}-chip-task">${iFlag} Auto-task</span>`:""}
+            <span class="${p}-chip ${p}-chip-pts">${tr("nPts").replace("{n}",String(q.pts))}</span>
+            ${q.critical?`<span class="${p}-chip ${p}-chip-crit">${iWarn} ${tr("critical")}</span>`:""}
+            ${q.task?`<span class="${p}-chip ${p}-chip-task">${iFlag} ${tr("autoTask")}</span>`:""}
           </div>
           ${ctrl}${flagHtml}
         </div>`;
@@ -1230,7 +1263,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
         // Failed tasks with per-task group picker
         const failHtml=ft.length===0
-          ?`<div class="${p}-state"><strong>No failures</strong>All answered questions passed or were marked N/A.</div>`
+          ?`<div class="${p}-state"><strong>${tr("noFailures")}</strong>${tr("allPassedOrNa")}</div>`
           :ft.map(q=>{
             const gid=taskGroupOverrides[q.id]||"";
             const uid=taskUserOverrides[q.id]||"";
@@ -1241,25 +1274,25 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               ?`<span style="color:var(--dark)">${esc(selUser.name)}</span>`
               :atype==="group"&&selGroup
               ?`<span style="color:var(--dark)">${esc(selGroup.name)}</span>`
-              :`<span class="${p}-gp-ph">— Unassigned —</span>`;
-            const due=q.taskDue===0?"Immediately":`Within ${q.taskDue}d`;
+              :`<span class="${p}-gp-ph">${tr("unassigned")}</span>`;
+            const due=q.taskDue===0?tr("immediately"):tr("withinDays").replace("{d}",String(q.taskDue));
             return `<div class="${p}-fail-item">
               <div class="${p}-fail-head">
                 <div class="${p}-fail-title">${esc(q.taskTitle||q.text)}</div>
                 <span class="${p}-prio ${prioClass(q.taskPriority)}">${esc(q.taskPriority)}</span>
               </div>
-              <div class="${p}-fail-meta">${esc(q.id)} · Due: ${due}</div>
-              <div class="${p}-group-lbl">Assign to</div>
+              <div class="${p}-fail-meta">${esc(q.id)} · ${tr("dueLabel")} ${due}</div>
+              <div class="${p}-group-lbl">${tr("assignTo")}</div>
               <div class="${p}-gp-wrap" data-qid="${esc(q.id)}">
                 <button type="button" class="${p}-gp-trigger" data-qid="${esc(q.id)}">${selLabel}</button>
                 <div class="${p}-gp-dropdown" data-qid="${esc(q.id)}">
                   <div style="padding:8px 10px 0">
                     <div class="${p}-ap-tabs">
-                      <div role="button" tabindex="0" class="${p}-ap-tab${atype==="group"?" active":""}" data-qid="${esc(q.id)}" data-tab="group">Groups</div>
-                      <div role="button" tabindex="0" class="${p}-ap-tab${atype==="user"?" active":""}" data-qid="${esc(q.id)}" data-tab="user">People</div>
+                      <div role="button" tabindex="0" class="${p}-ap-tab${atype==="group"?" active":""}" data-qid="${esc(q.id)}" data-tab="group">${tr("groups")}</div>
+                      <div role="button" tabindex="0" class="${p}-ap-tab${atype==="user"?" active":""}" data-qid="${esc(q.id)}" data-tab="user">${tr("people")}</div>
                     </div>
                   </div>
-                  <div class="${p}-gp-search"><input type="text" placeholder="Search…" data-qid="${esc(q.id)}"></div>
+                  <div class="${p}-gp-search"><input type="text" placeholder="${tr("searchPlaceholder")}" data-qid="${esc(q.id)}"></div>
                   <div class="${p}-gp-list" data-qid="${esc(q.id)}" data-tab="${atype}"></div>
                 </div>
               </div>
@@ -1269,39 +1302,39 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
         contentEl.innerHTML=`
           <div class="${p}-card">
-            <div class="${p}-card-head"><span class="${p}-step">${iCheck}</span><span class="${p}-card-title">Audit Summary</span></div>
+            <div class="${p}-card-head"><span class="${p}-step">${iCheck}</span><span class="${p}-card-title">${tr("auditSummary")}</span></div>
             <div class="${p}-card-body">
               <div style="text-align:center;padding:6px 0 14px">
                 <div class="${p}-score-big" style="color:${scoreColor}">${pct}%</div>
-                <div style="font-size:14px;font-weight:700;color:${scoreColor};margin-top:2px">${passing?"Passing":"Failing"}</div>
-                <div style="font-size:12px;color:var(--gray-lt);margin-top:4px">${sc.earned} / ${sc.total} pts · ${sc.answered} of ${sc.count} answered</div>
+                <div style="font-size:14px;font-weight:700;color:${scoreColor};margin-top:2px">${passing?tr("passing"):tr("failing")}</div>
+                <div style="font-size:12px;color:var(--gray-lt);margin-top:4px">${tr("scoreSummary").replace("{e}",String(sc.earned)).replace("{t}",String(sc.total)).replace("{a}",String(sc.answered)).replace("{c}",String(sc.count))}</div>
                 <div class="${p}-score-bar-wrap"><div class="${p}-score-bar" style="width:${pct}%;background:${scoreColor}"></div></div>
-                <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--gray-lt);margin-top:2px"><span>0%</span><span style="color:${scoreColor}">${passThreshold}% threshold</span><span>100%</span></div>
+                <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--gray-lt);margin-top:2px"><span>0%</span><span style="color:${scoreColor}">${tr("nThreshold").replace("{n}",String(passThreshold))}</span><span>100%</span></div>
               </div>
               <div class="${p}-meta-grid">
                 <div class="${p}-meta-row"><span>${iStore} ${esc(storeS)}</span><span style="font-weight:600">${esc(inst?.title||"—")}</span></div>
-                <div class="${p}-meta-row"><span>${iUser} Auditor</span><span>${esc(auditorName)}</span></div>
-                <div class="${p}-meta-row"><span>Date</span><span>${esc(auditDate)}</span></div>
-                <div class="${p}-meta-row"><span>Tasks flagged</span><span style="font-weight:700;color:${ft.length>0?"var(--error)":"var(--success)"}">${ft.length}</span></div>
-                ${auditNotes?`<div class="${p}-meta-row" style="flex-direction:column;align-items:flex-start;gap:3px"><span style="color:var(--gray-lt);font-size:11px;text-transform:uppercase;letter-spacing:.3px">Notes</span><span style="line-height:1.5">${esc(auditNotes)}</span></div>`:""}
+                <div class="${p}-meta-row"><span>${iUser} ${tr("auditor")}</span><span>${esc(auditorName)}</span></div>
+                <div class="${p}-meta-row"><span>${tr("date")}</span><span>${esc(auditDate)}</span></div>
+                <div class="${p}-meta-row"><span>${tr("tasksFlagged")}</span><span style="font-weight:700;color:${ft.length>0?"var(--error)":"var(--success)"}">${ft.length}</span></div>
+                ${auditNotes?`<div class="${p}-meta-row" style="flex-direction:column;align-items:flex-start;gap:3px"><span style="color:var(--gray-lt);font-size:11px;text-transform:uppercase;letter-spacing:.3px">${tr("notes")}</span><span style="line-height:1.5">${esc(auditNotes)}</span></div>`:""}
               </div>
-              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-lt);margin-bottom:8px">Category Breakdown</div>
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-lt);margin-bottom:8px">${tr("categoryBreakdown")}</div>
               ${catRows}
             </div>
           </div>
 
           ${ft.length>0?`
           <div class="${p}-card">
-            <div class="${p}-card-head"><span class="${p}-step">${iFlag}</span><span class="${p}-card-title">Tasks to Create <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:var(--gray-lt)">(${ft.length})</span></span></div>
+            <div class="${p}-card-head"><span class="${p}-step">${iFlag}</span><span class="${p}-card-title">${tr("tasksToCreate")} <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:var(--gray-lt)">(${ft.length})</span></span></div>
             <div class="${p}-card-body">${failHtml}</div>
           </div>`:""}
 
           <div class="${p}-nav">
-            <button type="button" class="${p}-btn ${p}-btn-ghost" id="${p}-back">${iPrev} Back</button>
-            <button type="button" class="${p}-btn ${p}-btn-primary" id="${p}-submit">${iSend} Submit &amp; Create Tasks</button>
+            <button type="button" class="${p}-btn ${p}-btn-ghost" id="${p}-back">${iPrev} ${tr("back")}</button>
+            <button type="button" class="${p}-btn ${p}-btn-primary" id="${p}-submit">${iSend} ${tr("submitCreateTasks")}</button>
           </div>
           <div class="${p}-submit-prog" id="${p}-sprog">
-            <div class="${p}-submit-prog-meta"><span id="${p}-slabel">Working…</span><span id="${p}-spct">0%</span></div>
+            <div class="${p}-submit-prog-meta"><span id="${p}-slabel">${tr("working")}</span><span id="${p}-spct">0%</span></div>
             <div class="${p}-submit-bar-wrap"><div class="${p}-submit-bar-fill" id="${p}-sfill"></div></div>
             <div class="${p}-submit-log" id="${p}-slog"></div>
           </div>`;
@@ -1319,7 +1352,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             const opts  = [{id:"",name:"— No assignee —",avatar:""}, ...allUsers].filter(u =>
               !fl || u.name.toLowerCase().includes(fl)
             );
-            if(!opts.length){ list.innerHTML=`<div class="${p}-gp-none">No people found</div>`; return; }
+            if(!opts.length){ list.innerHTML=`<div class="${p}-gp-none">${tr("noPeopleFound")}</div>`; return; }
             list.innerHTML = opts.map(u=>`
               <div class="${p}-gp-opt${u.id===selId?" sel":""}" data-uid="${esc(u.id)}" data-uname="${esc(u.name)}" data-dtype="user" data-qid="${esc(qid)}">
                 <span>${esc(u.name)}</span>
@@ -1330,7 +1363,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             const opts  = [{id:"",name:"— No group —"}, ...allGroups].filter(g =>
               !fl || g.name.toLowerCase().includes(fl)
             );
-            if(!opts.length){ list.innerHTML=`<div class="${p}-gp-none">No groups found</div>`; return; }
+            if(!opts.length){ list.innerHTML=`<div class="${p}-gp-none">${tr("noGroupsFound")}</div>`; return; }
             list.innerHTML = opts.map(g=>`
               <div class="${p}-gp-opt${g.id===selId?" sel":""}" data-gid="${esc(g.id)}" data-gname="${esc(g.name)}" data-dtype="group" data-qid="${esc(qid)}">
                 <span>${esc(g.name)}</span>
@@ -1344,7 +1377,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               const qid2 = el.dataset.qid!;
               const dtype = el.dataset.dtype as "group"|"user";
               taskAssignType[qid2] = dtype;
-              let label = `<span class="${p}-gp-ph">— Unassigned —</span>`;
+              let label = `<span class="${p}-gp-ph">${tr("unassigned")}</span>`;
               if(dtype==="user"){
                 const uid = el.dataset.uid||""; const uname = el.dataset.uname||"";
                 taskUserOverrides[qid2]=uid;
@@ -1424,7 +1457,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         const sLog      = contentEl.querySelector(`#${p}-slog`)   as HTMLElement;
 
         submitBtn.disabled=true;
-        submitBtn.innerHTML=`<span class="${p}-spin" style="border-top-color:#fff;border-color:rgba(255,255,255,.3)"></span> Submitting…`;
+        submitBtn.innerHTML=`<span class="${p}-spin" style="border-top-color:#fff;border-color:rgba(255,255,255,.3)"></span> ${tr("submitting")}`;
         progEl.style.display="block";
         sLog.innerHTML="";
         hideBanner();
@@ -1551,7 +1584,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           }
 
           setProgress(totalOps,"Done!");
-          showBanner("success",`Audit submitted! "${listName}" created with ${ft.length+1} tasks.`);
+          showBanner("success",tr("auditSubmittedMsg").replace("{name}",listName).replace("{n}",String(ft.length+1)));
         } catch(e:any){
           showBanner("error",`Submission failed: ${e.message}`);
           logLine(`Error: ${e.message}`,"err");

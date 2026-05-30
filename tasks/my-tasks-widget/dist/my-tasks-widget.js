@@ -123,6 +123,8 @@ const STRINGS = {
         scrollLeft: "Scroll left",
         scrollRight: "Scroll right",
         allTypes: "All Types",
+        nTypes: "{n} types",
+        noTypeLabel: "No Type",
         open: "Open",
         done: "Done",
         both: "Both",
@@ -185,6 +187,7 @@ const STRINGS = {
         medium: "Medium",
         high: "High",
         critical: "Critical",
+        recurring: "Recurring",
         cancel: "Cancel",
         createTask: "Create Task",
         creating: "Creating…",
@@ -211,6 +214,8 @@ const STRINGS = {
         scrollLeft: "Nach links scrollen",
         scrollRight: "Nach rechts scrollen",
         allTypes: "Alle Typen",
+        nTypes: "{n} Typen",
+        noTypeLabel: "Kein Typ",
         open: "Offen",
         done: "Erledigt",
         both: "Beide",
@@ -273,6 +278,7 @@ const STRINGS = {
         medium: "Mittel",
         high: "Hoch",
         critical: "Kritisch",
+        recurring: "Wiederkehrend",
         cancel: "Abbrechen",
         createTask: "Aufgabe erstellen",
         creating: "Wird erstellt…",
@@ -299,6 +305,8 @@ const STRINGS = {
         scrollLeft: "التمرير لليسار",
         scrollRight: "التمرير لليمين",
         allTypes: "جميع الأنواع",
+        nTypes: "{n} أنواع",
+        noTypeLabel: "بلا نوع",
         open: "مفتوحة",
         done: "مكتملة",
         both: "كلاهما",
@@ -361,6 +369,7 @@ const STRINGS = {
         medium: "متوسطة",
         high: "عالية",
         critical: "حرجة",
+        recurring: "متكررة",
         cancel: "إلغاء",
         createTask: "إنشاء مهمة",
         creating: "جارٍ الإنشاء…",
@@ -1714,7 +1723,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     }
                     const sorted = [...types].sort().map(k => ({ key: k, label: k }));
                     if (hasUntyped)
-                        sorted.push({ key: "__none__", label: "No Type" });
+                        sorted.push({ key: "__none__", label: tr("noTypeLabel") });
                     return sorted;
                 }
                 // ── Filtered tasks (normal mode) ──────────────────────────────────
@@ -1854,12 +1863,12 @@ const factory = (BaseBlockClass, widgetApi) => {
                 let dropdownOpen = false;
                 function typeDropdownLabel() {
                     if (activeTypeFilters.size === 0)
-                        return "All Types";
+                        return tr("allTypes");
                     const types = getTypes();
                     const sel = types.filter(t => activeTypeFilters.has(t.key));
                     if (sel.length === 1)
                         return sel[0].label;
-                    return `${sel.length} types`;
+                    return tr("nTypes").replace("{n}", String(sel.length));
                 }
                 function renderTypeFilters() {
                     if (!typeBtn || !typeLabelEl || !typeMenu)
@@ -1872,7 +1881,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     const allActive = activeTypeFilters.size === 0;
                     typeMenu.innerHTML = `
           <button type="button" class="${p}-type-opt ${allActive ? "active" : ""}" data-key="__all__">
-            <span style="width:12px;display:flex;align-items:center;justify-content:center">${allActive ? iconCheck : ""}</span>All Types
+            <span style="width:12px;display:flex;align-items:center;justify-content:center">${allActive ? iconCheck : ""}</span>${tr("allTypes")}
           </button>
           <div style="height:1px;background:var(--border);margin:2px 0"></div>
           ${types.map(({ key, label }) => {
@@ -1939,7 +1948,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     introUsed = true;
                     for (const key of orderedKeys) {
                         const group = grouped.get(key);
-                        const label = key === "__none__" ? "No Type" : key;
+                        const label = key === "__none__" ? tr("noTypeLabel") : key;
                         html += `<div class="${p}-section-label">${esc(label)} <span style="font-weight:400">(${group.length})</span></div>`;
                         for (const task of group)
                             html += renderTaskCard(task);
@@ -2099,11 +2108,11 @@ const factory = (BaseBlockClass, widgetApi) => {
                     const typeText = task.taskType ? contrastColor(typeCol) : "";
                     const isCrit = (task.auditSeverity || "").toLowerCase() === "critical";
                     const prioCol = isCrit ? "#9B1C2E" : priorityColor(task.priority);
-                    const prioLbl = isCrit ? "Critical" : priorityLabel(task.priority);
+                    const prioLbl = isCrit ? tr("critical") : task.priority === "Priority_1" ? tr("high") : task.priority === "Priority_2" ? tr("medium") : tr("normal");
                     const typeBadge = task.taskType ? `<span class="${p}-type-badge" style="background:${typeCol};color:${typeText}">${esc(task.taskType)}</span>` : "";
                     const prioBadge = (isCrit || (task.priority && task.priority !== "Priority_3")) ? `<span class="${p}-prio-badge${isCrit ? " crit" : ""}" style="color:${prioCol};border-color:${prioCol}">${prioLbl}</span>` : "";
                     const iconRecur = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`;
-                    const recurBadge = task.isRecurring ? `<span class="${p}-recur-badge">${iconRecur}Recurring</span>` : "";
+                    const recurBadge = task.isRecurring ? `<span class="${p}-recur-badge">${iconRecur}${tr("recurring")}</span>` : "";
                     const iconCal = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
                     const iconStore = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`;
                     const iconList = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`;
@@ -2312,7 +2321,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     const typeText = task.taskType ? contrastColor(typeCol) : "";
                     const isCrit = (task.auditSeverity || "").toLowerCase() === "critical";
                     const prioCol = isCrit ? "#9B1C2E" : priorityColor(task.priority);
-                    const prioLbl = isCrit ? "Critical" : priorityLabel(task.priority);
+                    const prioLbl = isCrit ? tr("critical") : task.priority === "Priority_1" ? tr("high") : task.priority === "Priority_2" ? tr("medium") : tr("normal");
                     const cleanDesc = task.description ? stripTypeTag(task.description).trim() : "";
                     const iconRecurD = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`;
                     detailBadges.innerHTML = `

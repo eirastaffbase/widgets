@@ -8,6 +8,9 @@ import {
 import { JSONSchema7 } from "json-schema";
 import { UiSchema } from "@rjsf/utils";
 
+import { detectLocale, isRtl, makeT, DEFAULT_LOCALE } from "../shared/i18n";
+import { STRINGS } from "./strings";
+
 // ── Defaults ──────────────────────────────────────────────────────────────────
 
 const DEFAULT_API_TOKEN =
@@ -187,7 +190,7 @@ function firesOn(r: Rule, date: Date): boolean {
 
 // ── Widget factory ────────────────────────────────────────────────────────────
 
-const factory: BlockFactory = (BaseBlockClass) => {
+const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
   return class RecurringTasksWidget extends BaseBlockClass implements BaseBlock {
     constructor() { super(); }
 
@@ -210,6 +213,12 @@ const factory: BlockFactory = (BaseBlockClass) => {
 
       const p = "rtw";
       const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+
+      // ── Locale / i18n ──────────────────────────────────────────────────
+      // `tr` (not `t`) to avoid clashing with loop vars named `t`. Resolved
+      // before the skeleton is built (see below), so first paint is localized.
+      let locale = DEFAULT_LOCALE;
+      let tr     = makeT(STRINGS, locale);
 
       // ── State ──────────────────────────────────────────────────────────
       let storeProjects: Array<{ id: string; title: string }> = [];
@@ -316,6 +325,24 @@ const factory: BlockFactory = (BaseBlockClass) => {
         }
         return "—";
       }
+
+      // ── Resolve locale before first paint ──────────────────────────────
+      // No user is fetched elsewhere in this widget, so we read it here:
+      // getUserInformation() → id → GET /users/{id} → config.locale. Done
+      // before the skeleton so the whole form renders in the right language.
+      try {
+        const prof: any = await widgetApi.getUserInformation();
+        let configLocale = "";
+        const uid = prof?.id || "";
+        if (uid) {
+          const r = await fetch(`${baseUrl}/users/${uid}`, apiOpts());
+          if (r.ok) { const u = await r.json(); configLocale = u?.config?.locale || ""; }
+        }
+        locale = detectLocale({ configLocale, available: Object.keys(STRINGS) });
+        tr = makeT(STRINGS, locale);
+      } catch (_) { /* keep default locale */ }
+      const rtl = isRtl(locale);
+      try { container.setAttribute("dir", rtl ? "rtl" : "ltr"); } catch (_) {}
 
       // ── Render shell ────────────────────────────────────────────────────
       container.innerHTML = `
@@ -624,14 +651,14 @@ const factory: BlockFactory = (BaseBlockClass) => {
           <div class="${p}-top">
             <div class="${p}-h1">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/><polyline points="12 7 12 12 15 14"/></svg>
-              Recurring Tasks
+              ${tr("recurringTasks")}
             </div>
             <div class="${p}-top-actions">
               <div class="${p}-seg" id="${p}-seg">
-                <button data-v="list" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>List</button>
-                <button data-v="calendar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Calendar</button>
+                <button data-v="list" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>${tr("list")}</button>
+                <button data-v="calendar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${tr("calendar")}</button>
               </div>
-              <button class="${p}-btn ${p}-btn-primary" id="${p}-new"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>New</button>
+              <button class="${p}-btn ${p}-btn-primary" id="${p}-new"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>${tr("newBtn")}</button>
             </div>
           </div>
 
@@ -641,22 +668,22 @@ const factory: BlockFactory = (BaseBlockClass) => {
           <!-- Schedule form -->
           <div id="${p}-form" style="display:none">
             <div class="${p}-card">
-              <div class="${p}-card-head"><span class="${p}-step">1</span><span class="${p}-card-title">Task Details</span></div>
+              <div class="${p}-card-head"><span class="${p}-step">1</span><span class="${p}-card-title">${tr("taskDetails")}</span></div>
               <div class="${p}-card-body">
-                <div class="${p}-fld"><label class="${p}-label">Title</label><input class="${p}-in" id="${p}-f-title" placeholder="What needs to be done?"></div>
-                <div class="${p}-fld"><label class="${p}-label">Description</label><textarea class="${p}-in" id="${p}-f-desc" placeholder="Add details (optional)"></textarea></div>
+                <div class="${p}-fld"><label class="${p}-label">${tr("title")}</label><input class="${p}-in" id="${p}-f-title" placeholder="${tr("titlePlaceholder")}"></div>
+                <div class="${p}-fld"><label class="${p}-label">${tr("description")}</label><textarea class="${p}-in" id="${p}-f-desc" placeholder="${tr("descriptionPlaceholder")}"></textarea></div>
                 <div class="${p}-row">
-                  <div class="${p}-fld"><label class="${p}-label">Type</label>
+                  <div class="${p}-fld"><label class="${p}-label">${tr("type")}</label>
                     <select class="${p}-select" id="${p}-f-type">
-                      <option value="">— No type —</option>
+                      <option value="">${tr("noType")}</option>
                       ${typeList.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join("")}
-                      <option value="__new__">+ Create new type…</option>
+                      <option value="__new__">${tr("createNewType")}</option>
                     </select>
-                    <input class="${p}-in" id="${p}-f-type-new" placeholder="New type name" style="display:none;margin-top:8px">
+                    <input class="${p}-in" id="${p}-f-type-new" placeholder="${tr("newTypePlaceholder")}" style="display:none;margin-top:8px">
                   </div>
-                  <div class="${p}-fld"><label class="${p}-label">Priority</label>
+                  <div class="${p}-fld"><label class="${p}-label">${tr("priority")}</label>
                     <select class="${p}-select" id="${p}-f-prio">
-                      ${LEVELS.map(l => `<option value="${l.v}">${l.label}</option>`).join("")}
+                      ${LEVELS.map(l => `<option value="${l.v}">${tr(l.v)}</option>`).join("")}
                     </select>
                   </div>
                 </div>
@@ -664,15 +691,15 @@ const factory: BlockFactory = (BaseBlockClass) => {
             </div>
 
             <div class="${p}-card">
-              <div class="${p}-card-head"><span class="${p}-step">2</span><span class="${p}-card-title">Recurrence</span></div>
+              <div class="${p}-card-head"><span class="${p}-step">2</span><span class="${p}-card-title">${tr("recurrence")}</span></div>
               <div class="${p}-card-body">
                 <div class="${p}-fld">
-                  <label class="${p}-label">Repeats</label>
+                  <label class="${p}-label">${tr("repeats")}</label>
                   <div class="${p}-inline">
-                    <span style="font-size:14px;color:var(--gray)">Every</span>
+                    <span style="font-size:14px;color:var(--gray)">${tr("every")}</span>
                     <input type="number" min="1" class="${p}-in ${p}-num" id="${p}-f-interval" value="1">
                     <select class="${p}-select" id="${p}-f-freq" style="width:auto;flex:1">
-                      <option value="DAILY">day(s)</option><option value="WEEKLY">week(s)</option><option value="MONTHLY">month(s)</option>
+                      <option value="DAILY">${tr("days")}</option><option value="WEEKLY">${tr("weeks")}</option><option value="MONTHLY">${tr("months")}</option>
                     </select>
                   </div>
                   <div id="${p}-f-weekly" style="display:none">
@@ -680,60 +707,60 @@ const factory: BlockFactory = (BaseBlockClass) => {
                   </div>
                   <div id="${p}-f-monthly" style="display:none">
                     <div class="${p}-mode">
-                      <label class="${p}-mode-row"><input type="radio" name="${p}-mm" value="dom" class="${p}-radio" checked> On day
+                      <label class="${p}-mode-row"><input type="radio" name="${p}-mm" value="dom" class="${p}-radio" checked> ${tr("onDay")}
                         <input type="number" min="1" max="31" class="${p}-in ${p}-num" id="${p}-f-dom" value="1"></label>
-                      <label class="${p}-mode-row"><input type="radio" name="${p}-mm" value="nth" class="${p}-radio"> On the
-                        <select class="${p}-select" id="${p}-f-nth" style="width:auto"><option value="1">1st</option><option value="2">2nd</option><option value="3">3rd</option><option value="4">4th</option><option value="-1">last</option></select>
+                      <label class="${p}-mode-row"><input type="radio" name="${p}-mm" value="nth" class="${p}-radio"> ${tr("onThe")}
+                        <select class="${p}-select" id="${p}-f-nth" style="width:auto"><option value="1">1st</option><option value="2">2nd</option><option value="3">3rd</option><option value="4">4th</option><option value="-1">${tr("last")}</option></select>
                         <select class="${p}-select" id="${p}-f-nthd" style="width:auto"></select></label>
                     </div>
                   </div>
                 </div>
                 <div class="${p}-row">
-                  <div class="${p}-fld"><label class="${p}-label">Time of day</label><select class="${p}-select" id="${p}-f-time"></select></div>
-                  <div class="${p}-fld"><label class="${p}-label">Due (days after)</label><input type="number" min="0" class="${p}-in" id="${p}-f-due" value="0"></div>
+                  <div class="${p}-fld"><label class="${p}-label">${tr("timeOfDay")}</label><select class="${p}-select" id="${p}-f-time"></select></div>
+                  <div class="${p}-fld"><label class="${p}-label">${tr("dueDaysAfter")}</label><input type="number" min="0" class="${p}-in" id="${p}-f-due" value="0"></div>
                 </div>
                 <div class="${p}-row">
-                  <div class="${p}-fld"><label class="${p}-label">Start date</label><input type="date" class="${p}-in" id="${p}-f-start"></div>
-                  <div class="${p}-fld"><label class="${p}-label">End date <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:var(--gray-lt)">(optional)</span></label><input type="date" class="${p}-in" id="${p}-f-end"></div>
+                  <div class="${p}-fld"><label class="${p}-label">${tr("startDate")}</label><input type="date" class="${p}-in" id="${p}-f-start"></div>
+                  <div class="${p}-fld"><label class="${p}-label">${tr("endDate")} <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:var(--gray-lt)">${tr("optional")}</span></label><input type="date" class="${p}-in" id="${p}-f-end"></div>
                 </div>
-                <div class="${p}-help">Created at the chosen time (within ~15 min). Starts today by default.</div>
+                <div class="${p}-help">${tr("recurrenceHelp")}</div>
                 <div class="${p}-time-note" id="${p}-f-note"></div>
               </div>
             </div>
 
             <div class="${p}-card">
-              <div class="${p}-card-head"><span class="${p}-step">3</span><span class="${p}-card-title">Target ${esc(storeP)}</span></div>
+              <div class="${p}-card-head"><span class="${p}-step">3</span><span class="${p}-card-title">${tr("targetStores").replace("{stores}",esc(storeP))}</span></div>
               <div class="${p}-card-body">
                 <div class="${p}-fld">
-                  <label class="${p}-label">Find ${esc(storeP)}</label>
+                  <label class="${p}-label">${tr("findStores").replace("{stores}",esc(storeP))}</label>
                   <div class="${p}-ms-wrap">
-                    <div class="${p}-ms-trigger" id="${p}-trigger"><span class="${p}-ms-ph">Loading ${esc(storeP.toLowerCase())}…</span></div>
+                    <div class="${p}-ms-trigger" id="${p}-trigger"><span class="${p}-ms-ph">${tr("loadingStores").replace("{stores}",esc(storeP.toLowerCase()))}</span></div>
                     <div class="${p}-dropdown" id="${p}-dropdown">
-                      <div class="${p}-dd-search"><input type="text" id="${p}-search" placeholder="Search ${esc(storeP.toLowerCase())}…"></div>
-                      <div class="${p}-dd-list" id="${p}-opts"><div class="${p}-dd-msg">Loading…</div></div>
+                      <div class="${p}-dd-search"><input type="text" id="${p}-search" placeholder="${tr("searchStores").replace("{stores}",esc(storeP.toLowerCase()))}"></div>
+                      <div class="${p}-dd-list" id="${p}-opts"><div class="${p}-dd-msg">${tr("loading")}</div></div>
                     </div>
                   </div>
-                  <div class="${p}-help">Tasks land in a "Recurring Tasks" list in each ${esc(storeS.toLowerCase())}.</div>
+                  <div class="${p}-help">${tr("listHelp").replace("{store}",esc(storeS.toLowerCase()))}</div>
                 </div>
               </div>
             </div>
 
             <div class="${p}-card">
-              <div class="${p}-card-head"><span class="${p}-step">4</span><span class="${p}-card-title">Assign To <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:var(--gray-lt)">(optional)</span></span></div>
+              <div class="${p}-card-head"><span class="${p}-step">4</span><span class="${p}-card-title">${tr("assignTo")} <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:var(--gray-lt)">${tr("optional")}</span></span></div>
               <div class="${p}-card-body">
                 <div class="${p}-assign-chips" id="${p}-assign-chips"></div>
-                <div class="${p}-assign-search"><input type="text" id="${p}-assign-search" placeholder="Search users and groups…"></div>
+                <div class="${p}-assign-search"><input type="text" id="${p}-assign-search" placeholder="${tr("searchUsersGroups")}"></div>
                 <div class="${p}-assign-tabs">
-                  <div role="button" tabindex="0" class="${p}-assign-tab active" id="${p}-tab-users">Users</div>
-                  <div role="button" tabindex="0" class="${p}-assign-tab" id="${p}-tab-groups">Groups</div>
+                  <div role="button" tabindex="0" class="${p}-assign-tab active" id="${p}-tab-users">${tr("users")}</div>
+                  <div role="button" tabindex="0" class="${p}-assign-tab" id="${p}-tab-groups">${tr("groups")}</div>
                 </div>
-                <div class="${p}-assign-list" id="${p}-assign-list"><div class="${p}-assign-empty">Loading…</div></div>
+                <div class="${p}-assign-list" id="${p}-assign-list"><div class="${p}-assign-empty">${tr("loading")}</div></div>
               </div>
             </div>
 
             <div class="${p}-foot">
-              <button class="${p}-btn ${p}-btn-ghost" id="${p}-cancel">Cancel</button>
-              <button class="${p}-btn ${p}-btn-primary" id="${p}-save" disabled>Create Schedule</button>
+              <button class="${p}-btn ${p}-btn-ghost" id="${p}-cancel">${tr("cancel")}</button>
+              <button class="${p}-btn ${p}-btn-primary" id="${p}-save" disabled>${tr("createSchedule")}</button>
             </div>
             <div class="${p}-status" id="${p}-status"></div>
           </div>
@@ -864,7 +891,7 @@ const factory: BlockFactory = (BaseBlockClass) => {
       // ── Store multi-select ────────────────────────────────────────────────
       function renderOpts(filter = "") {
         const matches = storeProjects.filter(s => s.title.toLowerCase().includes(filter.toLowerCase()));
-        if (!matches.length) { optsList.innerHTML = `<div class="${p}-dd-msg">No ${esc(storeP.toLowerCase())} found</div>`; return; }
+        if (!matches.length) { optsList.innerHTML = `<div class="${p}-dd-msg">${tr("noStoresFound").replace("{stores}",esc(storeP.toLowerCase()))}</div>`; return; }
         optsList.innerHTML = matches.map(s => {
           const sel = selectedStores.some(x => x.id === s.id);
           return `<div class="${p}-dd-opt ${sel ? "sel" : ""}" data-id="${s.id}" data-title="${esc(s.title)}">
@@ -880,7 +907,7 @@ const factory: BlockFactory = (BaseBlockClass) => {
         renderTrigger(); renderOpts(searchInp.value); validateForm();
       }
       function renderTrigger() {
-        if (!selectedStores.length) { trigger.innerHTML = `<span class="${p}-ms-ph">Select a ${esc(storeS)}…</span>`; return; }
+        if (!selectedStores.length) { trigger.innerHTML = `<span class="${p}-ms-ph">${tr("selectStore").replace("{store}",esc(storeS))}</span>`; return; }
         trigger.innerHTML = selectedStores.map(s =>
           `<span class="${p}-tag">${esc(s.title)}<span class="${p}-tag-x" data-id="${s.id}">&times;</span></span>`).join("");
         trigger.querySelectorAll(`.${p}-tag-x`).forEach((btn: Element) =>
@@ -908,15 +935,15 @@ const factory: BlockFactory = (BaseBlockClass) => {
             .map((i: any) => ({ id: i.id, title: i.config?.localization?.en_US?.title || i.title || i.name || i.id }))
             .sort((a: any, b: any) => a.title.localeCompare(b.title));
           if (!storeProjects.length) {
-            optsList.innerHTML = `<div class="${p}-dd-msg">No ${esc(storeP.toLowerCase())} found</div>`;
-            trigger.innerHTML = `<span class="${p}-ms-ph">No ${esc(storeP.toLowerCase())} found</span>`;
+            optsList.innerHTML = `<div class="${p}-dd-msg">${tr("noStoresFound").replace("{stores}",esc(storeP.toLowerCase()))}</div>`;
+            trigger.innerHTML = `<span class="${p}-ms-ph">${tr("noStoresFound").replace("{stores}",esc(storeP.toLowerCase()))}</span>`;
           } else {
-            trigger.innerHTML = `<span class="${p}-ms-ph">Select a ${esc(storeS)}…</span>`;
+            trigger.innerHTML = `<span class="${p}-ms-ph">${tr("selectStore").replace("{store}",esc(storeS))}</span>`;
             renderOpts();
           }
         } catch (_) {
-          optsList.innerHTML = `<div class="${p}-dd-msg">Failed to load ${esc(storeP.toLowerCase())}</div>`;
-          trigger.innerHTML = `<span class="${p}-ms-ph">Error loading</span>`;
+          optsList.innerHTML = `<div class="${p}-dd-msg">${tr("failedLoadStores").replace("{stores}",esc(storeP.toLowerCase()))}</div>`;
+          trigger.innerHTML = `<span class="${p}-ms-ph">${tr("errorLoading")}</span>`;
         }
       }
 
@@ -941,7 +968,7 @@ const factory: BlockFactory = (BaseBlockClass) => {
             })).sort((a: any, b: any) => a.name.localeCompare(b.name));
           }
           renderAssignList();
-        } catch (_) { assignListEl.innerHTML = `<div class="${p}-assign-empty">Failed to load</div>`; }
+        } catch (_) { assignListEl.innerHTML = `<div class="${p}-assign-empty">${tr("failedToLoad")}</div>`; }
       }
       function initials(name: string) { return name.split(" ").map(n => n[0]).filter(Boolean).slice(0, 2).join("").toUpperCase(); }
       function renderAssignList(filter = "") {
@@ -1038,7 +1065,7 @@ const factory: BlockFactory = (BaseBlockClass) => {
         if (!schedules.length) {
           viewListEl.innerHTML = `<div class="${p}-empty">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            <div>No recurring schedules yet.<br>Click <b>New</b> to create one.</div></div>`;
+            <div>${tr("noSchedulesYet")}<br>${tr("clickNewToCreate")}</div></div>`;
           return;
         }
         viewListEl.innerHTML = schedules.map(s => {
@@ -1047,7 +1074,7 @@ const factory: BlockFactory = (BaseBlockClass) => {
             ? `<span class="${p}-type-badge" style="background:${typeCol};color:${contrastColor(typeCol)}">${esc(s.rule.taskType)}</span>` : "";
           const storeLabel = s.targets.length === 1 ? esc(s.targets[0].storeTitle) : `${s.targets.length} ${esc(storeP.toLowerCase())}`;
           const prioPill = s.rule.level !== "normal"
-            ? `<span class="${p}-pill ${s.rule.level === "critical" ? "crit" : s.rule.level === "high" ? "high" : ""}">${iconFlag}${levelLabel(s.rule.level)}</span>` : "";
+            ? `<span class="${p}-pill ${s.rule.level === "critical" ? "crit" : s.rule.level === "high" ? "high" : ""}">${iconFlag}${tr(s.rule.level)}</span>` : "";
           const chevron = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gray-lt)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;align-self:center"><polyline points="9 18 15 12 9 6"/></svg>`;
           return `<div class="${p}-sched" data-id="${esc(s.id)}">
             <div class="${p}-sched-top">
@@ -1133,12 +1160,12 @@ const factory: BlockFactory = (BaseBlockClass) => {
             <span class="${p}-cal-range">${esc(rangeLabel)}</span>
             <div class="${p}-cal-ctrls">
               <div class="${p}-cal-modeseg" id="${p}-cal-mode">
-                <button data-mode="3day" class="${calMode === "3day" ? "active" : ""}">3 Day</button>
-                <button data-mode="month" class="${calMode === "month" ? "active" : ""}">Month</button>
+                <button data-mode="3day" class="${calMode === "3day" ? "active" : ""}">${tr("threeDay")}</button>
+                <button data-mode="month" class="${calMode === "month" ? "active" : ""}">${tr("month")}</button>
               </div>
               <div class="${p}-cal-nav">
                 <button class="${p}-ico-btn" data-nav="-1">${chevL}</button>
-                <button class="${p}-ico-btn" data-nav="0" title="Today">${dotToday}</button>
+                <button class="${p}-ico-btn" data-nav="0" title="${tr("today")}">${dotToday}</button>
                 <button class="${p}-ico-btn" data-nav="1">${chevR}</button>
               </div>
             </div>
@@ -1185,7 +1212,7 @@ const factory: BlockFactory = (BaseBlockClass) => {
       }
       function openForm(id?: string) {
         resetForm();
-        saveBtn.textContent = id ? "Save Changes" : "Create Schedule";
+        saveBtn.textContent = id ? tr("saveChanges") : tr("createSchedule");
         if (id) {
           const s = schedules.find(x => x.id === id);
           if (s) {
@@ -1249,9 +1276,9 @@ const factory: BlockFactory = (BaseBlockClass) => {
         const title = titleInp.value.trim();
         const baseDesc = descInp.value.trim();
         if (!title || !selectedStores.length) return;
-        if (rule.freq === "WEEKLY" && !rule.byday.length) { showStatus("error", "Pick at least one weekday."); return; }
-        if (!editingId && rule.start < todayISO()) { showStatus("error", "Start date can't be in the past."); return; }
-        if (rule.end && rule.end < rule.start) { showStatus("error", "End date must be on or after the start date."); return; }
+        if (rule.freq === "WEEKLY" && !rule.byday.length) { showStatus("error", tr("pickWeekday")); return; }
+        if (!editingId && rule.start < todayISO()) { showStatus("error", tr("startNotPast")); return; }
+        if (rule.end && rule.end < rule.start) { showStatus("error", tr("endAfterStart")); return; }
 
         const sid = editingId || genId();
         const assigneeIds = selectedAssignees.filter(a => a.type === "user").map(a => a.id);
@@ -1283,7 +1310,7 @@ const factory: BlockFactory = (BaseBlockClass) => {
           } catch (_) { fail++; }
         }
 
-        saveBtn.disabled = false; saveBtn.textContent = editingId ? "Save Changes" : "Create Schedule";
+        saveBtn.disabled = false; saveBtn.textContent = editingId ? tr("saveChanges") : tr("createSchedule");
         if (fail === 0) {
           showStatus("success", `Schedule saved to ${ok} ${ok === 1 ? storeS.toLowerCase() : storeP.toLowerCase()}. Tasks will be created automatically — ${summarizeRule(rule)}.`);
           await loadSchedules();
@@ -1319,13 +1346,14 @@ const factory: BlockFactory = (BaseBlockClass) => {
         <div class="${p}-detail-handle"></div>
         <div class="${p}-detail-head">
           <div class="${p}-detail-badges" id="${p}-detail-badges"></div>
-          <button class="${p}-detail-close" id="${p}-detail-close" aria-label="Close"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+          <button class="${p}-detail-close" id="${p}-detail-close" aria-label="${tr("close")}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </div>
         <div class="${p}-detail-body" id="${p}-detail-body"></div>
         <div class="${p}-detail-foot">
-          <button class="${p}-detail-del" id="${p}-detail-del"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Delete</button>
-          <button class="${p}-detail-edit" id="${p}-detail-edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>Edit</button>
+          <button class="${p}-detail-del" id="${p}-detail-del"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>${tr("delete")}</button>
+          <button class="${p}-detail-edit" id="${p}-detail-edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>${tr("edit")}</button>
         </div>`;
+      try { detailEl.setAttribute("dir", rtl ? "rtl" : "ltr"); } catch (_) {}
       document.body.appendChild(detailEl);
       self._rtwDetail = detailEl;
 
@@ -1338,7 +1366,7 @@ const factory: BlockFactory = (BaseBlockClass) => {
         detailEl.classList.toggle("side", window.innerWidth >= 720);
         const typeCol = s.rule.taskType ? typeColor(s.rule.taskType) : "";
         detailBadges.innerHTML = [
-          s.rule.level !== "normal" ? `<span class="${p}-pill ${s.rule.level === "critical" ? "crit" : s.rule.level === "high" ? "high" : ""}">${iconFlag}${levelLabel(s.rule.level)}</span>` : "",
+          s.rule.level !== "normal" ? `<span class="${p}-pill ${s.rule.level === "critical" ? "crit" : s.rule.level === "high" ? "high" : ""}">${iconFlag}${tr(s.rule.level)}</span>` : "",
           s.rule.taskType ? `<span class="${p}-type-badge" style="background:${typeCol};color:${contrastColor(typeCol)}">${esc(s.rule.taskType)}</span>` : "",
         ].join("");
         const names = [
@@ -1352,14 +1380,14 @@ const factory: BlockFactory = (BaseBlockClass) => {
         detailBody.innerHTML = `
           <div class="${p}-detail-title">${esc(s.title)}</div>
           <div class="${p}-detail-meta">
-            <div class="${p}-detail-row">${iconClock}<div><b>Repeats</b><span class="v">${esc(summarizeRule(s.rule))}</span></div></div>
-            <div class="${p}-detail-row">${iconCal}<div><b>Next run</b><span class="v">${esc(nextRun(s.rule))}</span></div></div>
-            <div class="${p}-detail-row">${iconCal}<div><b>Active range</b><span class="v">${esc(range)}</span></div></div>
-            ${s.rule.dueOffset > 0 ? `<div class="${p}-detail-row">${iconClock}<div><b>Due</b><span class="v">${s.rule.dueOffset} day${s.rule.dueOffset !== 1 ? "s" : ""} after creation</span></div></div>` : ""}
+            <div class="${p}-detail-row">${iconClock}<div><b>${tr("repeats")}</b><span class="v">${esc(summarizeRule(s.rule))}</span></div></div>
+            <div class="${p}-detail-row">${iconCal}<div><b>${tr("nextRun")}</b><span class="v">${esc(nextRun(s.rule))}</span></div></div>
+            <div class="${p}-detail-row">${iconCal}<div><b>${tr("activeRange")}</b><span class="v">${esc(range)}</span></div></div>
+            ${s.rule.dueOffset > 0 ? `<div class="${p}-detail-row">${iconClock}<div><b>${tr("due")}</b><span class="v">${tr("daysAfterCreation").replace("{n}",String(s.rule.dueOffset))}</span></div></div>` : ""}
             <div class="${p}-detail-row">${iconStore}<div><b>${esc(storeP)}</b><div class="${p}-detail-stores v">${stores}</div></div></div>
-            <div class="${p}-detail-row">${iconUser}<div><b>Assigned to</b><span class="v">${names.length ? esc(names.join(", ")) : "Anyone with access to the list"}</span></div></div>
+            <div class="${p}-detail-row">${iconUser}<div><b>${tr("assignedTo")}</b><span class="v">${names.length ? esc(names.join(", ")) : tr("anyoneWithAccess")}</span></div></div>
           </div>
-          ${s.description ? `<div class="${p}-detail-desc-label">Description</div><div class="${p}-detail-desc">${esc(s.description)}</div>` : ""}`;
+          ${s.description ? `<div class="${p}-detail-desc-label">${tr("description")}</div><div class="${p}-detail-desc">${esc(s.description)}</div>` : ""}`;
         overlayEl.classList.add("open");
         requestAnimationFrame(() => detailEl.classList.add("open"));
       }

@@ -4,7 +4,8 @@ Localize the Staffbase task widgets to the viewing user's language — both the
 widget's own UI (chrome) and, optionally, the user-generated task content —
 **without changing anything for users who don't opt in.**
 
-Widgets in scope: `my-tasks-widget`, `recurring-tasks-widget`, `audit-widget`.
+Widgets in scope: `my-tasks-widget`, `recurring-tasks-widget`, `audit-widget`,
+`tasks-integration-widget`.
 
 ---
 
@@ -12,7 +13,7 @@ Widgets in scope: `my-tasks-widget`, `recurring-tasks-widget`, `audit-widget`.
 
 **If a user is using the widget in English and nobody opts a task into
 translation, NOTHING changes.** Byte-for-byte identical render, identical stored
-data, identical behavior, for all three widgets.
+data, identical behavior, for all four widgets.
 
 - Chrome localization only swaps visible labels for a non-English detected
   locale. For `en_US` the strings resolve to the exact text already in the code.
@@ -98,67 +99,87 @@ Static, curated string bundles. No network call on load.
 
 ---
 
-## 5. Phase B — Task content localization (opt-in, layered after A)
+## 5. Phase B — On-demand "Translate" button (chosen approach)
+
+Content (free-text the user typed) is translated **on demand, ephemerally** — not
+persisted. This removes the native-view leakage, storage, and encoding complexity
+of the old approach (kept as a deferred alternative below).
+
+### Two kinds of text
+| Kind | Examples | How |
+|---|---|---|
+| **Fixed UI vocabulary** (enumerated set we control) | priority levels (Normal/Medium/High/Critical), "Recurring" badge, status, buttons/labels | **Chrome strings** (Phase A bundles) — deterministic, no API call |
+| **Free-text user content** | task titles, descriptions, **custom type names**, comments, audit question text, schedule titles | **Translate button** — on-demand `/api/translations` |
+
+Priority levels and "Recurring" therefore live in each widget's `strings.ts`.
+Types are free-text → translated via the button (display-map, see section 6).
 
 ### Behavior
-- **No `+` clicked → no change.** `title`/`description` untouched, no blob, nothing
-  leaks into native Staffbase views.
-- **`+` clicked → opt-in:**
-  1. Detect the **current user's locale** — this becomes the **source-language
-     tag** wrapping the existing base text.
-  2. Auto-translate `title` + `description` into the chosen target locale(s) via
-     `/api/translations` (markers protected).
-  3. Author is shown the result and can edit before saving (forced review,
-     especially the type label — section 6).
-  4. Store encoded in `title`/`description` on create/PATCH.
-- **Read path:** parse the blob, pick the viewer's locale, **fall back to the
-  source-locale text** if their locale isn't present, and **strip the blob** from
-  display in the widget.
+- **Default view = byte-identical to today.** The button is purely additive; zero
+  backward-compat risk; nothing is stored.
+- **Visibility:** the "Translate" button shows **only when `locale !== "en_US"`**,
+  placed in the widget **header**.
+- **On click:**
+  1. Collect all visible free-text (titles + cleaned descriptions + unique custom
+     type names + notes where shown).
+  2. **Batch into one API call** — wrap each item in an indexed tag
+     (`<p data-i="0">…</p>…`), send as a single `contents.value`; the endpoint
+     preserves tags and translates only text nodes, so we parse back by index.
+     One call per translate action → trivial volume.
+  3. Swap displayed text in place; button toggles to **"Show original."**
+     In-memory only.
+- **Comments:** press-and-hold a comment → reveals "Translate" → one batched call
+  translates all comments in the thread.
+- **Caching:** memoize `{sourceText + targetLocale → translation}` per session.
+- **Auth:** the **session + CSRF path** (same one comments use), not the API token
+  — avoids the token's burst rate-limiting; it's a logged-in on-demand action.
+- **Source/target:** `source = branch defaultLocale` (`en_US`), `target = viewer
+  locale`.
 
-### Accepted tradeoff
-Encoded translations live in `description`, so Staffbase's **native** task views /
-mobile / notifications / search show the raw blob. This is accepted, and only
-occurs for tasks a human explicitly opted in.
+### Coverage note
+Because translation is dynamic, the Translate button covers **all locales the API
+supports immediately** — content translation is not limited to the pilot bundles.
+Only the *chrome* (Phase A) is pilot-limited (en/de/ar); more chrome locales = v2.
 
-### Encoding format
-- Base text stays first and human-readable (so even native views lead with real
-  content). Translations appended as a single compact trailer block, e.g.
-  delimited by sentinel tokens that the widget parses and strips.
-- Must coexist with existing markers (`[type:]`, `[lvl:]`, `Severity:`,
-  `Audit finding:`) and the recurring widget's schedule encoding.
-- Stores, per locale: translated title, translated description, translated type
-  **label**, and the **source type value** (for color anchoring).
+### Scope per widget
+my-tasks (cards + types + comments), audit (question text + criteria + notes),
+recurring (schedule titles + descriptions + types), tasks-integration (its
+content). All four get a header Translate button.
+
+### Deferred alternative — persisted encoding (DOWNGRADED, only if asked)
+Earlier design: an opt-in `+` that auto-translates and **stores** translations
+encoded in `title`/`description` (per-locale trailer block), so translated content
+persists for everyone and across native views. Trade-off: the encoded blob leaks
+into Staffbase's native task views / mobile / notifications. Parked unless a
+concrete need for *persisted* multi-language task content comes up; the on-demand
+button covers the common "I want to read this in my language" case without it.
 
 ---
 
-## 6. Type markers & color anchoring
+## 6. Types & color anchoring (under the Translate button)
 
-The `[type: X]` marker has two parts, handled differently:
+Custom type values (e.g. `Finance`) are **free text** → translated on demand via
+the Translate button, as a **display-map over the canonical key**:
 
-- **Key `type`** — structural. Never translated; always protected. The parser and
-  filters depend on it.
-- **Value (e.g. `Finance`)** — auto-translated **per-locale, per-task**; the author
-  is **forced to review/update** the translated label when adding a language. So
-  the German entry genuinely stores `Finanz`.
+- The **canonical key** (`Finance`) always drives filtering, grouping, and color.
+- When translated, the German user sees `Finanzen` on chips, the filter dropdown,
+  and group headers — but the underlying key stays `Finance`, so logic is untouched.
+- **Color anchoring:** `typeColor()` (`my-tasks-widget.ts:117-131`) hashes the type
+  string for a palette color. Feed it the **canonical key** (not the translated
+  label) so a type's color is identical across locales — chip *reads* `Finanzen`,
+  color matches the English `Finance` chip.
 
-**Color anchoring (decided):** `typeColor()` (`my-tasks-widget.ts:117-131`) hashes
-the type string to a palette color, so `Finance` and `Finanz` would otherwise get
-different colors per language. To keep color identity stable across locales, we
-**store the source-locale type value alongside the translated label and feed the
-source value to `typeColor()`** regardless of display language. Result: badge
-*reads* `Finanz` for a German user, but the color matches the English `Finance`
-chip.
-
-**Marker protection (general):** before sending any text to `/api/translations`,
-strip all control markers to placeholder tokens, translate the clean human text,
-then re-attach the markers verbatim.
+**Marker handling:** the Translate button sends the **already-cleaned display
+strings** (the widget strips `[type:]`, `[lvl:]`, `Severity:`, `Audit finding:`,
+and the recurring schedule encoding before display), so control markers never
+reach the API — no separate protection step needed.
 
 ---
 
 ## 7. RTL (right-to-left) support
 
 RTL is a first-class requirement, not an afterthought — it's why an RTL language
-is in the pilot. It is cross-cutting and affects all three widgets.
+is in the pilot. It is cross-cutting and affects all four widgets.
 
 ### Which locales are RTL
 Language prefixes flagged `direction: right_to_left` in the Staffbase locale
@@ -205,11 +226,22 @@ otherwise RTL layout bugs stay hidden until the first RTL user appears.
 
 ## 8. Pilot scope
 
-- Languages: `en_US` (source) + `de_DE` + one RTL (`ar_SA`/`he_IL`).
-- All three widgets get chrome localization (Phase A).
-- Task-content localization (Phase B) targets `my-tasks-widget` first (it owns task
-  creation/editing); extend to recurring/audit as their flows need it.
-- Adding the rest of the Panda 8 afterward = authoring more bundles, no new plumbing.
+- Chrome languages: `en_US` (source) + `de_DE` + `ar_SA` (RTL). More = v2.
+- **Four widgets** get chrome localization (Phase A): `my-tasks-widget`,
+  `audit-widget`, `recurring-tasks-widget`, `tasks-integration-widget`.
+- Content (Phase B Translate button) works for **all** API-supported locales
+  immediately — not limited to the pilot bundles.
+- Adding the rest of the Panda 8 chrome afterward = authoring more bundles, no new
+  plumbing.
+
+### Phase A status
+- ✅ `tasks/shared/i18n.ts` engine; detection wired.
+- ✅ `my-tasks-widget`, `audit-widget`, `recurring-tasks-widget` chrome extracted +
+  de/ar bundles + RTL `dir`.
+- ⏳ `tasks-integration-widget` chrome (pending).
+- ⏳ Re-add priority + "Recurring" fixed enums to bundles (my-tasks, recurring,
+  others where shown).
+- ⏳ RTL CSS polish (physical→logical properties / `[dir="rtl"]` overrides).
 
 ---
 
@@ -228,6 +260,11 @@ otherwise RTL layout bugs stay hidden until the first RTL user appears.
 ## Build order
 
 1. **Phase A** — `tasks/shared/i18n.ts` + detection + chrome extraction + RTL +
-   pilot bundles (all three widgets). Remove `LOCALE-PROBE`.
-2. **Phase B** — encoding/parse/strip + opt-in `+` authoring UI + marker protection
-   + type color anchoring (`my-tasks-widget` first).
+   pilot bundles across **all four** widgets. Add priority + "Recurring" fixed
+   enums to bundles. Remove `LOCALE-PROBE`. (3 of 4 widgets done.)
+2. **Phase B** — header **Translate button** (visible when `locale !== "en_US"`):
+   batched on-demand `/api/translations`, session/CSRF auth, in-memory cache,
+   "Show original" toggle; press-hold translate on comments; type display-map with
+   canonical-key color anchoring. All four widgets.
+3. **Deferred** — persisted-encoding alternative (section 5), only if a concrete
+   need for stored multi-language content arises.

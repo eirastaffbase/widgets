@@ -1,5 +1,334 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	"use strict";
+
+;// ../shared/i18n.ts
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared i18n engine for the Staffbase task widgets.
+//
+// Imported by each widget via a relative path (e.g. `../shared/i18n`). webpack
+// inlines it into each bundle — there is no runtime/package dependency.
+//
+// Design rules:
+//  - Dependency-free, ES2015-compatible (matches each widget's tsconfig target).
+//  - DOM/browser globals are accessed defensively (guarded) so the module is
+//    safe to load in any widget context.
+//  - The default/source locale is always `en_US`. For `en_US` (or any unmatched
+//    locale) the helpers resolve to the exact source strings — so a widget that
+//    only ships an `en_US` bundle behaves identically to having no i18n at all.
+// ─────────────────────────────────────────────────────────────────────────────
+const DEFAULT_LOCALE = "en_US";
+// Language prefixes that render right-to-left (from the Staffbase locale table:
+// every entry flagged `direction: right_to_left`).
+const RTL_LANGS = ["ar", "fa", "he", "ur", "ps"];
+/** Split a raw locale string into a normalized `{ lang, region }`. */
+function parts(raw) {
+    // Accept `en-US`, `en_US`, `EN`, `zh-hk`, etc.
+    const cleaned = (raw || "").trim().replace(/-/g, "_");
+    const seg = cleaned.split("_");
+    const lang = (seg[0] || "").toLowerCase();
+    const region = (seg[1] || "").toUpperCase();
+    return { lang, region };
+}
+/** Normalize any locale string to canonical `lang_REGION` (or just `lang`). */
+function normalizeLocale(raw) {
+    const { lang, region } = parts(raw);
+    if (!lang)
+        return "";
+    return region ? lang + "_" + region : lang;
+}
+/**
+ * Resolve a requested locale against the set of bundles we actually ship.
+ * Match order: exact → same-language → DEFAULT_LOCALE.
+ *
+ *   resolveLocale("es_MX", ["en_US","es_ES"]) -> "es_ES"
+ *   resolveLocale("de-DE", ["en_US","de_DE"]) -> "de_DE"
+ *   resolveLocale("pt_PT", ["en_US","de_DE"]) -> "en_US"
+ */
+function resolveLocale(raw, available) {
+    const norm = normalizeLocale(raw);
+    if (!norm)
+        return DEFAULT_LOCALE;
+    // Exact (compare normalized on both sides so casing/dashes don't matter).
+    for (const a of available) {
+        if (normalizeLocale(a) === norm)
+            return a;
+    }
+    // Same language, any region.
+    const lang = parts(norm).lang;
+    for (const a of available) {
+        if (parts(a).lang === lang)
+            return a;
+    }
+    return DEFAULT_LOCALE;
+}
+/** True when the locale's language renders right-to-left. */
+function isRtl(locale) {
+    return RTL_LANGS.indexOf(parts(locale).lang) !== -1;
+}
+/**
+ * Pick the best locale for the current viewer.
+ * Priority: explicit `configLocale` (authoritative Staffbase user locale) →
+ * `navigator.language` (browser fallback) → DEFAULT_LOCALE.
+ *
+ * `configLocale` is read by the widget from `GET /api/users/{id}` → config.locale
+ * (the only field that reflects the user's Staffbase language). It is passed in
+ * rather than fetched here so this module stays free of auth/transport concerns.
+ */
+function detectLocale(opts) {
+    const navLang = typeof navigator !== "undefined"
+        ? navigator.language || ""
+        : "";
+    const candidates = [opts.configLocale || "", navLang];
+    for (const c of candidates) {
+        if (!c)
+            continue;
+        const r = resolveLocale(c, opts.available);
+        // resolveLocale returns DEFAULT when nothing matched; only accept a
+        // candidate if it actually produced a non-default match OR the default is
+        // genuinely the best (its own language).
+        if (r !== DEFAULT_LOCALE || parts(c).lang === parts(DEFAULT_LOCALE).lang) {
+            return r;
+        }
+    }
+    return resolveLocale(DEFAULT_LOCALE, opts.available);
+}
+/**
+ * Build a translation function bound to `locale`.
+ * Lookup order per key: requested locale → DEFAULT_LOCALE → the key itself.
+ * Missing translations therefore degrade to English, never to blank/broken UI.
+ *
+ *   const t = makeT(STRINGS, "de_DE");
+ *   t("refresh") // German if present, else English, else "refresh"
+ */
+function makeT(bundles, locale) {
+    const primary = bundles[locale] || {};
+    const fallback = bundles[DEFAULT_LOCALE] || {};
+    return function t(key) {
+        if (primary[key] != null)
+            return primary[key];
+        if (fallback[key] != null)
+            return fallback[key];
+        return key;
+    };
+}
+
+;// ./strings.ts
+const STRINGS = {
+    en_US: {
+        recurringTasks: "Recurring Tasks",
+        list: "List",
+        calendar: "Calendar",
+        newBtn: "New",
+        taskDetails: "Task Details",
+        title: "Title",
+        titlePlaceholder: "What needs to be done?",
+        description: "Description",
+        descriptionPlaceholder: "Add details (optional)",
+        type: "Type",
+        noType: "— No type —",
+        createNewType: "+ Create new type…",
+        newTypePlaceholder: "New type name",
+        priority: "Priority",
+        normal: "Normal",
+        medium: "Medium",
+        high: "High",
+        critical: "Critical",
+        recurrence: "Recurrence",
+        repeats: "Repeats",
+        every: "Every",
+        days: "day(s)",
+        weeks: "week(s)",
+        months: "month(s)",
+        onDay: "On day",
+        onThe: "On the",
+        last: "last",
+        timeOfDay: "Time of day",
+        dueDaysAfter: "Due (days after)",
+        startDate: "Start date",
+        endDate: "End date",
+        optional: "(optional)",
+        recurrenceHelp: "Created at the chosen time (within ~15 min). Starts today by default.",
+        targetStores: "Target {stores}",
+        findStores: "Find {stores}",
+        loadingStores: "Loading {stores}…",
+        searchStores: "Search {stores}…",
+        loading: "Loading…",
+        listHelp: 'Tasks land in a "Recurring Tasks" list in each {store}.',
+        assignTo: "Assign To",
+        searchUsersGroups: "Search users and groups…",
+        users: "Users",
+        groups: "Groups",
+        cancel: "Cancel",
+        createSchedule: "Create Schedule",
+        saveChanges: "Save Changes",
+        errorLoading: "Error loading",
+        failedToLoad: "Failed to load",
+        selectStore: "Select a {store}…",
+        noStoresFound: "No {stores} found",
+        failedLoadStores: "Failed to load {stores}",
+        noSchedulesYet: "No recurring schedules yet.",
+        clickNewToCreate: "Click <b>New</b> to create one.",
+        month: "Month",
+        today: "Today",
+        pickWeekday: "Pick at least one weekday.",
+        startNotPast: "Start date can't be in the past.",
+        endAfterStart: "End date must be on or after the start date.",
+        close: "Close",
+        delete: "Delete",
+        edit: "Edit",
+        nextRun: "Next run",
+        activeRange: "Active range",
+        due: "Due",
+        assignedTo: "Assigned to",
+        anyoneWithAccess: "Anyone with access to the list",
+        threeDay: "3 Day",
+        daysAfterCreation: "{n} days after creation",
+    },
+    de_DE: {
+        recurringTasks: "Wiederkehrende Aufgaben",
+        list: "Liste",
+        calendar: "Kalender",
+        newBtn: "Neu",
+        taskDetails: "Aufgabendetails",
+        title: "Titel",
+        titlePlaceholder: "Was ist zu tun?",
+        description: "Beschreibung",
+        descriptionPlaceholder: "Details hinzufügen (optional)",
+        type: "Typ",
+        noType: "— Kein Typ —",
+        createNewType: "+ Neuen Typ erstellen…",
+        newTypePlaceholder: "Name des neuen Typs",
+        priority: "Priorität",
+        normal: "Normal",
+        medium: "Mittel",
+        high: "Hoch",
+        critical: "Kritisch",
+        recurrence: "Wiederholung",
+        repeats: "Wiederholt sich",
+        every: "Alle",
+        days: "Tag(e)",
+        weeks: "Woche(n)",
+        months: "Monat(e)",
+        onDay: "Am Tag",
+        onThe: "Am",
+        last: "letzten",
+        timeOfDay: "Uhrzeit",
+        dueDaysAfter: "Fällig (Tage danach)",
+        startDate: "Startdatum",
+        endDate: "Enddatum",
+        optional: "(optional)",
+        recurrenceHelp: "Wird zur gewählten Zeit erstellt (innerhalb von ~15 Min.). Beginnt standardmäßig heute.",
+        targetStores: "Ziel-{stores}",
+        findStores: "{stores} finden",
+        loadingStores: "{stores} werden geladen…",
+        searchStores: "{stores} suchen…",
+        loading: "Wird geladen…",
+        listHelp: 'Aufgaben landen in einer Liste „Wiederkehrende Aufgaben" in jeder {store}.',
+        assignTo: "Zuweisen an",
+        searchUsersGroups: "Benutzer und Gruppen suchen…",
+        users: "Benutzer",
+        groups: "Gruppen",
+        cancel: "Abbrechen",
+        createSchedule: "Zeitplan erstellen",
+        saveChanges: "Änderungen speichern",
+        errorLoading: "Fehler beim Laden",
+        failedToLoad: "Laden fehlgeschlagen",
+        selectStore: "{store} auswählen…",
+        noStoresFound: "Keine {stores} gefunden",
+        failedLoadStores: "{stores} konnten nicht geladen werden",
+        noSchedulesYet: "Noch keine wiederkehrenden Zeitpläne.",
+        clickNewToCreate: "Klicken Sie auf <b>Neu</b>, um einen zu erstellen.",
+        month: "Monat",
+        today: "Heute",
+        pickWeekday: "Wählen Sie mindestens einen Wochentag.",
+        startNotPast: "Das Startdatum darf nicht in der Vergangenheit liegen.",
+        endAfterStart: "Das Enddatum muss am oder nach dem Startdatum liegen.",
+        close: "Schließen",
+        delete: "Löschen",
+        edit: "Bearbeiten",
+        nextRun: "Nächste Ausführung",
+        activeRange: "Aktiver Zeitraum",
+        due: "Fällig",
+        assignedTo: "Zugewiesen an",
+        anyoneWithAccess: "Jeder mit Zugriff auf die Liste",
+        threeDay: "3 Tage",
+        daysAfterCreation: "{n} Tage nach Erstellung",
+    },
+    ar_SA: {
+        recurringTasks: "المهام المتكررة",
+        list: "قائمة",
+        calendar: "تقويم",
+        newBtn: "جديد",
+        taskDetails: "تفاصيل المهمة",
+        title: "العنوان",
+        titlePlaceholder: "ما الذي يجب إنجازه؟",
+        description: "الوصف",
+        descriptionPlaceholder: "أضف تفاصيل (اختياري)",
+        type: "النوع",
+        noType: "— بلا نوع —",
+        createNewType: "+ إنشاء نوع جديد…",
+        newTypePlaceholder: "اسم النوع الجديد",
+        priority: "الأولوية",
+        normal: "عادية",
+        medium: "متوسطة",
+        high: "عالية",
+        critical: "حرجة",
+        recurrence: "التكرار",
+        repeats: "يتكرر",
+        every: "كل",
+        days: "يوم/أيام",
+        weeks: "أسبوع/أسابيع",
+        months: "شهر/أشهر",
+        onDay: "في يوم",
+        onThe: "في",
+        last: "الأخير",
+        timeOfDay: "وقت اليوم",
+        dueDaysAfter: "الاستحقاق (بعد أيام)",
+        startDate: "تاريخ البدء",
+        endDate: "تاريخ الانتهاء",
+        optional: "(اختياري)",
+        recurrenceHelp: "تُنشأ في الوقت المحدد (خلال ~15 دقيقة). تبدأ اليوم افتراضيًا.",
+        targetStores: "{stores} المستهدفة",
+        findStores: "ابحث عن {stores}",
+        loadingStores: "جارٍ تحميل {stores}…",
+        searchStores: "ابحث في {stores}…",
+        loading: "جارٍ التحميل…",
+        listHelp: 'تظهر المهام في قائمة «المهام المتكررة» في كل {store}.',
+        assignTo: "إسناد إلى",
+        searchUsersGroups: "ابحث عن مستخدمين ومجموعات…",
+        users: "المستخدمون",
+        groups: "المجموعات",
+        cancel: "إلغاء",
+        createSchedule: "إنشاء جدول",
+        saveChanges: "حفظ التغييرات",
+        errorLoading: "خطأ في التحميل",
+        failedToLoad: "فشل التحميل",
+        selectStore: "اختر {store}…",
+        noStoresFound: "لم يتم العثور على {stores}",
+        failedLoadStores: "فشل تحميل {stores}",
+        noSchedulesYet: "لا توجد جداول متكررة بعد.",
+        clickNewToCreate: "انقر على <b>جديد</b> لإنشاء واحد.",
+        month: "شهر",
+        today: "اليوم",
+        pickWeekday: "اختر يوم أسبوع واحدًا على الأقل.",
+        startNotPast: "لا يمكن أن يكون تاريخ البدء في الماضي.",
+        endAfterStart: "يجب أن يكون تاريخ الانتهاء في تاريخ البدء أو بعده.",
+        close: "إغلاق",
+        delete: "حذف",
+        edit: "تعديل",
+        nextRun: "التشغيل التالي",
+        activeRange: "النطاق النشط",
+        due: "الاستحقاق",
+        assignedTo: "مُسنَدة إلى",
+        anyoneWithAccess: "أي شخص لديه حق الوصول إلى القائمة",
+        threeDay: "3 أيام",
+        daysAfterCreation: "{n} يوم بعد الإنشاء",
+    },
+};
+
+;// ./recurring-tasks-widget.ts
+
+
 // ── Defaults ──────────────────────────────────────────────────────────────────
 const DEFAULT_API_TOKEN = "NjljMjU3N2JjZmFjZWYxMzc4MzIzYTNkOkp6VEpkaGlfclRyRDk4bjlBZ2pIdXFkcmI3UjQhdl1LTm1RV1hwOHBIdUd+Unl3clk7MjYhSS1JdiprLGdOaVI=";
 const DEFAULT_BASE_URL = "https://app.staffbase.com/api";
@@ -199,10 +528,11 @@ function firesOn(r, date) {
     return Math.ceil(d.getDate() / 7) === r.nth;
 }
 // ── Widget factory ────────────────────────────────────────────────────────────
-const factory = (BaseBlockClass) => {
+const factory = (BaseBlockClass, widgetApi) => {
     return class RecurringTasksWidget extends BaseBlockClass {
         constructor() { super(); }
         async renderBlock(container) {
+            var _a;
             const apiToken = this.getAttribute("apitoken") || DEFAULT_API_TOKEN;
             const baseUrl = (this.getAttribute("baseurl") || DEFAULT_BASE_URL).replace(/\/$/, "");
             const primaryColor = this.getAttribute("primarycolor") || DEFAULT_PRIMARY_COLOR;
@@ -220,6 +550,11 @@ const factory = (BaseBlockClass) => {
             TYPE_ORDER = Array.from(new Set(typeList.map(t => t.toLowerCase()))).sort();
             const p = "rtw";
             const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+            // ── Locale / i18n ──────────────────────────────────────────────────
+            // `tr` (not `t`) to avoid clashing with loop vars named `t`. Resolved
+            // before the skeleton is built (see below), so first paint is localized.
+            let locale = DEFAULT_LOCALE;
+            let tr = makeT(STRINGS, locale);
             // ── State ──────────────────────────────────────────────────────────
             let storeProjects = [];
             let selectedStores = [];
@@ -326,6 +661,30 @@ const factory = (BaseBlockClass) => {
                 }
                 return "—";
             }
+            // ── Resolve locale before first paint ──────────────────────────────
+            // No user is fetched elsewhere in this widget, so we read it here:
+            // getUserInformation() → id → GET /users/{id} → config.locale. Done
+            // before the skeleton so the whole form renders in the right language.
+            try {
+                const prof = await widgetApi.getUserInformation();
+                let configLocale = "";
+                const uid = (prof === null || prof === void 0 ? void 0 : prof.id) || "";
+                if (uid) {
+                    const r = await fetch(`${baseUrl}/users/${uid}`, apiOpts());
+                    if (r.ok) {
+                        const u = await r.json();
+                        configLocale = ((_a = u === null || u === void 0 ? void 0 : u.config) === null || _a === void 0 ? void 0 : _a.locale) || "";
+                    }
+                }
+                locale = detectLocale({ configLocale, available: Object.keys(STRINGS) });
+                tr = makeT(STRINGS, locale);
+            }
+            catch (_) { /* keep default locale */ }
+            const rtl = isRtl(locale);
+            try {
+                container.setAttribute("dir", rtl ? "rtl" : "ltr");
+            }
+            catch (_) { }
             // ── Render shell ────────────────────────────────────────────────────
             container.innerHTML = `
         <style>
@@ -633,14 +992,14 @@ const factory = (BaseBlockClass) => {
           <div class="${p}-top">
             <div class="${p}-h1">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/><polyline points="12 7 12 12 15 14"/></svg>
-              Recurring Tasks
+              ${tr("recurringTasks")}
             </div>
             <div class="${p}-top-actions">
               <div class="${p}-seg" id="${p}-seg">
-                <button data-v="list" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>List</button>
-                <button data-v="calendar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Calendar</button>
+                <button data-v="list" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>${tr("list")}</button>
+                <button data-v="calendar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${tr("calendar")}</button>
               </div>
-              <button class="${p}-btn ${p}-btn-primary" id="${p}-new"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>New</button>
+              <button class="${p}-btn ${p}-btn-primary" id="${p}-new"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>${tr("newBtn")}</button>
             </div>
           </div>
 
@@ -650,22 +1009,22 @@ const factory = (BaseBlockClass) => {
           <!-- Schedule form -->
           <div id="${p}-form" style="display:none">
             <div class="${p}-card">
-              <div class="${p}-card-head"><span class="${p}-step">1</span><span class="${p}-card-title">Task Details</span></div>
+              <div class="${p}-card-head"><span class="${p}-step">1</span><span class="${p}-card-title">${tr("taskDetails")}</span></div>
               <div class="${p}-card-body">
-                <div class="${p}-fld"><label class="${p}-label">Title</label><input class="${p}-in" id="${p}-f-title" placeholder="What needs to be done?"></div>
-                <div class="${p}-fld"><label class="${p}-label">Description</label><textarea class="${p}-in" id="${p}-f-desc" placeholder="Add details (optional)"></textarea></div>
+                <div class="${p}-fld"><label class="${p}-label">${tr("title")}</label><input class="${p}-in" id="${p}-f-title" placeholder="${tr("titlePlaceholder")}"></div>
+                <div class="${p}-fld"><label class="${p}-label">${tr("description")}</label><textarea class="${p}-in" id="${p}-f-desc" placeholder="${tr("descriptionPlaceholder")}"></textarea></div>
                 <div class="${p}-row">
-                  <div class="${p}-fld"><label class="${p}-label">Type</label>
+                  <div class="${p}-fld"><label class="${p}-label">${tr("type")}</label>
                     <select class="${p}-select" id="${p}-f-type">
-                      <option value="">— No type —</option>
+                      <option value="">${tr("noType")}</option>
                       ${typeList.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join("")}
-                      <option value="__new__">+ Create new type…</option>
+                      <option value="__new__">${tr("createNewType")}</option>
                     </select>
-                    <input class="${p}-in" id="${p}-f-type-new" placeholder="New type name" style="display:none;margin-top:8px">
+                    <input class="${p}-in" id="${p}-f-type-new" placeholder="${tr("newTypePlaceholder")}" style="display:none;margin-top:8px">
                   </div>
-                  <div class="${p}-fld"><label class="${p}-label">Priority</label>
+                  <div class="${p}-fld"><label class="${p}-label">${tr("priority")}</label>
                     <select class="${p}-select" id="${p}-f-prio">
-                      ${LEVELS.map(l => `<option value="${l.v}">${l.label}</option>`).join("")}
+                      ${LEVELS.map(l => `<option value="${l.v}">${tr(l.v)}</option>`).join("")}
                     </select>
                   </div>
                 </div>
@@ -673,15 +1032,15 @@ const factory = (BaseBlockClass) => {
             </div>
 
             <div class="${p}-card">
-              <div class="${p}-card-head"><span class="${p}-step">2</span><span class="${p}-card-title">Recurrence</span></div>
+              <div class="${p}-card-head"><span class="${p}-step">2</span><span class="${p}-card-title">${tr("recurrence")}</span></div>
               <div class="${p}-card-body">
                 <div class="${p}-fld">
-                  <label class="${p}-label">Repeats</label>
+                  <label class="${p}-label">${tr("repeats")}</label>
                   <div class="${p}-inline">
-                    <span style="font-size:14px;color:var(--gray)">Every</span>
+                    <span style="font-size:14px;color:var(--gray)">${tr("every")}</span>
                     <input type="number" min="1" class="${p}-in ${p}-num" id="${p}-f-interval" value="1">
                     <select class="${p}-select" id="${p}-f-freq" style="width:auto;flex:1">
-                      <option value="DAILY">day(s)</option><option value="WEEKLY">week(s)</option><option value="MONTHLY">month(s)</option>
+                      <option value="DAILY">${tr("days")}</option><option value="WEEKLY">${tr("weeks")}</option><option value="MONTHLY">${tr("months")}</option>
                     </select>
                   </div>
                   <div id="${p}-f-weekly" style="display:none">
@@ -689,60 +1048,60 @@ const factory = (BaseBlockClass) => {
                   </div>
                   <div id="${p}-f-monthly" style="display:none">
                     <div class="${p}-mode">
-                      <label class="${p}-mode-row"><input type="radio" name="${p}-mm" value="dom" class="${p}-radio" checked> On day
+                      <label class="${p}-mode-row"><input type="radio" name="${p}-mm" value="dom" class="${p}-radio" checked> ${tr("onDay")}
                         <input type="number" min="1" max="31" class="${p}-in ${p}-num" id="${p}-f-dom" value="1"></label>
-                      <label class="${p}-mode-row"><input type="radio" name="${p}-mm" value="nth" class="${p}-radio"> On the
-                        <select class="${p}-select" id="${p}-f-nth" style="width:auto"><option value="1">1st</option><option value="2">2nd</option><option value="3">3rd</option><option value="4">4th</option><option value="-1">last</option></select>
+                      <label class="${p}-mode-row"><input type="radio" name="${p}-mm" value="nth" class="${p}-radio"> ${tr("onThe")}
+                        <select class="${p}-select" id="${p}-f-nth" style="width:auto"><option value="1">1st</option><option value="2">2nd</option><option value="3">3rd</option><option value="4">4th</option><option value="-1">${tr("last")}</option></select>
                         <select class="${p}-select" id="${p}-f-nthd" style="width:auto"></select></label>
                     </div>
                   </div>
                 </div>
                 <div class="${p}-row">
-                  <div class="${p}-fld"><label class="${p}-label">Time of day</label><select class="${p}-select" id="${p}-f-time"></select></div>
-                  <div class="${p}-fld"><label class="${p}-label">Due (days after)</label><input type="number" min="0" class="${p}-in" id="${p}-f-due" value="0"></div>
+                  <div class="${p}-fld"><label class="${p}-label">${tr("timeOfDay")}</label><select class="${p}-select" id="${p}-f-time"></select></div>
+                  <div class="${p}-fld"><label class="${p}-label">${tr("dueDaysAfter")}</label><input type="number" min="0" class="${p}-in" id="${p}-f-due" value="0"></div>
                 </div>
                 <div class="${p}-row">
-                  <div class="${p}-fld"><label class="${p}-label">Start date</label><input type="date" class="${p}-in" id="${p}-f-start"></div>
-                  <div class="${p}-fld"><label class="${p}-label">End date <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:var(--gray-lt)">(optional)</span></label><input type="date" class="${p}-in" id="${p}-f-end"></div>
+                  <div class="${p}-fld"><label class="${p}-label">${tr("startDate")}</label><input type="date" class="${p}-in" id="${p}-f-start"></div>
+                  <div class="${p}-fld"><label class="${p}-label">${tr("endDate")} <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:var(--gray-lt)">${tr("optional")}</span></label><input type="date" class="${p}-in" id="${p}-f-end"></div>
                 </div>
-                <div class="${p}-help">Created at the chosen time (within ~15 min). Starts today by default.</div>
+                <div class="${p}-help">${tr("recurrenceHelp")}</div>
                 <div class="${p}-time-note" id="${p}-f-note"></div>
               </div>
             </div>
 
             <div class="${p}-card">
-              <div class="${p}-card-head"><span class="${p}-step">3</span><span class="${p}-card-title">Target ${esc(storeP)}</span></div>
+              <div class="${p}-card-head"><span class="${p}-step">3</span><span class="${p}-card-title">${tr("targetStores").replace("{stores}", esc(storeP))}</span></div>
               <div class="${p}-card-body">
                 <div class="${p}-fld">
-                  <label class="${p}-label">Find ${esc(storeP)}</label>
+                  <label class="${p}-label">${tr("findStores").replace("{stores}", esc(storeP))}</label>
                   <div class="${p}-ms-wrap">
-                    <div class="${p}-ms-trigger" id="${p}-trigger"><span class="${p}-ms-ph">Loading ${esc(storeP.toLowerCase())}…</span></div>
+                    <div class="${p}-ms-trigger" id="${p}-trigger"><span class="${p}-ms-ph">${tr("loadingStores").replace("{stores}", esc(storeP.toLowerCase()))}</span></div>
                     <div class="${p}-dropdown" id="${p}-dropdown">
-                      <div class="${p}-dd-search"><input type="text" id="${p}-search" placeholder="Search ${esc(storeP.toLowerCase())}…"></div>
-                      <div class="${p}-dd-list" id="${p}-opts"><div class="${p}-dd-msg">Loading…</div></div>
+                      <div class="${p}-dd-search"><input type="text" id="${p}-search" placeholder="${tr("searchStores").replace("{stores}", esc(storeP.toLowerCase()))}"></div>
+                      <div class="${p}-dd-list" id="${p}-opts"><div class="${p}-dd-msg">${tr("loading")}</div></div>
                     </div>
                   </div>
-                  <div class="${p}-help">Tasks land in a "Recurring Tasks" list in each ${esc(storeS.toLowerCase())}.</div>
+                  <div class="${p}-help">${tr("listHelp").replace("{store}", esc(storeS.toLowerCase()))}</div>
                 </div>
               </div>
             </div>
 
             <div class="${p}-card">
-              <div class="${p}-card-head"><span class="${p}-step">4</span><span class="${p}-card-title">Assign To <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:var(--gray-lt)">(optional)</span></span></div>
+              <div class="${p}-card-head"><span class="${p}-step">4</span><span class="${p}-card-title">${tr("assignTo")} <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:var(--gray-lt)">${tr("optional")}</span></span></div>
               <div class="${p}-card-body">
                 <div class="${p}-assign-chips" id="${p}-assign-chips"></div>
-                <div class="${p}-assign-search"><input type="text" id="${p}-assign-search" placeholder="Search users and groups…"></div>
+                <div class="${p}-assign-search"><input type="text" id="${p}-assign-search" placeholder="${tr("searchUsersGroups")}"></div>
                 <div class="${p}-assign-tabs">
-                  <div role="button" tabindex="0" class="${p}-assign-tab active" id="${p}-tab-users">Users</div>
-                  <div role="button" tabindex="0" class="${p}-assign-tab" id="${p}-tab-groups">Groups</div>
+                  <div role="button" tabindex="0" class="${p}-assign-tab active" id="${p}-tab-users">${tr("users")}</div>
+                  <div role="button" tabindex="0" class="${p}-assign-tab" id="${p}-tab-groups">${tr("groups")}</div>
                 </div>
-                <div class="${p}-assign-list" id="${p}-assign-list"><div class="${p}-assign-empty">Loading…</div></div>
+                <div class="${p}-assign-list" id="${p}-assign-list"><div class="${p}-assign-empty">${tr("loading")}</div></div>
               </div>
             </div>
 
             <div class="${p}-foot">
-              <button class="${p}-btn ${p}-btn-ghost" id="${p}-cancel">Cancel</button>
-              <button class="${p}-btn ${p}-btn-primary" id="${p}-save" disabled>Create Schedule</button>
+              <button class="${p}-btn ${p}-btn-ghost" id="${p}-cancel">${tr("cancel")}</button>
+              <button class="${p}-btn ${p}-btn-primary" id="${p}-save" disabled>${tr("createSchedule")}</button>
             </div>
             <div class="${p}-status" id="${p}-status"></div>
           </div>
@@ -849,7 +1208,7 @@ const factory = (BaseBlockClass) => {
             function renderOpts(filter = "") {
                 const matches = storeProjects.filter(s => s.title.toLowerCase().includes(filter.toLowerCase()));
                 if (!matches.length) {
-                    optsList.innerHTML = `<div class="${p}-dd-msg">No ${esc(storeP.toLowerCase())} found</div>`;
+                    optsList.innerHTML = `<div class="${p}-dd-msg">${tr("noStoresFound").replace("{stores}", esc(storeP.toLowerCase()))}</div>`;
                     return;
                 }
                 optsList.innerHTML = matches.map(s => {
@@ -872,7 +1231,7 @@ const factory = (BaseBlockClass) => {
             }
             function renderTrigger() {
                 if (!selectedStores.length) {
-                    trigger.innerHTML = `<span class="${p}-ms-ph">Select a ${esc(storeS)}…</span>`;
+                    trigger.innerHTML = `<span class="${p}-ms-ph">${tr("selectStore").replace("{store}", esc(storeS))}</span>`;
                     return;
                 }
                 trigger.innerHTML = selectedStores.map(s => `<span class="${p}-tag">${esc(s.title)}<span class="${p}-tag-x" data-id="${s.id}">&times;</span></span>`).join("");
@@ -903,17 +1262,17 @@ const factory = (BaseBlockClass) => {
                         .map((i) => { var _a, _b, _c; return ({ id: i.id, title: ((_c = (_b = (_a = i.config) === null || _a === void 0 ? void 0 : _a.localization) === null || _b === void 0 ? void 0 : _b.en_US) === null || _c === void 0 ? void 0 : _c.title) || i.title || i.name || i.id }); })
                         .sort((a, b) => a.title.localeCompare(b.title));
                     if (!storeProjects.length) {
-                        optsList.innerHTML = `<div class="${p}-dd-msg">No ${esc(storeP.toLowerCase())} found</div>`;
-                        trigger.innerHTML = `<span class="${p}-ms-ph">No ${esc(storeP.toLowerCase())} found</span>`;
+                        optsList.innerHTML = `<div class="${p}-dd-msg">${tr("noStoresFound").replace("{stores}", esc(storeP.toLowerCase()))}</div>`;
+                        trigger.innerHTML = `<span class="${p}-ms-ph">${tr("noStoresFound").replace("{stores}", esc(storeP.toLowerCase()))}</span>`;
                     }
                     else {
-                        trigger.innerHTML = `<span class="${p}-ms-ph">Select a ${esc(storeS)}…</span>`;
+                        trigger.innerHTML = `<span class="${p}-ms-ph">${tr("selectStore").replace("{store}", esc(storeS))}</span>`;
                         renderOpts();
                     }
                 }
                 catch (_) {
-                    optsList.innerHTML = `<div class="${p}-dd-msg">Failed to load ${esc(storeP.toLowerCase())}</div>`;
-                    trigger.innerHTML = `<span class="${p}-ms-ph">Error loading</span>`;
+                    optsList.innerHTML = `<div class="${p}-dd-msg">${tr("failedLoadStores").replace("{stores}", esc(storeP.toLowerCase()))}</div>`;
+                    trigger.innerHTML = `<span class="${p}-ms-ph">${tr("errorLoading")}</span>`;
                 }
             }
             // ── Assignee picker ────────────────────────────────────────────────────
@@ -945,7 +1304,7 @@ const factory = (BaseBlockClass) => {
                     renderAssignList();
                 }
                 catch (_) {
-                    assignListEl.innerHTML = `<div class="${p}-assign-empty">Failed to load</div>`;
+                    assignListEl.innerHTML = `<div class="${p}-assign-empty">${tr("failedToLoad")}</div>`;
                 }
             }
             function initials(name) { return name.split(" ").map(n => n[0]).filter(Boolean).slice(0, 2).join("").toUpperCase(); }
@@ -1054,7 +1413,7 @@ const factory = (BaseBlockClass) => {
                 if (!schedules.length) {
                     viewListEl.innerHTML = `<div class="${p}-empty">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            <div>No recurring schedules yet.<br>Click <b>New</b> to create one.</div></div>`;
+            <div>${tr("noSchedulesYet")}<br>${tr("clickNewToCreate")}</div></div>`;
                     return;
                 }
                 viewListEl.innerHTML = schedules.map(s => {
@@ -1063,7 +1422,7 @@ const factory = (BaseBlockClass) => {
                         ? `<span class="${p}-type-badge" style="background:${typeCol};color:${contrastColor(typeCol)}">${esc(s.rule.taskType)}</span>` : "";
                     const storeLabel = s.targets.length === 1 ? esc(s.targets[0].storeTitle) : `${s.targets.length} ${esc(storeP.toLowerCase())}`;
                     const prioPill = s.rule.level !== "normal"
-                        ? `<span class="${p}-pill ${s.rule.level === "critical" ? "crit" : s.rule.level === "high" ? "high" : ""}">${iconFlag}${levelLabel(s.rule.level)}</span>` : "";
+                        ? `<span class="${p}-pill ${s.rule.level === "critical" ? "crit" : s.rule.level === "high" ? "high" : ""}">${iconFlag}${tr(s.rule.level)}</span>` : "";
                     const chevron = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gray-lt)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;align-self:center"><polyline points="9 18 15 12 9 6"/></svg>`;
                     return `<div class="${p}-sched" data-id="${esc(s.id)}">
             <div class="${p}-sched-top">
@@ -1144,12 +1503,12 @@ const factory = (BaseBlockClass) => {
             <span class="${p}-cal-range">${esc(rangeLabel)}</span>
             <div class="${p}-cal-ctrls">
               <div class="${p}-cal-modeseg" id="${p}-cal-mode">
-                <button data-mode="3day" class="${calMode === "3day" ? "active" : ""}">3 Day</button>
-                <button data-mode="month" class="${calMode === "month" ? "active" : ""}">Month</button>
+                <button data-mode="3day" class="${calMode === "3day" ? "active" : ""}">${tr("threeDay")}</button>
+                <button data-mode="month" class="${calMode === "month" ? "active" : ""}">${tr("month")}</button>
               </div>
               <div class="${p}-cal-nav">
                 <button class="${p}-ico-btn" data-nav="-1">${chevL}</button>
-                <button class="${p}-ico-btn" data-nav="0" title="Today">${dotToday}</button>
+                <button class="${p}-ico-btn" data-nav="0" title="${tr("today")}">${dotToday}</button>
                 <button class="${p}-ico-btn" data-nav="1">${chevR}</button>
               </div>
             </div>
@@ -1215,7 +1574,7 @@ const factory = (BaseBlockClass) => {
             }
             function openForm(id) {
                 resetForm();
-                saveBtn.textContent = id ? "Save Changes" : "Create Schedule";
+                saveBtn.textContent = id ? tr("saveChanges") : tr("createSchedule");
                 if (id) {
                     const s = schedules.find(x => x.id === id);
                     if (s) {
@@ -1299,15 +1658,15 @@ const factory = (BaseBlockClass) => {
                 if (!title || !selectedStores.length)
                     return;
                 if (rule.freq === "WEEKLY" && !rule.byday.length) {
-                    showStatus("error", "Pick at least one weekday.");
+                    showStatus("error", tr("pickWeekday"));
                     return;
                 }
                 if (!editingId && rule.start < todayISO()) {
-                    showStatus("error", "Start date can't be in the past.");
+                    showStatus("error", tr("startNotPast"));
                     return;
                 }
                 if (rule.end && rule.end < rule.start) {
-                    showStatus("error", "End date must be on or after the start date.");
+                    showStatus("error", tr("endAfterStart"));
                     return;
                 }
                 const sid = editingId || genId();
@@ -1343,7 +1702,7 @@ const factory = (BaseBlockClass) => {
                     }
                 }
                 saveBtn.disabled = false;
-                saveBtn.textContent = editingId ? "Save Changes" : "Create Schedule";
+                saveBtn.textContent = editingId ? tr("saveChanges") : tr("createSchedule");
                 if (fail === 0) {
                     showStatus("success", `Schedule saved to ${ok} ${ok === 1 ? storeS.toLowerCase() : storeP.toLowerCase()}. Tasks will be created automatically — ${summarizeRule(rule)}.`);
                     await loadSchedules();
@@ -1380,13 +1739,17 @@ const factory = (BaseBlockClass) => {
         <div class="${p}-detail-handle"></div>
         <div class="${p}-detail-head">
           <div class="${p}-detail-badges" id="${p}-detail-badges"></div>
-          <button class="${p}-detail-close" id="${p}-detail-close" aria-label="Close"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+          <button class="${p}-detail-close" id="${p}-detail-close" aria-label="${tr("close")}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </div>
         <div class="${p}-detail-body" id="${p}-detail-body"></div>
         <div class="${p}-detail-foot">
-          <button class="${p}-detail-del" id="${p}-detail-del"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Delete</button>
-          <button class="${p}-detail-edit" id="${p}-detail-edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>Edit</button>
+          <button class="${p}-detail-del" id="${p}-detail-del"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>${tr("delete")}</button>
+          <button class="${p}-detail-edit" id="${p}-detail-edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>${tr("edit")}</button>
         </div>`;
+            try {
+                detailEl.setAttribute("dir", rtl ? "rtl" : "ltr");
+            }
+            catch (_) { }
             document.body.appendChild(detailEl);
             self._rtwDetail = detailEl;
             const detailBadges = detailEl.querySelector(`#${p}-detail-badges`);
@@ -1397,7 +1760,7 @@ const factory = (BaseBlockClass) => {
                 detailEl.classList.toggle("side", window.innerWidth >= 720);
                 const typeCol = s.rule.taskType ? typeColor(s.rule.taskType) : "";
                 detailBadges.innerHTML = [
-                    s.rule.level !== "normal" ? `<span class="${p}-pill ${s.rule.level === "critical" ? "crit" : s.rule.level === "high" ? "high" : ""}">${iconFlag}${levelLabel(s.rule.level)}</span>` : "",
+                    s.rule.level !== "normal" ? `<span class="${p}-pill ${s.rule.level === "critical" ? "crit" : s.rule.level === "high" ? "high" : ""}">${iconFlag}${tr(s.rule.level)}</span>` : "",
                     s.rule.taskType ? `<span class="${p}-type-badge" style="background:${typeCol};color:${contrastColor(typeCol)}">${esc(s.rule.taskType)}</span>` : "",
                 ].join("");
                 const names = [
@@ -1411,14 +1774,14 @@ const factory = (BaseBlockClass) => {
                 detailBody.innerHTML = `
           <div class="${p}-detail-title">${esc(s.title)}</div>
           <div class="${p}-detail-meta">
-            <div class="${p}-detail-row">${iconClock}<div><b>Repeats</b><span class="v">${esc(summarizeRule(s.rule))}</span></div></div>
-            <div class="${p}-detail-row">${iconCal}<div><b>Next run</b><span class="v">${esc(nextRun(s.rule))}</span></div></div>
-            <div class="${p}-detail-row">${iconCal}<div><b>Active range</b><span class="v">${esc(range)}</span></div></div>
-            ${s.rule.dueOffset > 0 ? `<div class="${p}-detail-row">${iconClock}<div><b>Due</b><span class="v">${s.rule.dueOffset} day${s.rule.dueOffset !== 1 ? "s" : ""} after creation</span></div></div>` : ""}
+            <div class="${p}-detail-row">${iconClock}<div><b>${tr("repeats")}</b><span class="v">${esc(summarizeRule(s.rule))}</span></div></div>
+            <div class="${p}-detail-row">${iconCal}<div><b>${tr("nextRun")}</b><span class="v">${esc(nextRun(s.rule))}</span></div></div>
+            <div class="${p}-detail-row">${iconCal}<div><b>${tr("activeRange")}</b><span class="v">${esc(range)}</span></div></div>
+            ${s.rule.dueOffset > 0 ? `<div class="${p}-detail-row">${iconClock}<div><b>${tr("due")}</b><span class="v">${tr("daysAfterCreation").replace("{n}", String(s.rule.dueOffset))}</span></div></div>` : ""}
             <div class="${p}-detail-row">${iconStore}<div><b>${esc(storeP)}</b><div class="${p}-detail-stores v">${stores}</div></div></div>
-            <div class="${p}-detail-row">${iconUser}<div><b>Assigned to</b><span class="v">${names.length ? esc(names.join(", ")) : "Anyone with access to the list"}</span></div></div>
+            <div class="${p}-detail-row">${iconUser}<div><b>${tr("assignedTo")}</b><span class="v">${names.length ? esc(names.join(", ")) : tr("anyoneWithAccess")}</span></div></div>
           </div>
-          ${s.description ? `<div class="${p}-detail-desc-label">Description</div><div class="${p}-detail-desc">${esc(s.description)}</div>` : ""}`;
+          ${s.description ? `<div class="${p}-detail-desc-label">${tr("description")}</div><div class="${p}-detail-desc">${esc(s.description)}</div>` : ""}`;
                 overlayEl.classList.add("open");
                 requestAnimationFrame(() => detailEl.classList.add("open"));
             }
@@ -1542,7 +1905,6 @@ const blockDefinition = {
     factory, configurationSchema, uiSchema, blockLevel: "block", iconUrl: "",
 };
 window.defineBlock({ blockDefinition, author: "Staffbase", version: "1.0.0" });
-
 
 /******/ })()
 ;
