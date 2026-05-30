@@ -1407,8 +1407,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     for (const key of orderedKeys) {
                         const group = grouped.get(key);
                         const label = key === "__none__" ? "No Type" : key;
-                        const color = key === "__none__" ? "var(--gray-lt)" : typeColor(key);
-                        html += `<div class="${p}-section-label" style="color:${color}">${esc(label)} <span style="font-weight:400">(${group.length})</span></div>`;
+                        html += `<div class="${p}-section-label">${esc(label)} <span style="font-weight:400">(${group.length})</span></div>`;
                         for (const task of group)
                             html += renderTaskCard(task);
                     }
