@@ -238,9 +238,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-title{font-size:18px;font-weight:800;color:var(--dark);display:flex;align-items:center;gap:10px}
           .${p}-title-dot{width:10px;height:10px;border-radius:50%;background:var(--primary);flex-shrink:0}
           .${p}-badge-count{background:var(--primary);color:var(--primary-text);padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700}
-          .${p}-refresh-btn{width:34px;height:34px;border:1.5px solid var(--border)!important;border-radius:var(--r-md);background:#fff!important;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--gray)!important;transition:all .15s}
-          .${p}-refresh-btn:hover,.${p}-refresh-btn:focus,.${p}-refresh-btn:active{background:#fff!important;color:var(--primary)!important;border-color:var(--primary)!important}
-          .${p}-refresh-btn svg{stroke:currentColor!important}
+          .${p} .${p}-refresh-btn{width:34px;height:34px;border:1.5px solid var(--border)!important;border-radius:var(--r-md)!important;background:#fff!important;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--gray)!important;transition:background .15s,color .15s,border-color .15s}
+          .${p} .${p}-refresh-btn:hover,.${p} .${p}-refresh-btn:focus,.${p} .${p}-refresh-btn:focus-visible,.${p} .${p}-refresh-btn:active{background:#fff!important;color:var(--primary)!important;border-color:var(--primary)!important;box-shadow:none!important;outline:none!important}
+          .${p} .${p}-refresh-btn svg{stroke:currentColor!important;fill:none!important}
+          .${p} .${p}-refresh-btn span{color:currentColor!important}
           .${p}-refresh-btn:hover{border-color:var(--primary);color:var(--primary);background:rgba(var(--primary-rgb),.05)}
           .${p}-refresh-btn:disabled{opacity:.4;cursor:not-allowed}
           .${p}-header-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
@@ -1568,7 +1569,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       function renderTaskCard(task:Task):string{
         const isDone=task.status==="DONE"||task.status==="done"||task.status==="CLOSED";
         const dueInfo=formatDate(task.dueDate);
-        const desc=task.description?esc(stripTypeTag(task.description)):"";
+        const desc=task.description?esc(ct(stripTypeTag(task.description).trim())):"";
         const typeCol=task.taskType?typeColor(task.taskType):"";
         const typeText=task.taskType?contrastColor(typeCol):"";
         const isCrit=(task.auditSeverity||"").toLowerCase()==="critical";
@@ -1601,7 +1602,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               <div class="${p}-card-body">
                 <div class="${p}-card-top">${typeBadge}${recurBadge}${prioBadge}</div>
                 <div class="${p}-card-title"><span dir="auto">${esc(ct(task.title))}</span></div>
-                ${desc?`<div class="${p}-card-desc">${desc}</div>`:""}
+                ${desc?`<div class="${p}-card-desc" dir="auto">${desc}</div>`:""}
                 <div class="${p}-card-meta">
                   ${dueInfo.text?`<span class="${p}-meta-item ${dueInfo.overdue&&!isDone?"overdue":""}">${iconCal} ${dueInfo.overdue&&!isDone?tr("overdueLabel")+": ":""}<span dir="auto">${dueInfo.text}</span></span>`:""}
                   ${task.installationTitle?`<span class="${p}-meta-item">${iconStore} ${esc(task.installationTitle)}</span>`:""}
@@ -1670,7 +1671,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             ${pa?.date?`<div class="${p}-detail-meta-row">${iCal2} ${esc(pa.date)}</div>`:""}
             ${pa?.taskCount!=null?`<div class="${p}-detail-meta-row">${iClip} ${tr("nTasksFlagged").replace("{n}",String(pa.taskCount))}</div>`:""}
           </div>
-          ${pa?.notes?`<div class="${p}-detail-desc-label">${tr("notes")}</div><div class="${p}-detail-desc" style="margin-bottom:18px">${esc(pa.notes)}</div>`:""}
+          ${pa?.notes?`<div class="${p}-detail-desc-label">${tr("notes")}</div><div class="${p}-detail-desc" style="margin-bottom:18px" dir="auto">${esc(ct(pa.notes))}</div>`:""}
           ${(sysTask&&sysTask.attachmentIds&&sysTask.attachmentIds.length)?`<div class="${p}-detail-desc-label">${tr("attachments")}</div><div class="${p}-att-grid" id="${p}-audit-att-${instId}" style="margin-bottom:18px"><span class="${p}-att-empty">${tr("loading")}</span></div>`:""}
           ${cats.length?`<div class="${p}-detail-desc-label">${tr("categoryBreakdown")}</div><div class="${p}-cat-chart">${bars}</div>`:""}
         `;

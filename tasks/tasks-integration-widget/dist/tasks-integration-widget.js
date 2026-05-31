@@ -16,6 +16,15 @@
 //    locale) the helpers resolve to the exact source strings — so a widget that
 //    only ships an `en_US` bundle behaves identically to having no i18n at all.
 // ─────────────────────────────────────────────────────────────────────────────
+var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 const DEFAULT_LOCALE = "en_US";
 // Language prefixes that render right-to-left (from the Staffbase locale table:
 // every entry flagged `direction: right_to_left`).
@@ -100,6 +109,62 @@ function detectLocale(opts) {
  *   const t = makeT(STRINGS, "de_DE");
  *   t("refresh") // German if present, else English, else "refresh"
  */
+// ─────────────────────────────────────────────────────────────────────────────
+// On-demand content translation (Phase B "Translate" button).
+//
+// Free-text user content (task titles, descriptions, custom type names,
+// comments) is translated on demand via Staffbase's POST /api/translations.
+// Items are batched into one request as indexed <p> tags — the endpoint
+// preserves tags and translates only text nodes, so we map results back by
+// index. Transport/auth is supplied by the caller via `send` so this module
+// stays free of endpoint/auth concerns.
+// ─────────────────────────────────────────────────────────────────────────────
+function escHtml(s) {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function unescHtml(s) {
+    return s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+}
+/**
+ * Translate a set of strings in a single batched request.
+ * Returns a map of original-text → translated-text (only for non-empty inputs).
+ * On any failure the map is empty (caller falls back to originals).
+ *
+ * `send(payload)` must POST the payload to /api/translations and resolve with
+ * the translated `contents.value` string.
+ */
+function translateMap(texts, send) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const map = {};
+        const uniq = [];
+        const seen = {};
+        for (const raw of texts) {
+            const t = (raw || "").trim();
+            if (t && !seen[t]) {
+                seen[t] = true;
+                uniq.push(t);
+            }
+        }
+        if (!uniq.length)
+            return map;
+        const payload = uniq.map((t, i) => `<p data-i="${i}">${escHtml(t)}</p>`).join("");
+        let resp;
+        try {
+            resp = yield send(payload);
+        }
+        catch (_) {
+            return map;
+        }
+        const re = /<p data-i="(\d+)">([\s\S]*?)<\/p>/g;
+        let m;
+        while ((m = re.exec(resp))) {
+            const i = parseInt(m[1], 10);
+            if (uniq[i] != null)
+                map[uniq[i]] = unescHtml(m[2]);
+        }
+        return map;
+    });
+}
 function makeT(bundles, locale) {
     const primary = bundles[locale] || {};
     const fallback = bundles[DEFAULT_LOCALE] || {};
@@ -246,10 +311,538 @@ const STRINGS = {
         nTasksAdded: "{n} مهام مُضافة",
         done: "تم!",
     },
+    es_ES: {
+        targetStores: "Objetivo {stores}",
+        findStores: "Encuentra {stores}",
+        loadingStores: "Cargando {stores}...",
+        searchStores: "Registrar {stores}...",
+        selectStore: "Elige un {store}...",
+        noStoresFound: "No se encontró {stores}",
+        failedLoadStores: "No se ha podido cargar {stores}",
+        errorLoading: "Carga de errores",
+        loading: "Cargando...",
+        pullReviewTasks: "Tareas de Extracción y Revisión",
+        taskListName: "Nombre de la lista de tareas",
+        taskListNamePlaceholder: "por ejemplo, lista de verificación de tiendas Q2",
+        pullFromExternal: "Retirada de Servicios Externos",
+        reviewEditTasks: "Revisar y editar tareas",
+        nTasks: "{n} tareas",
+        title: "Título",
+        taskTitlePlaceholder: "Título de la tarea",
+        description: "Descripción",
+        type: "Tipo",
+        noneOption: "— ninguno —",
+        dueDate: "Fecha de parto",
+        addTask: "Añadir tarea",
+        attachFiles: "Adjuntar archivos",
+        remove: "Eliminar",
+        attached: "Adjunto:",
+        assignTo: "Asignar a",
+        optional: "(opcional)",
+        searchUsersGroups: "Buscar usuarios y grupos...",
+        users: "Usuarios",
+        groups: "Grupos",
+        noUsersFound: "No se han encontrado usuarios",
+        noGroupsFound: "No se han encontrado grupos",
+        failedToLoad: "No se ha cargado",
+        updateExistingList: "Actualizar lista existente",
+        selectListToUpdate: "Seleccione una lista para actualizar",
+        createNewList: "— Crear una nueva lista —",
+        replaceHint: "Si se selecciona, todas las tareas de esa lista se reemplazan. Déjalo en blanco para crear una nueva lista.",
+        working: "Trabajando...",
+        updateYourTasks: "Actualiza tus tareas",
+        noTasksInSheet: "No se encuentran tareas en la hoja.",
+        nTasksAdded: "{n} tareas añadidas",
+        done: "¡Hecho!",
+    },
+    fr_FR: {
+        targetStores: "Cible {stores}",
+        findStores: "Trouver {stores}",
+        loadingStores: "Chargement {stores}...",
+        searchStores: "Fouillez {stores}...",
+        selectStore: "Sélectionnez un {store}...",
+        noStoresFound: "Aucune {stores} trouvée",
+        failedLoadStores: "Échec de charger {stores}",
+        errorLoading: "Chargement d’erreur",
+        loading: "Chargement...",
+        pullReviewTasks: "Tâches de tirage et de révision",
+        taskListName: "Nom de la liste des tâches",
+        taskListNamePlaceholder: "par exemple, liste de contrôle des magasins Q2",
+        pullFromExternal: "Appel auprès des services externes",
+        reviewEditTasks: "Revoir et modifier les tâches",
+        nTasks: "{n} Tâches",
+        title: "Titre",
+        taskTitlePlaceholder: "Titre de la tâche",
+        description: "Description",
+        type: "Type",
+        noneOption: "— aucun —",
+        dueDate: "Date d’accouchement",
+        addTask: "Ajouter une tâche",
+        attachFiles: "Joindre les fichiers",
+        remove: "Retirer",
+        attached: "Pièce jointe :",
+        assignTo: "Assigner à",
+        optional: "(optionnel)",
+        searchUsersGroups: "Rechercher utilisateurs et groupes...",
+        users: "Utilisateurs",
+        groups: "Groupes",
+        noUsersFound: "Aucun utilisateur trouvé",
+        noGroupsFound: "Aucun groupe trouvé",
+        failedToLoad: "Échec de chargement",
+        updateExistingList: "Mettre à jour la liste existante",
+        selectListToUpdate: "Sélectionnez une liste à mettre à jour",
+        createNewList: "— Créer une nouvelle liste —",
+        replaceHint: "Si sélectionnées, toutes les tâches de cette liste sont remplacées. Laissez vide pour créer une nouvelle liste.",
+        working: "Travailler...",
+        updateYourTasks: "Mettez à jour vos tâches",
+        noTasksInSheet: "Aucune tâche trouvée dans la feuille.",
+        nTasksAdded: "{n} tâches ajoutées",
+        done: "C’est fait !",
+    },
+    nl_NL: {
+        targetStores: "Doelwit {stores}",
+        findStores: "Vind {stores}",
+        loadingStores: "Laad {stores}...",
+        searchStores: "Zoek {stores}...",
+        selectStore: "Kies een {store}...",
+        noStoresFound: "Geen {stores} gevonden",
+        failedLoadStores: "Niet geladen {stores}",
+        errorLoading: "Foutlading",
+        loading: "Laden...",
+        pullReviewTasks: "Taken ophalen en beoordelen",
+        taskListName: "Naam van de Taaklijst",
+        taskListNamePlaceholder: "bijvoorbeeld Q2 Store Checklist",
+        pullFromExternal: "Put uit externe diensten",
+        reviewEditTasks: "Taken beoordelen en bewerken",
+        nTasks: "{n} taken",
+        title: "Titel",
+        taskTitlePlaceholder: "Taaktitel",
+        description: "Beschrijving",
+        type: "Type",
+        noneOption: "— geen —",
+        dueDate: "Uitgerekende datum",
+        addTask: "Taak toevoegen",
+        attachFiles: "Bestanden bijvoegen",
+        remove: "Verwijder",
+        attached: "Bijgevoegd:",
+        assignTo: "Toewijzen aan",
+        optional: "(optioneel)",
+        searchUsersGroups: "Zoek gebruikers en groepen...",
+        users: "Gebruikers",
+        groups: "Groepen",
+        noUsersFound: "Geen gebruikers gevonden",
+        noGroupsFound: "Geen groepen gevonden",
+        failedToLoad: "Niet geladen",
+        updateExistingList: "Werk bestaande lijst bij",
+        selectListToUpdate: "Selecteer een lijst om bij te werken",
+        createNewList: "— Maak een nieuwe lijst aan —",
+        replaceHint: "Als geselecteerd, worden alle taken in die lijst vervangen. Laat het leeg om een nieuwe lijst aan te maken.",
+        working: "Aan het werk...",
+        updateYourTasks: "Werk je taken bij",
+        noTasksInSheet: "Geen taken in het blad gevonden.",
+        nTasksAdded: "{n} taken toegevoegd",
+        done: "Klaar!",
+    },
+    zh_CN: {
+        targetStores: "目标{stores}",
+        findStores: "找到{stores}",
+        loadingStores: "正在加载{stores}......",
+        searchStores: "搜查{stores}......",
+        selectStore: "选择一个{store}......",
+        noStoresFound: "未发现{stores}",
+        failedLoadStores: "加载失败{stores}",
+        errorLoading: "错误加载",
+        loading: "加载中......",
+        pullReviewTasks: "拉取与复核任务",
+        taskListName: "任务列表名称",
+        taskListNamePlaceholder: "例如，第二季度门店清单",
+        pullFromExternal: "从外部服务中提取",
+        reviewEditTasks: "审核与编辑任务",
+        nTasks: "{n}任务",
+        title: "标题",
+        taskTitlePlaceholder: "任务名称",
+        description: "描述",
+        type: "类型",
+        noneOption: "——没有——",
+        dueDate: "预产期",
+        addTask: "添加任务",
+        attachFiles: "附件文件",
+        remove: "删除",
+        attached: "附录：",
+        assignTo: "分配到",
+        optional: "（可选）",
+        searchUsersGroups: "搜索用户和组......",
+        users: "用户",
+        groups: "团体",
+        noUsersFound: "未找到用户",
+        noGroupsFound: "未找到组",
+        failedToLoad: "加载失败",
+        updateExistingList: "更新现有名单",
+        selectListToUpdate: "选择列表进行更新",
+        createNewList: "——创建新名单——",
+        replaceHint: "如果被选中，列表中的所有任务都会被替换。留空以创建新列表。",
+        working: "工作......",
+        updateYourTasks: "更新你的任务",
+        noTasksInSheet: "表格里没有找到任务。",
+        nTasksAdded: "新增{n}任务",
+        done: "完成！",
+    },
+    ja_JP: {
+        targetStores: "ターゲット{stores}",
+        findStores: "見つけ{stores}",
+        loadingStores: "読み込み{stores}...",
+        searchStores: "{stores}を捜索...",
+        selectStore: "{store}を選んで...",
+        noStoresFound: "{stores}は見つかりませんでした",
+        failedLoadStores: "ロードに失敗{stores}",
+        errorLoading: "エラーロード",
+        loading: "読み込み中...",
+        pullReviewTasks: "プル&レビュータスク",
+        taskListName: "タスクリスト名",
+        taskListNamePlaceholder: "例:第2四半期ストアチェックリスト",
+        pullFromExternal: "外部サービスからの引用",
+        reviewEditTasks: "レビュー&編集タスク",
+        nTasks: "{n}任務",
+        title: "タイトル",
+        taskTitlePlaceholder: "課題タイトル",
+        description: "概要",
+        type: "種類",
+        noneOption: "— なし —",
+        dueDate: "予定日",
+        addTask: "タスクを追加",
+        attachFiles: "ファイルを添付する",
+        remove: "削除",
+        attached: "添付:",
+        assignTo: "割り当て",
+        optional: "(任意)",
+        searchUsersGroups: "ユーザーやグループを検索...",
+        users: "ユーザー",
+        groups: "グループ",
+        noUsersFound: "ユーザーは見つかりませんでした",
+        noGroupsFound: "グループは見つかりませんでした",
+        failedToLoad: "ロードに失敗しました",
+        updateExistingList: "既存リストの更新",
+        selectListToUpdate: "更新するリストを選択してください",
+        createNewList: "— 新しいリストを作成 —",
+        replaceHint: "選択されると、そのリスト内のすべてのタスクが置き換えられます。新しいリストを作成するには空欄のままにしてください。",
+        working: "仕事中...",
+        updateYourTasks: "タスクを更新する",
+        noTasksInSheet: "シートにはタスクが見つからなかった。",
+        nTasksAdded: "{n}タスクが追加されました",
+        done: "完了!",
+    },
+    th_TH: {
+        targetStores: "เป้าหมาย {stores}",
+        findStores: "ค้นหา{stores}",
+        loadingStores: "กําลังโหลด{stores}...",
+        searchStores: "ค้นหา{stores}...",
+        selectStore: "เลือก{store}...",
+        noStoresFound: "ไม่พบ{stores}",
+        failedLoadStores: "โหลด{stores}ไม่สําเร็จ",
+        errorLoading: "โหลดผิดพลาด",
+        loading: "กําลังโหลด...",
+        pullReviewTasks: "งานดึงและทบทวน",
+        taskListName: "ชื่อรายการงาน",
+        taskListNamePlaceholder: "เช่น รายการตรวจสอบร้านค้า Q2",
+        pullFromExternal: "ดึงจากบริการภายนอก",
+        reviewEditTasks: "ตรวจสอบและแก้ไขงาน",
+        nTasks: "งาน{n}",
+        title: "ชื่อเรื่อง",
+        taskTitlePlaceholder: "ชื่องาน",
+        description: "คําอธิบาย",
+        type: "ชนิดภาพเขียน",
+        noneOption: "— ไม่มี —",
+        dueDate: "วันครบกําหนด",
+        addTask: "เพิ่มงาน",
+        attachFiles: "แนบไฟล์",
+        remove: "ลบ",
+        attached: "แนบมา:",
+        assignTo: "มอบหมายให้",
+        optional: "(ไม่บังคับ)",
+        searchUsersGroups: "ค้นหาผู้ใช้และกลุ่ม...",
+        users: "ผู้ใช้",
+        groups: "กลุ่ม",
+        noUsersFound: "ไม่พบผู้ใช้",
+        noGroupsFound: "ไม่พบกลุ่ม",
+        failedToLoad: "โหลดไม่สําเร็จ",
+        updateExistingList: "อัปเดตรายการที่มีอยู่",
+        selectListToUpdate: "เลือกรายการที่จะอัปเดต",
+        createNewList: "— สร้างรายการใหม่ —",
+        replaceHint: "ถ้าเลือก งานทั้งหมดในรายการนั้นจะถูกแทนที่ เว้นว่างไว้เพื่อสร้างรายการใหม่",
+        working: "ทํางาน...",
+        updateYourTasks: "อัปเดตงานของคุณ",
+        noTasksInSheet: "ไม่พบงานในชีต",
+        nTasksAdded: "เพิ่มงาน{n}",
+        done: "เสร็จแล้ว!",
+    },
+    es_MX: {
+        targetStores: "Objetivo {stores}",
+        findStores: "Encuentra {stores}",
+        loadingStores: "Cargando {stores}...",
+        searchStores: "Registrar {stores}...",
+        selectStore: "Elige un {store}...",
+        noStoresFound: "No se encontró {stores}",
+        failedLoadStores: "No se ha podido cargar {stores}",
+        errorLoading: "Carga de errores",
+        loading: "Cargando...",
+        pullReviewTasks: "Tareas de Extracción y Revisión",
+        taskListName: "Nombre de la lista de tareas",
+        taskListNamePlaceholder: "por ejemplo, lista de verificación de tiendas Q2",
+        pullFromExternal: "Retirada de Servicios Externos",
+        reviewEditTasks: "Revisar y editar tareas",
+        nTasks: "{n} tareas",
+        title: "Título",
+        taskTitlePlaceholder: "Título de la tarea",
+        description: "Descripción",
+        type: "Tipo",
+        noneOption: "— ninguno —",
+        dueDate: "Fecha de parto",
+        addTask: "Añadir tarea",
+        attachFiles: "Adjuntar archivos",
+        remove: "Eliminar",
+        attached: "Adjunto:",
+        assignTo: "Asignar a",
+        optional: "(opcional)",
+        searchUsersGroups: "Buscar usuarios y grupos...",
+        users: "Usuarios",
+        groups: "Grupos",
+        noUsersFound: "No se han encontrado usuarios",
+        noGroupsFound: "No se han encontrado grupos",
+        failedToLoad: "No se ha cargado",
+        updateExistingList: "Actualizar lista existente",
+        selectListToUpdate: "Seleccione una lista para actualizar",
+        createNewList: "— Crear una nueva lista —",
+        replaceHint: "Si se selecciona, todas las tareas de esa lista se reemplazan. Déjalo en blanco para crear una nueva lista.",
+        working: "Trabajando...",
+        updateYourTasks: "Actualiza tus tareas",
+        noTasksInSheet: "No se encuentran tareas en la hoja.",
+        nTasksAdded: "{n} tareas añadidas",
+        done: "¡Hecho!",
+    },
+    vi_VN: {
+        targetStores: "Mục tiêu {stores}",
+        findStores: "Tìm {stores}",
+        loadingStores: "Đang tải {stores}...",
+        searchStores: "Tìm kiếm {stores}...",
+        selectStore: "Chọn một {store}...",
+        noStoresFound: "Không tìm thấy {stores}",
+        failedLoadStores: "Không tải được {stores}",
+        errorLoading: "Lỗi tải",
+        loading: "Đang tải...",
+        pullReviewTasks: "Nhiệm vụ Pull & Review",
+        taskListName: "Tên danh sách nhiệm vụ",
+        taskListNamePlaceholder: "ví dụ: Danh sách kiểm tra cửa hàng Q2",
+        pullFromExternal: "Lấy từ các dịch vụ bên ngoài",
+        reviewEditTasks: "Xem lại và chỉnh sửa nhiệm vụ",
+        nTasks: "{n} nhiệm vụ",
+        title: "Tiêu đề",
+        taskTitlePlaceholder: "Tiêu đề nhiệm vụ",
+        description: "Sự miêu tả",
+        type: "Kiểu",
+        noneOption: "- không có -",
+        dueDate: "Ngày đến hạn",
+        addTask: "Thêm nhiệm vụ",
+        attachFiles: "Đính kèm tệp",
+        remove: "Loại bỏ",
+        attached: "Đính kèm:",
+        assignTo: "Gán cho",
+        optional: "(tùy chọn)",
+        searchUsersGroups: "Tìm kiếm người dùng và nhóm...",
+        users: "Người dùng",
+        groups: "Nhóm",
+        noUsersFound: "Không tìm thấy người dùng",
+        noGroupsFound: "Không tìm thấy nhóm nào",
+        failedToLoad: "Không tải được",
+        updateExistingList: "Cập nhật danh sách hiện có",
+        selectListToUpdate: "Chọn một danh sách để cập nhật",
+        createNewList: "— Tạo một danh sách mới —",
+        replaceHint: "Nếu được chọn, tất cả các nhiệm vụ trong danh sách đó sẽ được thay thế. Để trống để tạo danh sách mới.",
+        working: "Đang làm việc...",
+        updateYourTasks: "Cập nhật nhiệm vụ của bạn",
+        noTasksInSheet: "Không tìm thấy nhiệm vụ nào trong trang tính.",
+        nTasksAdded: "{n} nhiệm vụ được thêm vào",
+        done: "Xong!",
+    },
+    ko_KR: {
+        targetStores: "타겟 {stores}",
+        findStores: "찾아{stores}",
+        loadingStores: "로딩 {stores}...",
+        searchStores: "수색{stores}...",
+        selectStore: "{store} 선택하세요...",
+        noStoresFound: "{stores} 발견되지 않았습니다",
+        failedLoadStores: "로드에 실패{stores}",
+        errorLoading: "오류 로딩",
+        loading: "로딩 중...",
+        pullReviewTasks: "작업 추출 및 검토",
+        taskListName: "작업 목록 이름",
+        taskListNamePlaceholder: "예: Q2 매장 체크리스트",
+        pullFromExternal: "외부 서비스에서 자료 추출",
+        reviewEditTasks: "검토 및 편집 작업",
+        nTasks: "{n} 임무",
+        title: "제목",
+        taskTitlePlaceholder: "과제 제목",
+        description: "설명",
+        type: "유형",
+        noneOption: "— 없음 —",
+        dueDate: "예정일",
+        addTask: "작업 추가",
+        attachFiles: "파일 첨부",
+        remove: "제거",
+        attached: "첨부:",
+        assignTo: "할당",
+        optional: "(선택 사항)",
+        searchUsersGroups: "사용자 및 그룹을 검색하세요...",
+        users: "사용자",
+        groups: "그룹",
+        noUsersFound: "사용자를 찾지 못했습니다",
+        noGroupsFound: "그룹 찾기 어떠",
+        failedToLoad: "로딩 실패",
+        updateExistingList: "기존 목록 업데이트",
+        selectListToUpdate: "업데이트할 목록을 선택하세요",
+        createNewList: "— 새 목록을 만들기 —",
+        replaceHint: "선택되면 해당 목록에 있는 모든 작업이 교체됩니다. 빈칸으로 남겨두면 새 목록을 만드세요.",
+        working: "일하는 중...",
+        updateYourTasks: "작업 업데이트",
+        noTasksInSheet: "시트에는 어떤 작업도 없었습니다.",
+        nTasksAdded: "{n} 과제 추가됨",
+        done: "끝!",
+    },
+    tl_PH: {
+        targetStores: "Target {stores}",
+        findStores: "Hanapin {stores}",
+        loadingStores: "Pag-load {stores} ...",
+        searchStores: "Hanapin {stores} ...",
+        selectStore: "Pumili ng isang {store} ...",
+        noStoresFound: "Walang {stores} natagpuan",
+        failedLoadStores: "Nabigo akong mag-load ng {stores}",
+        errorLoading: "Error sa paglo-load",
+        loading: "Naglo-load...",
+        pullReviewTasks: "Mga Gawain sa Hilahin at Suruhin",
+        taskListName: "Pangalan ng Listahan ng Gawain",
+        taskListNamePlaceholder: "Halimbawa, Checklist ng Tindahan ng Q2",
+        pullFromExternal: "Kumuha mula sa Mga Panlabas na Serbisyo",
+        reviewEditTasks: "Suriin at I-edit ang Mga Gawain",
+        nTasks: "{n} Mga Gawain",
+        title: "Pamagat",
+        taskTitlePlaceholder: "Pamagat ng gawain",
+        description: "Paglalarawan",
+        type: "Uri",
+        noneOption: "— wala —",
+        dueDate: "Takdang Petsa",
+        addTask: "Email Address *",
+        attachFiles: "Email Address *",
+        remove: "Alisin",
+        attached: "Nakakabit:",
+        assignTo: "Magtalaga sa",
+        optional: "(opsyonal)",
+        searchUsersGroups: "Hanapin ang mga gumagamit at pangkat ...",
+        users: "Mga Gumagamit",
+        groups: "Mga Grupo",
+        noUsersFound: "Walang natagpuang user",
+        noGroupsFound: "Walang natagpuang grupo",
+        failedToLoad: "Nabigong mag-load",
+        updateExistingList: "I-update ang Umiiral na Listahan",
+        selectListToUpdate: "Pumili ng listahan na i-update",
+        createNewList: "— Lumikha ng bagong listahan —",
+        replaceHint: "Kung napili, ang lahat ng mga gawain sa listahang iyon ay pinalitan. Mag-iwan ng blangko upang lumikha ng isang bagong listahan.",
+        working: "Nagtatrabaho ...",
+        updateYourTasks: "I-update ang iyong Mga Gawain",
+        noTasksInSheet: "Walang mga gawain na natagpuan sa sheet.",
+        nTasksAdded: "{n} mga gawain na idinagdag",
+        done: "Tapos na!",
+    },
+    pt_BR: {
+        targetStores: "Alvo {stores}",
+        findStores: "Encontre {stores}",
+        loadingStores: "Carregando {stores}...",
+        searchStores: "Procurem {stores}...",
+        selectStore: "Escolha um {store}...",
+        noStoresFound: "Nenhuma {stores} encontrada",
+        failedLoadStores: "Não carreguei {stores}",
+        errorLoading: "Carregamento de erros",
+        loading: "Carregando...",
+        pullReviewTasks: "Puxar e revisar tarefas",
+        taskListName: "Nome da Lista de Tarefas",
+        taskListNamePlaceholder: "por exemplo, lista de verificação da loja do segundo trimestre",
+        pullFromExternal: "Puxar de Serviços Externos",
+        reviewEditTasks: "Revisar e editar tarefas",
+        nTasks: "{n} Tarefas",
+        title: "Título",
+        taskTitlePlaceholder: "Título da tarefa",
+        description: "Descrição",
+        type: "Tipo",
+        noneOption: "— nenhum —",
+        dueDate: "Data de parto",
+        addTask: "Adicionar tarefa",
+        attachFiles: "Anexar arquivos",
+        remove: "Remover",
+        attached: "ANEXADO:",
+        assignTo: "Atribuir a",
+        optional: "(opcional)",
+        searchUsersGroups: "Pesquise usuários e grupos...",
+        users: "Usuários",
+        groups: "Grupos",
+        noUsersFound: "Nenhum usuário encontrado",
+        noGroupsFound: "Nenhum grupo encontrado",
+        failedToLoad: "Falharam ao carregar",
+        updateExistingList: "Atualizar Lista Existente",
+        selectListToUpdate: "Selecione uma lista para atualizar",
+        createNewList: "— Criar uma nova lista —",
+        replaceHint: "Se selecionadas, todas as tarefas dessa lista são substituídas. Deixe em branco para criar uma nova lista.",
+        working: "Trabalhando...",
+        updateYourTasks: "Atualize suas Tarefas",
+        noTasksInSheet: "Nenhuma tarefa encontrada na ficha.",
+        nTasksAdded: "{n} tarefas adicionadas",
+        done: "Pronto!",
+    },
+    ht_HT: {
+        targetStores: "Sib {stores}",
+        findStores: "Jwenn {stores}",
+        loadingStores: "Loading {stores}...",
+        searchStores: "Rechèch {stores}...",
+        selectStore: "Chwazi yon {store}...",
+        noStoresFound: "Pa gen {stores} jwenn",
+        failedLoadStores: "Echwe pou pou chaje {stores}",
+        errorLoading: "Erè loading",
+        loading: "Chaje ...",
+        pullReviewTasks: "Rale & Revizyon Travay",
+        taskListName: "Non Lis Travay la",
+        taskListNamePlaceholder: "Egzanp, Q2 Store Lis verifikasyon",
+        pullFromExternal: "Rale soti nan Sèvis Ekstèn",
+        reviewEditTasks: "Revize & Edit Travay",
+        nTasks: "{n} travay",
+        title: "",
+        taskTitlePlaceholder: "travay la",
+        description: "Deskripsyon",
+        type: "Kalite",
+        noneOption: "— Pa gen yonn —",
+        dueDate: "Dat limit",
+        addTask: "Ajoute travay",
+        attachFiles: "Tache dosye",
+        remove: "Retire",
+        attached: "Tache:",
+        assignTo: "Asiyen a",
+        optional: "(si ou vle)",
+        searchUsersGroups: "Itilizatè rechèch ak gwoup ...",
+        users: "Itilizatè yo",
+        groups: "Gwoup yo",
+        noUsersFound: "Pa gen itilizatè yo jwenn",
+        noGroupsFound: "Pa gen gwoup yo te jwenn",
+        failedToLoad: "Echwe pou pou chaje",
+        updateExistingList: "Mizajou Lis ki deja egziste",
+        selectListToUpdate: "Chwazi yon lis pou mete ajou",
+        createNewList: "— Kreye yon nouvo lis —",
+        replaceHint: "Si yo chwazi, tout travay nan lis sa a yo ranplase. Kite vid pou kreye yon nouvo lis.",
+        working: "Travay ...",
+        updateYourTasks: "Mete ajou Travay ou yo",
+        noTasksInSheet: "Pa gen okenn travay yo te jwenn nan fèy la.",
+        nTasksAdded: "{n} travay te ajoute",
+        done: "Fè!",
+    },
 };
 
 ;// ./tasks-integration-widget.ts
-var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
+var tasks_integration_widget_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
         function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
@@ -392,7 +985,7 @@ const factory = (BaseBlockClass, widgetApi) => {
             super();
         }
         renderBlock(container) {
-            return __awaiter(this, void 0, void 0, function* () {
+            return tasks_integration_widget_awaiter(this, void 0, void 0, function* () {
                 var _a;
                 const appsScriptUrl = this.getAttribute("appsscripturl") || DEFAULT_APPS_SCRIPT_URL;
                 const apiToken = this.getAttribute("apitoken") || DEFAULT_API_TOKEN;
@@ -1066,7 +1659,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     return btoa(out);
                 }
                 function uploadMedia(file) {
-                    return __awaiter(this, void 0, void 0, function* () {
+                    return tasks_integration_widget_awaiter(this, void 0, void 0, function* () {
                         const create = yield fetch(`${baseUrl}/media/tus`, {
                             method: "POST", credentials: "omit",
                             headers: {
@@ -1319,7 +1912,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 listName.addEventListener("input", validate);
                 // ── Fetch installations ───────────────────────────────────────────
                 function fetchInstallations() {
-                    return __awaiter(this, void 0, void 0, function* () {
+                    return tasks_integration_widget_awaiter(this, void 0, void 0, function* () {
                         try {
                             const res = yield fetch(`${baseUrl}/installations?limit=200`, Object.assign({}, apiOpts()));
                             if (!res.ok)
@@ -1353,7 +1946,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 }
                 // ── Load existing task lists (update mode only) ───────────────────
                 function loadExistingLists() {
-                    return __awaiter(this, void 0, void 0, function* () {
+                    return tasks_integration_widget_awaiter(this, void 0, void 0, function* () {
                         if (!existingSel)
                             return;
                         existingSel.innerHTML = `<option value="">${tx("createNewList")}</option>`;
@@ -1377,7 +1970,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 // ── Fetch users & groups ──────────────────────────────────────────
                 let assignTab = "user";
                 function fetchUsersAndGroups() {
-                    return __awaiter(this, void 0, void 0, function* () {
+                    return tasks_integration_widget_awaiter(this, void 0, void 0, function* () {
                         try {
                             const [uRes, gRes] = yield Promise.all([
                                 fetch(`${baseUrl}/users?limit=200`, apiOpts()),
@@ -1506,7 +2099,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 });
                 assignSearchInp.addEventListener("input", () => renderAssignList(assignSearchInp.value));
                 // ── Pull from sheet ───────────────────────────────────────────────
-                pullBtn.addEventListener("click", () => __awaiter(this, void 0, void 0, function* () {
+                pullBtn.addEventListener("click", () => tasks_integration_widget_awaiter(this, void 0, void 0, function* () {
                     pullBtn.disabled = true;
                     pullBtn.innerHTML = `<span class="${p}-spin"></span>`;
                     statusEl.style.display = "none";
@@ -1550,7 +2143,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     addRow();
                 });
                 // ── Update Staffbase ──────────────────────────────────────────────
-                submitBtn.addEventListener("click", () => __awaiter(this, void 0, void 0, function* () {
+                submitBtn.addEventListener("click", () => tasks_integration_widget_awaiter(this, void 0, void 0, function* () {
                     var _a, _b, _c, _d, _e;
                     const tasks = collectTasks();
                     if (!tasks.length || !selectedStores.length)
