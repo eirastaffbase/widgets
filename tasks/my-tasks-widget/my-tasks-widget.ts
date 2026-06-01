@@ -530,6 +530,18 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-type-opt.active,.${p}-type-opt.active:hover,.${p}-type-opt.active:focus{background:rgba(var(--primary-rgb),.06)!important}
           .${p}-detail-toggle-btn.done-btn,.${p}-detail-toggle-btn.done-btn:focus{background:rgba(var(--primary-rgb),.08)!important}
           .${p}-detail-toggle-btn.done-btn:hover{background:var(--primary)!important;color:var(--primary-text)!important}
+          /* Faded-accent click feedback on the primary CTAs (replaces host blue :active) */
+          .${p}-new-btn:active,.${p}-btn-save:active,.${p}-cmt-send:active{background:rgba(var(--accent-rgb),.85)!important;color:#fff!important;filter:none!important}
+          /* Pin text/icon color so the host button color:#fff rules can't whiten light buttons */
+          .${p}-status-opt:not(.active),.${p}-status-opt:not(.active):hover,.${p}-status-opt:not(.active):focus,.${p}-status-opt:not(.active):active,
+          .${p}-type-opt:not(.active),.${p}-type-opt:not(.active):focus,.${p}-type-opt:not(.active):active,
+          .${p}-audit-arrow,.${p}-audit-arrow:hover,.${p}-audit-arrow:focus,.${p}-audit-arrow:active,
+          .${p}-amodal-x,.${p}-amodal-x:hover,.${p}-amodal-x:focus,.${p}-amodal-x:active{color:var(--gray)!important}
+          .${p}-type-btn,.${p}-type-btn:focus,.${p}-type-btn:active{color:var(--gray)!important}
+          .${p}-type-btn:hover,.${p}-type-btn.open{color:var(--accent)!important}
+          .${p}-type-opt:hover,.${p}-type-opt.active{color:var(--dark)!important}
+          .${p}-other-toggle,.${p}-other-toggle:hover,.${p}-other-toggle:focus,.${p}-other-toggle:active{color:var(--gray-lt)!important}
+          .${p}-reassign-btn,.${p}-reassign-btn:hover,.${p}-reassign-btn:focus,.${p}-reassign-btn:active{color:var(--primary)!important}
           .${p}-detail-toggle-btn.open-btn,.${p}-detail-toggle-btn.open-btn:focus{background:#f3f4f6!important}
           .${p}-detail-toggle-btn.open-btn:hover{background:var(--border)!important;color:var(--dark)!important}
           .${p}-reassign-opt,.${p}-reassign-opt:focus{background:none!important}
@@ -653,27 +665,30 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       if (self._mtwDocClick) { document.removeEventListener("click",   self._mtwDocClick); self._mtwDocClick = undefined; }
       if (self._mtwDocKey)   { document.removeEventListener("keydown", self._mtwDocKey);   self._mtwDocKey   = undefined; }
 
-      // Defensive sweep for orphans from prior navigations where
-      // disconnectedCallback never ran (e.g. parent innerHTML wipe).
-      document.querySelectorAll<HTMLElement>(`.${p}-overlay[data-mtw-inst], .${p}-detail[data-mtw-inst]`).forEach(el => {
-        const inst = el.dataset.mtwInst;
-        if (!inst) { el.remove(); return; }
-        const hostStillAlive = !!document.querySelector(`[data-mtw-inst="${inst}"]:not(.${p}-overlay):not(.${p}-detail)`);
-        if (!hostStillAlive) el.remove();
-      });
-
       const instId = Math.random().toString(36).slice(2);
       container.dataset.mtwInst = instId;
+      container.dataset.sbPortalHost = instId;
+
+      // Defensive sweep: remove any body-appended portal node — from this or any
+      // sibling task widget — whose owning host is no longer in the DOM.
+      // disconnectedCallback is unreliable across Staffbase SPA navigation, so a
+      // widget that *is* on the page clears stale portals left by pages that aren't.
+      document.querySelectorAll<HTMLElement>("[data-sb-portal]").forEach(node => {
+        const owner = node.getAttribute("data-sb-portal");
+        if (!owner || !document.querySelector(`[data-sb-portal-host="${owner}"]`)) node.remove();
+      });
 
       const overlayEl = document.createElement("div");
       overlayEl.className = `${p}-overlay`;
       overlayEl.dataset.mtwInst = instId;
+      overlayEl.dataset.sbPortal = instId;
       document.body.appendChild(overlayEl);
       self._mtwOverlay = overlayEl;
 
       const detailEl = document.createElement("div");
       detailEl.className = `${p}-detail`;
       detailEl.dataset.mtwInst = instId;
+      detailEl.dataset.sbPortal = instId;
       detailEl.innerHTML = `
         <div class="${p}-detail-handle"></div>
         <div class="${p}-detail-head">
@@ -707,6 +722,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           </div>
           <div class="${p}-amodal-body" id="${p}-amodal-body-${instId}"></div>
         </div>`;
+      attModal.dataset.sbPortal = instId;
       document.body.appendChild(attModal);
       self._mtwAModal = attModal;
       const aName = attModal.querySelector(`#${p}-amodal-name-${instId}`) as HTMLElement;
@@ -2446,6 +2462,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           if(!createEl){
             createEl=document.createElement("div");
             createEl.className=`${p}-create`;
+            createEl.dataset.sbPortal=instId;
             document.body.appendChild(createEl);
             self._mtwCreate=createEl;
           }

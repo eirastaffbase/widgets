@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Staffbase Task Widgets</title>
+<style>
+  :root{
+    --red:#da2e32; --red-rgb:218,46,50; --gold:#F2A900; --gold-rgb:242,169,0;
+    --ink:#1a1a1a; --gray:#6b7280; --gray-lt:#9ca3af; --line:#e5e7eb; --bg:#f4f5f7;
+    --r:16px; --shadow:0 1px 3px rgba(0,0,0,.06),0 8px 28px rgba(0,0,0,.06);
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
+  a{color:inherit}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+
+  /* ── Hero ── */
+  header.hero{position:relative;overflow:hidden;background:linear-gradient(135deg,#b21f23,#da2e32 55%,#e8662a);color:#fff;padding:64px 0 120px}
+  header.hero::after{content:"";position:absolute;inset:0;background:radial-gradient(900px 360px at 80% -10%,rgba(242,169,0,.35),transparent 60%);pointer-events:none}
+  .hero .wrap{position:relative;z-index:1}
+  .hero .eyebrow{font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;opacity:.85;display:flex;align-items:center;gap:8px}
+  .hero .eyebrow .dot{width:9px;height:9px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 4px rgba(242,169,0,.25)}
+  .hero h1{font-size:clamp(32px,5vw,52px);font-weight:800;letter-spacing:-.02em;margin:14px 0 12px;line-height:1.05}
+  .hero p{font-size:17px;max-width:620px;opacity:.92}
+  .hero .badges{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+  .badge{font-size:12px;font-weight:600;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);padding:5px 11px;border-radius:999px;backdrop-filter:blur(4px)}
+
+  /* ── Cards ── */
+  main{margin-top:-78px;padding-bottom:72px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:20px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column;transition:transform .18s ease,box-shadow .18s ease}
+  .card:hover{transform:translateY(-3px);box-shadow:0 2px 6px rgba(0,0,0,.07),0 18px 44px rgba(0,0,0,.1)}
+  .card-top{padding:22px 22px 0;display:flex;align-items:flex-start;gap:14px}
+  .ic{width:46px;height:46px;border-radius:13px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;background:linear-gradient(135deg,var(--red),var(--gold))}
+  .ic svg{width:24px;height:24px}
+  .card h2{font-size:18px;font-weight:800;letter-spacing:-.01em}
+  .card .tag{font-size:11.5px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+  .card-body{padding:14px 22px 22px;display:flex;flex-direction:column;gap:16px;flex:1}
+  .desc{font-size:14.5px;color:#374151}
+  .feat{list-style:none;display:flex;flex-wrap:wrap;gap:6px}
+  .feat li{font-size:12px;font-weight:600;color:var(--gray);background:#f3f4f6;border-radius:7px;padding:4px 9px}
+  details.params{border-top:1px solid var(--line);padding-top:12px}
+  details.params summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--ink);list-style:none;display:flex;align-items:center;gap:6px}
+  details.params summary::-webkit-details-marker{display:none}
+  details.params summary .chev{transition:transform .2s;color:var(--gray-lt)}
+  details.params[open] summary .chev{transform:rotate(90deg)}
+  .ptable{margin-top:10px;width:100%;border-collapse:collapse;font-size:12.5px}
+  .ptable td{padding:5px 8px;vertical-align:top;border-bottom:1px solid #f1f2f4}
+  .ptable td:first-child{white-space:nowrap;font-family:ui-monospace,Menlo,monospace;color:var(--red);font-size:11.5px}
+  .ptable td:last-child{color:var(--gray)}
+  .actions{margin-top:auto;display:flex;gap:10px}
+  .btn{flex:1;border:none;border-radius:11px;padding:11px 16px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:7px;transition:filter .15s,transform .1s}
+  .btn:active{transform:scale(.97)}
+  .btn-primary{background:var(--red);color:#fff;box-shadow:0 3px 10px rgba(var(--red-rgb),.3)}
+  .btn-primary:hover{filter:brightness(1.05)}
+
+  /* ── Preview modal ── */
+  .overlay{position:fixed;inset:0;background:rgba(15,16,18,.55);backdrop-filter:blur(3px);opacity:0;pointer-events:none;transition:opacity .2s;z-index:1000;display:flex;flex-direction:column}
+  .overlay.open{opacity:1;pointer-events:auto}
+  .modal-bar{flex-shrink:0;display:flex;align-items:center;gap:14px;padding:14px 20px;color:#fff}
+  .modal-bar h3{font-size:15px;font-weight:700}
+  .modal-bar .sub{font-size:12px;opacity:.7}
+  .modal-bar .spacer{flex:1}
+  .seg{display:inline-flex;background:rgba(255,255,255,.14);border-radius:9px;padding:3px}
+  .seg button{border:none;background:none;color:#fff;font-family:inherit;font-size:12px;font-weight:700;padding:5px 12px;border-radius:7px;cursor:pointer;opacity:.7}
+  .seg button.active{background:#fff;color:var(--ink);opacity:1}
+  .x{width:34px;height:34px;border-radius:9px;border:none;background:rgba(255,255,255,.14);color:#fff;font-size:18px;cursor:pointer;flex-shrink:0}
+  .x:hover{background:rgba(255,255,255,.26)}
+  .stage{flex:1;overflow:auto;padding:24px;display:flex;justify-content:center;align-items:flex-start}
+  .device{background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.4);width:100%;max-width:480px;min-height:200px;overflow:hidden;transition:max-width .25s ease}
+  .device.wide{max-width:920px}
+  .note{flex-shrink:0;text-align:center;color:rgba(255,255,255,.8);font-size:12px;padding:0 20px 16px;display:flex;align-items:center;justify-content:center;gap:7px}
+  .note svg{width:14px;height:14px;flex-shrink:0}
+
+  footer{text-align:center;color:var(--gray-lt);font-size:13px;padding:32px 0 48px}
+  footer code{font-family:ui-monospace,Menlo,monospace;font-size:12px;background:#fff;border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:var(--gray)}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow"><span class="dot"></span> Staffbase Widgets</div>
+    <h1>Task Widgets</h1>
+    <p>Four widgets for creating, running, auditing, and scheduling Staffbase tasks — each auto-translates to the viewer's language and adapts to your brand colors. Click any widget to preview it live.</p>
+    <div class="badges">
+      <span class="badge">🌍 15 locales · auto-detected</span>
+      <span class="badge">↔ RTL support</span>
+      <span class="badge">🎨 Primary + accent theming</span>
+      <span class="badge">📱 Mobile &amp; desktop</span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <div class="grid" id="grid"></div>
+  </div>
+</main>
+
+<footer>
+  Hosted at <code>eirastaffbase.github.io/widgets/tasks/</code> · previews run on dummy data only
+</footer>
+
+<!-- Preview modal -->
+<div class="overlay" id="overlay">
+  <div class="modal-bar">
+    <div>
+      <h3 id="m-title">Preview</h3>
+      <div class="sub" id="m-sub"></div>
+    </div>
+    <div class="spacer"></div>
+    <div class="seg" id="m-width">
+      <button data-w="mobile" class="active">Mobile</button>
+      <button data-w="desktop">Desktop</button>
+    </div>
+    <button class="x" id="m-close" aria-label="Close">✕</button>
+  </div>
+  <div class="stage"><div class="device" id="device"></div></div>
+  <div class="note">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    Dummy data only — no real API calls, the Google Sheet is stubbed, and nothing is ever written to Staffbase.
+  </div>
+</div>
+
+<!-- ════════════════════ Dummy SDK + airtight mock ════════════════════ -->
+<script>
+const MOCK_USER_ID = "preview-user-001";
+
+const mockWidgetApi = {
+  getUserInformation: async () => ({ id: MOCK_USER_ID, firstName: "Nicole", lastName: "Adams", groupIDs: ["grp-mgr"] }),
+  getLegacyAppTheme: () => ({ bgColor:"#da2e32", textColor:"#fff", colors:{ clientPrimary:"#da2e32", clientSecondary:"#fff" } }),
+  getBranchInformation: () => ({ slug:"preview", branchId:"preview", webUrl:"", flags:[] }),
+};
+class MockBaseBlock {
+  constructor(){ this._attrs = {}; }
+  getAttribute(n){ return this._attrs.hasOwnProperty(n) ? this._attrs[n] : null; }
+  setAttribute(n,v){ this._attrs[n] = String(v); }
+}
+const registeredBlocks = {};
+window.defineBlock = (def) => { registeredBlocks[def.blockDefinition.name] = def; };
+
+// ── Dummy data ──────────────────────────────────────────────────────────
+const DUMMY_USERS = {
+  "u-maria": { id:"u-maria", firstName:"Maria", lastName:"Lopez", avatar:{icon:{url:"https://i.pravatar.cc/100?img=5"}} },
+  "u-james": { id:"u-james", firstName:"James", lastName:"Chen",  avatar:{icon:{url:"https://i.pravatar.cc/100?img=12"}} },
+  "u-priya": { id:"u-priya", firstName:"Priya", lastName:"Nair",  avatar:{icon:{url:"https://i.pravatar.cc/100?img=32"}} },
+  [MOCK_USER_ID]: { id:MOCK_USER_ID, firstName:"Nicole", lastName:"Adams", config:{locale:"en_US"}, avatar:{icon:{url:"https://i.pravatar.cc/100?img=47"}} },
+};
+const DUMMY_USERS_LIST = { data: Object.values(DUMMY_USERS) };
+const DUMMY_GROUPS = { data:[
+  { id:"grp-crew",  name:"Store Crew",      config:{localization:{en_US:{title:"Store Crew"}}} },
+  { id:"grp-mgr",   name:"Store Managers",  config:{localization:{en_US:{title:"Store Managers"}}} },
+  { id:"grp-facil", name:"Facilities Team", config:{localization:{en_US:{title:"Facilities Team"}}} },
+  { id:"grp-safe",  name:"Food Safety",     config:{localization:{en_US:{title:"Food Safety"}}} },
+]};
+const DUMMY_GROUPS_SEARCH = { entries: DUMMY_GROUPS.data.map(g=>({ data:g })) };
+const DUMMY_INSTALLS = { data:[
+  { id:"inst1", pluginID:"tasks", config:{localization:{en_US:{title:"Store #1234"}}} },
+  { id:"inst2", pluginID:"tasks", config:{localization:{en_US:{title:"Store #6523"}}} },
+]};
+const DUMMY_TASKS = [
+  { id:"t1", title:"EOM Inventory Count", description:"Complete full store inventory count for April — dry goods, proteins, produce, packaging. [type: Finance]", status:"OPEN", dueDate:"2026-06-30T00:00:00Z", priority:"Priority_1", taskListId:"list1", assigneeIds:[MOCK_USER_ID], groupIds:[], attachmentIds:[] },
+  { id:"t2", title:"Drive-Thru Speed of Service Focus", description:"Review drive-thru times with shift leads this week. [type: Operations]", status:"OPEN", dueDate:"2026-06-12T00:00:00Z", priority:"Priority_2", taskListId:"list1", assigneeIds:[MOCK_USER_ID], groupIds:[], attachmentIds:[] },
+  { id:"t3", title:"Q2 Food Safety Certification", description:"Ensure all shift leads have completed ServSafe. [type: Compliance]", status:"OPEN", dueDate:"2026-06-18T00:00:00Z", priority:"Priority_3", taskListId:"list1", assigneeIds:[MOCK_USER_ID], groupIds:[], attachmentIds:[] },
+  { id:"t4", title:"Guest Love Training Module", description:"Complete the 15-min customer interaction refresher. [type: Training]", status:"CLOSED", dueDate:"2026-05-20T00:00:00Z", priority:"Priority_3", taskListId:"list1", assigneeIds:[MOCK_USER_ID], groupIds:[], attachmentIds:[] },
+];
+const DUMMY_COMMENTS = { data:[
+  { id:"c1", authorId:"u-maria", content:"<p>Started the dry-storage count — about halfway done.</p>", createdAt:new Date(Date.now()-936e5).toISOString() },
+  { id:"c2", authorId:"u-james", content:"<p>Thanks Maria! I'll take the walk-in cooler this afternoon.</p>", createdAt:new Date(Date.now()-108e5).toISOString() },
+], total:2 };
+const DUMMY_SHEET_TASKS = {
+  sheet:"Preview",
+  tasks:[
+    { title:"Shrink Awareness Briefing", description:"Pre-shift loss-prevention briefing with all floor associates.", dueDate:"2026-06-10T04:00:00.000Z", taskType:"Safety" },
+    { title:"Freight Processing", description:"Process the weekly truck and stage backstock.", dueDate:"2026-06-11T04:00:00.000Z", taskType:"Operations" },
+    { title:"Planogram Reset — Endcaps", description:"Reset seasonal endcaps per the new planogram.", dueDate:"2026-06-13T04:00:00.000Z", taskType:"Merchandising" },
+  ],
+};
+
+function mockJson(data){ const b=JSON.stringify(data); return { ok:true, status:200, json:async()=>data, text:async()=>b, headers:{get:()=>null} }; }
+
+// Airtight fetch: nothing real. Sheet stubbed, translations echoed, writes faked.
+window.fetch = async (url, opts) => {
+  const u = String(url); const method = ((opts&&opts.method)||"GET").toUpperCase();
+  await new Promise(r=>setTimeout(r,120));
+
+  // Google Apps Script (sheet) → dummy, NEVER the real sheet
+  if (u.includes("script.google.com")) return mockJson(DUMMY_SHEET_TASKS);
+
+  // Translation endpoint → echo input (no real translation network call)
+  if (u.includes("/translations")) {
+    let v=""; try{ v = JSON.parse((opts&&opts.body)||"{}")?.contents?.value || ""; }catch(_){}
+    return mockJson({ contents:{ value:v } });
+  }
+
+  // Staffbase API — all dummy; writes are faked locally, never sent
+  if (u.includes("app.staffbase.com") || u.includes("/api/")) {
+    if (method!=="GET") return mockJson({ id:"preview-"+Math.random().toString(36).slice(2), status:"OPEN" }); // fake write
+    if (u.includes("/installations")) return mockJson(DUMMY_INSTALLS);
+    if (u.includes("/branch")) return mockJson({ id:"preview", config:{ defaultLocale:"en_US", availableLocales:["en_US","es_ES","de_DE","fr_FR","zh_CN","ar_SA"] } });
+    if (/\/lists\b/.test(u) || /\/tasklist/.test(u)) return mockJson([{ id:"list1", name:"June Tasks", color:"#0369A1", numberOfOpenTasks:3, numberOfClosedTasks:1 }]);
+    if (/\/task(\b|\?)/.test(u)) return mockJson(DUMMY_TASKS);
+    if (u.includes("/comments")) return mockJson(DUMMY_COMMENTS);
+    if (u.includes("/groups/search")) return mockJson(DUMMY_GROUPS_SEARCH);
+    if (u.includes("/groups")) return mockJson(DUMMY_GROUPS);
+    if (/\/users\/[^/?]+/.test(u)) { const id=u.split("/users/")[1].split(/[?#]/)[0]; return mockJson(DUMMY_USERS[id]||{id,firstName:"Team",lastName:"Member"}); }
+    if (u.includes("/users")) return mockJson(DUMMY_USERS_LIST);
+    return mockJson({ data:[] });
+  }
+  // Anything else (e.g. stray) → empty dummy; never a real network call
+  return mockJson({});
+};
+
+// ── Widget catalogue ────────────────────────────────────────────────────
+const COMMON = [
+  ["apitoken","Staffbase Basic auth token (defaults to the demo token)."],
+  ["baseurl","API base URL — leave as https://app.staffbase.com/api."],
+  ["primarycolor","Brand primary color (default #da2e32)."],
+  ["accentcolor","Secondary accent — used on highlights, loaders, hovers, the calendar 'today' marker."],
+  ["backgroundcolor","Widget background (blank = transparent)."],
+  ["storelabelsingular / storelabelplural","Relabel 'Store'/'Stores' to Location, Branch, etc."],
+];
+const WIDGETS = [
+  {
+    key:"my-tasks-widget", name:"My Tasks", tag:"Personal dashboard",
+    icon:'<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
+    desc:"A personal task dashboard. Shows tasks assigned to the viewer (or everyone) across Tasks spaces, with type filters, open/done status, due dates, priorities, comments, and attachments. Includes an optional Audit Mode that surfaces audit findings, and optional in-widget task creation.",
+    feats:["Type filters","Comments + translate","Attachments","Audit mode","Create tasks"],
+    params:[...COMMON,
+      ["typecolors","Comma-separated hex palette for type badges."],
+      ["showalltasks","Show all tasks vs only the viewer's (true/false)."],
+      ["showdonetasks","Include completed tasks (true/false)."],
+      ["auditmode","Show audit findings instead of the task list (true/false)."],
+      ["enablecomments","Enable per-task comments (true/false)."],
+      ["allowtaskcreation","Show the New-task button (true/false)."],
+      ["allowtaskassignment","Allow reassigning in audit mode (true/false)."],
+      ["debugmode","On-screen debug log (true/false)."],
+    ],
+    attrs:{ showalltasks:"false", showdonetasks:"true", enablecomments:"true", allowtaskcreation:"true", auditmode:"false" },
+  },
+  {
+    key:"audit-widget", name:"Audit Form", tag:"Guided store audit",
+    icon:'<path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/><circle cx="12" cy="13" r="1.5"/>',
+    desc:"A guided store audit. The auditor picks a store, then answers pass/fail, rating, temperature, and timed (stopwatch) questions pulled from a Google Sheet. On submit it auto-creates Staffbase tasks for any failures, assigning each to the matching group — or, new, to a matching person by name.",
+    feats:["Pass/fail · rating · temp","Stopwatch timer","Auto-creates tasks","Smart assignment","Score + breakdown"],
+    params:[
+      ["appsscripturl","Deployed Google Apps Script URL returning the question bank."],
+      ...COMMON,
+      ["passthreshold","Score % required to pass (default 90)."],
+    ],
+    attrs:{ appsscripturl:"https://script.google.com/macros/s/preview/exec", passthreshold:"90" },
+  },
+  {
+    key:"recurring-tasks-widget", name:"Recurring Tasks", tag:"Schedule builder",
+    icon:'<path d="M21 12a9 9 0 1 1-6.2-8.6"/><polyline points="12 7 12 12 15 14"/><path d="M21 3v5h-5"/>',
+    desc:"Define recurring task schedules — daily, weekly, or monthly — and see them laid out on a calendar. Each schedule is stored as a hidden template; a backend Apps Script runner then creates the real tasks on cadence (within ~15 min of the chosen time).",
+    feats:["Daily / weekly / monthly","Calendar view","Per-store targeting","Assignees","Type + priority"],
+    params:[...COMMON,
+      ["tasktypes","Comma-separated task types offered in the form."],
+      ["typecolors","Comma-separated hex palette for type badges."],
+    ],
+    attrs:{ tasktypes:"Finance,Operations,Training,Compliance,Safety" },
+    note:"Preview shows the empty schedule builder + calendar. (The real runner reads a registry sheet — not used here.)",
+  },
+  {
+    key:"tasks-integration-widget", name:"Tasks Integration", tag:"Sheet → tasks",
+    icon:'<path d="M4 4h16v16H4z"/><path d="M4 10h16M10 4v16"/>',
+    desc:"Pull a list of tasks from a Google Sheet tab, review and edit them in a table, attach files, assign users or groups, then push them as Staffbase tasks to one or more stores — optionally replacing an existing list.",
+    feats:["Sheet pull (per-tab)","Editable table","Attachments","Assignees","Update existing list"],
+    params:[
+      ["appsscripturl","Deployed Apps Script URL that returns sheet rows as tasks."],
+      ["sheetname","Which sheet tab to pull from (blank = default)."],
+      ...COMMON,
+      ["enabletasklistupdating","Allow replacing an existing list (true/false)."],
+      ["enabletasktypes","Show a Type column (true/false)."],
+      ["tasktypes","Comma-separated task types for the Type column."],
+    ],
+    attrs:{ appsscripturl:"https://script.google.com/macros/s/preview/exec", sheetname:"", enabletasktypes:"true", enabletasklistupdating:"true", tasktypes:"Finance,Operations,Training,Safety,Merchandising" },
+  },
+];
+
+// ── Build cards ──────────────────────────────────────────────────────────
+const grid = document.getElementById("grid");
+grid.innerHTML = WIDGETS.map(w => `
+  <div class="card">
+    <div class="card-top">
+      <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${w.icon}</svg></div>
+      <div><h2>${w.name}</h2><div class="tag">${w.tag}</div></div>
+    </div>
+    <div class="card-body">
+      <p class="desc">${w.desc}</p>
+      <ul class="feat">${w.feats.map(f=>`<li>${f}</li>`).join("")}</ul>
+      <details class="params">
+        <summary><span class="chev">▶</span> Config parameters (${w.params.length})</summary>
+        <table class="ptable">${w.params.map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join("")}</table>
+      </details>
+      <div class="actions">
+        <button class="btn btn-primary" data-key="${w.key}">▶ Live preview</button>
+      </div>
+    </div>
+  </div>`).join("");
+
+// ── Preview modal ──────────────────────────────────────────────────────────
+const overlay = document.getElementById("overlay");
+const device  = document.getElementById("device");
+const mTitle  = document.getElementById("m-title");
+const mSub    = document.getElementById("m-sub");
+let currentWidget = null;
+
+function renderWidget(w){
+  device.innerHTML = "";
+  const def = registeredBlocks[w.key];
+  if (!def){ device.innerHTML = `<div style="padding:40px;text-align:center;color:#9ca3af">Loading ${w.name}…</div>`; return; }
+  const WidgetClass = def.blockDefinition.factory(MockBaseBlock, mockWidgetApi);
+  const inst = new WidgetClass();
+  inst._attrs = Object.assign({
+    apitoken:"preview-token", baseurl:"https://app.staffbase.com/api",
+    primarycolor:"#da2e32", accentcolor:"#F2A900", backgroundcolor:"",
+    storelabelsingular:"Store", storelabelplural:"Stores",
+  }, w.attrs || {});
+  try { inst.renderBlock(device); }
+  catch(e){ device.innerHTML = `<div style="padding:40px;text-align:center;color:#da2e32">Preview error: ${e.message}</div>`; }
+}
+
+function openPreview(key){
+  currentWidget = WIDGETS.find(x=>x.key===key);
+  mTitle.textContent = currentWidget.name;
+  mSub.textContent = currentWidget.note || "Live preview · dummy data";
+  overlay.classList.add("open");
+  document.body.style.overflow = "hidden";
+  // default mobile width
+  document.querySelectorAll("#m-width button").forEach(b=>b.classList.toggle("active", b.dataset.w==="mobile"));
+  device.classList.remove("wide");
+  renderWidget(currentWidget);
+}
+function closePreview(){
+  overlay.classList.remove("open");
+  document.body.style.overflow = "";
+  try{ history.replaceState(null,"",location.pathname+location.search); }catch(_){}
+  setTimeout(()=>{ device.innerHTML=""; }, 200);
+  // clean up any body-attached panels the widgets create
+  document.querySelectorAll('[class*="-overlay"],[class*="-detail"],[class*="-create"],[class*="-amodal"]').forEach(el=>{
+    if (el.parentElement===document.body) el.remove();
+  });
+}
+
+grid.addEventListener("click", e=>{ const b=e.target.closest("[data-key]"); if(b){ location.hash=b.dataset.key; openPreview(b.dataset.key); } });
+// Deep-link: #widget-key auto-opens that preview (shareable). Wait for bundles to register.
+function openFromHash(){
+  const key=location.hash.replace(/^#/,"");
+  if(WIDGETS.some(w=>w.key===key)){
+    let tries=0; (function go(){ if(registeredBlocks[key]||tries++>40) openPreview(key); else setTimeout(go,100); })();
+  }
+}
+window.addEventListener("DOMContentLoaded", openFromHash);
+window.addEventListener("hashchange", openFromHash);
+document.getElementById("m-close").addEventListener("click", closePreview);
+overlay.addEventListener("click", e=>{ if(e.target===overlay) closePreview(); });
+document.addEventListener("keydown", e=>{ if(e.key==="Escape" && overlay.classList.contains("open")) closePreview(); });
+document.getElementById("m-width").addEventListener("click", e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  document.querySelectorAll("#m-width button").forEach(x=>x.classList.remove("active"));
+  b.classList.add("active");
+  device.classList.toggle("wide", b.dataset.w==="desktop");
+  if(currentWidget) renderWidget(currentWidget); // re-render so side-panels pick up width
+});
+</script>
+
+<!-- Widget bundles (register via window.defineBlock) -->
+<script src="my-tasks-widget/dist/my-tasks-widget.js"></script>
+<script src="audit-widget/dist/audit-widget.js"></script>
+<script src="recurring-tasks-widget/dist/recurring-tasks-widget.js"></script>
+<script src="tasks-integration-widget/dist/tasks-integration-widget.js"></script>
+</body>
+</html>

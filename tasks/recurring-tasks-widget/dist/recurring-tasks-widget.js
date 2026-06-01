@@ -2222,6 +2222,7 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-detail-edit, .${p}-detail-edit:hover, .${p}-detail-edit:focus { background:var(--primary)!important; color:var(--primary-text)!important; }
           .${p}-btn-ghost, .${p}-btn-ghost:focus { background:#f3f4f6!important; }
           .${p}-btn-ghost:hover { background:var(--border)!important; }
+          .${p}-btn-primary:active { background:rgba(var(--accent-rgb),.85)!important; filter:none!important; }
           .${p}-detail-del, .${p}-detail-del:hover, .${p}-detail-del:focus { background:#fee2e2!important; color:var(--error)!important; }
           .${p}-seg button, .${p}-seg button:hover, .${p}-seg button:focus,
           .${p}-cal-modeseg button, .${p}-cal-modeseg button:hover, .${p}-cal-modeseg button:focus { background:none!important; }
@@ -2232,6 +2233,18 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-wd button, .${p}-wd button:focus { background:#fafafa!important; }
           .${p}-wd button:hover { background:rgba(var(--primary-rgb),.07)!important; }
           .${p}-wd button.on, .${p}-wd button.on:hover, .${p}-wd button.on:focus { background:var(--primary)!important; color:var(--primary-text)!important; }
+          /* Pin text/icon colors so host button{color:#fff} / button:focus can't whiten light buttons */
+          .${p}-btn-ghost, .${p}-btn-ghost:focus { color:var(--gray)!important; }
+          .${p}-btn-ghost:hover { color:var(--dark)!important; }
+          .${p}-detail-edit, .${p}-detail-edit:hover, .${p}-detail-edit:focus { color:var(--primary-text)!important; }
+          .${p}-seg button, .${p}-seg button:focus, .${p}-cal-modeseg button, .${p}-cal-modeseg button:focus { color:var(--gray)!important; }
+          .${p}-seg button.active, .${p}-cal-modeseg button.active { color:var(--primary)!important; }
+          .${p}-ico-btn, .${p}-ico-btn:focus { color:var(--gray)!important; }
+          .${p}-ico-btn:hover { color:var(--dark)!important; }
+          .${p}-ico-btn.danger:hover { color:var(--error)!important; }
+          .${p}-detail-close, .${p}-detail-close:focus { color:var(--gray)!important; }
+          .${p}-detail-close:hover { color:var(--dark)!important; }
+          .${p}-wd button:not(.on), .${p}-wd button:not(.on):hover, .${p}-wd button:not(.on):focus { color:var(--gray)!important; }
           .${p}-detail-close, .${p}-detail-close:focus { background:#f3f4f6!important; }
           .${p}-detail-close:hover { background:var(--border)!important; }
 
@@ -3166,12 +3179,38 @@ const factory = (BaseBlockClass, widgetApi) => {
             }
             // ── Detail panel (body-appended bottom sheet / side panel) ───────────────
             const self = this;
+            // Body-appended portal nodes aren't cleaned up automatically on SPA
+            // navigation, so manage their lifecycle explicitly: tear down our own
+            // prior refs (re-renders would otherwise stack a new overlay/detail pair
+            // on <body> every time), then sweep any portal node — from this or a
+            // sibling task widget — whose owning host has left the DOM.
+            if (self._rtwOverlay) {
+                self._rtwOverlay.remove();
+                self._rtwOverlay = undefined;
+            }
+            if (self._rtwDetail) {
+                self._rtwDetail.remove();
+                self._rtwDetail = undefined;
+            }
+            if (self._rtwDocKey) {
+                document.removeEventListener("keydown", self._rtwDocKey);
+                self._rtwDocKey = undefined;
+            }
+            const rtwInstId = Math.random().toString(36).slice(2);
+            container.dataset.sbPortalHost = rtwInstId;
+            document.querySelectorAll("[data-sb-portal]").forEach(node => {
+                const owner = node.getAttribute("data-sb-portal");
+                if (!owner || !document.querySelector(`[data-sb-portal-host="${owner}"]`))
+                    node.remove();
+            });
             const overlayEl = document.createElement("div");
             overlayEl.className = `${p}-overlay`;
+            overlayEl.dataset.sbPortal = rtwInstId;
             document.body.appendChild(overlayEl);
             self._rtwOverlay = overlayEl;
             const detailEl = document.createElement("div");
             detailEl.className = `${p}-detail`;
+            detailEl.dataset.sbPortal = rtwInstId;
             detailEl.innerHTML = `
         <div class="${p}-detail-handle"></div>
         <div class="${p}-detail-head">

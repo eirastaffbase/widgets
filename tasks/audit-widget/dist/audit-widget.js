@@ -1543,6 +1543,12 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-btn-primary:hover:not(:disabled){background:var(--primary)!important;color:var(--primary-text)!important;filter:brightness(.88)!important;transform:translateY(-1px)!important}
           .${p}-btn-ghost{background:#f3f4f6!important;color:var(--gray)!important;border:1.5px solid var(--border)!important}
           .${p}-btn-ghost:hover:not(:disabled){background:rgba(var(--primary-rgb),.05)!important;border-color:var(--primary)!important;color:var(--primary)!important}
+          /* Defend the assignee-picker trigger against host global .mouse button:hover{background} */
+          .${p}-gp-trigger,.${p}-gp-trigger:hover,.${p}-gp-trigger:focus,.${p}-gp-trigger:active,.${p}-gp-trigger.open{color:var(--dark)!important}
+          .${p}-gp-trigger,.${p}-gp-trigger:focus,.${p}-gp-trigger:active{background:#fafafa!important}
+          .${p}-gp-trigger:hover,.${p}-gp-trigger.open{background:#fff!important;border-color:var(--accent)!important}
+          /* Faded-accent click feedback on the primary CTA */
+          .${p}-btn-primary:active:not(:disabled){background:rgba(var(--accent-rgb),.85)!important;filter:none!important}
           .${p}-btn-full{width:100%;justify-content:center}
           .${p}-nav{display:flex;gap:8px;margin-top:8px}
           .${p}-nav>.${p}-btn{flex:1;justify-content:center}

@@ -1263,15 +1263,19 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-del-row:hover { background: #fee2e2; color: var(--error); }
           .${p}-del-row svg { pointer-events: none; }
 
-          /* Per-row attachment — subtle clip, revealed on row hover */
+          /* Stack the X on top and the (revealed) clip below it. The clip
+             collapses its height when hidden so the X sits at the top; on row
+             hover the clip expands and the X slides down. */
+          .${p}-row-actions { display: flex; flex-direction: column; align-items: center; gap: 4px; }
           .${p}-clip-row {
-            width: 26px; height: 26px; border: none; background: none;
-            cursor: pointer; border-radius: var(--r-sm);
+            width: 26px; height: 0; border: none; background: none;
+            cursor: pointer; border-radius: var(--r-sm); overflow: hidden;
             display: flex; align-items: center; justify-content: center;
-            color: #d1d5db; transition: all .15s; opacity: 0;
+            color: #d1d5db; opacity: 0;
+            transition: height .18s ease, opacity .18s ease, background .15s, color .15s;
           }
           .${p}-task-row:hover .${p}-clip-row,
-          .${p}-clip-row.has-files { opacity: 1; }
+          .${p}-clip-row.has-files { opacity: 1; height: 26px; }
           .${p}-clip-row.has-files { color: var(--primary); }
           .${p}-clip-row:hover { background: rgba(var(--primary-rgb), .08); color: var(--primary); }
           .${p}-clip-row svg { pointer-events: none; }
@@ -1484,6 +1488,13 @@ const factory = (BaseBlockClass, widgetApi) => {
           }
           .${p}-assign-opt.sel .${p}-assign-chk { background: var(--primary); border-color: var(--primary); color: #fff; }
           .${p}-assign-empty { padding: 20px; text-align: center; font-size: 13px; color: var(--gray-lt); }
+          /* ── Defend buttons against host (Panda) global button:hover/focus/active{background} ── */
+          .${p} .${p}-btn-primary:hover, .${p} .${p}-btn-primary:focus,
+          .${p} .${p}-icon-btn:hover, .${p} .${p}-icon-btn:focus { background: var(--primary) !important; }
+          .${p} .${p}-btn-primary:active:not(:disabled), .${p} .${p}-icon-btn:active:not(:disabled) { background: rgba(var(--accent-rgb), .85) !important; }
+          .${p} .${p}-del-row:focus, .${p} .${p}-del-row:active { background: #fee2e2 !important; color: var(--error) !important; }
+          .${p} .${p}-clip-row:focus, .${p} .${p}-clip-row:active { background: rgba(var(--primary-rgb), .08) !important; color: var(--primary) !important; }
+          .${p} .${p}-add-row:active { background: var(--accent) !important; color: #fff !important; }
         </style>
 
         <div class="${p}">
