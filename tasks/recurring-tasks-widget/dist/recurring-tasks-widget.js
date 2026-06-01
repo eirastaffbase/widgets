@@ -2099,7 +2099,7 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-card { background:#fff; border-radius:var(--r-lg); box-shadow:var(--shadow-sm);
             border:1px solid var(--border); border-inline-start:3px solid var(--primary); margin-bottom:12px; }
           .${p}-card-head { display:flex; align-items:center; gap:10px; padding:14px 18px 12px; border-bottom:1px solid var(--border); }
-          .${p}-step { width:22px; height:22px; border-radius:50%; background:var(--primary); color:var(--primary-text);
+          .${p}-step { width:22px; height:22px; border-radius:50%; background:linear-gradient(135deg,var(--primary),var(--accent)); color:var(--primary-text);
             font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
           .${p}-card-title { font-size:12px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; color:var(--dark); }
           .${p}-card-body { padding:16px 18px; }
@@ -2208,7 +2208,6 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-btn:disabled { opacity:.4; cursor:not-allowed; box-shadow:none !important; transform:none !important; }
           .${p}-btn-primary { background:var(--primary); color:var(--primary-text); box-shadow:0 3px 10px rgba(var(--primary-rgb),.3); }
           .${p}-btn-primary:hover:not(:disabled) { filter:brightness(.88); transform:translateY(-1px); box-shadow:0 5px 16px rgba(var(--primary-rgb),.4); }
-          #${p}-new.${p}-btn-primary { background:var(--accent); box-shadow:0 3px 10px rgba(var(--accent-rgb),.35); }
           .${p}-btn-ghost { background:#f3f4f6; color:var(--gray); }
           .${p}-btn-ghost:hover { background:var(--border); color:var(--dark); }
           .${p}-foot { display:flex; gap:10px; margin-top:4px; }
@@ -2640,16 +2639,69 @@ const factory = (BaseBlockClass, widgetApi) => {
                 }
             });
             searchInp.addEventListener("input", () => renderOpts(searchInp.value));
-            async function fetchInstallations() {
+            // Load the tasks-plugin installations ("stores") this viewer may see.
+            // Two sources, merged + deduped: the classic /installations list (which
+            // Panda relies on) plus the tasks-plugin search — the only place that
+            // surfaces access-restricted stores — then filtered to the viewer's own
+            // access. NOTE: this access check is client-side only; see HANDOVER.md.
+            async function fetchTaskStores() {
+                var _a, _b;
+                let viewerId = "";
+                let viewerGroups = [];
+                try {
+                    const prof = await widgetApi.getUserInformation();
+                    viewerId = prof.id || "";
+                    viewerGroups = prof.groupIDs || [];
+                }
+                catch (_) { }
+                const titleOf = (i) => { var _a, _b, _c; return ((_c = (_b = (_a = i.config) === null || _a === void 0 ? void 0 : _a.localization) === null || _b === void 0 ? void 0 : _b.en_US) === null || _c === void 0 ? void 0 : _c.title) || i.title || i.name || i.id; };
+                const byId = new Map();
+                // ① /installations — unchanged source; keeps existing behaviour intact.
                 try {
                     const res = await fetch(`${baseUrl}/installations?limit=200`, apiOpts());
-                    if (!res.ok)
-                        throw new Error(`HTTP ${res.status}`);
-                    const data = await res.json();
-                    storeProjects = (data.data || data)
-                        .filter((i) => i.pluginID === "tasks" || i.pluginId === "tasks")
-                        .map((i) => { var _a, _b, _c; return ({ id: i.id, title: ((_c = (_b = (_a = i.config) === null || _a === void 0 ? void 0 : _a.localization) === null || _b === void 0 ? void 0 : _b.en_US) === null || _c === void 0 ? void 0 : _c.title) || i.title || i.name || i.id }); })
-                        .sort((a, b) => a.title.localeCompare(b.title));
+                    if (res.ok) {
+                        const d = await res.json();
+                        for (const i of (d.data || d))
+                            if (i.pluginID === "tasks" || i.pluginId === "tasks")
+                                byId.set(i.id, { id: i.id, title: titleOf(i), accessors: (_a = i.accessors) !== null && _a !== void 0 ? _a : null });
+                    }
+                }
+                catch (_) { }
+                // ② tasks-plugin search — surfaces access-restricted stores that never
+                // appear in ①. Best-effort: on failure we keep ① (no regression).
+                try {
+                    const res = await fetch(`${baseUrl}/plugins/tasks/installations/search?permission=manage&limit=200&sort=updated_DESC`, apiOpts());
+                    if (res.ok) {
+                        const d = await res.json();
+                        for (const e of (d.entries || [])) {
+                            const i = e.data || e;
+                            if (!byId.has(i.id))
+                                byId.set(i.id, { id: i.id, title: titleOf(i), accessors: (_b = i.accessors) !== null && _b !== void 0 ? _b : null });
+                        }
+                    }
+                }
+                catch (_) { }
+                // Access filter: show a store only if it's branch-open, unrestricted,
+                // or names this viewer's id / one of their groups.
+                const canSee = (a) => {
+                    if (!a)
+                        return true;
+                    if (a.branchAccess === true)
+                        return true;
+                    const hasU = Array.isArray(a.userIds) && a.userIds.length;
+                    const hasG = Array.isArray(a.groupIds) && a.groupIds.length;
+                    if (!hasU && !hasG)
+                        return true;
+                    return (hasU && !!viewerId && a.userIds.includes(viewerId)) ||
+                        (hasG && a.groupIds.some((g) => viewerGroups.includes(g)));
+                };
+                return [...byId.values()].filter(s => canSee(s.accessors))
+                    .map(s => ({ id: s.id, title: s.title }))
+                    .sort((a, b) => a.title.localeCompare(b.title));
+            }
+            async function fetchInstallations() {
+                try {
+                    storeProjects = await fetchTaskStores();
                     if (!storeProjects.length) {
                         optsList.innerHTML = `<div class="${p}-dd-msg">${tr("noStoresFound").replace("{stores}", esc(storeP.toLowerCase()))}</div>`;
                         trigger.innerHTML = `<span class="${p}-ms-ph">${tr("noStoresFound").replace("{stores}", esc(storeP.toLowerCase()))}</span>`;
@@ -2744,14 +2796,10 @@ const factory = (BaseBlockClass, widgetApi) => {
             assignSearchInp.addEventListener("input", () => renderAssignList(assignSearchInp.value));
             // ── Load existing schedules (scan task installations for templates) ─────
             async function loadSchedules() {
-                viewListEl.innerHTML = `<div class="${p}-loading"><span class="${p}-spin" style="border-color:rgba(var(--primary-rgb),.25);border-top-color:var(--primary);display:inline-block;vertical-align:middle"></span> Loading schedules…</div>`;
+                viewListEl.innerHTML = `<div class="${p}-loading"><span class="${p}-spin" style="border-color:rgba(var(--primary-rgb),.22);border-top-color:var(--accent);display:inline-block;vertical-align:middle"></span> Loading schedules…</div>`;
                 const byId = new Map();
                 try {
-                    const res = await fetch(`${baseUrl}/installations?limit=200`, apiOpts());
-                    const data = res.ok ? await res.json() : { data: [] };
-                    const installs = (data.data || data)
-                        .filter((i) => i.pluginID === "tasks" || i.pluginId === "tasks")
-                        .map((i) => { var _a, _b, _c; return ({ id: i.id, title: ((_c = (_b = (_a = i.config) === null || _a === void 0 ? void 0 : _a.localization) === null || _b === void 0 ? void 0 : _b.en_US) === null || _c === void 0 ? void 0 : _c.title) || i.title || i.name || i.id }); });
+                    const installs = await fetchTaskStores();
                     for (const inst of installs) {
                         const listRes = await fetch(`${baseUrl}/tasks/${inst.id}/lists`, apiOpts());
                         if (!listRes.ok)

@@ -160,10 +160,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p} *,.${p} *::before,.${p} *::after{box-sizing:border-box;margin:0;padding:0}
           .${p}-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
           .${p}-title{font-size:18px;font-weight:800;color:var(--dark);display:flex;align-items:center;gap:10px}
-          .${p}-title-dot{width:10px;height:10px;border-radius:50%;background:var(--primary);flex-shrink:0}
+          .${p}-title-dot{width:10px;height:10px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--accent));flex-shrink:0}
           .${p}-card{background:#fff;border-radius:var(--r-lg);box-shadow:var(--shadow-sm);border:1px solid var(--border);border-inline-start:3px solid var(--primary);margin-bottom:12px;overflow:visible}
           .${p}-card-head{display:flex;align-items:center;gap:10px;padding:14px 18px 12px;border-bottom:1px solid var(--border)}
-          .${p}-step{width:22px;height:22px;border-radius:50%;background:var(--primary);color:var(--primary-text);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+          .${p}-step{width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--accent));color:var(--primary-text);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
           .${p}-card-title{font-size:12px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--dark);flex:1}
           .${p}-card-body{padding:16px 18px}
           .${p}-label{display:block;font-size:12px;font-weight:600;color:var(--gray);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
@@ -343,7 +343,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-banner.error{background:rgba(196,30,58,.08);border:1px solid rgba(196,30,58,.25);color:var(--error)}
           .${p}-banner.info{background:rgba(var(--primary-rgb),.06);border:1px solid rgba(var(--primary-rgb),.2);color:var(--primary)}
           .${p}-banner.success{background:rgba(46,125,74,.08);border:1px solid rgba(46,125,74,.25);color:var(--success)}
-          .${p}-spin{width:14px;height:14px;border-radius:50%;border:2px solid rgba(var(--primary-rgb),.25);border-top-color:var(--primary);animation:${p}-spin .7s linear infinite;display:inline-block;flex-shrink:0}
+          .${p}-spin{width:14px;height:14px;border-radius:50%;border:2px solid rgba(var(--primary-rgb),.22);border-top-color:var(--accent);animation:${p}-spin .7s linear infinite;display:inline-block;flex-shrink:0}
           @keyframes ${p}-spin{to{transform:rotate(360deg)}}
           .${p}-state{padding:36px 20px;text-align:center;color:var(--gray-lt);font-size:13px}
           .${p}-state strong{display:block;color:var(--gray);font-size:14px;margin-bottom:4px}

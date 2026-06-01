@@ -237,7 +237,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-detail button,.${p}-create button{margin:0!important;box-sizing:border-box}
           .${p}-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
           .${p}-title{font-size:18px;font-weight:800;color:var(--dark);display:flex;align-items:center;gap:10px}
-          .${p}-title-dot{width:10px;height:10px;border-radius:50%;background:var(--primary);flex-shrink:0}
+          .${p}-title-dot{width:10px;height:10px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--accent));flex-shrink:0}
           .${p}-badge-count{background:var(--primary);color:var(--primary-text);padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700}
           .${p} .${p}-refresh-btn{width:34px;height:34px;border:1.5px solid var(--border)!important;border-radius:var(--r-md)!important;background:#fff!important;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--gray)!important;transition:background .15s,color .15s,border-color .15s}
           .${p} .${p}-refresh-btn:hover,.${p} .${p}-refresh-btn:focus,.${p} .${p}-refresh-btn:focus-visible,.${p} .${p}-refresh-btn:active{background:#fff!important;color:var(--primary)!important;border-color:var(--primary)!important;box-shadow:none!important;outline:none!important}
@@ -246,7 +246,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-refresh-btn:hover{border-color:var(--primary);color:var(--primary);background:rgba(var(--primary-rgb),.05)}
           .${p}-refresh-btn:disabled{opacity:.4;cursor:not-allowed}
           .${p}-header-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
-          .${p}-new-btn{display:inline-flex!important;width:auto!important;align-items:center;gap:6px;height:34px;padding:0 14px!important;border:none!important;border-radius:var(--r-md);background:var(--accent)!important;color:#fff!important;font-family:inherit;font-size:13px;font-weight:700;line-height:normal!important;cursor:pointer;white-space:nowrap;box-shadow:0 3px 10px rgba(var(--accent-rgb),.35);transition:all .15s}
+          .${p}-new-btn{display:inline-flex!important;width:auto!important;align-items:center;gap:6px;height:34px;padding:0 14px!important;border:none!important;border-radius:var(--r-md);background:var(--primary)!important;color:var(--primary-text,#fff)!important;font-family:inherit;font-size:13px;font-weight:700;line-height:normal!important;cursor:pointer;white-space:nowrap;box-shadow:0 3px 10px rgba(var(--primary-rgb),.3);transition:all .15s}
           .${p}-new-btn:hover{filter:brightness(.9);transform:translateY(-1px)}
           /* ── Create task sheet ── */
           .${p}-create{--primary:${primaryColor};--primary-rgb:${primaryRgb};--primary-text:${primaryText};--dark:#1A1A1A;--gray:#6b7280;--gray-lt:#9ca3af;--border:#e5e7eb;--error:#C41E3A;--r-sm:6px;--r-md:10px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;position:fixed;left:0;right:0;bottom:0;z-index:100001;background:#fff;border-radius:20px 20px 0 0;max-height:90vh;display:flex;flex-direction:column;transform:translateY(102%);transition:transform .32s cubic-bezier(.32,.72,0,1);overflow:hidden;box-shadow:0 -8px 40px rgba(0,0,0,.18)}
@@ -269,7 +269,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-btn-cancel{background:#f3f4f6!important;border:none!important;color:var(--gray)}
           .${p}-btn-save{background:var(--primary)!important;border:none!important;color:var(--primary-text,#fff)!important;box-shadow:0 3px 10px rgba(var(--primary-rgb),.3)}
           .${p}-btn-save:disabled{opacity:.5;cursor:default}
-          .${p}-spin{width:14px;height:14px;border-radius:50%;border:2px solid rgba(var(--primary-rgb),.25);border-top-color:var(--primary);animation:${p}-spin .7s linear infinite;flex-shrink:0;display:inline-block}
+          .${p}-spin{width:14px;height:14px;border-radius:50%;border:2px solid rgba(var(--primary-rgb),.22);border-top-color:var(--accent);animation:${p}-spin .7s linear infinite;flex-shrink:0;display:inline-block}
           @keyframes ${p}-spin{to{transform:rotate(360deg)}}
           /* ── Detail panel ── */
           .${p}-overlay{position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:opacity .25s ease}

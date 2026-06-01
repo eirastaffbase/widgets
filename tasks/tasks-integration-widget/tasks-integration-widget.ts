@@ -267,7 +267,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           }
           .${p}-step {
             width: 22px; height: 22px; border-radius: 50%;
-            background: var(--primary); color: var(--primary-text);
+            background: linear-gradient(135deg, var(--primary), var(--accent)); color: var(--primary-text);
             font-size: 11px; font-weight: 800;
             display: flex; align-items: center; justify-content: center;
             flex-shrink: 0;
@@ -303,15 +303,15 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-input-group .${p}-input { flex: 1; }
           .${p}-icon-btn {
             width: 42px; border: none; border-radius: var(--r-md);
-            background: var(--accent); color: #fff; cursor: pointer;
+            background: var(--primary); color: var(--primary-text); cursor: pointer;
             display: flex; align-items: center; justify-content: center;
             flex-shrink: 0;
-            box-shadow: 0 2px 8px rgba(var(--accent-rgb),.4);
+            box-shadow: 0 2px 8px rgba(var(--primary-rgb),.35);
             transition: filter .15s, transform .15s, box-shadow .15s;
           }
           .${p}-icon-btn:hover:not(:disabled) {
-            filter: brightness(1.05); transform: translateY(-1px);
-            box-shadow: 0 4px 14px rgba(var(--accent-rgb),.5);
+            filter: brightness(.88); transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(var(--primary-rgb),.4);
           }
           .${p}-icon-btn:active:not(:disabled) { transform: translateY(0); }
           .${p}-icon-btn:disabled { opacity: .4; cursor: not-allowed; }
