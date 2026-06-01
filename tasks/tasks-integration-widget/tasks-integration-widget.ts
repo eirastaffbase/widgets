@@ -1096,22 +1096,65 @@ const tbody      = container.querySelector(`#${p}-tbody`)!;
       listName.addEventListener("input", validate);
 
       // ── Fetch installations ───────────────────────────────────────────
+      // Load the tasks-plugin installations ("stores") this viewer may see.
+      // Two sources, merged + deduped: the classic /installations list (which
+      // Panda relies on) plus the tasks-plugin search — the only place that
+      // surfaces access-restricted stores — then filtered to the viewer's own
+      // access. NOTE: this access check is client-side only; see HANDOVER.md.
+      async function fetchTaskStores(): Promise<Array<{ id: string; title: string }>> {
+        let viewerId = ""; let viewerGroups: string[] = [];
+        try {
+          const prof: any = await widgetApi.getUserInformation();
+          viewerId = prof.id || ""; viewerGroups = prof.groupIDs || [];
+        } catch (_) {}
+
+        const titleOf = (i: any) => i.config?.localization?.en_US?.title || i.title || i.name || i.id;
+        const byId = new Map<string, { id: string; title: string; accessors: any }>();
+
+        // ① /installations — unchanged source; keeps existing behaviour intact.
+        try {
+          const res = await fetch(`${baseUrl}/installations?limit=200`, apiOpts());
+          if (res.ok) {
+            const d: any = await res.json();
+            for (const i of (d.data || d))
+              if (i.pluginID === "tasks" || i.pluginId === "tasks")
+                byId.set(i.id, { id: i.id, title: titleOf(i), accessors: i.accessors ?? null });
+          }
+        } catch (_) {}
+
+        // ② tasks-plugin search — surfaces access-restricted stores that never
+        // appear in ①. Best-effort: on failure we keep ① (no regression).
+        try {
+          const res = await fetch(`${baseUrl}/plugins/tasks/installations/search?permission=manage&limit=200&sort=updated_DESC`, apiOpts());
+          if (res.ok) {
+            const d: any = await res.json();
+            for (const e of (d.entries || [])) {
+              const i = e.data || e;
+              if (!byId.has(i.id)) byId.set(i.id, { id: i.id, title: titleOf(i), accessors: i.accessors ?? null });
+            }
+          }
+        } catch (_) {}
+
+        // Access filter: show a store only if it's branch-open, unrestricted,
+        // or names this viewer's id / one of their groups.
+        const canSee = (a: any) => {
+          if (!a) return true;
+          if (a.branchAccess === true) return true;
+          const hasU = Array.isArray(a.userIds) && a.userIds.length;
+          const hasG = Array.isArray(a.groupIds) && a.groupIds.length;
+          if (!hasU && !hasG) return true;
+          return (hasU && !!viewerId && a.userIds.includes(viewerId)) ||
+                 (hasG && a.groupIds.some((g: string) => viewerGroups.includes(g)));
+        };
+
+        return [...byId.values()].filter(s => canSee(s.accessors))
+          .map(s => ({ id: s.id, title: s.title }))
+          .sort((a, b) => a.title.localeCompare(b.title));
+      }
+
       async function fetchInstallations() {
         try {
-          const res = await fetch(`${baseUrl}/installations?limit=200`, {
-            ...apiOpts(),
-          });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const data = await res.json();
-          storeProjects = (data.data || data)
-            .filter((i: any) => i.pluginID === "tasks" || i.pluginId === "tasks")
-            .map((i: any) => ({
-              id: i.id,
-              title:
-                i.config?.localization?.en_US?.title ||
-                i.title || i.name || i.id,
-            }))
-            .sort((a: any, b: any) => a.title.localeCompare(b.title));
+          storeProjects = await fetchTaskStores();
 
           if (!storeProjects.length) {
             optsList.innerHTML = `<div class="${p}-dd-msg">${tx("noStoresFound").replace("{stores}",storeP.toLowerCase())}</div>`;

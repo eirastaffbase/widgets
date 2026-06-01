@@ -1973,6 +1973,68 @@ const factory = (BaseBlockClass, widgetApi) => {
                     }
                     return out;
                 }
+                // Load the tasks-plugin installations ("stores") this viewer may see.
+                // Two sources, merged + deduped: the classic /installations list (which
+                // Panda relies on) plus the tasks-plugin search — the only place that
+                // surfaces access-restricted stores — then filtered to the viewer's own
+                // access. NOTE: this access check is client-side only; see HANDOVER.md.
+                function fetchTaskStores() {
+                    return audit_widget_awaiter(this, void 0, void 0, function* () {
+                        var _a, _b;
+                        let viewerId = "";
+                        let viewerGroups = [];
+                        try {
+                            const prof = yield widgetApi.getUserInformation();
+                            viewerId = prof.id || "";
+                            viewerGroups = prof.groupIDs || [];
+                        }
+                        catch (_) { }
+                        const titleOf = (i) => { var _a, _b, _c; return ((_c = (_b = (_a = i.config) === null || _a === void 0 ? void 0 : _a.localization) === null || _b === void 0 ? void 0 : _b.en_US) === null || _c === void 0 ? void 0 : _c.title) || i.title || i.name || i.id; };
+                        const byId = new Map();
+                        // ① /installations — unchanged source; keeps existing behaviour intact.
+                        try {
+                            const res = yield fetch(`${baseUrl}/installations?limit=200`, apiOpts());
+                            if (res.ok) {
+                                const d = yield res.json();
+                                for (const i of (d.data || d))
+                                    if (i.pluginID === "tasks" || i.pluginId === "tasks")
+                                        byId.set(i.id, { id: i.id, title: titleOf(i), accessors: (_a = i.accessors) !== null && _a !== void 0 ? _a : null });
+                            }
+                        }
+                        catch (_) { }
+                        // ② tasks-plugin search — surfaces access-restricted stores that never
+                        // appear in ①. Best-effort: on failure we keep ① (no regression).
+                        try {
+                            const res = yield fetch(`${baseUrl}/plugins/tasks/installations/search?permission=manage&limit=200&sort=updated_DESC`, apiOpts());
+                            if (res.ok) {
+                                const d = yield res.json();
+                                for (const e of (d.entries || [])) {
+                                    const i = e.data || e;
+                                    if (!byId.has(i.id))
+                                        byId.set(i.id, { id: i.id, title: titleOf(i), accessors: (_b = i.accessors) !== null && _b !== void 0 ? _b : null });
+                                }
+                            }
+                        }
+                        catch (_) { }
+                        // Access filter: show a store only if it's branch-open, unrestricted,
+                        // or names this viewer's id / one of their groups.
+                        const canSee = (a) => {
+                            if (!a)
+                                return true;
+                            if (a.branchAccess === true)
+                                return true;
+                            const hasU = Array.isArray(a.userIds) && a.userIds.length;
+                            const hasG = Array.isArray(a.groupIds) && a.groupIds.length;
+                            if (!hasU && !hasG)
+                                return true;
+                            return (hasU && !!viewerId && a.userIds.includes(viewerId)) ||
+                                (hasG && a.groupIds.some((g) => viewerGroups.includes(g)));
+                        };
+                        return [...byId.values()].filter(s => canSee(s.accessors))
+                            .map(s => ({ id: s.id, title: s.title }))
+                            .sort((a, b) => a.title.localeCompare(b.title));
+                    });
+                }
                 // ── Data fetch ────────────────────────────────────────────────────
                 function fetchAll() {
                     return audit_widget_awaiter(this, void 0, void 0, function* () {
@@ -2005,18 +2067,15 @@ const factory = (BaseBlockClass, widgetApi) => {
                         // ② Installations + groups + users — parallel
                         const instGroupP = (() => audit_widget_awaiter(this, void 0, void 0, function* () {
                             try {
-                                const [instRes, grpRes, userRes] = yield Promise.all([
-                                    fetch(`${baseUrl}/installations?limit=200`, apiOpts()),
+                                // Stores: merge /installations (what Panda relies on) with the
+                                // tasks-plugin search (surfaces access-restricted stores), filtered
+                                // to this viewer's access. Client-side only — see HANDOVER.md.
+                                const [stores, grpRes, userRes] = yield Promise.all([
+                                    fetchTaskStores(),
                                     fetch(`${baseUrl}/groups/search?limit=100&sort=name_ASC`, apiOpts()),
                                     fetch(`${baseUrl}/users?limit=200`, apiOpts()),
                                 ]);
-                                if (instRes.ok) {
-                                    const d = yield instRes.json();
-                                    installations = (d.data || d)
-                                        .filter((i) => i.pluginID === "tasks" || i.pluginId === "tasks")
-                                        .map((i) => { var _a, _b, _c; return ({ id: i.id, title: ((_c = (_b = (_a = i.config) === null || _a === void 0 ? void 0 : _a.localization) === null || _b === void 0 ? void 0 : _b.en_US) === null || _c === void 0 ? void 0 : _c.title) || i.title || i.name || i.id }); })
-                                        .sort((a, b) => a.title.localeCompare(b.title));
-                                }
+                                installations = stores;
                                 if (grpRes.ok) {
                                     const d = yield grpRes.json();
                                     // /groups/search returns { entries: [ { data: { id, config.localization.en_US.name, type } } ] }
