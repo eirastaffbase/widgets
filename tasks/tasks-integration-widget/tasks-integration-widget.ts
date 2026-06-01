@@ -15,6 +15,13 @@ import { STRINGS } from "./strings";
 
 const DEFAULT_APPS_SCRIPT_URL =
   "https://script.google.com/macros/s/AKfycbwhJDxf4hgE_zIfZjvedGmqQnH8_nJ2UIEwMtcQ8Hbk2RBNXnslyqSV718k3k0RYXy1/exec";
+// The original deployment above IGNORES ?sheet= and always returns Sheet1.
+// This newer deployment honors ?sheet=. Until every install updates its
+// appsscripturl config, we transparently redirect to this URL when the legacy
+// one is configured AND a non-default sheet is actually requested (see pull).
+const LEGACY_APPS_SCRIPT_URL = DEFAULT_APPS_SCRIPT_URL;
+const SHEET_AWARE_APPS_SCRIPT_URL =
+  "https://script.google.com/macros/s/AKfycbwx9kLTHM6ip_lk1_CcPCl4JiWP_PCV6UZh37E0GpbHbikexj0nyiNiNWFv_FOFbFRV/exec";
 const DEFAULT_API_TOKEN =
   "NjljMjU3N2JjZmFjZWYxMzc4MzIzYTNkOkp6VEpkaGlfclRyRDk4bjlBZ2pIdXFkcmI3UjQhdl1LTm1RV1hwOHBIdUd+Unl3clk7MjYhSS1JdiprLGdOaVI=";
 const DEFAULT_BASE_URL = "https://app.staffbase.com/api";
@@ -284,7 +291,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             color: var(--gray); text-transform: uppercase; letter-spacing: .4px;
             margin-bottom: 6px;
           }
-          .${p}-help { font-size: 12px; color: var(--gray-lt); margin-top: 5px; }
+          .${p}-help { font-size: 12px; line-height: 1.45; font-weight: 400; color: var(--gray-lt); margin: 5px 0 0; }
           .${p}-input {
             width: 100%; padding: 10px 13px;
             border: 1.5px solid var(--border); border-radius: var(--r-md);
@@ -759,7 +766,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               <select class="${p}-select" id="${p}-existing">
                 <option value="">${tx("createNewList")}</option>
               </select>
-              <p class="${p}-help">${tx("replaceHint")}</p>
+              <div class="${p}-help">${tx("replaceHint")}</div>
             </div>
           </div>
           ` : ""}
@@ -1195,9 +1202,11 @@ const tbody      = container.querySelector(`#${p}-tbody`)!;
 
       async function fetchUsersAndGroups() {
         try {
+          // /groups/search surfaces ALL groups (incl. access-restricted / non-open),
+          // which plain /groups misses; we still supplement with /groups and merge.
           const [uRes, gRes] = await Promise.all([
             fetch(`${baseUrl}/users?limit=200`, apiOpts()),
-            fetch(`${baseUrl}/groups?limit=200`, apiOpts()),
+            fetch(`${baseUrl}/groups/search?limit=100&sort=name_ASC`, apiOpts()),
           ]);
           if (uRes.ok) {
             const ud = await uRes.json();
@@ -1210,14 +1219,26 @@ const tbody      = container.querySelector(`#${p}-tbody`)!;
               .sort((a: any, b: any) => a.name.localeCompare(b.name));
           }
           if (gRes.ok) {
-            const gd = await gRes.json();
-            allGroups = (gd.data || [])
-              .map((g: any) => ({
-                id:   g.id,
-                name: g.config?.localization?.en_US?.title || g.name || g.id,
-              }))
-              .sort((a: any, b: any) => a.name.localeCompare(b.name));
+            const d = await gRes.json();
+            const parseEntry = (e: any) => {
+              const inner = e.data || e;
+              const name = inner.config?.localization?.en_US?.name || inner.config?.localization?.en_US?.title || inner.name || inner.title || inner.id;
+              return { id: inner.id, name };
+            };
+            const raw: any[] = d.entries || d.data || d.results || d.items || (Array.isArray(d) ? d : []);
+            allGroups = raw.map(parseEntry).filter((g: any) => g.id && g.name).sort((a: any, b: any) => a.name.localeCompare(b.name));
           }
+          // Supplement with plain /groups (catches any missed by search), merged by id.
+          try {
+            const fb = await fetch(`${baseUrl}/groups?limit=200`, apiOpts());
+            if (fb.ok) {
+              const gd = await fb.json();
+              const fbGroups = (gd.data || []).map((g: any) => ({ id: g.id, name: g.config?.localization?.en_US?.title || g.config?.localization?.en_US?.name || g.name || g.id })).filter((g: any) => g.id && g.name);
+              const seen = new Set(allGroups.map((g: any) => g.id));
+              for (const g of fbGroups) { if (!seen.has(g.id)) { allGroups.push(g); seen.add(g.id); } }
+              allGroups.sort((a: any, b: any) => a.name.localeCompare(b.name));
+            }
+          } catch (_) {}
           renderAssignList();
         } catch (_) {
           assignListEl.innerHTML = `<div class="${p}-assign-empty">${tx("failedToLoad")}</div>`;
@@ -1327,11 +1348,19 @@ const tbody      = container.querySelector(`#${p}-tbody`)!;
         (statusEl as HTMLElement).style.display = "none";
 
         try {
-          // Append ?sheet=Name if a sheet name is configured
-          const pullUrl = sheetName
-            ? `${appsScriptUrl}${appsScriptUrl.includes("?") ? "&" : "?"}sheet=${encodeURIComponent(sheetName)}`
-            : appsScriptUrl;
-          const res = await fetch(pullUrl);
+          // Migration shim: if the legacy (sheet-ignoring) script is configured but
+          // a real non-default sheet is requested, use the sheet-aware deployment.
+          let effectiveUrl = appsScriptUrl;
+          if (appsScriptUrl === LEGACY_APPS_SCRIPT_URL && sheetName && sheetName.trim().toLowerCase() !== "sheet1") {
+            effectiveUrl = SHEET_AWARE_APPS_SCRIPT_URL;
+          }
+          // Append ?sheet=Name if a sheet name is configured, plus a cache-buster
+          // so we never get a stale tab back from a cached GET.
+          const params: string[] = [];
+          if (sheetName) params.push(`sheet=${encodeURIComponent(sheetName)}`);
+          params.push(`_=${Date.now()}`);
+          const pullUrl = `${effectiveUrl}${effectiveUrl.includes("?") ? "&" : "?"}${params.join("&")}`;
+          const res = await fetch(pullUrl, { cache: "no-store" });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
           let data: any;

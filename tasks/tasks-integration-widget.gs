@@ -25,11 +25,28 @@ function doGet(e) {
   try {
     var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
 
-    // Allow the caller to specify a sheet tab via ?sheet=Name
-    var sheetName = (e && e.parameter && e.parameter.sheet)
-      ? e.parameter.sheet
+    // Allow the caller to specify a sheet tab via ?sheet=Name.
+    // Match is trimmed + case-insensitive so "7eleven" / " 7Eleven " still hit
+    // the "7Eleven" tab. If a name is requested but not found, return an explicit
+    // error (listing the available tabs) rather than silently using the first tab.
+    var requested = (e && e.parameter && e.parameter.sheet)
+      ? String(e.parameter.sheet).trim()
       : SHEET_NAME;
-    var sheet = ss.getSheetByName(sheetName) || ss.getSheets()[0];
+    var allSheets = ss.getSheets();
+    var sheet = null;
+    var reqLc = requested.toLowerCase();
+    for (var si = 0; si < allSheets.length; si++) {
+      if (allSheets[si].getName().trim().toLowerCase() === reqLc) { sheet = allSheets[si]; break; }
+    }
+    if (!sheet) {
+      return ContentService
+        .createTextOutput(JSON.stringify({
+          error: "Sheet '" + requested + "' not found",
+          availableSheets: allSheets.map(function (s) { return s.getName(); })
+        }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    var resolvedSheet = sheet.getName();
     var data = sheet.getDataRange().getValues();
 
     var tasks = [];
@@ -56,7 +73,7 @@ function doGet(e) {
     }
 
     return ContentService
-      .createTextOutput(JSON.stringify({ tasks: tasks }))
+      .createTextOutput(JSON.stringify({ sheet: resolvedSheet, tasks: tasks }))
       .setMimeType(ContentService.MimeType.JSON);
 
   } catch (error) {

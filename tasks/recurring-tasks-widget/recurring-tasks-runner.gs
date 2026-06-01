@@ -81,9 +81,25 @@ function processEnv(env) {
   var created = 0, skipped = 0, pending = 0, failed = 0, notToday = 0;
   var headers = { Authorization: "Basic " + env.apiToken, "Content-Type": "application/json" };
 
+  // Stores: merge the classic /installations list (which only ever returns
+  // unrestricted stores) with the tasks-plugin search, the only endpoint that
+  // surfaces access-restricted stores (e.g. 7-Eleven, where each store is
+  // locked to specific users/groups with branchAccess:false). NO viewer access
+  // filter here — the runner is a service job and must process every store.
+  // See HANDOVER.md.
+  var byId = {};
   var installs = apiJson(env.baseUrl + "/installations?limit=200", headers);
   var list = (installs && (installs.data || installs)) || [];
-  var taskInstalls = list.filter(function (i) { return i.pluginID === "tasks" || i.pluginId === "tasks"; });
+  list.forEach(function (i) {
+    if (i.pluginID === "tasks" || i.pluginId === "tasks") byId[i.id] = i;
+  });
+  var search = apiJson(env.baseUrl + "/plugins/tasks/installations/search?permission=manage&limit=200&sort=updated_DESC", headers);
+  var entries = (search && search.entries) || [];
+  entries.forEach(function (e) {
+    var i = e.data || e;
+    if (i && i.id && !byId[i.id]) byId[i.id] = i;
+  });
+  var taskInstalls = Object.keys(byId).map(function (k) { return byId[k]; });
 
   taskInstalls.forEach(function (inst) {
     var store = instTitle(inst);

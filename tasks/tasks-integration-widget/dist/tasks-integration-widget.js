@@ -855,6 +855,12 @@ var tasks_integration_widget_awaiter = (undefined && undefined.__awaiter) || fun
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
 const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwhJDxf4hgE_zIfZjvedGmqQnH8_nJ2UIEwMtcQ8Hbk2RBNXnslyqSV718k3k0RYXy1/exec";
+// The original deployment above IGNORES ?sheet= and always returns Sheet1.
+// This newer deployment honors ?sheet=. Until every install updates its
+// appsscripturl config, we transparently redirect to this URL when the legacy
+// one is configured AND a non-default sheet is actually requested (see pull).
+const LEGACY_APPS_SCRIPT_URL = DEFAULT_APPS_SCRIPT_URL;
+const SHEET_AWARE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwx9kLTHM6ip_lk1_CcPCl4JiWP_PCV6UZh37E0GpbHbikexj0nyiNiNWFv_FOFbFRV/exec";
 const DEFAULT_API_TOKEN = "NjljMjU3N2JjZmFjZWYxMzc4MzIzYTNkOkp6VEpkaGlfclRyRDk4bjlBZ2pIdXFkcmI3UjQhdl1LTm1RV1hwOHBIdUd+Unl3clk7MjYhSS1JdiprLGdOaVI=";
 const DEFAULT_BASE_URL = "https://app.staffbase.com/api";
 const DEFAULT_PRIMARY_COLOR = "#da2e32";
@@ -1105,7 +1111,7 @@ const factory = (BaseBlockClass, widgetApi) => {
             color: var(--gray); text-transform: uppercase; letter-spacing: .4px;
             margin-bottom: 6px;
           }
-          .${p}-help { font-size: 12px; color: var(--gray-lt); margin-top: 5px; }
+          .${p}-help { font-size: 12px; line-height: 1.45; font-weight: 400; color: var(--gray-lt); margin: 5px 0 0; }
           .${p}-input {
             width: 100%; padding: 10px 13px;
             border: 1.5px solid var(--border); border-radius: var(--r-md);
@@ -1580,7 +1586,7 @@ const factory = (BaseBlockClass, widgetApi) => {
               <select class="${p}-select" id="${p}-existing">
                 <option value="">${tx("createNewList")}</option>
               </select>
-              <p class="${p}-help">${tx("replaceHint")}</p>
+              <div class="${p}-help">${tx("replaceHint")}</div>
             </div>
           </div>
           ` : ""}
@@ -2021,9 +2027,11 @@ const factory = (BaseBlockClass, widgetApi) => {
                 function fetchUsersAndGroups() {
                     return tasks_integration_widget_awaiter(this, void 0, void 0, function* () {
                         try {
+                            // /groups/search surfaces ALL groups (incl. access-restricted / non-open),
+                            // which plain /groups misses; we still supplement with /groups and merge.
                             const [uRes, gRes] = yield Promise.all([
                                 fetch(`${baseUrl}/users?limit=200`, apiOpts()),
-                                fetch(`${baseUrl}/groups?limit=200`, apiOpts()),
+                                fetch(`${baseUrl}/groups/search?limit=100&sort=name_ASC`, apiOpts()),
                             ]);
                             if (uRes.ok) {
                                 const ud = yield uRes.json();
@@ -2039,17 +2047,33 @@ const factory = (BaseBlockClass, widgetApi) => {
                                     .sort((a, b) => a.name.localeCompare(b.name));
                             }
                             if (gRes.ok) {
-                                const gd = yield gRes.json();
-                                allGroups = (gd.data || [])
-                                    .map((g) => {
-                                    var _a, _b, _c;
-                                    return ({
-                                        id: g.id,
-                                        name: ((_c = (_b = (_a = g.config) === null || _a === void 0 ? void 0 : _a.localization) === null || _b === void 0 ? void 0 : _b.en_US) === null || _c === void 0 ? void 0 : _c.title) || g.name || g.id,
-                                    });
-                                })
-                                    .sort((a, b) => a.name.localeCompare(b.name));
+                                const d = yield gRes.json();
+                                const parseEntry = (e) => {
+                                    var _a, _b, _c, _d, _e, _f;
+                                    const inner = e.data || e;
+                                    const name = ((_c = (_b = (_a = inner.config) === null || _a === void 0 ? void 0 : _a.localization) === null || _b === void 0 ? void 0 : _b.en_US) === null || _c === void 0 ? void 0 : _c.name) || ((_f = (_e = (_d = inner.config) === null || _d === void 0 ? void 0 : _d.localization) === null || _e === void 0 ? void 0 : _e.en_US) === null || _f === void 0 ? void 0 : _f.title) || inner.name || inner.title || inner.id;
+                                    return { id: inner.id, name };
+                                };
+                                const raw = d.entries || d.data || d.results || d.items || (Array.isArray(d) ? d : []);
+                                allGroups = raw.map(parseEntry).filter((g) => g.id && g.name).sort((a, b) => a.name.localeCompare(b.name));
                             }
+                            // Supplement with plain /groups (catches any missed by search), merged by id.
+                            try {
+                                const fb = yield fetch(`${baseUrl}/groups?limit=200`, apiOpts());
+                                if (fb.ok) {
+                                    const gd = yield fb.json();
+                                    const fbGroups = (gd.data || []).map((g) => { var _a, _b, _c, _d, _e, _f; return ({ id: g.id, name: ((_c = (_b = (_a = g.config) === null || _a === void 0 ? void 0 : _a.localization) === null || _b === void 0 ? void 0 : _b.en_US) === null || _c === void 0 ? void 0 : _c.title) || ((_f = (_e = (_d = g.config) === null || _d === void 0 ? void 0 : _d.localization) === null || _e === void 0 ? void 0 : _e.en_US) === null || _f === void 0 ? void 0 : _f.name) || g.name || g.id }); }).filter((g) => g.id && g.name);
+                                    const seen = new Set(allGroups.map((g) => g.id));
+                                    for (const g of fbGroups) {
+                                        if (!seen.has(g.id)) {
+                                            allGroups.push(g);
+                                            seen.add(g.id);
+                                        }
+                                    }
+                                    allGroups.sort((a, b) => a.name.localeCompare(b.name));
+                                }
+                            }
+                            catch (_) { }
                             renderAssignList();
                         }
                         catch (_) {
@@ -2153,11 +2177,20 @@ const factory = (BaseBlockClass, widgetApi) => {
                     pullBtn.innerHTML = `<span class="${p}-spin"></span>`;
                     statusEl.style.display = "none";
                     try {
-                        // Append ?sheet=Name if a sheet name is configured
-                        const pullUrl = sheetName
-                            ? `${appsScriptUrl}${appsScriptUrl.includes("?") ? "&" : "?"}sheet=${encodeURIComponent(sheetName)}`
-                            : appsScriptUrl;
-                        const res = yield fetch(pullUrl);
+                        // Migration shim: if the legacy (sheet-ignoring) script is configured but
+                        // a real non-default sheet is requested, use the sheet-aware deployment.
+                        let effectiveUrl = appsScriptUrl;
+                        if (appsScriptUrl === LEGACY_APPS_SCRIPT_URL && sheetName && sheetName.trim().toLowerCase() !== "sheet1") {
+                            effectiveUrl = SHEET_AWARE_APPS_SCRIPT_URL;
+                        }
+                        // Append ?sheet=Name if a sheet name is configured, plus a cache-buster
+                        // so we never get a stale tab back from a cached GET.
+                        const params = [];
+                        if (sheetName)
+                            params.push(`sheet=${encodeURIComponent(sheetName)}`);
+                        params.push(`_=${Date.now()}`);
+                        const pullUrl = `${effectiveUrl}${effectiveUrl.includes("?") ? "&" : "?"}${params.join("&")}`;
+                        const res = yield fetch(pullUrl, { cache: "no-store" });
                         if (!res.ok)
                             throw new Error(`HTTP ${res.status}`);
                         let data;

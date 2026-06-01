@@ -1296,6 +1296,24 @@ function fuzzyMatchGroup(role, groups) {
     }
     return bestId;
 }
+// Match a role against an individual user's NAME. Stricter than the group match
+// (exact, or a full-name containment) to avoid assigning a random person on a
+// loose single-word hit — used as a fallback when no group matches the role.
+function fuzzyMatchUser(role, users) {
+    const rl = role.trim().toLowerCase();
+    if (!rl)
+        return null;
+    const exact = users.find(u => u.name.trim().toLowerCase() === rl);
+    if (exact)
+        return exact.id;
+    // Containment, but only when the user's name looks like a full name (2+ words)
+    // so we don't match "Manager" onto someone who merely has that word.
+    const partial = users.find(u => {
+        const nl = u.name.trim().toLowerCase();
+        return nl.split(/\s+/).length >= 2 && (nl.includes(rl) || rl.includes(nl));
+    });
+    return partial ? partial.id : null;
+}
 // ── Widget factory ────────────────────────────────────────────────────────────
 const factory = (BaseBlockClass, widgetApi) => {
     return class AuditWidget extends BaseBlockClass {
@@ -2507,8 +2525,15 @@ const factory = (BaseBlockClass, widgetApi) => {
                                         taskAssignType[q.id] = "group";
                                         continue;
                                     }
+                                    // No group matched the role — try matching an individual user by name.
+                                    const u = fuzzyMatchUser(q.taskRole, allUsers);
+                                    if (u) {
+                                        taskUserOverrides[q.id] = u;
+                                        taskAssignType[q.id] = "user";
+                                        continue;
+                                    }
                                 }
-                                // No group match — fall back to Nicole Adams (or any default user)
+                                // Nothing matched — fall back to the default user (Nicole Adams).
                                 if (defaultUserId) {
                                     taskUserOverrides[q.id] = defaultUserId;
                                     taskAssignType[q.id] = "user";
