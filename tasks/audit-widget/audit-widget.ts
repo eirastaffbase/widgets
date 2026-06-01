@@ -35,6 +35,7 @@ const DUMMY_QUESTIONS: Question[] = [
   { id:"DR-001",  cat:"Dining Room",    text:"All tables are clean and sanitized",               type:"pf",   pts:3, critical:false, task:true,  passCriteria:"Sanitized per protocol",                   taskTitle:"Sanitize all dining room tables",       taskRole:"Crew Member", taskPriority:"High",     taskDue:1 },
   { id:"ST-001",  cat:"Serving Table",  text:"Hot food holding temps are within range (≥140°F)", type:"temp", pts:5, critical:true,  task:true,  passCriteria:"≥140°F hot holding, ≥165°F cooking",       taskTitle:"Adjust holding temp — FOOD SAFETY RISK",taskRole:"Manager",     taskPriority:"Critical", taskDue:0 },
   { id:"BOH-001", cat:"Back of House",  text:"Walk-in cooler temps within range (35–41°F)",      type:"temp", pts:5, critical:true,  task:true,  passCriteria:"35–41°F walk-in range",                    taskTitle:"Adjust cooler temp — FOOD SAFETY RISK", taskRole:"Manager",     taskPriority:"Critical", taskDue:0 },
+  { id:"DT-001",  cat:"Drive-Thru",     text:"Time a drive-thru order from window to handoff",   type:"time", pts:5, critical:false, task:false, passCriteria:"between 60 and 90 seconds",                 taskTitle:"", taskRole:"", taskPriority:"", taskDue:0, timeUnit:"sec" },
 ];
 
 // ── Config schema ─────────────────────────────────────────────────────────────
@@ -238,27 +239,42 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-temp-input.ok{border-color:var(--success);background:rgba(46,125,74,.05)}
           .${p}-temp-input.bad{border-color:var(--error);background:rgba(196,30,58,.05)}
           .${p}-temp-hint{font-size:11px;color:var(--gray-lt);margin-top:5px;line-height:1.4;text-align:center}
-          .${p}-timer{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
-          .${p}-timer-ico{display:flex;align-items:center;color:var(--gray-lt);flex-shrink:0}
-          .${p}-timer-display{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:22px;font-weight:800;color:var(--dark);min-width:62px;letter-spacing:.5px;font-variant-numeric:tabular-nums}
-          .${p}-timer-display.running{color:var(--primary)}
-          .${p}-timer-display.${p}-st-pass{color:var(--success)!important}
-          .${p}-timer-display.${p}-st-fail{color:var(--error)!important}
-          .${p}-timer-status{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;padding:3px 9px;border-radius:20px;white-space:nowrap}
-          .${p}-timer-status.${p}-st-pass{background:rgba(46,125,74,.1);color:var(--success)}
-          .${p}-timer-status.${p}-st-fail{background:rgba(196,30,58,.1);color:var(--error)}
-          .${p}-timer-status.${p}-st-pending{background:#f3f4f6;color:var(--gray)}
-          .${p}-timer-goal{font-size:11px;color:var(--gray-lt);margin:-4px 0 10px 28px}
-          .${p}-timer-btn{width:auto!important;margin:0!important;display:inline-flex!important;align-items:center;justify-content:center;padding:8px 16px!important;border-radius:var(--r-md)!important;font-family:inherit!important;font-size:13px!important;font-weight:700!important;line-height:normal!important;cursor:pointer;border:none!important;background:var(--success)!important;color:#fff!important;transition:filter .15s,transform .1s;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
-          .${p}-timer-btn:active{transform:scale(.96)}
-          .${p}-timer-btn.stop{background:var(--error)!important}
-          .${p}-timer-btn.ghost{background:#fafafa!important;border:1.5px solid var(--border)!important;color:var(--gray)!important;font-weight:600!important}
-          .${p}-timer-actions{display:flex;gap:8px;margin-inline-start:auto}
-          /* Mobile: let the timer wrap and the Start/Reset buttons drop to their own full-width row. */
+          /* ── Stopwatch dial ─────────────────────────────────────────── */
+          .${p}-timer{display:flex;flex-direction:column;align-items:center;gap:12px;margin:6px 0 12px}
+          .${p}-dial-wrap{position:relative;width:148px;height:148px;flex-shrink:0}
+          .${p}-crown{position:absolute;top:-3px;left:50%;width:16px;height:11px;background:var(--gray-lt);border-radius:4px 4px 2px 2px;transform:translateX(-50%);box-shadow:inset 0 -2px 0 rgba(0,0,0,.08);transition:background .3s;z-index:1}
+          .${p}-dial-wrap.${p}-st-pass .${p}-crown{background:var(--success)}
+          .${p}-dial-wrap.${p}-st-fail .${p}-crown{background:var(--error)}
+          .${p}-dial-wrap.running .${p}-crown{background:var(--primary)}
+          .${p}-dial{width:148px;height:148px;transform:rotate(-90deg);overflow:visible}
+          .${p}-dial circle{fill:none}
+          .${p}-dial-ticks{stroke:var(--gray-lt);stroke-width:5;stroke-dasharray:1.2 4.874;opacity:.4}
+          .${p}-dial-track{stroke:#eceef1;stroke-width:9}
+          .${p}-dial-zone{stroke:rgba(46,125,74,.22);stroke-width:9;stroke-linecap:round}
+          .${p}-dial-prog{stroke:var(--gray-lt);stroke-width:9;stroke-linecap:round;
+            transition:stroke-dasharray .25s linear,stroke .35s ease}
+          .${p}-dial-wrap.running .${p}-dial-prog{stroke:var(--primary);filter:drop-shadow(0 0 5px rgba(var(--primary-rgb),.35))}
+          .${p}-dial-wrap.${p}-st-pass .${p}-dial-prog{stroke:var(--success)!important;filter:drop-shadow(0 0 6px rgba(46,125,74,.45))}
+          .${p}-dial-wrap.${p}-st-fail .${p}-dial-prog{stroke:var(--error)!important;filter:drop-shadow(0 0 6px rgba(196,30,58,.45))}
+          .${p}-dial-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;pointer-events:none}
+          .${p}-timer-display{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:30px;font-weight:800;color:var(--dark);letter-spacing:.5px;font-variant-numeric:tabular-nums;line-height:1}
+          .${p}-dial-wrap.running .${p}-timer-display{color:var(--primary)}
+          .${p}-dial-wrap.${p}-st-pass .${p}-timer-display{color:var(--success)}
+          .${p}-dial-wrap.${p}-st-fail .${p}-timer-display{color:var(--error)}
+          .${p}-timer-status{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;padding:3px 9px;border-radius:20px;white-space:nowrap}
+          .${p}-timer-status.${p}-st-pass{background:rgba(46,125,74,.12);color:var(--success)}
+          .${p}-timer-status.${p}-st-fail{background:rgba(196,30,58,.12);color:var(--error)}
+          .${p}-timer-status.${p}-st-pending{background:#f1f2f4;color:var(--gray)}
+          .${p}-timer-goal{font-size:11px;color:var(--gray-lt);text-align:center;margin:-4px 0 10px}
+          .${p}-timer-btn{width:auto!important;margin:0!important;display:inline-flex!important;align-items:center;justify-content:center;gap:6px;padding:9px 22px!important;border-radius:999px!important;font-family:inherit!important;font-size:13px!important;font-weight:700!important;line-height:normal!important;cursor:pointer;border:none!important;background:var(--primary)!important;color:#fff!important;transition:filter .15s,transform .1s,box-shadow .15s;box-shadow:0 2px 10px rgba(var(--primary-rgb),.3);-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+          .${p}-timer-btn:hover{filter:brightness(1.05)}
+          .${p}-timer-btn:active{transform:scale(.95)}
+          .${p}-timer-btn.stop{background:var(--error)!important;box-shadow:0 2px 10px rgba(196,30,58,.3)}
+          .${p}-timer-btn.ghost{background:#fff!important;border:1.5px solid var(--border)!important;color:var(--gray)!important;font-weight:600!important;box-shadow:none}
+          .${p}-timer-actions{display:flex;gap:10px;justify-content:center}
           @media(max-width:600px){
-            .${p}-timer-display{font-size:20px;min-width:54px}
-            .${p}-timer-actions{width:100%;margin-inline-start:0;margin-top:4px}
-            .${p}-timer-btn{flex:1 1 0;padding:9px 8px!important}
+            .${p}-dial-wrap,.${p}-dial{width:140px;height:140px}
+            .${p}-timer-display{font-size:28px}
           }
           .${p}-task-flag{background:#fffbeb;border:1px solid #fde68a;border-radius:var(--r-md);padding:10px 12px;margin-top:10px;display:none}
           .${p}-task-flag.show{display:block}
@@ -586,6 +602,23 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         if(elapsedSec<t.lo)  return {state:"pending",label:"Too early"};
         return elapsedSec<=t.hi?{state:"pass",label:"In range"}:{state:"fail",label:"Over range"};
       }
+      // ── Stopwatch dial geometry ───────────────────────────────────────
+      const DIAL_R=54, DIAL_C=2*Math.PI*DIAL_R;
+      // Full-circle scale (seconds) the dial represents — leaves headroom past
+      // the goal so the sweep can visibly run "over".
+      function dialScale(t:{kind:string;lo:number;hi:number}|null):number{
+        if(!t) return 60;
+        if(t.kind==="over") return Math.max(t.lo*1.25,1);
+        return Math.max(t.hi*1.25,1); // under + range key off hi
+      }
+      // The highlighted goal-zone arc as {start,frac} fractions of the circle.
+      function dialZone(t:{kind:string;lo:number;hi:number}|null,scale:number):{start:number;frac:number}{
+        if(!t) return {start:0,frac:0};
+        if(t.kind==="under") return {start:0, frac:Math.min(t.hi/scale,1)};
+        if(t.kind==="over")  { const s=Math.min(t.lo/scale,1); return {start:s, frac:1-s}; }
+        return {start:Math.min(t.lo/scale,1), frac:Math.min((t.hi-t.lo)/scale,1)};
+      }
+      const dash=(frac:number)=>`${Math.max(frac,0)*DIAL_C} ${DIAL_C}`;
       function goalLabel(t:{kind:string;lo:number;hi:number}):string{
         if(t.kind==="under") return `Goal: under ${fmtTimer(t.hi*1000)}`;
         if(t.kind==="over")  return `Goal: at least ${fmtTimer(t.lo*1000)}`;
@@ -594,13 +627,19 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       // Live-update a running timer's display, color, and status pill without a full re-render.
       function updateTimerUI(qid:string){
         const s=timeState[qid]; if(!s) return;
+        const ms=curElapsed(s);
         const disp=contentEl.querySelector(`.${p}-timer-display[data-qid="${qid}"]`) as HTMLElement|null;
-        if(disp) disp.textContent=fmtTimer(curElapsed(s));
+        if(disp) disp.textContent=fmtTimer(ms);
         const q=questions.find(x=>x.id===qid); const tgt=q?parseTimeTarget(q):null;
+        const prog=contentEl.querySelector(`.${p}-dial-prog[data-qid="${qid}"]`) as SVGElement|null;
+        const wrap=contentEl.querySelector(`.${p}-dial-wrap[data-qid="${qid}"]`) as HTMLElement|null;
+        // Sweep the progress arc.
+        if(prog) prog.setAttribute("stroke-dasharray", dash(Math.min((ms/1000)/dialScale(tgt),1)));
         if(!tgt) return;
-        const st=timeStatus(Math.floor(curElapsed(s)/1000),tgt);
+        const st=timeStatus(Math.floor(ms/1000),tgt);
         const cls=[`${p}-st-pass`,`${p}-st-fail`,`${p}-st-pending`];
-        if(disp){ disp.classList.remove(...cls); disp.classList.add(`${p}-st-${st.state}`); }
+        // State class on the wrap drives dial/crown/text/zone colors.
+        if(wrap){ wrap.classList.remove(...cls); wrap.classList.add(`${p}-st-${st.state}`); }
         const pill=contentEl.querySelector(`.${p}-timer-status[data-qid="${qid}"]`) as HTMLElement|null;
         if(pill){ pill.textContent=st.label; pill.classList.remove(...cls); pill.classList.add(`${p}-st-${st.state}`); }
       }
@@ -1105,11 +1144,25 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           const s=timeState[q.id]||{elapsed:0,running:false,startAt:0};
           const tgt=parseTimeTarget(q);
           const st=tgt?timeStatus(Math.floor(curElapsed(s)/1000),tgt):null;
+          const scale=dialScale(tgt);
+          const zone=tgt?dialZone(tgt,scale):{start:0,frac:0};
+          const progFrac=Math.min((curElapsed(s)/1000)/scale,1);
+          const stCls=st?` ${p}-st-${st.state}`:"";
           ctrl=`
             <div class="${p}-timer">
-              <span class="${p}-timer-ico">${iTimer}</span>
-              <div class="${p}-timer-display${s.running?" running":""}${st?" "+p+"-st-"+st.state:""}" data-qid="${esc(q.id)}">${fmtTimer(curElapsed(s))}</div>
-              ${st?`<span class="${p}-timer-status ${p}-st-${st.state}" data-qid="${esc(q.id)}">${st.label}</span>`:""}
+              <div class="${p}-dial-wrap${s.running?" running":""}${stCls}" data-qid="${esc(q.id)}">
+                <div class="${p}-crown"></div>
+                <svg class="${p}-dial" viewBox="0 0 120 120" aria-hidden="true">
+                  <circle class="${p}-dial-ticks" cx="60" cy="60" r="58"/>
+                  <circle class="${p}-dial-track" cx="60" cy="60" r="${DIAL_R}"/>
+                  ${zone.frac>0?`<circle class="${p}-dial-zone" cx="60" cy="60" r="${DIAL_R}" stroke-dasharray="${dash(zone.frac)}" stroke-dashoffset="${-zone.start*DIAL_C}"/>`:""}
+                  <circle class="${p}-dial-prog" data-qid="${esc(q.id)}" cx="60" cy="60" r="${DIAL_R}" stroke-dasharray="${dash(progFrac)}"/>
+                </svg>
+                <div class="${p}-dial-center">
+                  <div class="${p}-timer-display" data-qid="${esc(q.id)}">${fmtTimer(curElapsed(s))}</div>
+                  ${st?`<span class="${p}-timer-status ${p}-st-${st.state}" data-qid="${esc(q.id)}">${st.label}</span>`:""}
+                </div>
+              </div>
               <div class="${p}-timer-actions">
                 <button type="button" class="${p}-timer-btn${s.running?" stop":""}" data-qid="${esc(q.id)}" data-tact="toggle">${s.running?tr("stop"):tr("start")}</button>
                 <button type="button" class="${p}-timer-btn ghost" data-qid="${esc(q.id)}" data-tact="reset">${tr("reset")}</button>
