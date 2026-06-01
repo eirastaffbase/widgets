@@ -1677,7 +1677,7 @@ const STRINGS = {
 
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
-const DEFAULT_API_TOKEN = "NjljMjU3N2JjZmFjZWYxMzc4MzIzYTNkOkp6VEpkaGlfclRyRDk4bjlBZ2pIdXFkcmI3UjQhdl1LTm1RV1hwOHBIdUd+Unl3clk7MjYhSS1JdiprLGdOaVI=";
+const DEFAULT_API_TOKEN = "";
 const DEFAULT_BASE_URL = "https://app.staffbase.com/api";
 const DEFAULT_PRIMARY_COLOR = "#da2e32";
 const DEFAULT_ACCENT_COLOR = "#da2e32";

@@ -1230,7 +1230,7 @@ var audit_widget_awaiter = (undefined && undefined.__awaiter) || function (thisA
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
 const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzlqYwqZ6gaq-nwDbIQ0M1spl77Qu5_fZtOwytNYYAsBKC_baY7WGUOEmM60Y6edInr/exec";
-const DEFAULT_API_TOKEN = "NjljMjU3N2JjZmFjZWYxMzc4MzIzYTNkOkp6VEpkaGlfclRyRDk4bjlBZ2pIdXFkcmI3UjQhdl1LTm1RV1hwOHBIdUd+Unl3clk7MjYhSS1JdiprLGdOaVI=";
+const DEFAULT_API_TOKEN = "";
 const DEFAULT_BASE_URL = "https://app.staffbase.com/api";
 const DEFAULT_PRIMARY = "#da2e32";
 const DEFAULT_ACCENT = "#da2e32";

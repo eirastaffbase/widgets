@@ -23,7 +23,7 @@ const LEGACY_APPS_SCRIPT_URL = DEFAULT_APPS_SCRIPT_URL;
 const SHEET_AWARE_APPS_SCRIPT_URL =
   "https://script.google.com/macros/s/AKfycbwx9kLTHM6ip_lk1_CcPCl4JiWP_PCV6UZh37E0GpbHbikexj0nyiNiNWFv_FOFbFRV/exec";
 const DEFAULT_API_TOKEN =
-  "NjljMjU3N2JjZmFjZWYxMzc4MzIzYTNkOkp6VEpkaGlfclRyRDk4bjlBZ2pIdXFkcmI3UjQhdl1LTm1RV1hwOHBIdUd+Unl3clk7MjYhSS1JdiprLGdOaVI=";
+  "";
 const DEFAULT_BASE_URL = "https://app.staffbase.com/api";
 const DEFAULT_PRIMARY_COLOR = "#da2e32";
 const DEFAULT_ACCENT_COLOR  = "#da2e32";
