@@ -200,6 +200,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const primaryColor = this.getAttribute("primarycolor") || DEFAULT_PRIMARY_COLOR;
       const accentColor  = this.getAttribute("accentcolor")  || DEFAULT_ACCENT_COLOR;
       const primaryRgb   = hexToRgb(primaryColor);
+      const accentRgb = hexToRgb(accentColor);
       const primaryText  = contrastColor(primaryColor);
       const bgColor  = this.getAttribute("backgroundcolor") || "";
       const storeS   = this.getAttribute("storelabelsingular") || "Store";
@@ -363,7 +364,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       container.innerHTML = `
         <style>
           .${p} {
-            --primary: ${primaryColor}; --primary-rgb: ${primaryRgb}; --primary-text: ${primaryText};
+            --primary: ${primaryColor}; --primary-rgb: ${primaryRgb};--accent-rgb:${accentRgb}; --primary-text: ${primaryText};
             --accent: ${accentColor};
             --dark:#1A1A1A; --gray:#6b7280; --gray-lt:#9ca3af; --border:#e5e7eb;
             --success:#2E7D4A; --error:#C41E3A;
@@ -437,7 +438,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-ms-trigger { width:100%; min-height:44px; padding:8px 36px 8px 11px; border:1.5px solid var(--border);
             border-radius:var(--r-md); background:#fafafa; cursor:pointer; display:flex; flex-wrap:wrap; gap:6px;
             align-items:center; position:relative; transition:border-color .15s; }
-          .${p}-ms-trigger:hover, .${p}-ms-trigger.open { border-color:var(--primary); background:#fff; }
+          .${p}-ms-trigger:hover, .${p}-ms-trigger.open { border-color:var(--accent); background:#fff; }
           .${p}-ms-trigger::after { content:'▾'; position:absolute; right:11px; top:50%; transform:translateY(-50%);
             color:var(--gray-lt); pointer-events:none; font-size:13px; }
           .${p}-ms-ph { color:var(--gray-lt); font-size:14px; }
@@ -456,7 +457,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-dd-opt { padding:10px 12px; cursor:pointer; display:flex; align-items:center; gap:9px; font-size:13px;
             border-bottom:1px solid #f3f4f6; transition:background .1s; }
           .${p}-dd-opt:last-child { border-bottom:none; }
-          .${p}-dd-opt:hover { background:#fef2f2; }
+          .${p}-dd-opt:hover { background:rgba(var(--accent-rgb),.07); }
           .${p}-dd-opt.sel { background:rgba(var(--primary-rgb),.06); }
           .${p}-check { width:16px; height:16px; border:1.5px solid #d1d5db; border-radius:3px; flex-shrink:0; font-size:10px;
             display:flex; align-items:center; justify-content:center; color:transparent; }
@@ -502,6 +503,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-btn:disabled { opacity:.4; cursor:not-allowed; box-shadow:none !important; transform:none !important; }
           .${p}-btn-primary { background:var(--primary); color:var(--primary-text); box-shadow:0 3px 10px rgba(var(--primary-rgb),.3); }
           .${p}-btn-primary:hover:not(:disabled) { filter:brightness(.88); transform:translateY(-1px); box-shadow:0 5px 16px rgba(var(--primary-rgb),.4); }
+          #${p}-new.${p}-btn-primary { background:var(--accent); box-shadow:0 3px 10px rgba(var(--accent-rgb),.35); }
           .${p}-btn-ghost { background:#f3f4f6; color:var(--gray); }
           .${p}-btn-ghost:hover { background:var(--border); color:var(--dark); }
           .${p}-foot { display:flex; gap:10px; margin-top:4px; }
@@ -579,7 +581,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-cal-dow2 { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--gray-lt); }
           .${p}-cal-dnum { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:50%;
             font-size:16px; font-weight:800; color:var(--dark); margin-top:3px; }
-          .${p}-cal-colhead.today .${p}-cal-dnum { background:var(--primary); color:var(--primary-text); }
+          .${p}-cal-colhead.today .${p}-cal-dnum { background:var(--accent); color:#fff; }
           .${p}-cal-evs { padding:6px; display:flex; flex-direction:column; gap:5px; }
           .${p}-ev { background:rgba(var(--primary-rgb),.10); border-inline-start:3px solid var(--primary); border-radius:6px;
             padding:5px 8px; cursor:pointer; transition:background .12s; }
@@ -602,8 +604,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-cal-cell { min-height:78px; border-inline-end:1px solid #f3f4f6; border-bottom:1px solid #f3f4f6; padding:5px 6px; cursor:pointer; transition:background .12s; }
           .${p}-cal-cell:nth-child(7n) { border-inline-end:none; }
           .${p}-cal-cell.muted { background:#fafafa; }
-          .${p}-cal-cell:hover { background:rgba(var(--primary-rgb),.05); }
-          .${p}-cal-cell.today .${p}-cal-num { background:var(--primary); color:var(--primary-text); }
+          .${p}-cal-cell:hover { background:rgba(var(--accent-rgb),.06); }
+          .${p}-cal-cell.today .${p}-cal-num { background:var(--accent); color:#fff; }
           .${p}-cal-num { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; font-size:12px; font-weight:600; color:var(--dark); }
           .${p}-cal-cell.muted .${p}-cal-num { color:var(--gray-lt); }
           .${p}-cal-chip { font-size:10px; font-weight:600; color:var(--primary); background:rgba(var(--primary-rgb),.12);

@@ -170,6 +170,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const debugMode      = this.getAttribute("debugmode")        === "true";
 
       const primaryRgb  = hexToRgb(primaryColor);
+      const accentRgb = hexToRgb(accentColor);
       const primaryText = contrastColor(primaryColor);
       const p = "mtw";
 
@@ -229,7 +230,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       // ── Render skeleton ────────────────────────────────────────────────
       container.innerHTML = `
         <style>
-          .${p}{--primary:${primaryColor};--primary-rgb:${primaryRgb};--primary-text:${primaryText};--accent:${accentColor};--dark:#1A1A1A;--gray:#6b7280;--gray-lt:#9ca3af;--border:#e5e7eb;--success:#2E7D4A;--error:#C41E3A;--r-sm:6px;--r-md:10px;--r-lg:14px;--shadow-sm:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);--shadow-md:0 4px 16px rgba(0,0,0,.08);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--dark);background:${bgColor||"transparent"};padding:20px}
+          .${p}{--primary:${primaryColor};--primary-rgb:${primaryRgb};--accent-rgb:${accentRgb};--primary-text:${primaryText};--accent:${accentColor};--dark:#1A1A1A;--gray:#6b7280;--gray-lt:#9ca3af;--border:#e5e7eb;--success:#2E7D4A;--error:#C41E3A;--r-sm:6px;--r-md:10px;--r-lg:14px;--shadow-sm:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);--shadow-md:0 4px 16px rgba(0,0,0,.08);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--dark);background:${bgColor||"transparent"};padding:20px}
           .${p} *,.${p} *::before,.${p} *::after{box-sizing:border-box;margin:0;padding:0}
           /* Neutralize Staffbase's global button rule (margin:auto/width:90%) inside the
              body-appended panels, which sit outside the .${p} reset above. */
@@ -245,7 +246,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-refresh-btn:hover{border-color:var(--primary);color:var(--primary);background:rgba(var(--primary-rgb),.05)}
           .${p}-refresh-btn:disabled{opacity:.4;cursor:not-allowed}
           .${p}-header-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
-          .${p}-new-btn{display:inline-flex!important;width:auto!important;align-items:center;gap:6px;height:34px;padding:0 14px!important;border:none!important;border-radius:var(--r-md);background:var(--primary)!important;color:var(--primary-text,#fff)!important;font-family:inherit;font-size:13px;font-weight:700;line-height:normal!important;cursor:pointer;white-space:nowrap;box-shadow:0 3px 10px rgba(var(--primary-rgb),.3);transition:all .15s}
+          .${p}-new-btn{display:inline-flex!important;width:auto!important;align-items:center;gap:6px;height:34px;padding:0 14px!important;border:none!important;border-radius:var(--r-md);background:var(--accent)!important;color:#fff!important;font-family:inherit;font-size:13px;font-weight:700;line-height:normal!important;cursor:pointer;white-space:nowrap;box-shadow:0 3px 10px rgba(var(--accent-rgb),.35);transition:all .15s}
           .${p}-new-btn:hover{filter:brightness(.9);transform:translateY(-1px)}
           /* ── Create task sheet ── */
           .${p}-create{--primary:${primaryColor};--primary-rgb:${primaryRgb};--primary-text:${primaryText};--dark:#1A1A1A;--gray:#6b7280;--gray-lt:#9ca3af;--border:#e5e7eb;--error:#C41E3A;--r-sm:6px;--r-md:10px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;position:fixed;left:0;right:0;bottom:0;z-index:100001;background:#fff;border-radius:20px 20px 0 0;max-height:90vh;display:flex;flex-direction:column;transform:translateY(102%);transition:transform .32s cubic-bezier(.32,.72,0,1);overflow:hidden;box-shadow:0 -8px 40px rgba(0,0,0,.18)}
@@ -406,13 +407,13 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           /* ── Store tabs ── */
           .${p}-store-tabs{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:14px}
           .${p}-store-tab{display:inline-flex;align-items:center;width:auto;padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:#fff;font-size:12px;font-weight:600;color:var(--gray);cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap;flex-shrink:0;user-select:none;touch-action:manipulation;-webkit-tap-highlight-color:transparent;outline:none}
-          .${p}-store-tab:hover{border-color:var(--primary);color:var(--primary)}
+          .${p}-store-tab:hover{border-color:var(--accent);color:var(--accent);background:rgba(var(--accent-rgb),.06)}
           .${p}-store-tab.active{background:var(--primary);border-color:var(--primary);color:var(--primary-text)}
           /* ── Filter bar ── */
           .${p}-filters{display:flex;gap:8px;margin-bottom:16px;align-items:center}
           .${p}-type-wrap{position:relative;flex:1;min-width:0}
           .${p}-type-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:6px;padding:7px 11px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fff;font-size:12px;font-weight:600;color:var(--gray);cursor:pointer;font-family:inherit;transition:all .15s;text-align:start}
-          .${p}-type-btn:hover,.${p}-type-btn.open{border-color:var(--primary);color:var(--primary)}
+          .${p}-type-btn:hover,.${p}-type-btn.open{border-color:var(--accent);color:var(--accent)}
           .${p}-type-btn svg{flex-shrink:0;transition:transform .15s}
           .${p}-type-btn.open svg{transform:rotate(180deg)}
           .${p}-type-menu{display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1.5px solid var(--border);border-radius:var(--r-md);box-shadow:var(--shadow-md);z-index:100;overflow:hidden}

@@ -168,6 +168,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const accentColor =
         this.getAttribute("accentcolor") || DEFAULT_ACCENT_COLOR;
       const primaryRgb  = hexToRgb(primaryColor);
+      const accentRgb = hexToRgb(accentColor);
       const primaryText = contrastColor(primaryColor);
       const bgColor =
         this.getAttribute("backgroundcolor") || "";
@@ -222,7 +223,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         <style>
           .${p} {
             --primary:      ${primaryColor};
-            --primary-rgb:  ${primaryRgb};
+            --primary-rgb:  ${primaryRgb};--accent-rgb:${accentRgb};
             --primary-text: ${primaryText};
             --accent:       ${accentColor};
             --dark:    #1A1A1A;
@@ -302,15 +303,15 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-input-group .${p}-input { flex: 1; }
           .${p}-icon-btn {
             width: 42px; border: none; border-radius: var(--r-md);
-            background: var(--primary); color: var(--primary-text); cursor: pointer;
+            background: var(--accent); color: #fff; cursor: pointer;
             display: flex; align-items: center; justify-content: center;
             flex-shrink: 0;
-            box-shadow: 0 2px 8px rgba(var(--primary-rgb),.35);
+            box-shadow: 0 2px 8px rgba(var(--accent-rgb),.4);
             transition: filter .15s, transform .15s, box-shadow .15s;
           }
           .${p}-icon-btn:hover:not(:disabled) {
-            filter: brightness(.88); transform: translateY(-1px);
-            box-shadow: 0 4px 14px rgba(var(--primary-rgb),.4);
+            filter: brightness(1.05); transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(var(--accent-rgb),.5);
           }
           .${p}-icon-btn:active:not(:disabled) { transform: translateY(0); }
           .${p}-icon-btn:disabled { opacity: .4; cursor: not-allowed; }
@@ -325,7 +326,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             position: relative; transition: border-color .15s;
           }
           .${p}-ms-trigger:hover, .${p}-ms-trigger.open {
-            border-color: var(--primary); background: #fff;
+            border-color: var(--accent); background: #fff;
           }
           .${p}-ms-trigger::after {
             content: '▾'; position: absolute; right: 11px; top: 50%;
@@ -363,7 +364,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             transition: background .1s;
           }
           .${p}-dd-opt:last-child { border-bottom: none; }
-          .${p}-dd-opt:hover { background: #fef2f2; }
+          .${p}-dd-opt:hover { background: rgba(var(--accent-rgb),.07); }
           .${p}-dd-opt.sel { background: rgba(var(--primary-rgb),.06); }
           .${p}-check {
             width: 16px; height: 16px; border: 1.5px solid #d1d5db;
@@ -488,10 +489,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           }
           .${p}-add-row:hover,
           .${p}-add-row:focus-visible {
-            border-color: var(--primary);
-            background: var(--primary);
+            border-color: var(--accent);
+            background: var(--accent);
             color: #fff;
-            box-shadow: 0 2px 8px rgba(var(--primary-rgb),.22);
+            box-shadow: 0 2px 8px rgba(var(--accent-rgb),.3);
             outline: none;
           }
 

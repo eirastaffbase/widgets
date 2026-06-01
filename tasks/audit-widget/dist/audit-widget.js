@@ -1312,6 +1312,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const storeP = this.getAttribute("storelabelplural") || "Stores";
                 const passThreshold = parseFloat(this.getAttribute("passthreshold") || DEFAULT_THRESHOLD);
                 const primaryRgb = hexToRgb(primaryColor);
+                const accentRgb = hexToRgb(accentColor);
                 const primaryText = contrastColor(primaryColor);
                 const p = "aw";
                 // ── Locale / i18n ──────────────────────────────────────────────────
@@ -1352,7 +1353,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 // ── HTML skeleton ──────────────────────────────────────────────────
                 container.innerHTML = `
         <style>
-          .${p}{--primary:${primaryColor};--primary-rgb:${primaryRgb};--primary-text:${primaryText};--accent:${accentColor};--dark:#1A1A1A;--gray:#6b7280;--gray-lt:#9ca3af;--border:#e5e7eb;--success:#2E7D4A;--error:#C41E3A;--r-sm:6px;--r-md:10px;--r-lg:14px;--shadow-sm:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);--shadow-md:0 4px 16px rgba(0,0,0,.08);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--dark);background:${bgColor || "transparent"};padding:20px;overscroll-behavior:contain}
+          .${p}{--primary:${primaryColor};--primary-rgb:${primaryRgb};--accent-rgb:${accentRgb};--primary-text:${primaryText};--accent:${accentColor};--dark:#1A1A1A;--gray:#6b7280;--gray-lt:#9ca3af;--border:#e5e7eb;--success:#2E7D4A;--error:#C41E3A;--r-sm:6px;--r-md:10px;--r-lg:14px;--shadow-sm:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);--shadow-md:0 4px 16px rgba(0,0,0,.08);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--dark);background:${bgColor || "transparent"};padding:20px;overscroll-behavior:contain}
           .${p} *,.${p} *::before,.${p} *::after{box-sizing:border-box;margin:0;padding:0}
           .${p}-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
           .${p}-title{font-size:18px;font-weight:800;color:var(--dark);display:flex;align-items:center;gap:10px}
@@ -1383,14 +1384,14 @@ const factory = (BaseBlockClass, widgetApi) => {
 
           .${p}-prog-label{font-size:11px;color:var(--gray-lt);margin-bottom:5px;display:flex;justify-content:space-between}
           .${p}-prog-wrap{background:#f3f4f6;border-radius:3px;height:5px;overflow:hidden;margin-bottom:14px}
-          .${p}-prog-fill{height:100%;border-radius:3px;transition:width .3s ease;background:var(--primary)}
+          .${p}-prog-fill{height:100%;border-radius:3px;transition:width .3s ease;background:linear-gradient(90deg,var(--primary),var(--accent))}
 
           /* ── Category tabs ── */
           .${p}-cat-tabs-wrap{position:relative;flex:1;overflow:hidden}
           .${p}-cat-tabs{display:flex;gap:0;overflow-x:auto;scrollbar-width:none;border-bottom:2px solid var(--border);will-change:transform;-webkit-overflow-scrolling:touch}
           .${p}-cat-tabs::-webkit-scrollbar{display:none}
           .${p}-cat-tab{flex-shrink:0!important;min-width:200px!important;padding:10px 14px!important;font-size:11px!important;font-weight:600!important;color:var(--gray)!important;cursor:pointer!important;border-bottom:2.5px solid transparent!important;border-inline-start:none!important;border-inline-end:none!important;border-top:none!important;margin-bottom:-2px!important;white-space:nowrap!important;background:none!important;font-family:inherit!important;transition:color .15s,border-color .15s,background .15s!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:3px!important;width:auto!important;line-height:normal!important;border-radius:var(--r-sm) var(--r-sm) 0 0!important}
-          .${p}-cat-tab:hover{background:rgba(var(--primary-rgb),.04)!important;color:var(--dark)!important}
+          .${p}-cat-tab:hover{background:rgba(var(--accent-rgb),.07)!important;color:var(--accent)!important}
           .${p}-cat-tab.active{background:rgba(var(--primary-rgb),.07)!important;color:var(--primary)!important;border-bottom-color:var(--primary)!important}
           .${p}-cat-tab-name{font-size:11px!important;font-weight:600!important;line-height:1!important}
           .${p}-cat-tab-score{font-size:10px!important;font-weight:500!important;opacity:.7!important;line-height:1!important}
@@ -1566,7 +1567,7 @@ const factory = (BaseBlockClass, widgetApi) => {
 
           .${p}-ms-wrap{position:relative}
           .${p}-ms-trigger{width:100%;min-height:42px;padding:8px 36px 8px 11px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fafafa;cursor:pointer;display:flex;align-items:center;position:relative;transition:border-color .15s,background .15s;font-size:14px;font-family:inherit;color:var(--dark)}
-          .${p}-ms-trigger:hover,.${p}-ms-trigger.open{border-color:var(--primary);background:#fff}
+          .${p}-ms-trigger:hover,.${p}-ms-trigger.open{border-color:var(--accent);background:#fff}
           .${p}-ms-trigger::after{content:'▾';position:absolute;right:11px;top:50%;transform:translateY(-50%);color:var(--gray-lt);pointer-events:none;font-size:13px}
           .${p}-ms-ph{color:var(--gray-lt)}
           .${p}-ms-dropdown{display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1.5px solid var(--primary);border-radius:var(--r-md);box-shadow:var(--shadow-md);overflow:hidden;z-index:200}
@@ -1578,7 +1579,7 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-dd-list{max-height:210px;overflow-y:auto}
           .${p}-dd-opt{padding:10px 12px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-size:13px;border-bottom:1px solid #f3f4f6;transition:background .1s;color:var(--dark)}
           .${p}-dd-opt:last-child{border-bottom:none}
-          .${p}-dd-opt:hover{background:rgba(var(--primary-rgb),.05)}
+          .${p}-dd-opt:hover{background:rgba(var(--accent-rgb),.07)}
           .${p}-dd-opt.sel{background:rgba(var(--primary-rgb),.06);font-weight:600;color:var(--primary)}
           .${p}-dd-msg{padding:20px;text-align:center;color:var(--gray-lt);font-size:13px}
 
