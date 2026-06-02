@@ -1991,6 +1991,7 @@ const factory = (BaseBlockClass, widgetApi) => {
             let view = "list";
             let calMode = "3day";
             let calCursor = new Date(); // 4day: first visible day · month: any day in the month
+            let calDays = 3; // visible day columns in 3-day view (2 when narrow); set per-render
             // ── Helpers ────────────────────────────────────────────────────────
             const authHeaders = () => ({ Authorization: `Basic ${apiToken}`, "Content-Type": "application/json" });
             const apiOpts = (extra) => (Object.assign(Object.assign({}, extra), { credentials: "omit", headers: authHeaders() }));
@@ -2404,6 +2405,18 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-cal-chip { font-size:10px; font-weight:600; color:var(--primary); background:rgba(var(--primary-rgb),.12);
             border-radius:4px; padding:1px 5px; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
           .${p}-cal-more { font-size:10px; color:var(--gray-lt); margin-top:2px; font-weight:600; }
+          /* Dot indicator — hidden on desktop, shown in the compact mobile month view */
+          .${p}-cal-dots { display:none; gap:3px; margin-top:4px; justify-content:center; }
+          .${p}-cal-dots i { width:5px; height:5px; border-radius:50%; background:var(--primary); }
+
+          /* ── Narrow-width tightening (applied via JS when the widget is narrow;
+                desktop / wide columns are unchanged) ──────────────────────────── */
+          /* Month: drop the text chips for a clean dotted grid; tap a day to open it */
+          .${p}-cal-compact .${p}-cal-cell { min-height:46px; padding:5px 2px 6px; text-align:center; }
+          .${p}-cal-compact .${p}-cal-chip, .${p}-cal-compact .${p}-cal-more { display:none; }
+          .${p}-cal-compact .${p}-cal-dots { display:flex; }
+          .${p}-cal-compact .${p}-cal-num { width:24px; height:24px; font-size:12px; }
+          .${p}-cal-compact .${p}-cal-dow span { font-size:9px; padding:6px 0; }
 
           .${p}-loading { text-align:center; padding:30px; color:var(--gray-lt); font-size:13px; }
 
@@ -2582,6 +2595,20 @@ const factory = (BaseBlockClass, widgetApi) => {
             // ── DOM refs ────────────────────────────────────────────────────────
             const $ = (id) => container.querySelector(`#${p}-${id}`);
             const viewListEl = $("view-list"), viewCalEl = $("view-cal"), formEl = $("form");
+            // Re-render the calendar when the widget crosses the narrow breakpoint (e.g.
+            // device rotation / resize / first reveal), so the 3-day count flips 3 ⇄ 2
+            // and the month view switches between chips and the compact dotted grid.
+            if (typeof ResizeObserver !== "undefined") {
+                new ResizeObserver(() => {
+                    if (view !== "calendar")
+                        return;
+                    const w = viewCalEl.clientWidth || 0;
+                    const wantCompact = w > 0 && w < 460;
+                    const isCompact = !!viewCalEl.querySelector(`.${p}-cal-compact`);
+                    if (wantCompact !== isCompact)
+                        renderCalendar();
+                }).observe(viewCalEl);
+            }
             const segEl = $("seg"), newBtn = $("new"), cancelBtn = $("cancel"), saveBtn = $("save");
             const statusEl = $("status");
             const trigger = $("trigger"), dropdown = $("dropdown"), searchInp = $("search"), optsList = $("opts");
@@ -2983,13 +3010,22 @@ const factory = (BaseBlockClass, widgetApi) => {
             function renderCalendar() {
                 const todayK = dayKey(new Date());
                 let rangeLabel = "", bodyHtml = "";
+                // Compact mode is driven by the widget's actual available width (not a
+                // viewport media query, which is unreliable here because the month grid's
+                // no-wrap chips overflow). clientWidth reflects the column width even when
+                // children overflow it. Narrow → 2-day view + dotted month.
+                const calW = viewCalEl.clientWidth || 0;
+                const compact = calW > 0 && calW < 460;
                 if (calMode === "3day") {
-                    const days = Array.from({ length: 3 }, (_, i) => new Date(calCursor.getFullYear(), calCursor.getMonth(), calCursor.getDate() + i));
+                    // Responsive: 3 day-columns by default, 2 when the widget is narrow
+                    // (e.g. mobile). Arrows then step by exactly the visible count.
+                    calDays = compact ? 2 : 3;
+                    const days = Array.from({ length: calDays }, (_, i) => new Date(calCursor.getFullYear(), calCursor.getMonth(), calCursor.getDate() + i));
                     const a = days[0], b = days[days.length - 1];
                     rangeLabel = a.getMonth() === b.getMonth()
                         ? `${a.toLocaleDateString("en-US", { month: "long", day: "numeric" })} – ${b.getDate()}, ${b.getFullYear()}`
                         : `${a.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${b.toLocaleDateString("en-US", { month: "short", day: "numeric" })}, ${b.getFullYear()}`;
-                    bodyHtml = `<div class="${p}-cal-cols">` + days.map(d => {
+                    bodyHtml = `<div class="${p}-cal-cols" style="grid-template-columns:repeat(${calDays},1fr)">` + days.map(d => {
                         const k = dayKey(d);
                         const occ = occOnDay(d);
                         const evs = occ.length ? occ.map(s => `<div class="${p}-ev" data-id="${esc(s.id)}">
@@ -3018,13 +3054,15 @@ const factory = (BaseBlockClass, widgetApi) => {
                         const occ = occOnDay(d);
                         const chips = occ.slice(0, 2).map(s => `<div class="${p}-cal-chip">${esc(fmtHour(s.rule.time))} ${esc(s.title)}</div>`).join("");
                         const more = occ.length > 2 ? `<div class="${p}-cal-more">+${occ.length - 2} more</div>` : "";
+                        // Compact dot indicator for the mobile month view (chips are hidden there).
+                        const dots = occ.length ? `<div class="${p}-cal-dots">${"<i></i>".repeat(Math.min(occ.length, 3))}</div>` : "";
                         cells.push(`<div class="${p}-cal-cell ${muted ? "muted" : ""} ${dayKey(d) === todayK ? "today" : ""}" data-d="${dayKey(d)}">
-              <span class="${p}-cal-num">${d.getDate()}</span>${chips}${more}</div>`);
+              <span class="${p}-cal-num">${d.getDate()}</span>${chips}${more}${dots}</div>`);
                     }
                     bodyHtml = `<div class="${p}-cal-dow">${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(x => `<span>${x}</span>`).join("")}</div>
             <div class="${p}-cal-grid">${cells.join("")}</div>`;
                 }
-                viewCalEl.innerHTML = `<div class="${p}-cal">
+                viewCalEl.innerHTML = `<div class="${p}-cal${compact ? ` ${p}-cal-compact` : ""}">
           <div class="${p}-cal-head">
             <span class="${p}-cal-range">${esc(rangeLabel)}</span>
             <div class="${p}-cal-ctrls">
@@ -3049,7 +3087,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     if (nav === 0)
                         calCursor = new Date();
                     else if (calMode === "3day")
-                        calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth(), calCursor.getDate() + nav * 3);
+                        calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth(), calCursor.getDate() + nav * calDays);
                     else
                         calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth() + nav, 1);
                     renderCalendar();
