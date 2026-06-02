@@ -2368,8 +2368,11 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-cal-modeseg button.active { background:#fff; color:var(--primary); box-shadow:var(--shadow-sm); }
 
           /* 4-day (agenda) view */
-          .${p}-cal-cols { display:grid; grid-template-columns:repeat(3,1fr); }
-          .${p}-cal-col { border-inline-end:1px solid #f3f4f6; min-height:280px; }
+          .${p}-cal-cols { display:grid; grid-template-columns:repeat(3,1fr); width:100%; }
+          /* min-width:0 lets the 1fr tracks shrink below their content so columns
+             never overflow the screen (otherwise the last day gets half cut off);
+             the event title's ellipsis then does the clipping. */
+          .${p}-cal-col { border-inline-end:1px solid #f3f4f6; min-height:280px; min-width:0; overflow:hidden; }
           .${p}-cal-col:last-child { border-inline-end:none; }
           .${p}-cal-colhead { text-align:center; padding:9px 4px 7px; border-bottom:1px solid var(--border); }
           .${p}-cal-dow2 { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--gray-lt); }
@@ -2595,20 +2598,21 @@ const factory = (BaseBlockClass, widgetApi) => {
             // ── DOM refs ────────────────────────────────────────────────────────
             const $ = (id) => container.querySelector(`#${p}-${id}`);
             const viewListEl = $("view-list"), viewCalEl = $("view-cal"), formEl = $("form");
-            // Re-render the calendar when the widget crosses the narrow breakpoint (e.g.
-            // device rotation / resize / first reveal), so the 3-day count flips 3 ⇄ 2
-            // and the month view switches between chips and the compact dotted grid.
-            if (typeof ResizeObserver !== "undefined") {
-                new ResizeObserver(() => {
-                    if (view !== "calendar")
-                        return;
-                    const w = viewCalEl.clientWidth || 0;
-                    const wantCompact = w > 0 && w < 460;
-                    const isCompact = !!viewCalEl.querySelector(`.${p}-cal-compact`);
-                    if (wantCompact !== isCompact)
-                        renderCalendar();
-                }).observe(viewCalEl);
-            }
+            // Re-render the calendar when the viewport crosses the narrow breakpoint
+            // (device rotation / resize), so the 3-day count flips 3 ⇄ 2 and the month
+            // view switches between chips and the compact dotted grid. A window resize
+            // listener is used rather than a ResizeObserver because the widget element
+            // is content-sized and may not change size when the viewport does.
+            window.addEventListener("resize", () => {
+                if (view !== "calendar")
+                    return;
+                const vw = window.innerWidth || document.documentElement.clientWidth || 0;
+                const calW = viewCalEl.clientWidth || 0;
+                const wantCompact = (vw > 0 && vw < 600) || (calW > 0 && calW < 460);
+                const isCompact = !!viewCalEl.querySelector(`.${p}-cal-compact`);
+                if (wantCompact !== isCompact)
+                    renderCalendar();
+            });
             const segEl = $("seg"), newBtn = $("new"), cancelBtn = $("cancel"), saveBtn = $("save");
             const statusEl = $("status");
             const trigger = $("trigger"), dropdown = $("dropdown"), searchInp = $("search"), optsList = $("opts");
@@ -3010,12 +3014,16 @@ const factory = (BaseBlockClass, widgetApi) => {
             function renderCalendar() {
                 const todayK = dayKey(new Date());
                 let rangeLabel = "", bodyHtml = "";
-                // Compact mode is driven by the widget's actual available width (not a
-                // viewport media query, which is unreliable here because the month grid's
-                // no-wrap chips overflow). clientWidth reflects the column width even when
-                // children overflow it. Narrow → 2-day view + dotted month.
+                // Compact mode (2-day view + dotted month) for phone-sized screens.
+                // We key off the viewport width, NOT the widget's clientWidth: when the
+                // widget's column isn't width-constrained it grows to fit the 3-day
+                // content, so clientWidth reads "wide" and the columns then overflow a
+                // narrow screen (truncating the last day). The viewport doesn't depend on
+                // what we render, so it's the reliable signal. clientWidth is kept only as
+                // a secondary trigger for a genuinely narrow column on a wide screen.
+                const vw = window.innerWidth || document.documentElement.clientWidth || 0;
                 const calW = viewCalEl.clientWidth || 0;
-                const compact = calW > 0 && calW < 460;
+                const compact = (vw > 0 && vw < 600) || (calW > 0 && calW < 460);
                 if (calMode === "3day") {
                     // Responsive: 3 day-columns by default, 2 when the widget is narrow
                     // (e.g. mobile). Arrows then step by exactly the visible count.
@@ -3067,7 +3075,7 @@ const factory = (BaseBlockClass, widgetApi) => {
             <span class="${p}-cal-range">${esc(rangeLabel)}</span>
             <div class="${p}-cal-ctrls">
               <div class="${p}-cal-modeseg" id="${p}-cal-mode">
-                <button data-mode="3day" class="${calMode === "3day" ? "active" : ""}">${tr("threeDay")}</button>
+                <button data-mode="3day" class="${calMode === "3day" ? "active" : ""}">${esc(tr("threeDay").replace("3", compact ? "2" : "3"))}</button>
                 <button data-mode="month" class="${calMode === "month" ? "active" : ""}">${tr("month")}</button>
               </div>
               <div class="${p}-cal-nav">
