@@ -9,6 +9,7 @@ import { JSONSchema7 } from "json-schema";
 import { UiSchema } from "@rjsf/utils";
 
 import { detectLocale, isRtl, makeT, DEFAULT_LOCALE } from "../shared/i18n";
+import { fetchThemeColors } from "../shared/theming";
 import { STRINGS } from "./strings";
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
@@ -45,12 +46,31 @@ const configurationSchema: JSONSchema7 = {
     appsscripturl:      { type:"string", title:"Apps Script URL",          default: DEFAULT_APPS_SCRIPT_URL },
     apitoken:           { type:"string", title:"API Token",                default: DEFAULT_API_TOKEN },
     baseurl:            { type:"string", title:"Base URL",                 default: DEFAULT_BASE_URL },
-    primarycolor:       { type:"string", title:"Primary Color",            default: DEFAULT_PRIMARY },
-    accentcolor:        { type:"string", title:"Accent Color",             default: DEFAULT_ACCENT },
+    usethemecolors:     { type:"boolean", title:"Use Theme Colors",        default: false },
     backgroundcolor:    { type:"string", title:"Background Color",         default: "" },
     storelabelsingular: { type:"string", title:"Store Label (singular)",   default: "Store" },
     storelabelplural:   { type:"string", title:"Store Label (plural)",     default: "Stores" },
     passthreshold:      { type:"string", title:"Pass Threshold (%)",       default: DEFAULT_THRESHOLD },
+  },
+  // When "Use Theme Colors" is off, expose the manual Primary/Accent pickers.
+  // When on, they're hidden (colors are pulled from the branding theme instead).
+  dependencies: {
+    usethemecolors: {
+      oneOf: [
+        {
+          properties: {
+            usethemecolors: { const: false },
+            primarycolor:   { type:"string", title:"Primary Color", default: DEFAULT_PRIMARY },
+            accentcolor:    { type:"string", title:"Accent Color",  default: DEFAULT_ACCENT },
+          },
+        },
+        {
+          properties: {
+            usethemecolors: { const: true },
+          },
+        },
+      ],
+    },
   },
 };
 
@@ -58,6 +78,7 @@ const uiSchema: UiSchema = {
   apitoken:           { "ui:widget":"password",  "ui:help":"Staffbase Basic auth token" },
   appsscripturl:      { "ui:help":"Deployed Google Apps Script URL returning audit questions" },
   baseurl:            { "ui:help":"Staffbase API base URL" },
+  usethemecolors:     { "ui:help":"Pull Primary & Accent from the app's branding theme (uses the API Token). Hides the color pickers below." },
   primarycolor:       { "ui:widget":"color" },
   accentcolor:        { "ui:widget":"color" },
   backgroundcolor:    { "ui:widget":"color", "ui:help":"Leave blank for transparent" },
@@ -121,12 +142,19 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const appsScriptUrl  = this.getAttribute("appsscripturl")      || DEFAULT_APPS_SCRIPT_URL;
       const apiToken       = this.getAttribute("apitoken")            || DEFAULT_API_TOKEN;
       const baseUrl        = (this.getAttribute("baseurl")||DEFAULT_BASE_URL).replace(/\/$/,"");
-      const primaryColor   = this.getAttribute("primarycolor")        || DEFAULT_PRIMARY;
-      const accentColor    = this.getAttribute("accentcolor")         || DEFAULT_ACCENT;
+      let   primaryColor   = this.getAttribute("primarycolor")        || DEFAULT_PRIMARY;
+      let   accentColor    = this.getAttribute("accentcolor")         || DEFAULT_ACCENT;
       const bgColor        = this.getAttribute("backgroundcolor")     || "";
       const storeS         = this.getAttribute("storelabelsingular")  || "Store";
       const storeP         = this.getAttribute("storelabelplural")    || "Stores";
       const passThreshold  = parseFloat(this.getAttribute("passthreshold") || DEFAULT_THRESHOLD);
+      // When "Use Theme Colors" is on, pull Primary/Accent from the branding theme
+      // (token-auth GET). Failures fall back silently to the values above.
+      if (this.getAttribute("usethemecolors") === "true") {
+        const themed = await fetchThemeColors(baseUrl, apiToken);
+        if (themed.primary) primaryColor = themed.primary;
+        if (themed.accent)  accentColor  = themed.accent;
+      }
       const primaryRgb     = hexToRgb(primaryColor);
       const accentRgb = hexToRgb(accentColor);
       const primaryText    = contrastColor(primaryColor);
@@ -1735,7 +1763,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
     }
 
     static get observedAttributes(){
-      return ["appsscripturl","apitoken","baseurl","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","passthreshold"];
+      return ["appsscripturl","apitoken","baseurl","usethemecolors","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","passthreshold"];
     }
   };
 };
@@ -1744,7 +1772,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
 const blockDefinition: BlockDefinition = {
   name:"audit-widget", label:"Audit Widget",
-  attributes:["appsscripturl","apitoken","baseurl","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","passthreshold"],
+  attributes:["appsscripturl","apitoken","baseurl","usethemecolors","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","passthreshold"],
   factory, configurationSchema, uiSchema, blockLevel:"block", iconUrl:"",
 };
 

@@ -9,6 +9,7 @@ import { JSONSchema7 } from "json-schema";
 import { UiSchema } from "@rjsf/utils";
 
 import { detectLocale, isRtl, makeT, DEFAULT_LOCALE } from "../shared/i18n";
+import { fetchThemeColors } from "../shared/theming";
 import { STRINGS } from "./strings";
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
@@ -62,15 +63,10 @@ const configurationSchema: JSONSchema7 = {
       title: "Base URL",
       default: DEFAULT_BASE_URL,
     },
-    primarycolor: {
-      type: "string",
-      title: "Primary Color",
-      default: DEFAULT_PRIMARY_COLOR,
-    },
-    accentcolor: {
-      type: "string",
-      title: "Accent Color",
-      default: DEFAULT_ACCENT_COLOR,
+    usethemecolors: {
+      type: "boolean",
+      title: "Use Theme Colors",
+      default: false,
     },
     backgroundcolor: {
       type: "string",
@@ -108,6 +104,26 @@ const configurationSchema: JSONSchema7 = {
       default: "Finance,Operations,Training,Compliance,Safety",
     },
   },
+  // When "Use Theme Colors" is off, expose the manual Primary/Accent pickers.
+  // When on, they're hidden (colors are pulled from the branding theme instead).
+  dependencies: {
+    usethemecolors: {
+      oneOf: [
+        {
+          properties: {
+            usethemecolors: { const: false },
+            primarycolor: { type: "string", title: "Primary Color", default: DEFAULT_PRIMARY_COLOR },
+            accentcolor:  { type: "string", title: "Accent Color",  default: DEFAULT_ACCENT_COLOR },
+          },
+        },
+        {
+          properties: {
+            usethemecolors: { const: true },
+          },
+        },
+      ],
+    },
+  },
 };
 
 const uiSchema: UiSchema = {
@@ -120,6 +136,9 @@ const uiSchema: UiSchema = {
   },
   baseurl: {
     "ui:help": "Staffbase API base URL",
+  },
+  usethemecolors: {
+    "ui:help": "Pull Primary & Accent from the app's branding theme (uses the API Token). Hides the color pickers below.",
   },
   primarycolor: {
     "ui:widget": "color",
@@ -170,10 +189,17 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const baseUrl = (
         this.getAttribute("baseurl") || DEFAULT_BASE_URL
       ).replace(/\/$/, "");
-      const primaryColor =
+      let primaryColor =
         this.getAttribute("primarycolor") || DEFAULT_PRIMARY_COLOR;
-      const accentColor =
+      let accentColor =
         this.getAttribute("accentcolor") || DEFAULT_ACCENT_COLOR;
+      // When "Use Theme Colors" is on, pull Primary/Accent from the branding theme
+      // (token-auth GET). Failures fall back silently to the values above.
+      if (this.getAttribute("usethemecolors") === "true") {
+        const themed = await fetchThemeColors(baseUrl, apiToken);
+        if (themed.primary) primaryColor = themed.primary;
+        if (themed.accent)  accentColor  = themed.accent;
+      }
       const primaryRgb  = hexToRgb(primaryColor);
       const accentRgb = hexToRgb(accentColor);
       const primaryText = contrastColor(primaryColor);
@@ -1567,6 +1593,7 @@ const tbody      = container.querySelector(`#${p}-tbody`)!;
         "appsscripturl",
         "apitoken",
         "baseurl",
+        "usethemecolors",
         "primarycolor",
         "accentcolor",
         "backgroundcolor",
@@ -1590,6 +1617,7 @@ const blockDefinition: BlockDefinition = {
     "appsscripturl",
     "apitoken",
     "baseurl",
+    "usethemecolors",
     "primarycolor",
     "accentcolor",
     "backgroundcolor",

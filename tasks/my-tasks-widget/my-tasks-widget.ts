@@ -9,6 +9,7 @@ import { JSONSchema7 } from "json-schema";
 import { UiSchema } from "@rjsf/utils";
 
 import { detectLocale, isRtl, makeT, translateMap, DEFAULT_LOCALE } from "../shared/i18n";
+import { fetchThemeColors } from "../shared/theming";
 import { STRINGS } from "./strings";
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
@@ -25,8 +26,7 @@ const configurationSchema: JSONSchema7 = {
   properties: {
     apitoken:           { type:"string",  title:"API Token",                default: DEFAULT_API_TOKEN },
     baseurl:            { type:"string",  title:"Base URL",                 default: DEFAULT_BASE_URL },
-    primarycolor:       { type:"string",  title:"Primary Color",            default: DEFAULT_PRIMARY_COLOR },
-    accentcolor:        { type:"string",  title:"Accent Color",             default: DEFAULT_ACCENT_COLOR },
+    usethemecolors:     { type:"boolean", title:"Use Theme Colors",         default: false },
     backgroundcolor:    { type:"string",  title:"Background Color",         default: "" },
     storelabelsingular: { type:"string",  title:"Store Label (singular)",   default: "Store" },
     storelabelplural:   { type:"string",  title:"Store Label (plural)",     default: "Stores" },
@@ -39,11 +39,32 @@ const configurationSchema: JSONSchema7 = {
     allowtaskassignment:{ type:"boolean", title:"Allow Task Assignment (audit mode)", default: false },
     debugmode:          { type:"boolean", title:"Debug Mode (on-screen logs)", default: false },
   },
+  // When "Use Theme Colors" is off, expose the manual Primary/Accent pickers.
+  // When on, they're hidden (colors are pulled from the branding theme instead).
+  dependencies: {
+    usethemecolors: {
+      oneOf: [
+        {
+          properties: {
+            usethemecolors: { const: false },
+            primarycolor:   { type:"string", title:"Primary Color", default: DEFAULT_PRIMARY_COLOR },
+            accentcolor:    { type:"string", title:"Accent Color",  default: DEFAULT_ACCENT_COLOR },
+          },
+        },
+        {
+          properties: {
+            usethemecolors: { const: true },
+          },
+        },
+      ],
+    },
+  },
 };
 
 const uiSchema: UiSchema = {
   apitoken:           { "ui:widget":"password", "ui:help":"Staffbase Basic auth token" },
   baseurl:            { "ui:help":"Staffbase API base URL" },
+  usethemecolors:     { "ui:help":"Pull Primary & Accent from the app's branding theme (uses the API Token). Hides the color pickers below." },
   primarycolor:       { "ui:widget":"color", "ui:help":"Primary brand color" },
   accentcolor:        { "ui:widget":"color", "ui:help":"Accent / secondary color" },
   backgroundcolor:    { "ui:widget":"color", "ui:help":"Widget background color — leave blank for transparent" },
@@ -155,9 +176,16 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
     async renderBlock(container: any) {
       const apiToken     = this.getAttribute("apitoken")           || DEFAULT_API_TOKEN;
       const baseUrl      = (this.getAttribute("baseurl")||DEFAULT_BASE_URL).replace(/\/$/,"");
-      const primaryColor = this.getAttribute("primarycolor")       || DEFAULT_PRIMARY_COLOR;
-      const accentColor  = this.getAttribute("accentcolor")        || DEFAULT_ACCENT_COLOR;
+      let   primaryColor = this.getAttribute("primarycolor")       || DEFAULT_PRIMARY_COLOR;
+      let   accentColor  = this.getAttribute("accentcolor")        || DEFAULT_ACCENT_COLOR;
       const bgColor      = this.getAttribute("backgroundcolor")    || "";
+      // When "Use Theme Colors" is on, pull Primary/Accent from the branding theme
+      // (token-auth GET). Failures fall back silently to the values above.
+      if (this.getAttribute("usethemecolors") === "true") {
+        const themed = await fetchThemeColors(baseUrl, apiToken);
+        if (themed.primary) primaryColor = themed.primary;
+        if (themed.accent)  accentColor  = themed.accent;
+      }
       // Valid hex colors only; if blank/all-cleared, TYPE_PALETTE stays empty → original color system.
       TYPE_PALETTE = (this.getAttribute("typecolors") || "").split(",").map(s=>s.trim()).filter(c=>/^#?[0-9a-fA-F]{3,8}$/.test(c)).map(c=>c[0]==="#"?c:`#${c}`);
       const showAll      = this.getAttribute("showalltasks")       === "true";
@@ -2569,7 +2597,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
     }
 
     static get observedAttributes(){
-      return ["apitoken","baseurl","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","typecolors","showalltasks","showdonetasks","auditmode","enablecomments","allowtaskcreation","allowtaskassignment","debugmode"];
+      return ["apitoken","baseurl","usethemecolors","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","typecolors","showalltasks","showdonetasks","auditmode","enablecomments","allowtaskcreation","allowtaskassignment","debugmode"];
     }
   };
 };
@@ -2578,7 +2606,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
 const blockDefinition: BlockDefinition = {
   name:"my-tasks-widget", label:"My Tasks Widget",
-  attributes:["apitoken","baseurl","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","typecolors","showalltasks","showdonetasks","auditmode","enablecomments","allowtaskcreation","allowtaskassignment","debugmode"],
+  attributes:["apitoken","baseurl","usethemecolors","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","typecolors","showalltasks","showdonetasks","auditmode","enablecomments","allowtaskcreation","allowtaskassignment","debugmode"],
   factory, configurationSchema, uiSchema, blockLevel:"block", iconUrl:"",
 };
 

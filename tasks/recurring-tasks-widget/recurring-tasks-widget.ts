@@ -9,6 +9,7 @@ import { JSONSchema7 } from "json-schema";
 import { UiSchema } from "@rjsf/utils";
 
 import { detectLocale, isRtl, makeT, DEFAULT_LOCALE } from "../shared/i18n";
+import { fetchThemeColors } from "../shared/theming";
 import { STRINGS } from "./strings";
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
@@ -197,8 +198,15 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
     async renderBlock(container: any) {
       const apiToken = this.getAttribute("apitoken") || DEFAULT_API_TOKEN;
       const baseUrl  = (this.getAttribute("baseurl") || DEFAULT_BASE_URL).replace(/\/$/, "");
-      const primaryColor = this.getAttribute("primarycolor") || DEFAULT_PRIMARY_COLOR;
-      const accentColor  = this.getAttribute("accentcolor")  || DEFAULT_ACCENT_COLOR;
+      let   primaryColor = this.getAttribute("primarycolor") || DEFAULT_PRIMARY_COLOR;
+      let   accentColor  = this.getAttribute("accentcolor")  || DEFAULT_ACCENT_COLOR;
+      // When "Use Theme Colors" is on, pull Primary/Accent from the branding theme
+      // (token-auth GET). Failures fall back silently to the values above.
+      if (this.getAttribute("usethemecolors") === "true") {
+        const themed = await fetchThemeColors(baseUrl, apiToken);
+        if (themed.primary) primaryColor = themed.primary;
+        if (themed.accent)  accentColor  = themed.accent;
+      }
       const primaryRgb   = hexToRgb(primaryColor);
       const accentRgb = hexToRgb(accentColor);
       const primaryText  = contrastColor(primaryColor);
@@ -1526,7 +1534,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
     }
 
     static get observedAttributes() {
-      return ["apitoken","baseurl","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","tasktypes","typecolors"];
+      return ["apitoken","baseurl","usethemecolors","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","tasktypes","typecolors"];
     }
   };
 };
@@ -1561,19 +1569,39 @@ const configurationSchema: JSONSchema7 = {
   properties: {
     apitoken:        { type: "string",  title: "API Token",          default: DEFAULT_API_TOKEN },
     baseurl:         { type: "string",  title: "Base URL",           default: DEFAULT_BASE_URL },
-    primarycolor:    { type: "string",  title: "Primary Color",      default: DEFAULT_PRIMARY_COLOR },
-    accentcolor:     { type: "string",  title: "Accent Color",       default: DEFAULT_ACCENT_COLOR },
+    usethemecolors:  { type: "boolean", title: "Use Theme Colors",   default: false },
     backgroundcolor: { type: "string",  title: "Background Color",   default: "" },
     storelabelsingular: { type: "string", title: "Store Label (singular)", default: "Store" },
     storelabelplural:   { type: "string", title: "Store Label (plural)",   default: "Stores" },
     tasktypes:       { type: "string",  title: "Task Types (comma-separated)", default: "Finance,Operations,Training,Compliance,Safety" },
     typecolors:      { type: "string",  title: "Type Colors (comma-separated hex)", default: "#DA2E32,#0369A1,#2E7D4A,#D97706,#7C3AED,#4A90A4,#8B4513,#0EA5E9" },
   },
+  // When "Use Theme Colors" is off, expose the manual Primary/Accent pickers.
+  // When on, they're hidden (colors are pulled from the branding theme instead).
+  dependencies: {
+    usethemecolors: {
+      oneOf: [
+        {
+          properties: {
+            usethemecolors: { const: false },
+            primarycolor:   { type: "string", title: "Primary Color", default: DEFAULT_PRIMARY_COLOR },
+            accentcolor:    { type: "string", title: "Accent Color",  default: DEFAULT_ACCENT_COLOR },
+          },
+        },
+        {
+          properties: {
+            usethemecolors: { const: true },
+          },
+        },
+      ],
+    },
+  },
 };
 
 const uiSchema: UiSchema = {
   apitoken:        { "ui:widget": "password", "ui:help": "Staffbase Basic auth token" },
   baseurl:         { "ui:help": "Staffbase API base URL" },
+  usethemecolors:  { "ui:help": "Pull Primary & Accent from the app's branding theme (uses the API Token). Hides the color pickers below." },
   primarycolor:    { "ui:widget": "color", "ui:help": "Primary brand color (default: Panda Express red)" },
   accentcolor:     { "ui:widget": "color", "ui:help": "Accent / secondary color" },
   backgroundcolor: { "ui:widget": "color", "ui:help": "Widget background color — leave blank for transparent" },
@@ -1588,7 +1616,7 @@ const uiSchema: UiSchema = {
 const blockDefinition: BlockDefinition = {
   name: "recurring-tasks-widget",
   label: "Recurring Tasks Widget",
-  attributes: ["apitoken","baseurl","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","tasktypes","typecolors"],
+  attributes: ["apitoken","baseurl","usethemecolors","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","tasktypes","typecolors"],
   factory, configurationSchema, uiSchema, blockLevel: "block", iconUrl: "",
 };
 

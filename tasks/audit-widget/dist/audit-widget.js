@@ -177,6 +177,83 @@ function makeT(bundles, locale) {
     };
 }
 
+;// ../shared/theming.ts
+// Shared theming helper — pulls brand colors from the Staffbase theming API.
+//
+// Used by the "Use Theme Colors" config option across the task widgets. We fetch
+// with the same Basic-auth API token the widgets already use (the session cookie
+// is unreliable inside the native mobile apps, so token auth is preferred here).
+//
+// GET {baseUrl}/theming/themes/{themeId}  ->
+//   { globalTheme: { customColors: [ {id, color}, ... ], interfaceColor },
+//     desktopTheme: { components: { navigation: { accentColor }, ... } } }
+//
+// Note: a color field (e.g. navigation.accentColor) may hold either a literal
+// hex ("#FF6720") OR an *id* that references one of globalTheme.customColors
+// ("legacy-text-color"), so we resolve references against the customColors map.
+var theming_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+const isHex = (s) => /^#[0-9a-fA-F]{3,8}$/.test(s);
+// Pure white/black are useless as an accent (invisible on light UIs / harsh),
+// so we treat them as "no usable accent" and fall through to the next candidate.
+const isNeutralExtreme = (s) => {
+    const x = s.replace("#", "").toLowerCase();
+    return x === "ffffff" || x === "fff" || x === "000000" || x === "000";
+};
+function fetchThemeColors(baseUrl_1, apiToken_1) {
+    return theming_awaiter(this, arguments, void 0, function* (baseUrl, apiToken, themeId = "primary") {
+        var _a, _b, _c, _d, _e;
+        try {
+            const res = yield fetch(`${baseUrl}/theming/themes/${themeId}`, {
+                headers: { Authorization: `Basic ${apiToken}`, Accept: "application/json" },
+            });
+            if (!res.ok)
+                return {};
+            const data = yield res.json();
+            // Build id -> hex map from customColors.
+            const customs = {};
+            for (const c of ((_a = data === null || data === void 0 ? void 0 : data.globalTheme) === null || _a === void 0 ? void 0 : _a.customColors) || []) {
+                if (c && c.id && c.color)
+                    customs[c.id] = c.color;
+            }
+            // Resolve a value that's either a hex or a customColors id reference.
+            const resolve = (v) => {
+                if (!v)
+                    return "";
+                if (v[0] === "#")
+                    return v;
+                return customs[v] || "";
+            };
+            // Primary: the brand color, falling back to legacy bg / interface color.
+            let primary = resolve("primary-brand-color") ||
+                customs["legacy-background-color"] ||
+                (typeof ((_b = data === null || data === void 0 ? void 0 : data.globalTheme) === null || _b === void 0 ? void 0 : _b.interfaceColor) === "string" ? data.globalTheme.interfaceColor : "");
+            // Accent: nav accent, then secondary brand, then primary — skipping any
+            // unresolved / pure-white-or-black value (which wouldn't read as an accent).
+            let accent = resolve((_e = (_d = (_c = data === null || data === void 0 ? void 0 : data.desktopTheme) === null || _c === void 0 ? void 0 : _c.components) === null || _d === void 0 ? void 0 : _d.navigation) === null || _e === void 0 ? void 0 : _e.accentColor);
+            if (!isHex(accent) || isNeutralExtreme(accent) || accent.toLowerCase() === String(primary).toLowerCase()) {
+                accent = resolve("secondary-brand-color");
+            }
+            if (!isHex(accent) || isNeutralExtreme(accent))
+                accent = String(primary);
+            return {
+                primary: isHex(String(primary)) ? String(primary) : undefined,
+                accent: isHex(String(accent)) ? String(accent) : undefined,
+            };
+        }
+        catch (_f) {
+            return {};
+        }
+    });
+}
+
 ;// ./strings.ts
 const STRINGS = {
     en_US: {
@@ -1228,6 +1305,7 @@ var audit_widget_awaiter = (undefined && undefined.__awaiter) || function (thisA
 };
 
 
+
 // ── Defaults ──────────────────────────────────────────────────────────────────
 const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzlqYwqZ6gaq-nwDbIQ0M1spl77Qu5_fZtOwytNYYAsBKC_baY7WGUOEmM60Y6edInr/exec";
 const DEFAULT_API_TOKEN = "";
@@ -1248,18 +1326,38 @@ const configurationSchema = {
         appsscripturl: { type: "string", title: "Apps Script URL", default: DEFAULT_APPS_SCRIPT_URL },
         apitoken: { type: "string", title: "API Token", default: DEFAULT_API_TOKEN },
         baseurl: { type: "string", title: "Base URL", default: DEFAULT_BASE_URL },
-        primarycolor: { type: "string", title: "Primary Color", default: DEFAULT_PRIMARY },
-        accentcolor: { type: "string", title: "Accent Color", default: DEFAULT_ACCENT },
+        usethemecolors: { type: "boolean", title: "Use Theme Colors", default: false },
         backgroundcolor: { type: "string", title: "Background Color", default: "" },
         storelabelsingular: { type: "string", title: "Store Label (singular)", default: "Store" },
         storelabelplural: { type: "string", title: "Store Label (plural)", default: "Stores" },
         passthreshold: { type: "string", title: "Pass Threshold (%)", default: DEFAULT_THRESHOLD },
+    },
+    // When "Use Theme Colors" is off, expose the manual Primary/Accent pickers.
+    // When on, they're hidden (colors are pulled from the branding theme instead).
+    dependencies: {
+        usethemecolors: {
+            oneOf: [
+                {
+                    properties: {
+                        usethemecolors: { const: false },
+                        primarycolor: { type: "string", title: "Primary Color", default: DEFAULT_PRIMARY },
+                        accentcolor: { type: "string", title: "Accent Color", default: DEFAULT_ACCENT },
+                    },
+                },
+                {
+                    properties: {
+                        usethemecolors: { const: true },
+                    },
+                },
+            ],
+        },
     },
 };
 const uiSchema = {
     apitoken: { "ui:widget": "password", "ui:help": "Staffbase Basic auth token" },
     appsscripturl: { "ui:help": "Deployed Google Apps Script URL returning audit questions" },
     baseurl: { "ui:help": "Staffbase API base URL" },
+    usethemecolors: { "ui:help": "Pull Primary & Accent from the app's branding theme (uses the API Token). Hides the color pickers below." },
     primarycolor: { "ui:widget": "color" },
     accentcolor: { "ui:widget": "color" },
     backgroundcolor: { "ui:widget": "color", "ui:help": "Leave blank for transparent" },
@@ -1323,12 +1421,21 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const appsScriptUrl = this.getAttribute("appsscripturl") || DEFAULT_APPS_SCRIPT_URL;
                 const apiToken = this.getAttribute("apitoken") || DEFAULT_API_TOKEN;
                 const baseUrl = (this.getAttribute("baseurl") || DEFAULT_BASE_URL).replace(/\/$/, "");
-                const primaryColor = this.getAttribute("primarycolor") || DEFAULT_PRIMARY;
-                const accentColor = this.getAttribute("accentcolor") || DEFAULT_ACCENT;
+                let primaryColor = this.getAttribute("primarycolor") || DEFAULT_PRIMARY;
+                let accentColor = this.getAttribute("accentcolor") || DEFAULT_ACCENT;
                 const bgColor = this.getAttribute("backgroundcolor") || "";
                 const storeS = this.getAttribute("storelabelsingular") || "Store";
                 const storeP = this.getAttribute("storelabelplural") || "Stores";
                 const passThreshold = parseFloat(this.getAttribute("passthreshold") || DEFAULT_THRESHOLD);
+                // When "Use Theme Colors" is on, pull Primary/Accent from the branding theme
+                // (token-auth GET). Failures fall back silently to the values above.
+                if (this.getAttribute("usethemecolors") === "true") {
+                    const themed = yield fetchThemeColors(baseUrl, apiToken);
+                    if (themed.primary)
+                        primaryColor = themed.primary;
+                    if (themed.accent)
+                        accentColor = themed.accent;
+                }
                 const primaryRgb = hexToRgb(primaryColor);
                 const accentRgb = hexToRgb(accentColor);
                 const primaryText = contrastColor(primaryColor);
@@ -3173,14 +3280,14 @@ const factory = (BaseBlockClass, widgetApi) => {
             });
         }
         static get observedAttributes() {
-            return ["appsscripturl", "apitoken", "baseurl", "primarycolor", "accentcolor", "backgroundcolor", "storelabelsingular", "storelabelplural", "passthreshold"];
+            return ["appsscripturl", "apitoken", "baseurl", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor", "storelabelsingular", "storelabelplural", "passthreshold"];
         }
     };
 };
 // ── Block registration ────────────────────────────────────────────────────────
 const blockDefinition = {
     name: "audit-widget", label: "Audit Widget",
-    attributes: ["appsscripturl", "apitoken", "baseurl", "primarycolor", "accentcolor", "backgroundcolor", "storelabelsingular", "storelabelplural", "passthreshold"],
+    attributes: ["appsscripturl", "apitoken", "baseurl", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor", "storelabelsingular", "storelabelplural", "passthreshold"],
     factory, configurationSchema, uiSchema, blockLevel: "block", iconUrl: "",
 };
 window.defineBlock({ blockDefinition, author: "Staffbase", version: "1.0.0" });
