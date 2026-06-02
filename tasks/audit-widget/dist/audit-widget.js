@@ -1316,6 +1316,7 @@ const DEFAULT_THRESHOLD = "90";
 const DUMMY_QUESTIONS = [
     { id: "EXT-001", cat: "Exterior", text: "Parking lot is free of trash and debris", type: "pf", pts: 3, critical: false, task: true, passCriteria: "No visible litter or debris", taskTitle: "Clean parking lot", taskRole: "Crew Member", taskPriority: "High", taskDue: 1 },
     { id: "DR-001", cat: "Dining Room", text: "All tables are clean and sanitized", type: "pf", pts: 3, critical: false, task: true, passCriteria: "Sanitized per protocol", taskTitle: "Sanitize all dining room tables", taskRole: "Crew Member", taskPriority: "High", taskDue: 1 },
+    { id: "DR-002", cat: "Dining Room", text: "Percentage of tables bussed and reset within 5 min", type: "pct", pts: 3, critical: false, task: true, passCriteria: "≥ 90%", taskTitle: "Improve table turnaround time", taskRole: "Crew Member", taskPriority: "Medium", taskDue: 1 },
     { id: "ST-001", cat: "Serving Table", text: "Hot food holding temps are within range (≥140°F)", type: "temp", pts: 5, critical: true, task: true, passCriteria: "≥140°F hot holding, ≥165°F cooking", taskTitle: "Adjust holding temp — FOOD SAFETY RISK", taskRole: "Manager", taskPriority: "Critical", taskDue: 0 },
     { id: "BOH-001", cat: "Back of House", text: "Walk-in cooler temps within range (35–41°F)", type: "temp", pts: 5, critical: true, task: true, passCriteria: "35–41°F walk-in range", taskTitle: "Adjust cooler temp — FOOD SAFETY RISK", taskRole: "Manager", taskPriority: "Critical", taskDue: 0 },
     { id: "DT-001", cat: "Drive-Thru", text: "Time a drive-thru order from window to handoff", type: "time", pts: 5, critical: false, task: false, passCriteria: "between 60 and 90 seconds", taskTitle: "", taskRole: "", taskPriority: "", taskDue: 0, timeUnit: "sec" },
@@ -1562,6 +1563,91 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-temp-input.ok{border-color:var(--success);background:rgba(46,125,74,.05)}
           .${p}-temp-input.bad{border-color:var(--error);background:rgba(196,30,58,.05)}
           .${p}-temp-hint{font-size:11px;color:var(--gray-lt);margin-top:5px;line-height:1.4;text-align:center}
+          /* ── Percentage slider ──────────────────────────────────────── */
+          .${p}-pct{display:flex;flex-direction:column;gap:9px;margin:6px 0 4px}
+          .${p}-pct-readout{display:flex;align-items:center;justify-content:center;gap:9px}
+          .${p}-pct-num{display:flex;align-items:baseline;gap:1px}
+          .${p}-pct-val{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:32px;font-weight:800;color:var(--dark);font-variant-numeric:tabular-nums;line-height:1;transition:color .25s}
+          .${p}-pct-sign{font-size:17px;font-weight:800;color:var(--gray-lt)}
+          .${p}-pct.${p}-st-pass .${p}-pct-val{color:var(--success)}
+          .${p}-pct.${p}-st-fail .${p}-pct-val{color:var(--error)}
+          .${p}-pct-status{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;padding:3px 9px;border-radius:20px;white-space:nowrap;background:#f1f2f4;color:var(--gray)}
+          .${p}-pct.${p}-st-pass .${p}-pct-status{background:rgba(46,125,74,.12);color:var(--success)}
+          .${p}-pct.${p}-st-fail .${p}-pct-status{background:rgba(196,30,58,.12);color:var(--error)}
+          .${p}-pct-slider{position:relative;height:34px;display:flex;align-items:center}
+          .${p}-pct-rail{position:absolute;left:12px;right:12px;top:50%;transform:translateY(-50%);height:10px;border-radius:999px;background:#eceef1;overflow:hidden;pointer-events:none}
+          .${p}-pct-zone{position:absolute;top:0;bottom:0;background:rgba(46,125,74,.18)}
+          .${p}-pct-fill{position:absolute;top:0;bottom:0;left:0;background:var(--gray-lt);border-radius:999px;transition:width .1s linear,background .25s}
+          .${p}-pct.${p}-st-pass .${p}-pct-fill{background:var(--success)}
+          .${p}-pct.${p}-st-fail .${p}-pct-fill{background:var(--error)}
+          .${p}-pct-mark{position:absolute;top:50%;transform:translate(-50%,-50%);width:3px;height:18px;border-radius:2px;background:var(--dark);opacity:.4;pointer-events:none;z-index:2}
+          .${p}-pct-input{position:relative;z-index:3;width:100%;margin:0;background:transparent;-webkit-appearance:none;appearance:none;height:34px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:pan-y}
+          .${p}-pct-input:focus{outline:none}
+          .${p}-pct-input::-webkit-slider-runnable-track{background:transparent;height:34px;border:none}
+          .${p}-pct-input::-moz-range-track{background:transparent;height:34px;border:none}
+          .${p}-pct-input::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:24px;height:24px;border-radius:50%;background:#fff;border:2px solid var(--gray-lt);box-shadow:0 2px 6px rgba(0,0,0,.18);cursor:grab;transition:border-color .25s,transform .1s;margin-top:5px}
+          .${p}-pct-input::-moz-range-thumb{width:24px;height:24px;border-radius:50%;background:#fff;border:2px solid var(--gray-lt);box-shadow:0 2px 6px rgba(0,0,0,.18);cursor:grab;transition:border-color .25s}
+          .${p}-pct.${p}-st-pass .${p}-pct-input::-webkit-slider-thumb{border-color:var(--success)}
+          .${p}-pct.${p}-st-fail .${p}-pct-input::-webkit-slider-thumb{border-color:var(--error)}
+          .${p}-pct.${p}-st-pass .${p}-pct-input::-moz-range-thumb{border-color:var(--success)}
+          .${p}-pct.${p}-st-fail .${p}-pct-input::-moz-range-thumb{border-color:var(--error)}
+          .${p}-pct-input:active::-webkit-slider-thumb{transform:scale(1.1)}
+          .${p}-pct-scale{display:flex;justify-content:space-between;font-size:10px;color:var(--gray-lt);margin-top:-2px}
+          /* editable big % number in the readout */
+          .${p}-pct-val{border:none;background:transparent;text-align:right;width:2.4em;padding:0;-moz-appearance:textfield;cursor:text}
+          .${p}-pct-val::-webkit-outer-spin-button,.${p}-pct-val::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+          .${p}-pct-val:focus{outline:none}
+          /* ── Shared ▲▼ stepper ──────────────────────────────────────── */
+          .${p}-stepper{display:inline-flex;align-items:stretch;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fafafa;overflow:hidden;transition:border-color .15s,background .15s;-webkit-tap-highlight-color:transparent}
+          .${p}-stepper:focus-within{border-color:var(--primary);background:#fff}
+          .${p}-stepper.ok{border-color:var(--success);background:rgba(46,125,74,.05)}
+          .${p}-stepper.bad{border-color:var(--error);background:rgba(196,30,58,.05)}
+          .${p}-stepper-input{border:none!important;background:transparent!important;text-align:center;font-size:18px;font-weight:700;font-family:inherit;color:var(--dark);padding:10px 6px;width:100%;min-width:0;-moz-appearance:textfield}
+          .${p}-stepper-input:focus{outline:none}
+          .${p}-stepper-input::-webkit-outer-spin-button,.${p}-stepper-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+          .${p}-stepper-btns{display:flex;flex-direction:column;flex-shrink:0;border-left:1.5px solid var(--border)}
+          .${p}-stepper-btn{display:flex!important;align-items:center;justify-content:center;width:36px!important;flex:1;border:none!important;background:#fff!important;color:var(--gray)!important;cursor:pointer;padding:0!important;margin:0!important;line-height:0!important;transition:background .12s,color .12s;touch-action:manipulation}
+          .${p}-stepper-btn:hover{background:var(--primary)!important;color:#fff!important}
+          .${p}-stepper-btn:active{background:var(--primary)!important;color:#fff!important}
+          .${p}-stepper-btn+.${p}-stepper-btn{border-top:1px solid var(--border)}
+          /* percentage uses a tight vertical stepper beside the big number */
+          .${p}-pct-stepper{flex-direction:column;border:1.5px solid var(--border)}
+          .${p}-pct-stepper .${p}-stepper-btn{width:30px!important;border-left:none}
+          /* temperature: stepper hosts the typeable °F input */
+          .${p}-temp-stepper{width:100%;font-size:18px}
+          .${p}-temp-stepper .${p}-stepper-input{font-size:18px}
+          /* manual time entry under the dial */
+          .${p}-time-manual{display:flex;align-items:center;justify-content:center;gap:8px;margin:2px 0 4px}
+          .${p}-time-manual-lbl{font-size:11px;color:var(--gray-lt)}
+          .${p}-time-stepper{width:120px}
+          .${p}-time-stepper .${p}-stepper-input{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums}
+          /* ── 1–5 rating slider ──────────────────────────────────────── */
+          .${p}-rate{display:flex;flex-direction:column;gap:9px;margin:6px 0 4px}
+          .${p}-rate-readout{display:flex;align-items:center;justify-content:center;gap:9px}
+          .${p}-rate-num{display:flex;align-items:baseline;gap:1px}
+          .${p}-rate-val{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:32px;font-weight:800;color:var(--gray-lt);font-variant-numeric:tabular-nums;line-height:1;transition:color .25s}
+          .${p}-rate-of{font-size:15px;font-weight:700;color:var(--gray-lt)}
+          .${p}-rate.low .${p}-rate-val{color:var(--error)}
+          .${p}-rate.mid .${p}-rate-val{color:#d97706}
+          .${p}-rate.hi  .${p}-rate-val{color:var(--success)}
+          .${p}-rate-status{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;padding:3px 9px;border-radius:20px;white-space:nowrap;background:#f1f2f4;color:var(--gray)}
+          .${p}-rate.low .${p}-rate-status{background:rgba(196,30,58,.12);color:var(--error)}
+          .${p}-rate.mid .${p}-rate-status{background:#fffbeb;color:#d97706}
+          .${p}-rate.hi  .${p}-rate-status{background:rgba(46,125,74,.12);color:var(--success)}
+          .${p}-rate-slider{position:relative;height:34px;display:flex;align-items:center}
+          .${p}-rate-rail{position:absolute;left:12px;right:12px;top:50%;transform:translateY(-50%);height:10px;border-radius:999px;background:#eceef1;pointer-events:none}
+          .${p}-rate-fill{position:absolute;top:0;bottom:0;left:0;background:var(--gray-lt);border-radius:999px;transition:width .12s,background .25s}
+          .${p}-rate.low .${p}-rate-fill{background:var(--error)}
+          .${p}-rate.mid .${p}-rate-fill{background:#d97706}
+          .${p}-rate.hi  .${p}-rate-fill{background:var(--success)}
+          .${p}-rate-tick{position:absolute;top:50%;width:4px;height:4px;border-radius:50%;background:#fff;transform:translate(-50%,-50%);opacity:.75;pointer-events:none}
+          .${p}-rate.low .${p}-rate-input::-webkit-slider-thumb{border-color:var(--error)}
+          .${p}-rate.mid .${p}-rate-input::-webkit-slider-thumb{border-color:#d97706}
+          .${p}-rate.hi  .${p}-rate-input::-webkit-slider-thumb{border-color:var(--success)}
+          .${p}-rate.low .${p}-rate-input::-moz-range-thumb{border-color:var(--error)}
+          .${p}-rate.mid .${p}-rate-input::-moz-range-thumb{border-color:#d97706}
+          .${p}-rate.hi  .${p}-rate-input::-moz-range-thumb{border-color:var(--success)}
+          .${p}-rate-scale{display:flex;justify-content:space-between;font-size:10px;color:var(--gray-lt);margin-top:-2px}
           /* ── Stopwatch dial ─────────────────────────────────────────── */
           .${p}-timer{display:flex;flex-direction:column;align-items:center;gap:12px;margin:6px 0 12px}
           .${p}-dial-wrap{position:relative;width:148px;height:148px;flex-shrink:0}
@@ -1802,6 +1888,8 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const iCamera = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
                 const iTimer = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><line x1="12" y1="13" x2="12" y2="9"/><line x1="9" y1="2" x2="15" y2="2"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="18.5" y1="6.5" x2="20" y2="5"/></svg>`;
                 const iXsmall = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+                const iChevUp = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>`;
+                const iChevDn = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
                 function photoChips(qid) {
                     const files = taskFiles[qid] || [];
                     return files.map((f, i) => `<span class="${p}-photo-chip"><span>${esc(f.name)}</span><button type="button" data-qid="${esc(qid)}" data-idx="${i}">${iXsmall}</button></span>`).join("");
@@ -1859,6 +1947,8 @@ const factory = (BaseBlockClass, widgetApi) => {
                         return val === "pass";
                     if (q.type === "rating")
                         return parseInt(val) >= 3;
+                    if (q.type === "pct")
+                        return pctStatus(parseFloat(val), parsePctTarget(q)).state === "pass";
                     if (q.type === "temp") {
                         const n = parseFloat(val);
                         const isCooler = q.id.startsWith("BOH") || q.text.toLowerCase().includes("cooler");
@@ -1894,6 +1984,10 @@ const factory = (BaseBlockClass, widgetApi) => {
                             responses[q.id] = "5";
                         else if (q.type === "temp")
                             responses[q.id] = cooler(q) ? "38" : "165";
+                        else if (q.type === "pct") {
+                            const t = parsePctTarget(q);
+                            responses[q.id] = String(t.kind === "range" ? Math.round((t.lo + t.hi) / 2) : t.kind === "under" ? t.hi : t.lo);
+                        }
                         else
                             responses[q.id] = "pass";
                     };
@@ -1902,6 +1996,10 @@ const factory = (BaseBlockClass, widgetApi) => {
                             responses[q.id] = "1";
                         else if (q.type === "temp")
                             responses[q.id] = cooler(q) ? "60" : "95";
+                        else if (q.type === "pct") {
+                            const t = parsePctTarget(q);
+                            responses[q.id] = String(t.kind === "under" ? Math.min(100, t.hi + 20) : Math.max(0, t.lo - 20));
+                        }
                         else
                             responses[q.id] = "fail";
                     };
@@ -1921,6 +2019,32 @@ const factory = (BaseBlockClass, widgetApi) => {
                 let timerTick = null;
                 function curElapsed(s) { return s.running ? s.elapsed + (Date.now() - s.startAt) : s.elapsed; }
                 function fmtTimer(ms) { const t = Math.floor(ms / 1000); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`; }
+                // Parse a typed time: "M:SS", "MM:SS", or a plain seconds count.
+                function parseTimeInput(raw) {
+                    const s = (raw || "").trim();
+                    if (!s)
+                        return 0;
+                    if (s.includes(":")) {
+                        const [m, sec] = s.split(":");
+                        return (parseInt(m) || 0) * 60 + (parseInt(sec) || 0);
+                    }
+                    return Math.round(parseFloat(s) || 0);
+                }
+                // Manually set a time task's elapsed value (seconds) and judge it against the goal,
+                // mirroring what "Stop" does, so typing/stepping a time settles Pass/Fail too.
+                function commitTimeValue(qid, secs) {
+                    const s = timeState[qid] || (timeState[qid] = { elapsed: 0, running: false, startAt: 0 });
+                    s.elapsed = Math.max(0, secs) * 1000;
+                    s.running = false;
+                    const q = questions.find(x => x.id === qid);
+                    const tgt = q ? parseTimeTarget(q) : null;
+                    if (tgt) {
+                        const st = timeStatus(Math.floor(s.elapsed / 1000), tgt);
+                        responses[qid] = st.state === "pass" ? "pass" : "fail";
+                    }
+                    ensureTick();
+                    refreshQuestion(qid);
+                }
                 function ensureTick() {
                     const anyRunning = Object.keys(timeState).some(k => timeState[k].running);
                     if (anyRunning && !timerTick) {
@@ -1936,6 +2060,57 @@ const factory = (BaseBlockClass, widgetApi) => {
                         clearInterval(timerTick);
                         timerTick = null;
                     }
+                }
+                function parsePctTarget(q) {
+                    const crit = (q.passCriteria || "").toLowerCase();
+                    const dir = `${crit} ${(q.text || "").toLowerCase()}`;
+                    const ns = [...crit.matchAll(/(\d+(?:\.\d+)?)/g)].map(m => parseFloat(m[1])).filter(n => !isNaN(n) && n >= 0 && n <= 100);
+                    if (/between|range|–|[-–]\s*\d|\bto\b/.test(crit) && ns.length >= 2) {
+                        return { kind: "range", lo: Math.min(ns[0], ns[1]), hi: Math.max(ns[0], ns[1]) };
+                    }
+                    if (/under|below|at most|no more|less than|fewer|max|≤|<=/.test(dir) && ns.length) {
+                        return { kind: "under", lo: 0, hi: ns[0] };
+                    }
+                    if (ns.length)
+                        return { kind: "over", lo: ns[0], hi: 100 };
+                    return { kind: "over", lo: 90, hi: 100 };
+                }
+                function pctStatus(v, t) {
+                    if (isNaN(v))
+                        v = 0;
+                    if (t.kind === "under")
+                        return v <= t.hi ? { state: "pass", label: "Within limit" } : { state: "fail", label: "Over limit" };
+                    if (t.kind === "range")
+                        return v >= t.lo && v <= t.hi ? { state: "pass", label: "In range" } : { state: "fail", label: "Out of range" };
+                    return v >= t.lo ? { state: "pass", label: "Meets goal" } : { state: "fail", label: "Below goal" };
+                }
+                // The shaded "passing zone" on the rail, in 0–100 percent coordinates.
+                function pctZone(t) {
+                    if (t.kind === "under")
+                        return { lo: 0, hi: t.hi };
+                    if (t.kind === "range")
+                        return { lo: t.lo, hi: t.hi };
+                    return { lo: t.lo, hi: 100 };
+                }
+                function pctGoalLabel(t) {
+                    if (t.kind === "under")
+                        return `Goal: at most ${t.hi}%`;
+                    if (t.kind === "range")
+                        return `Goal: ${t.lo}–${t.hi}%`;
+                    return `Goal: at least ${t.lo}%`;
+                }
+                // Where the thumb sits before the auditor touches it: right on the goal line.
+                function pctDefaultView(t) {
+                    if (t.kind === "under")
+                        return t.hi;
+                    if (t.kind === "range")
+                        return Math.round((t.lo + t.hi) / 2);
+                    return t.lo;
+                }
+                // 1–5 rating: colour tier + word. Pass is ≥3 (see isPass), tiers match the old buttons.
+                function ratingMeta(n) {
+                    const labels = ["", "Poor", "Fair", "Average", "Good", "Excellent"];
+                    return { tier: n <= 2 ? "low" : n === 3 ? "mid" : "hi", label: labels[n] || "" };
                 }
                 // Parse a time goal from the question's pass criteria / text, e.g. "under 3 min",
                 // "within 90s", "at least 30 seconds", "between 1 and 2 min". Returns seconds.
@@ -2035,6 +2210,8 @@ const factory = (BaseBlockClass, widgetApi) => {
                     const l = t.toLowerCase();
                     if (l.includes("pass") && l.includes("fail"))
                         return "pf";
+                    if (l.includes("percent") || l.includes("%") || l.includes("pct"))
+                        return "pct";
                     if (l.includes("rating") || l.includes("1–5") || l.includes("1-5"))
                         return "rating";
                     if (l.includes("temp"))
@@ -2670,13 +2847,55 @@ const factory = (BaseBlockClass, widgetApi) => {
           </div>`;
                     }
                     else if (q.type === "rating") {
-                        const rv = val ? parseInt(val) : 0;
-                        ctrl = `<div class="${p}-rating-row">${[1, 2, 3, 4, 5].map(n => {
-                            let cls = "";
-                            if (rv === n)
-                                cls = n <= 2 ? "low" : n === 3 ? "mid" : "hi";
-                            return `<button type="button" class="${p}-rating-btn${cls ? " " + cls : ""}" data-qid="${esc(q.id)}" data-val="${n}">${n}</button>`;
-                        }).join("")}</div><div class="${p}-rating-hint"><span>${tr("poor")}</span><span>${tr("excellent")}</span></div>`;
+                        const answered = val !== "";
+                        const rv = answered ? Math.max(1, Math.min(5, parseInt(val) || 1)) : 3;
+                        const meta = answered ? ratingMeta(rv) : null;
+                        const cls = meta ? ` ${meta.tier}` : "";
+                        ctrl = `
+            <div class="${p}-rate${cls}" data-qid="${esc(q.id)}">
+              <div class="${p}-rate-readout">
+                <span class="${p}-rate-num"><span class="${p}-rate-val" data-qid="${esc(q.id)}">${rv}</span><span class="${p}-rate-of">/5</span></span>
+                <span class="${p}-rate-status" data-qid="${esc(q.id)}">${meta ? meta.label : "Drag to rate"}</span>
+              </div>
+              <div class="${p}-rate-slider">
+                <div class="${p}-rate-rail">
+                  <div class="${p}-rate-fill" data-qid="${esc(q.id)}" style="width:${(rv - 1) / 4 * 100}%"></div>
+                  ${[1, 2, 3, 4, 5].map(n => `<div class="${p}-rate-tick" style="left:${(n - 1) / 4 * 100}%"></div>`).join("")}
+                </div>
+                <input type="range" min="1" max="5" step="1" value="${rv}" class="${p}-pct-input ${p}-rate-input" data-qid="${esc(q.id)}" data-dtype="rate" aria-label="Rating 1 to 5">
+              </div>
+              <div class="${p}-rate-scale"><span>${tr("poor")}</span><span>${tr("excellent")}</span></div>
+            </div>`;
+                    }
+                    else if (q.type === "pct") {
+                        const tgt = parsePctTarget(q);
+                        const answered = val !== "";
+                        const v = answered ? Math.max(0, Math.min(100, Math.round(parseFloat(val) || 0))) : pctDefaultView(tgt);
+                        const st = answered ? pctStatus(v, tgt) : null;
+                        const stCls = st ? ` ${p}-st-${st.state}` : "";
+                        const zone = pctZone(tgt);
+                        const mark = tgt.kind === "over" ? tgt.lo : tgt.kind === "under" ? tgt.hi : null;
+                        ctrl = `
+            <div class="${p}-pct${stCls}" data-qid="${esc(q.id)}">
+              <div class="${p}-pct-readout">
+                <span class="${p}-pct-num"><input type="number" inputmode="numeric" min="0" max="100" step="1" class="${p}-pct-val" data-qid="${esc(q.id)}" data-dtype="pct-num" value="${v}" aria-label="Percentage"><span class="${p}-pct-sign">%</span></span>
+                <span class="${p}-stepper ${p}-pct-stepper">
+                  <button type="button" class="${p}-stepper-btn" data-qid="${esc(q.id)}" data-step="pct" data-dir="1" aria-label="Increase">${iChevUp}</button>
+                  <button type="button" class="${p}-stepper-btn" data-qid="${esc(q.id)}" data-step="pct" data-dir="-1" aria-label="Decrease">${iChevDn}</button>
+                </span>
+                <span class="${p}-pct-status" data-qid="${esc(q.id)}">${st ? st.label : "Drag to set"}</span>
+              </div>
+              <div class="${p}-pct-slider">
+                <div class="${p}-pct-rail">
+                  <div class="${p}-pct-zone" style="left:${zone.lo}%;right:${100 - zone.hi}%"></div>
+                  <div class="${p}-pct-fill" data-qid="${esc(q.id)}" style="width:${v}%"></div>
+                  ${mark !== null ? `<div class="${p}-pct-mark" style="left:${mark}%"></div>` : ""}
+                </div>
+                <input type="range" min="0" max="100" step="5" value="${v}" class="${p}-pct-input" data-qid="${esc(q.id)}" data-dtype="pct">
+              </div>
+              <div class="${p}-pct-scale"><span>0%</span><span>100%</span></div>
+            </div>
+            <div class="${p}-timer-goal">${pctGoalLabel(tgt)}</div>`;
                     }
                     else if (q.type === "temp") {
                         const isCooler = q.id.startsWith("BOH") || q.text.toLowerCase().includes("cooler");
@@ -2686,7 +2905,13 @@ const factory = (BaseBlockClass, widgetApi) => {
                             const n = parseFloat(val);
                             tcls = (isCooler ? (n >= 35 && n <= 41) : n >= 140) ? " ok" : " bad";
                         }
-                        ctrl = `<input type="number" class="${p}-temp-input${tcls}" inputmode="decimal" placeholder="°F" value="${esc(val)}" data-qid="${esc(q.id)}" data-dtype="temp">
+                        ctrl = `<div class="${p}-stepper ${p}-temp-stepper${tcls}">
+                  <input type="number" class="${p}-stepper-input" inputmode="decimal" placeholder="°F" value="${esc(val)}" data-qid="${esc(q.id)}" data-dtype="temp">
+                  <div class="${p}-stepper-btns">
+                    <button type="button" class="${p}-stepper-btn" data-qid="${esc(q.id)}" data-step="temp" data-dir="1" aria-label="Increase">${iChevUp}</button>
+                    <button type="button" class="${p}-stepper-btn" data-qid="${esc(q.id)}" data-step="temp" data-dir="-1" aria-label="Decrease">${iChevDn}</button>
+                  </div>
+                </div>
                 <div class="${p}-temp-hint">${hint}</div>`;
                     }
                     else if (q.type === "time") {
@@ -2716,6 +2941,16 @@ const factory = (BaseBlockClass, widgetApi) => {
                 <button type="button" class="${p}-timer-btn${s.running ? " stop" : ""}" data-qid="${esc(q.id)}" data-tact="toggle">${s.running ? tr("stop") : tr("start")}</button>
                 <button type="button" class="${p}-timer-btn ghost" data-qid="${esc(q.id)}" data-tact="reset">${tr("reset")}</button>
               </div>
+              ${s.running ? "" : `<div class="${p}-time-manual">
+                <span class="${p}-time-manual-lbl">or enter</span>
+                <span class="${p}-stepper ${p}-time-stepper">
+                  <input type="text" inputmode="numeric" class="${p}-stepper-input" placeholder="0:00" value="${esc(fmtTimer(curElapsed(s)))}" data-qid="${esc(q.id)}" data-dtype="time-manual">
+                  <span class="${p}-stepper-btns">
+                    <button type="button" class="${p}-stepper-btn" data-qid="${esc(q.id)}" data-step="time" data-dir="1" aria-label="Increase">${iChevUp}</button>
+                    <button type="button" class="${p}-stepper-btn" data-qid="${esc(q.id)}" data-step="time" data-dir="-1" aria-label="Decrease">${iChevDn}</button>
+                  </span>
+                </span>
+              </div>`}
             </div>
             ${tgt ? `<div class="${p}-timer-goal">${goalLabel(tgt)}</div>` : ""}
             <div class="${p}-pf-row">
@@ -2775,18 +3010,104 @@ const factory = (BaseBlockClass, widgetApi) => {
                             }
                         });
                     });
-                    root.querySelectorAll(`.${p}-rating-btn`).forEach((btn) => {
-                        btn.addEventListener("click", () => {
-                            const { qid, val } = btn.dataset;
-                            responses[qid] = val;
-                            refreshQuestion(qid);
-                        });
+                    // 1–5 rating slider: live colour/label while dragging, settle on release.
+                    root.querySelectorAll(`.${p}-rate`).forEach((w) => {
+                        const wrap = w;
+                        const qid = wrap.dataset.qid;
+                        const range = wrap.querySelector(`[data-dtype="rate"]`);
+                        const valEl = wrap.querySelector(`.${p}-rate-val`);
+                        const fillEl = wrap.querySelector(`.${p}-rate-fill`);
+                        const statEl = wrap.querySelector(`.${p}-rate-status`);
+                        const paint = (raw) => {
+                            const v = Math.max(1, Math.min(5, Math.round(raw) || 1));
+                            const m = ratingMeta(v);
+                            if (valEl)
+                                valEl.textContent = String(v);
+                            if (fillEl)
+                                fillEl.style.width = (v - 1) / 4 * 100 + "%";
+                            wrap.classList.remove("low", "mid", "hi");
+                            wrap.classList.add(m.tier);
+                            if (statEl)
+                                statEl.textContent = m.label;
+                            responses[qid] = String(v);
+                        };
+                        range === null || range === void 0 ? void 0 : range.addEventListener("input", () => paint(parseFloat(range.value)));
+                        range === null || range === void 0 ? void 0 : range.addEventListener("change", () => { paint(parseFloat(range.value)); refreshQuestion(qid); });
                     });
+                    // Temperature: typeable °F field (native arrow keys step by 1); ▲▼ buttons below.
                     root.querySelectorAll(`[data-dtype="temp"]`).forEach((inp) => {
                         inp.addEventListener("change", () => {
                             const qid = inp.dataset.qid;
                             responses[qid] = inp.value;
                             refreshQuestion(qid);
+                        });
+                    });
+                    // Percentage: slider + typeable number, kept in sync. Live paint; settle on commit.
+                    root.querySelectorAll(`.${p}-pct`).forEach((w) => {
+                        const wrap = w;
+                        const qid = wrap.dataset.qid;
+                        const q = questions.find(x => x.id === qid);
+                        const range = wrap.querySelector(`[data-dtype="pct"]`);
+                        const num = wrap.querySelector(`[data-dtype="pct-num"]`);
+                        const fillEl = wrap.querySelector(`.${p}-pct-fill`);
+                        const statEl = wrap.querySelector(`.${p}-pct-status`);
+                        const paint = (raw, skip) => {
+                            const v = Math.max(0, Math.min(100, Math.round(raw) || 0));
+                            if (num && num !== skip)
+                                num.value = String(v);
+                            if (range && range !== skip)
+                                range.value = String(v);
+                            if (fillEl)
+                                fillEl.style.width = v + "%";
+                            const st = q ? pctStatus(v, parsePctTarget(q)) : null;
+                            wrap.classList.remove(`${p}-st-pass`, `${p}-st-fail`);
+                            if (st)
+                                wrap.classList.add(`${p}-st-${st.state}`);
+                            if (statEl && st)
+                                statEl.textContent = st.label;
+                            responses[qid] = String(v);
+                        };
+                        range === null || range === void 0 ? void 0 : range.addEventListener("input", () => paint(parseFloat(range.value), range));
+                        range === null || range === void 0 ? void 0 : range.addEventListener("change", () => { paint(parseFloat(range.value), range); refreshQuestion(qid); });
+                        num === null || num === void 0 ? void 0 : num.addEventListener("input", () => paint(parseFloat(num.value), num)); // skip num so typing isn't clobbered
+                        num === null || num === void 0 ? void 0 : num.addEventListener("change", () => { paint(parseFloat(num.value)); refreshQuestion(qid); });
+                    });
+                    // Manual time entry: type "M:SS" or a seconds count, then judge against the goal.
+                    root.querySelectorAll(`[data-dtype="time-manual"]`).forEach((inp) => {
+                        inp.addEventListener("change", () => {
+                            const el = inp;
+                            const qid = el.dataset.qid;
+                            commitTimeValue(qid, parseTimeInput(el.value));
+                        });
+                    });
+                    // ▲▼ steppers — nudge percentage/temperature/time by 1.
+                    root.querySelectorAll(`.${p}-stepper-btn`).forEach((btn) => {
+                        btn.addEventListener("click", () => {
+                            const el = btn;
+                            const qid = el.dataset.qid;
+                            const kind = el.dataset.step;
+                            const dir = parseInt(el.dataset.dir || "1", 10);
+                            const q = questions.find(x => x.id === qid);
+                            const has = responses[qid] !== undefined && responses[qid] !== "";
+                            if (kind === "pct") {
+                                let cur = has ? parseFloat(responses[qid]) : (q ? pctDefaultView(parsePctTarget(q)) : 0);
+                                if (isNaN(cur))
+                                    cur = 0;
+                                responses[qid] = String(Math.max(0, Math.min(100, Math.round(cur) + dir)));
+                                refreshQuestion(qid);
+                            }
+                            else if (kind === "temp") {
+                                const isCooler = qid.startsWith("BOH") || !!(q && q.text.toLowerCase().includes("cooler"));
+                                let cur = has ? parseFloat(responses[qid]) : (isCooler ? 38 : 140);
+                                if (isNaN(cur))
+                                    cur = isCooler ? 38 : 140;
+                                responses[qid] = String(Math.round((cur + dir) * 10) / 10);
+                                refreshQuestion(qid);
+                            }
+                            else if (kind === "time") {
+                                const s = timeState[qid] || { elapsed: 0, running: false, startAt: 0 };
+                                commitTimeValue(qid, Math.max(0, Math.floor(curElapsed(s) / 1000) + dir));
+                            }
                         });
                     });
                     // Time-task stopwatch controls
