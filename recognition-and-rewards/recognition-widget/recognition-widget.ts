@@ -93,17 +93,19 @@ function buildCss(p: string): string {
 .${p}-plink{color:inherit;text-decoration:none;cursor:pointer}
 .${p}-from-name.${p}-plink:hover,.${p}-to.${p}-plink:hover{text-decoration:underline}
 a.${p}-av{cursor:pointer}
-/* Hover-revealed actions, bottom-right */
-.${p}-actions{position:absolute;bottom:10px;right:12px;display:flex;align-items:center;gap:7px;opacity:0;transform:translateY(3px);transition:opacity .15s,transform .15s;pointer-events:none}
-.${p}-card:hover .${p}-actions,.${p}-card:focus-within .${p}-actions{opacity:1;transform:none;pointer-events:auto}
-.${p}-like-btn{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--gray);background:#fff;border:1px solid var(--border);cursor:pointer;font-family:inherit;padding:5px 11px;border-radius:20px;line-height:1;box-shadow:var(--shadow-sm);transition:color .15s,border-color .15s}
-.${p}-like-btn svg{width:15px;height:15px;transition:transform .15s}
-.${p}-like-btn:hover{color:var(--primary);border-color:rgba(var(--primary-rgb),.4)}
-.${p}-like-btn:active svg{transform:scale(.82)}
-.${p}-like-btn.liked{color:var(--primary);border-color:rgba(var(--primary-rgb),.4)}
+/* Actions, bottom-right: like is always visible (borderless icon); edit reveals on
+   hover to its right, so the like nudges left to make room. */
+.${p}-actions{position:absolute;bottom:11px;right:14px;display:flex;align-items:center;gap:10px}
+.${p}-like-btn{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--gray-lt);background:none;border:none;cursor:pointer;font-family:inherit;padding:0;line-height:1;transition:color .15s}
+.${p}-like-btn svg{width:17px;height:17px;transition:transform .12s}
+.${p}-like-btn:hover{color:var(--primary)}
+.${p}-like-btn:active svg{transform:scale(.8)}
+.${p}-like-btn.liked{color:var(--primary)}
 .${p}-like-btn.liked svg{fill:var(--primary);stroke:var(--primary)}
-.${p}-like-count{min-width:5px;font-variant-numeric:tabular-nums}
-.${p}-edit-btn{width:30px;height:30px;border-radius:50%;background:#fff;border:1px solid var(--border);box-shadow:var(--shadow-sm);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--gray);transition:background .15s,color .15s,border-color .15s}
+.${p}-like-count{font-variant-numeric:tabular-nums}
+.${p}-like-count:empty{display:none}
+.${p}-edit-btn{display:none;width:30px;height:30px;border-radius:50%;background:#fff;border:1px solid var(--border);box-shadow:var(--shadow-sm);cursor:pointer;align-items:center;justify-content:center;color:var(--gray);transition:color .15s,border-color .15s}
+.${p}-card:hover .${p}-edit-btn,.${p}-card:focus-within .${p}-edit-btn{display:flex}
 .${p}-edit-btn:hover{color:var(--primary);border-color:rgba(var(--primary-rgb),.4)}
 .${p}-edit-area{width:100%;font-family:inherit;font-size:13px;color:var(--dark);background:#fafafa;border:1.5px solid var(--border);border-radius:var(--r-md);padding:9px 11px;resize:vertical;min-height:64px;line-height:1.55;margin-left:65px;width:calc(100% - 65px);transition:border-color .15s}
 .${p}-edit-area:focus{outline:none;border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(var(--primary-rgb),.12)}
@@ -182,13 +184,17 @@ textarea.${p}-in{resize:vertical;min-height:84px;line-height:1.55}
 .${p} .${p}-recipient-change,.${p} .${p}-recipient-change:focus{background:rgba(0,0,0,.04)!important;color:var(--gray)!important}
 .${p} .${p}-recipient-change:hover,.${p} .${p}-recipient-change:active{background:rgba(var(--primary-rgb),.12)!important;color:var(--primary)!important}
 /* Same fix for the edit (pencil) button — keep it a true 28px circle */
-.${p} .${p}-edit-btn,.${p} .${p}-edit-btn:hover,.${p} .${p}-edit-btn:focus,.${p} .${p}-edit-btn:active{width:30px!important;height:30px!important;min-width:0!important;padding:0!important;border:1px solid var(--border)!important;border-radius:50%!important;display:flex!important;align-items:center;justify-content:center;background:#fff!important}
+.${p} .${p}-edit-btn,.${p} .${p}-edit-btn:hover,.${p} .${p}-edit-btn:focus,.${p} .${p}-edit-btn:active{width:30px!important;height:30px!important;min-width:0!important;padding:0!important;border:1px solid var(--border)!important;border-radius:50%!important;align-items:center;justify-content:center;background:#fff!important}
 .${p} .${p}-edit-btn,.${p} .${p}-edit-btn:focus,.${p} .${p}-edit-btn:active{color:var(--gray)!important}
 .${p} .${p}-edit-btn:hover{color:var(--primary)!important;border-color:rgba(var(--primary-rgb),.4)!important}
-/* like button: keep white bg (beat host .mouse button:hover red), keep its pill border */
-.${p} .${p}-like-btn,.${p} .${p}-like-btn:hover,.${p} .${p}-like-btn:focus,.${p} .${p}-like-btn:active{background:#fff!important;width:auto!important;border:1px solid var(--border)!important;border-radius:20px!important}
-.${p} .${p}-like-btn,.${p} .${p}-like-btn:focus,.${p} .${p}-like-btn:active{color:var(--gray)!important}
-.${p} .${p}-like-btn:hover,.${p} .${p}-like-btn.liked{color:var(--primary)!important;border-color:rgba(var(--primary-rgb),.4)!important}
+/* like button: borderless icon; transparent bg beats host .mouse button:hover red */
+.${p} .${p}-like-btn,.${p} .${p}-like-btn:hover,.${p} .${p}-like-btn:focus,.${p} .${p}-like-btn:active{background:none!important;width:auto!important;border:none!important;padding:0!important}
+.${p} .${p}-like-btn,.${p} .${p}-like-btn:focus,.${p} .${p}-like-btn:active{color:var(--gray-lt)!important}
+.${p} .${p}-like-btn:hover,.${p} .${p}-like-btn.liked{color:var(--primary)!important}
+/* Beat host "a,a:visited,.branch-colored{color:#E50914}" on our author links */
+.${p} .${p}-from-name,.${p} .${p}-from-name:visited{color:var(--dark)!important}
+.${p} .${p}-to,.${p} .${p}-to:visited{color:var(--primary)!important}
+.${p} a.${p}-av,.${p} a.${p}-av:visited{color:#fff!important}
 .${p}-filter,.${p}-filter:focus,.${p}-filter:active{background:#fff!important;color:var(--gray)!important}
 .${p}-filter:hover{color:var(--primary)!important}
 .${p}-filter.active,.${p}-filter.active:hover,.${p}-filter.active:focus,.${p}-filter.active:active{background:rgba(var(--primary-rgb),.08)!important;color:var(--primary)!important}
@@ -311,11 +317,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
       const adminId = this.getAttribute("adminuserid") || DEFAULT_ADMIN_ID;
       const notificationLink = this.getAttribute("notificationlink") || "";
       const apiOpts = (extra?: RequestInit) => makeApiOpts(token, extra);
-      // App origin (strip /api) for in-app profile links. /openlink/profile/<id> is the
-      // platform's internal-link form; combined with class="link-internal" + a
-      // data-user-id attribute, Staffbase shows its native profile hovercard on hover.
-      const appOrigin = baseUrl.replace(/\/api\/?$/, "");
-      const profileUrl = (id: string) => `${appOrigin}/openlink/profile/${id}`;
+      // Staffbase binds its native profile hovercard to author links of the form
+      // <a class="internal-link clickable" href="/profile/<id>">. Matching that markup
+      // exactly (relative href + those classes) makes the hovercard pop on our links too.
+      const profileUrl = (id: string) => `/profile/${id}`;
 
       // ── Theming ────────────────────────────────────────────────────────
       let primaryColor = this.getAttribute("primarycolor") || DEFAULT_PRIMARY_COLOR;
@@ -797,23 +802,23 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
           const isOwn = !!currentUser && (post.fromId ? post.fromId === currentUser.id : myName === post.fromName);
           const isRecipient = !!myName && myName === post.toName;
 
-          // Wrap avatars / names in a profile link with data-user-id so Staffbase's
-          // native hovercard pops on hover (same trigger the celebration widget uses).
-          const fromInner = post.fromAvatar ? `<img src="${post.fromAvatar}" alt="" data-user-id="${post.fromId}" data-type="thumb" data-size="36" onerror="this.parentElement.innerHTML='${fromInitials}'">` : fromInitials;
+          // Wrap avatars / names in internal-link author anchors so Staffbase's native
+          // profile hovercard pops on hover (matches the platform's own author links).
+          const fromInner = post.fromAvatar ? `<img src="${post.fromAvatar}" alt="" onerror="this.parentElement.innerHTML='${fromInitials}'">` : fromInitials;
           const fromAvDiv = post.fromId
-            ? `<a class="${p}-av ${p}-av-from link-internal" href="${profileUrl(post.fromId)}" data-user-id="${post.fromId}">${fromInner}</a>`
+            ? `<a class="${p}-av ${p}-av-from internal-link clickable" href="${profileUrl(post.fromId)}">${fromInner}</a>`
             : `<div class="${p}-av ${p}-av-from">${fromInner}</div>`;
-          const toInner = post.toAvatar ? `<img src="${post.toAvatar}" alt="" data-user-id="${post.toId}" data-type="thumb" data-size="36" onerror="this.parentElement.innerHTML='${toInitials}'">` : toInitials;
+          const toInner = post.toAvatar ? `<img src="${post.toAvatar}" alt="" onerror="this.parentElement.innerHTML='${toInitials}'">` : toInitials;
           const toAvDiv = post.toName
             ? (post.toId
-                ? `<a class="${p}-av ${p}-av-to link-internal" href="${profileUrl(post.toId)}" data-user-id="${post.toId}">${toInner}</a>`
+                ? `<a class="${p}-av ${p}-av-to internal-link clickable" href="${profileUrl(post.toId)}">${toInner}</a>`
                 : `<div class="${p}-av ${p}-av-to">${toInner}</div>`)
             : "";
           const fromNameEl = post.fromId
-            ? `<a class="${p}-from-name ${p}-plink link-internal" href="${profileUrl(post.fromId)}" data-user-id="${post.fromId}">${fromName}</a>`
+            ? `<a class="${p}-from-name ${p}-plink internal-link clickable" href="${profileUrl(post.fromId)}">${fromName}</a>`
             : `<span class="${p}-from-name">${fromName}</span>`;
           const toNameEl = post.toId
-            ? `<a class="${p}-to ${p}-plink link-internal" href="${profileUrl(post.toId)}" data-user-id="${post.toId}">${post.toName}</a>`
+            ? `<a class="${p}-to ${p}-plink internal-link clickable" href="${profileUrl(post.toId)}">${post.toName}</a>`
             : `<span class="${p}-to">${post.toName}</span>`;
 
           return `<div class="${p}-card" data-post-id="${post.id}">
