@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rewards Widget — Preview</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+  <style>
+    body {
+      margin: 0; background: #eef0f4;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      display: flex; justify-content: center; align-items: flex-start;
+      min-height: 100vh; padding: 32px 16px; box-sizing: border-box;
+    }
+    .preview-wrap { width: 100%; max-width: 500px; }
+    .preview-label { font-size: 11px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: #9ca3af; text-align: center; margin-bottom: 12px; }
+    .widget-shell { background: white; border-radius: 16px; box-shadow: 0 8px 30px rgba(0,0,0,.10); overflow: hidden; }
+
+    /* ── Widget styles (mirrors buildCss; primary #DA2E32 / accent #F59E0B) ── */
+    .rwd{--primary:#DA2E32;--primary-rgb:218,46,50;--accent:#F59E0B;--accent-rgb:245,158,11;--primary-text:#fff;--dark:#1A1A1A;--gray:#6b7280;--gray-lt:#9ca3af;--border:#e5e7eb;--bg-soft:#f7f7f9;--success:#2E7D4A;--error:#C41E3A;--r-sm:6px;--r-md:10px;--r-lg:16px;--shadow-sm:0 1px 2px rgba(0,0,0,.04),0 1px 3px rgba(0,0,0,.06);--shadow-md:0 6px 22px rgba(0,0,0,.09);color:var(--dark);padding:20px}
+    .rwd *,.rwd *::before,.rwd *::after{box-sizing:border-box;margin:0;padding:0}
+    .rwd-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+    .rwd-title{font-size:18px;font-weight:800;letter-spacing:-.01em;display:flex;align-items:center;gap:10px}
+    .rwd-title-icon{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:var(--primary-text);background:linear-gradient(135deg,var(--primary),var(--accent));box-shadow:0 4px 12px rgba(var(--primary-rgb),.28);flex-shrink:0}
+    .rwd-sub{font-size:11px;font-weight:600;letter-spacing:.3px;color:var(--gray-lt);text-transform:uppercase}
+    .rwd-hero{position:relative;overflow:hidden;border-radius:var(--r-lg);padding:18px;margin-bottom:16px;color:var(--primary-text);background:linear-gradient(135deg,var(--primary),var(--accent));box-shadow:0 10px 28px rgba(var(--primary-rgb),.3)}
+    .rwd-hero::after{content:"";position:absolute;right:-40px;top:-40px;width:150px;height:150px;border-radius:50%;background:rgba(255,255,255,.12)}
+    .rwd-hero::before{content:"";position:absolute;right:30px;bottom:-50px;width:110px;height:110px;border-radius:50%;background:rgba(255,255,255,.08)}
+    .rwd-hero-top{display:flex;align-items:center;gap:12px;position:relative;z-index:1}
+    .rwd-av{width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.22);color:var(--primary-text);font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .rwd-name{font-size:15px;font-weight:800;line-height:1.2}
+    .rwd-utitle{font-size:12px;font-weight:500;opacity:.85;margin-top:1px}
+    .rwd-pts-box{margin-left:auto;text-align:right}
+    .rwd-pts-num{font-size:30px;font-weight:800;line-height:1;letter-spacing:-.02em}
+    .rwd-pts-label{font-size:10px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;opacity:.85;margin-top:3px}
+    .rwd-prog{position:relative;z-index:1;margin-top:16px}
+    .rwd-prog-meta{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:600;margin-bottom:7px}
+    .rwd-prog-meta .rwd-tier{display:inline-flex;align-items:center;gap:5px;font-weight:800}
+    .rwd-prog-bar{height:7px;background:rgba(255,255,255,.25);border-radius:4px;overflow:hidden}
+    .rwd-prog-fill{height:100%;background:#fff;border-radius:4px;transition:width .5s cubic-bezier(.22,.9,.3,1)}
+    .rwd-prog-scale{display:flex;justify-content:space-between;font-size:10px;font-weight:600;opacity:.8;margin-top:5px}
+    .rwd-tabs{display:inline-flex;gap:2px;padding:3px;background:var(--bg-soft);border-radius:var(--r-md);margin-bottom:16px}
+    .rwd-tab{padding:7px 16px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;color:var(--gray);background:none;border:none;font-family:inherit;transition:all .18s;white-space:nowrap}
+    .rwd-tab.active{background:#fff;color:var(--primary);box-shadow:var(--shadow-sm)}
+    .rwd-cats{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px}
+    .rwd-cat{padding:6px 13px;border:1.5px solid var(--border);border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;background:#fff;color:var(--gray);font-family:inherit;transition:all .15s;white-space:nowrap}
+    .rwd-cat:hover{border-color:rgba(var(--primary-rgb),.4);color:var(--primary)}
+    .rwd-cat.active{background:rgba(var(--primary-rgb),.08);border-color:transparent;color:var(--primary)}
+    .rwd-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:12px}
+    .rwd-grid.intro>*{animation:rwd-rise .42s cubic-bezier(.22,.9,.3,1) backwards}
+    .rwd-grid.intro>*:nth-child(2){animation-delay:.06s}.rwd-grid.intro>*:nth-child(3){animation-delay:.1s}.rwd-grid.intro>*:nth-child(4){animation-delay:.14s}.rwd-grid.intro>*:nth-child(n+5){animation-delay:.18s}
+    @keyframes rwd-rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+    .rwd-rcard{position:relative;background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:15px;display:flex;flex-direction:column;gap:7px;transition:transform .16s,box-shadow .16s,border-color .16s}
+    .rwd-rcard.afford{cursor:pointer}
+    .rwd-rcard.afford:hover{transform:translateY(-3px);box-shadow:var(--shadow-md);border-color:transparent}
+    .rwd-rcard.locked{opacity:.62}
+    .rwd-ricon{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;background:linear-gradient(135deg,rgba(var(--primary-rgb),.1),rgba(var(--accent-rgb),.14));color:var(--primary);margin-bottom:2px}
+    .rwd-rcard.locked .rwd-ricon{background:var(--bg-soft);color:var(--gray-lt)}
+    .rwd-rname{font-size:13px;font-weight:700;color:var(--dark);line-height:1.3}
+    .rwd-rdesc{font-size:11px;color:var(--gray);line-height:1.45}
+    .rwd-rpts{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:800;padding:4px 9px;border-radius:8px;margin-top:auto;align-self:flex-start}
+    .rwd-rpts.afford{color:var(--primary);background:rgba(var(--primary-rgb),.09)}
+    .rwd-rpts.pricey{color:var(--gray-lt);background:var(--bg-soft)}
+    .rwd-rpts svg{opacity:.85}
+    .rwd-redeem{width:100%;margin-top:3px;padding:9px 0;border-radius:var(--r-md);border:none;color:var(--primary-text);font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;background:linear-gradient(135deg,var(--primary),var(--accent));box-shadow:0 3px 10px rgba(var(--primary-rgb),.28);transition:all .15s}
+    .rwd-redeem:hover{filter:brightness(1.05);transform:translateY(-1px)}
+    .rwd-lockb{position:absolute;top:13px;right:13px;color:var(--gray-lt);display:flex}
+    .rwd-sec-label{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--gray-lt);margin-bottom:11px}
+    .rwd-hist{display:flex;flex-direction:column;gap:9px}
+    .rwd-hitem{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--border);border-radius:var(--r-md);padding:11px 14px;transition:border-color .15s}
+    .rwd-hitem:hover{border-color:rgba(var(--primary-rgb),.3)}
+    .rwd-hicon{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;background:linear-gradient(135deg,rgba(var(--primary-rgb),.1),rgba(var(--accent-rgb),.14));color:var(--primary);flex-shrink:0}
+    .rwd-hinfo{flex:1;min-width:0}
+    .rwd-hname{font-size:13px;font-weight:700;color:var(--dark)}
+    .rwd-hdate{font-size:11px;color:var(--gray-lt);margin-top:1px}
+    .rwd-hpts{font-size:13px;font-weight:800;color:var(--primary);white-space:nowrap}
+    .rwd-modal-bg{position:fixed;inset:0;background:rgba(20,20,25,.4);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;z-index:100000;opacity:0;pointer-events:none;transition:opacity .2s;padding:20px}
+    .rwd-modal-bg.open{opacity:1;pointer-events:all}
+    .rwd-modal{background:#fff;border-radius:var(--r-lg);padding:22px;max-width:340px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.25);transform:translateY(12px) scale(.97);transition:transform .25s cubic-bezier(.22,.9,.3,1)}
+    .rwd-modal-bg.open .rwd-modal{transform:none}
+    .rwd-modal-ic{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;color:var(--primary-text);background:linear-gradient(135deg,var(--primary),var(--accent));margin-bottom:13px}
+    .rwd-modal-ic svg{width:22px;height:22px}
+    .rwd-modal-title{font-size:17px;font-weight:800;margin-bottom:6px;color:var(--dark)}
+    .rwd-modal-sub{font-size:13px;color:var(--gray);margin-bottom:18px;line-height:1.55}
+    .rwd-modal-sub strong{color:var(--dark);font-weight:700}
+    .rwd-modal-actions{display:flex;gap:9px}
+    .rwd-mbtn{flex:1;padding:11px;border-radius:var(--r-md);font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;border:none;transition:all .15s}
+    .rwd-mcancel{background:var(--bg-soft);color:var(--gray)}
+    .rwd-mconfirm{background:linear-gradient(135deg,var(--primary),var(--accent));color:var(--primary-text);box-shadow:0 4px 12px rgba(var(--primary-rgb),.3)}
+    .rwd-mconfirm:hover{filter:brightness(1.05)}
+    .rwd-modal.center{text-align:center}
+    .rwd-modal-ic.ok{background:linear-gradient(135deg,var(--success),#3FB068);margin-left:auto;margin-right:auto}
+    .rwd-modal-spin{width:42px;height:42px;border-radius:50%;border:3px solid rgba(var(--primary-rgb),.18);border-top-color:var(--primary);animation:rwd-spin .7s linear infinite;margin:6px auto 16px}
+    @keyframes rwd-spin{to{transform:rotate(360deg)}}
+    .rwd-receipt{margin-top:14px;border:1px solid var(--border);border-radius:var(--r-md);padding:4px 13px;background:var(--bg-soft)}
+    .rwd-receipt-row{display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:9px 0;color:var(--gray)}
+    .rwd-receipt-row+.rwd-receipt-row{border-top:1px dashed var(--border)}
+    .rwd-receipt-row strong{font-weight:800;color:var(--dark)}
+    .rwd-rc-mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:700;color:var(--dark)}
+    .rwd-toast{position:fixed;bottom:22px;left:50%;transform:translate(-50%,8px);background:var(--success);color:#fff;padding:11px 18px;border-radius:var(--r-md);font-size:13px;font-weight:700;opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap;z-index:100001;box-shadow:var(--shadow-md);display:flex;align-items:center;gap:8px}
+    .rwd-toast.show{opacity:1;transform:translate(-50%,0)}
+    .rwd-empty{text-align:center;padding:34px 16px;color:var(--gray-lt);font-size:13px;font-weight:500}
+  </style>
+</head>
+<body>
+<div class="preview-wrap">
+  <div class="preview-label">Widget Preview — Rewards</div>
+  <div class="widget-shell">
+    <div class="rwd">
+      <div class="rwd-header">
+        <div class="rwd-title">
+          <span class="rwd-title-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12v9H4v-9M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7"/></svg></span>
+          Rewards
+        </div>
+        <span class="rwd-sub">Redeem points</span>
+      </div>
+
+      <div class="rwd-hero">
+        <div class="rwd-hero-top">
+          <div class="rwd-av">JS</div>
+          <div>
+            <div class="rwd-name">Jamie Sullivan</div>
+            <div class="rwd-utitle">Store Manager · Portland</div>
+          </div>
+          <div class="rwd-pts-box">
+            <div class="rwd-pts-num" id="ptsDisplay">820</div>
+            <div class="rwd-pts-label">available points</div>
+          </div>
+        </div>
+        <div class="rwd-prog" id="tierBar"></div>
+      </div>
+
+      <div class="rwd-tabs">
+        <button class="rwd-tab active" data-tab="shop">Rewards shop</button>
+        <button class="rwd-tab" data-tab="history">History</button>
+      </div>
+
+      <div id="view-shop">
+        <div class="rwd-cats" id="cats"></div>
+        <div class="rwd-grid" id="rewardsGrid"></div>
+      </div>
+
+      <div id="view-history" style="display:none">
+        <div class="rwd-sec-label">Redemption history</div>
+        <div class="rwd-hist" id="histList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="rwd-modal-bg" id="modalBg">
+  <div class="rwd-modal" id="modalBox"></div>
+</div>
+
+<div class="rwd-toast" id="toast"></div>
+
+<script>
+const SPARK = `<svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" stroke="none"><path d="M12 2 9.6 8.4 3 11l6.6 2.6L12 20l2.4-6.4L21 11l-6.6-2.6Z"/></svg>`;
+const LOCK = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>`;
+const CHECK = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`;
+const MEDAL = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="15" r="6"/><path d="M12 12v3l2 1M8.5 9 6 3M15.5 9 18 3M9 4h6"/></svg>`;
+
+const CATALOG = [
+  { id:"1", name:"Amazon $10 credit", desc:"Applied to your Amazon account", icon:"ti-brand-amazon", pts:100, cat:"giftcard" },
+  { id:"2", name:"Amazon $25 credit", desc:"Applied to your Amazon account", icon:"ti-brand-amazon", pts:250, cat:"giftcard" },
+  { id:"4", name:"Starbucks $15", desc:"Digital gift card via email", icon:"ti-coffee", pts:150, cat:"giftcard" },
+  { id:"5", name:"Spotify 3 months", desc:"Premium subscription gift code", icon:"ti-music", pts:200, cat:"giftcard" },
+  { id:"7", name:"Company hoodie", desc:"Premium branded hoodie, your size", icon:"ti-shirt", pts:350, cat:"swag" },
+  { id:"9", name:"Company tote bag", desc:"Canvas tote with embroidered logo", icon:"ti-basket", pts:80, cat:"swag" },
+  { id:"10", name:"Team lunch voucher", desc:"$30 lunch for you and a teammate", icon:"ti-tools-kitchen-2", pts:400, cat:"experience" },
+  { id:"12", name:"Extra PTO day", desc:"One additional vacation day", icon:"ti-beach", pts:1200, cat:"experience" },
+];
+const TIERS = [{name:"Bronze",min:0,max:500},{name:"Silver",min:500,max:1000},{name:"Gold",min:1000,max:2500},{name:"Platinum",min:2500,max:5000}];
+const getTier = p => TIERS.slice().reverse().find(t=>p>=t.min)||TIERS[0];
+const getNext = p => TIERS.find(t=>p<t.max);
+
+let currentPts = 820, catFilter = "all", pending = null, gridIntro = false;
+let history = [{name:"Starbucks $15",icon:"ti-coffee",pts:150,date:"May 28, 2026"},{name:"Company tote bag",icon:"ti-basket",pts:80,date:"May 14, 2026"}];
+
+function renderTier(pts){
+  const tier=getTier(pts),next=getNext(pts);
+  if(!next||tier.name==="Platinum") return `<div class="rwd-prog-meta"><span class="rwd-tier">${MEDAL}${tier.name}</span><span>Max tier reached</span></div><div class="rwd-prog-bar"><div class="rwd-prog-fill" style="width:100%"></div></div>`;
+  const pct=Math.max(2,Math.round(((pts-tier.min)/(next.max-tier.min))*100)),toGo=next.max-pts;
+  return `<div class="rwd-prog-meta"><span class="rwd-tier">${MEDAL}${tier.name}</span><span>${toGo.toLocaleString()} pts to ${next.name}</span></div><div class="rwd-prog-bar"><div class="rwd-prog-fill" style="width:${pct}%"></div></div><div class="rwd-prog-scale"><span>${tier.min.toLocaleString()}</span><span>${next.max.toLocaleString()}</span></div>`;
+}
+function showToast(msg,ok=true){const t=document.getElementById("toast");t.innerHTML=(ok?CHECK:"")+msg;t.style.background=ok?"var(--success)":"var(--error)";t.classList.add("show");setTimeout(()=>t.classList.remove("show"),3000);}
+function updatePts(){document.getElementById("ptsDisplay").textContent=currentPts.toLocaleString();document.getElementById("tierBar").innerHTML=renderTier(currentPts);}
+
+const cats=["all",...new Set(CATALOG.map(c=>c.cat))];
+const catEl=document.getElementById("cats");
+catEl.innerHTML=cats.map(c=>`<button class="rwd-cat${c==="all"?" active":""}" data-cat="${c}">${c==="all"?"All":c[0].toUpperCase()+c.slice(1)}</button>`).join("");
+catEl.querySelectorAll(".rwd-cat").forEach(b=>b.addEventListener("click",()=>{catFilter=b.dataset.cat;catEl.querySelectorAll(".rwd-cat").forEach(x=>x.classList.remove("active"));b.classList.add("active");gridIntro=false;renderGrid();}));
+
+function renderGrid(){
+  const grid=document.getElementById("rewardsGrid");
+  const items=catFilter==="all"?CATALOG:CATALOG.filter(c=>c.cat===catFilter);
+  if(!gridIntro){grid.classList.add("intro");gridIntro=true;}else grid.classList.remove("intro");
+  grid.innerHTML=items.map(item=>{
+    const can=currentPts>=item.pts;
+    return `<div class="rwd-rcard ${can?"afford":"locked"}"><div class="rwd-ricon"><i class="ti ${item.icon}"></i></div><div class="rwd-rname">${item.name}</div><div class="rwd-rdesc">${item.desc}</div><div class="rwd-rpts ${can?"afford":"pricey"}">${SPARK}${item.pts.toLocaleString()}</div>${can?`<button class="rwd-redeem" data-id="${item.id}">Redeem</button>`:`<span class="rwd-lockb">${LOCK}</span>`}</div>`;
+  }).join("");
+  grid.querySelectorAll(".rwd-redeem").forEach(btn=>btn.addEventListener("click",e=>{
+    e.stopPropagation();openCheckout(CATALOG.find(c=>c.id===btn.dataset.id));
+  }));
+}
+function renderHistory(){
+  const el=document.getElementById("histList");
+  if(!history.length){el.innerHTML=`<div class="rwd-empty">No redemptions yet.</div>`;return;}
+  el.innerHTML=history.map(h=>`<div class="rwd-hitem"><div class="rwd-hicon"><i class="ti ${h.icon}"></i></div><div class="rwd-hinfo"><div class="rwd-hname">${h.name}</div><div class="rwd-hdate">${h.date}</div></div><div class="rwd-hpts">-${h.pts.toLocaleString()} pts</div></div>`).join("");
+}
+
+document.querySelectorAll(".rwd-tab").forEach(btn=>btn.addEventListener("click",()=>{
+  document.querySelectorAll(".rwd-tab").forEach(b=>b.classList.remove("active"));btn.classList.add("active");
+  const t=btn.dataset.tab;
+  document.getElementById("view-shop").style.display=t==="shop"?"":"none";
+  document.getElementById("view-history").style.display=t==="history"?"":"none";
+  if(t==="history")renderHistory();
+}));
+
+// ── Checkout flow (mock fulfillment; deducts points locally in preview) ──
+const GIFT = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12v9H4v-9M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7"/></svg>`;
+const modalBg=document.getElementById("modalBg"),modalBox=document.getElementById("modalBox");
+let checkoutBusy=false;
+function closeCheckout(){if(checkoutBusy)return;modalBg.classList.remove("open");pending=null;}
+function bindModal(){modalBox.querySelectorAll("[data-act]").forEach(b=>b.addEventListener("click",()=>{const a=b.dataset.act;if(a==="cancel"||a==="done")closeCheckout();else if(a==="confirm"&&pending)runRedemption(pending);}));}
+function openCheckout(item){
+  pending=item;modalBox.classList.remove("center");
+  modalBox.innerHTML=`<div class="rwd-modal-ic">${GIFT}</div><div class="rwd-modal-title">Confirm redemption</div><div class="rwd-modal-sub">You're about to redeem <strong>${item.name}</strong> for <strong>${item.pts.toLocaleString()} pts</strong>.<br><br>Your balance after: <strong>${(currentPts-item.pts).toLocaleString()} pts</strong></div><div class="rwd-modal-actions"><button class="rwd-mbtn rwd-mcancel" data-act="cancel">Cancel</button><button class="rwd-mbtn rwd-mconfirm" data-act="confirm">Redeem now</button></div>`;
+  bindModal();modalBg.classList.add("open");
+}
+function runRedemption(item){
+  if(currentPts<item.pts){closeCheckout();showToast("Not enough points to redeem this item.",false);return;}
+  checkoutBusy=true;modalBox.classList.add("center");
+  modalBox.innerHTML=`<div class="rwd-modal-spin"></div><div class="rwd-modal-title">Processing…</div><div class="rwd-modal-sub">Confirming your redemption and updating your balance.</div>`;
+  setTimeout(()=>{
+    currentPts-=item.pts;updatePts();renderGrid();
+    history.unshift({name:item.name,icon:item.icon,pts:item.pts,date:new Date().toLocaleDateString("en-US",{year:"numeric",month:"short",day:"numeric"})});
+    checkoutBusy=false;
+    const orderNo="RWD-"+Date.now().toString(36).toUpperCase().slice(-6);
+    modalBox.innerHTML=`<div class="rwd-modal-ic ok"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div><div class="rwd-modal-title">You're all set!</div><div class="rwd-modal-sub" style="text-align:left"><strong>${item.name}</strong> is on its way — we'll email you the details shortly.<div class="rwd-receipt"><div class="rwd-receipt-row"><span>Order</span><span class="rwd-rc-mono">${orderNo}</span></div><div class="rwd-receipt-row"><span>Redeemed</span><strong>-${item.pts.toLocaleString()} pts</strong></div><div class="rwd-receipt-row"><span>New balance</span><strong>${currentPts.toLocaleString()} pts</strong></div></div></div><div class="rwd-modal-actions"><button class="rwd-mbtn rwd-mconfirm" data-act="done">Done</button></div>`;
+    bindModal();
+  },1100);
+}
+modalBg.addEventListener("click",e=>{if(e.target===modalBg)closeCheckout();});
+
+updatePts();renderGrid();renderHistory();
+</script>
+</body>
+</html>

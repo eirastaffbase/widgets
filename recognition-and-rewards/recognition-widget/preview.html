@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recognition Widget — Preview</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+  <style>
+    body {
+      margin: 0; background: #eef0f4;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      display: flex; justify-content: center; align-items: flex-start;
+      min-height: 100vh; padding: 32px 16px; box-sizing: border-box;
+    }
+    .preview-wrap { width: 100%; max-width: 500px; }
+    .preview-label {
+      font-size: 11px; font-weight: 700; letter-spacing: .6px;
+      text-transform: uppercase; color: #9ca3af; text-align: center; margin-bottom: 12px;
+    }
+    .widget-shell { background: white; border-radius: 16px; box-shadow: 0 8px 30px rgba(0,0,0,.10); overflow: hidden; }
+
+    /* ── Widget styles ── */
+    .rcw{--primary:#DA2E32;--primary-rgb:218,46,50;--accent:#F59E0B;--accent-rgb:245,158,11;--primary-text:#fff;--dark:#1A1A1A;--gray:#6b7280;--gray-lt:#9ca3af;--border:#e5e7eb;--bg-soft:#f7f7f9;--success:#2E7D4A;--error:#C41E3A;--r-sm:6px;--r-md:10px;--r-lg:16px;--shadow-sm:0 1px 2px rgba(0,0,0,.04),0 1px 3px rgba(0,0,0,.06);--shadow-md:0 6px 22px rgba(0,0,0,.09);color:var(--dark);padding:20px}
+    .rcw *,.rcw *::before,.rcw *::after{box-sizing:border-box;margin:0;padding:0}
+    .rcw-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+    .rcw-title{font-size:18px;font-weight:800;letter-spacing:-.01em;display:flex;align-items:center;gap:10px}
+    .rcw-title-icon{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:var(--primary-text);background:linear-gradient(135deg,var(--primary),var(--accent));box-shadow:0 4px 12px rgba(var(--primary-rgb),.28);flex-shrink:0}
+    .rcw-sub{font-size:11px;font-weight:600;letter-spacing:.3px;color:var(--gray-lt);text-transform:uppercase}
+    .rcw-tabs{display:inline-flex;gap:2px;padding:3px;background:var(--bg-soft);border-radius:var(--r-md);margin-bottom:18px}
+    .rcw-tab{padding:7px 16px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;color:var(--gray);background:none;border:none;font-family:inherit;transition:all .18s;white-space:nowrap}
+    .rcw-tab.active{background:#fff;color:var(--primary);box-shadow:var(--shadow-sm)}
+    .rcw-filters{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px}
+    .rcw-filter{display:inline-flex;align-items:center;gap:5px;padding:6px 13px;border:1.5px solid var(--border);border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;background:#fff;color:var(--gray);font-family:inherit;transition:all .15s;white-space:nowrap}
+    .rcw-filter:hover{border-color:rgba(var(--primary-rgb),.4);color:var(--primary)}
+    .rcw-filter.active{background:rgba(var(--primary-rgb),.08);border-color:transparent;color:var(--primary)}
+    .rcw-filter i{font-size:13px}
+    .rcw-feed{display:flex;flex-direction:column;gap:11px}
+    .rcw-feed.intro>*{animation:rcw-rise .42s cubic-bezier(.22,.9,.3,1) backwards}
+    .rcw-feed.intro>*:nth-child(2){animation-delay:.07s}.rcw-feed.intro>*:nth-child(3){animation-delay:.12s}.rcw-feed.intro>*:nth-child(4){animation-delay:.17s}
+    @keyframes rcw-rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+    .rcw-card{position:relative;background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:15px 16px;transition:transform .16s,box-shadow .16s,border-color .16s}
+    .rcw-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-md);border-color:transparent}
+    .rcw-card::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:3px;border-radius:3px;background:linear-gradient(var(--primary),var(--accent));opacity:0;transition:opacity .16s}
+    .rcw-card:hover::before{opacity:1}
+    .rcw-card-head{display:flex;align-items:center;gap:11px;margin-bottom:9px}
+    .rcw-av{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0;color:#fff;background:linear-gradient(135deg,var(--primary),var(--accent))}
+    .rcw-av img{width:100%;height:100%;border-radius:50%;object-fit:cover}
+    .rcw-av-stack{position:relative;width:54px;height:36px;flex-shrink:0}
+    .rcw-av-from{position:absolute;left:0;top:0}
+    .rcw-av-to{position:absolute;right:0;bottom:-3px;width:26px!important;height:26px!important;font-size:9px!important;font-weight:800!important;border:2.5px solid #fff}
+    .rcw-edit-btn{position:absolute;bottom:10px;right:12px;width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,.06);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--gray);opacity:0;transition:opacity .15s,background .15s,color .15s}
+    .rcw-card:hover .rcw-edit-btn{opacity:1}
+    .rcw-edit-btn:hover{background:rgba(var(--primary-rgb),.12);color:var(--primary)}
+    .rcw-edit-area{font-family:inherit;font-size:13px;color:var(--dark);background:#fafafa;border:1.5px solid var(--border);border-radius:var(--r-md);padding:9px 11px;resize:vertical;min-height:64px;line-height:1.55;margin-left:65px;width:calc(100% - 65px);transition:border-color .15s}
+    .rcw-edit-area:focus{outline:none;border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(var(--primary-rgb),.12)}
+    .rcw-edit-actions{display:flex;gap:7px;justify-content:flex-end;margin-top:8px}
+    .rcw-save-btn{padding:7px 15px;border-radius:var(--r-sm);border:none;background:var(--primary);color:var(--primary-text);font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+    .rcw-cancel-btn{padding:7px 13px;border-radius:var(--r-sm);border:1.5px solid var(--border);background:#fff;color:var(--gray);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+    .rcw-who{flex:1;min-width:0}
+    .rcw-from{font-size:13px;font-weight:700;color:var(--dark);display:flex;align-items:center;gap:5px;line-height:1.3;flex-wrap:nowrap;overflow:hidden;min-width:0}
+    .rcw-from-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex-shrink:1}
+    .rcw-from .rcw-to{font-weight:700;color:var(--primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex-shrink:1}
+    .rcw-from svg{color:var(--gray-lt);flex-shrink:0;display:block}
+    .rcw-time{font-size:11px;color:var(--gray-lt);margin-top:1px}
+    .rcw-badges{display:flex;align-items:center;gap:5px;margin-top:4px;flex-wrap:wrap}
+    .rcw-type-badge{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:5px;white-space:nowrap;background:rgba(0,0,0,.05);color:var(--gray)}
+    .rcw-type-badge i{font-size:11px}
+    .rcw-pts-badge{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:5px;white-space:nowrap;background:rgba(0,0,0,.05);color:var(--gray)}
+    .rcw-msg{font-size:13px;color:var(--gray);line-height:1.55;padding-left:65px}
+    .rcw-give{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;box-shadow:var(--shadow-sm)}
+    .rcw-fld{margin-bottom:20px;position:relative}
+    .rcw-fld:last-of-type{margin-bottom:0}
+    .rcw-label{display:block;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--gray-lt);margin-bottom:9px}
+    .rcw-search-wrap{position:relative}
+    .rcw-search-ic{position:absolute;left:15px;top:50%;transform:translateY(-50%);color:var(--gray-lt);pointer-events:none;display:flex}
+    .rcw-in{width:100%;font-family:inherit;font-size:14px;color:var(--dark);background:#fafafa;border:1.5px solid var(--border);border-radius:var(--r-md);padding:13px 14px;transition:all .15s}
+    .rcw-in::placeholder{color:var(--gray-lt)}
+    .rcw-search-wrap .rcw-in{padding-left:42px}
+    .rcw-in:focus{outline:none;border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(var(--primary-rgb),.12)}
+    textarea.rcw-in{resize:vertical;min-height:84px;line-height:1.55}
+    .rcw-dropdown{position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:var(--r-md);box-shadow:var(--shadow-md);z-index:50;max-height:210px;overflow-y:auto;display:none;padding:6px}
+    .rcw-opt{display:flex;align-items:center;gap:11px;padding:9px 11px;font-size:13.5px;font-weight:600;cursor:pointer;color:var(--dark);border-radius:var(--r-sm);transition:background .12s}
+    .rcw-opt:hover{background:var(--bg-soft)}
+    .rcw-opt-av{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--primary),var(--accent));flex-shrink:0;overflow:hidden}
+    .rcw-opt-av img{width:100%;height:100%;border-radius:50%;object-fit:cover}
+    .rcw-opt-empty{padding:10px 12px;font-size:13px;color:var(--gray-lt)}
+    .rcw-recipient{display:flex;align-items:center;gap:13px;padding:13px 14px;border-radius:var(--r-md);border:1.5px solid transparent;background:linear-gradient(rgba(var(--primary-rgb),.05),rgba(var(--accent-rgb),.05));box-shadow:0 0 0 1.5px rgba(var(--primary-rgb),.18) inset;animation:rcw-rise .3s cubic-bezier(.22,.9,.3,1)}
+    .rcw-recipient-av{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--primary),var(--accent));flex-shrink:0;overflow:hidden}
+    .rcw-recipient-av img{width:100%;height:100%;border-radius:50%;object-fit:cover}
+    .rcw-recipient-info{flex:1;min-width:0}
+    .rcw-recipient-eyebrow{font-size:10.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--primary);display:flex;align-items:center;gap:5px}
+    .rcw-recipient-eyebrow svg{width:11px;height:11px}
+    .rcw-recipient-name{font-size:16px;font-weight:800;letter-spacing:-.01em;color:var(--dark);line-height:1.25;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .rcw-recipient-change{width:30px;height:30px;border:none;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--gray);background:rgba(0,0,0,.04);cursor:pointer;transition:all .15s}
+    .rcw-recipient-change:hover{background:rgba(var(--primary-rgb),.12);color:var(--primary)}
+    .rcw-ktypes{display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:9px}
+    .rcw-ktype{display:flex;flex-direction:column;align-items:center;gap:8px;border:1.5px solid var(--border);border-radius:var(--r-md);padding:14px 6px;cursor:pointer;background:#fff;transition:transform .15s,border-color .15s,box-shadow .15s;font-family:inherit}
+    .rcw-ktype:hover{border-color:rgba(var(--primary-rgb),.4);transform:translateY(-2px);box-shadow:var(--shadow-sm)}
+    .rcw-ktype.selected{border-color:var(--primary);background:rgba(var(--primary-rgb),.05)}
+    .rcw-ktype-ic{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;background:var(--bg-soft);color:var(--gray-lt);transition:all .15s}
+    .rcw-ktype.selected .rcw-ktype-ic{background:linear-gradient(135deg,var(--primary),var(--accent));color:var(--primary-text)}
+    .rcw-ktype-name{font-size:11.5px;font-weight:600;color:var(--gray);line-height:1.2}
+    .rcw-ktype.selected .rcw-ktype-name{color:var(--primary);font-weight:700}
+    .rcw-ktype-pts{font-size:10px;font-weight:600;color:var(--gray-lt)}
+    .rcw-ktype.selected .rcw-ktype-pts{color:var(--primary)}
+    .rcw-submit-row{display:flex;justify-content:flex-end;margin-top:14px}
+    .rcw-submit{padding:11px 22px;border-radius:var(--r-md);border:none;color:var(--primary-text);font-family:inherit;font-size:14px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,var(--primary),var(--accent));box-shadow:0 4px 14px rgba(var(--primary-rgb),.32);transition:all .15s}
+    .rcw-submit:hover:not(:disabled){transform:translateY(-1px);filter:brightness(1.04)}
+    .rcw-submit:disabled{background:var(--border);color:var(--gray-lt);cursor:not-allowed;box-shadow:none;transform:none;filter:none}
+    .rcw-empty{text-align:center;padding:34px 16px;color:var(--gray-lt);font-size:13px;font-weight:500}
+    .rcw-toast{position:absolute;bottom:18px;left:50%;transform:translate(-50%,8px);background:var(--dark);color:#fff;padding:11px 18px;border-radius:var(--r-md);font-size:13px;font-weight:700;opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap;z-index:10;box-shadow:var(--shadow-md);display:flex;align-items:center;gap:8px}
+    .rcw-toast.show{opacity:1;transform:translate(-50%,0)}
+    .rcw-view-wrap{position:relative;min-height:130px}
+  </style>
+</head>
+<body>
+<div class="preview-wrap">
+  <div class="preview-label">Widget Preview — Recognition</div>
+  <div class="widget-shell">
+    <div class="rcw">
+      <div class="rcw-header">
+        <div class="rcw-title">
+          <span class="rcw-title-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 12.572 12 20l-7.5-7.428A5 5 0 1 1 12 6.006a5 5 0 1 1 7.5 6.566Z"/></svg></span>
+          Recognition
+        </div>
+        <span class="rcw-sub">Team kudos</span>
+      </div>
+
+      <div class="rcw-tabs">
+        <button class="rcw-tab active" data-tab="wall">Kudos wall</button>
+        <button class="rcw-tab" data-tab="give">Give kudos</button>
+      </div>
+
+      <div class="rcw-view-wrap">
+        <div id="view-wall">
+          <div class="rcw-filters" id="wallFilters"></div>
+          <div class="rcw-feed" id="kudosFeed"></div>
+        </div>
+
+        <div id="view-give" style="display:none">
+          <div class="rcw-give">
+            <div class="rcw-fld">
+              <label class="rcw-label" id="recipLabel">Recognize a colleague</label>
+              <div class="rcw-search-wrap" id="searchWrap">
+                <span class="rcw-search-ic"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span>
+                <input class="rcw-in" id="recipSearch" type="text" placeholder="Search for a colleague by name…" autocomplete="off">
+              </div>
+              <div class="rcw-dropdown" id="userDropdown"></div>
+              <div class="rcw-recipient" id="recipCard" style="display:none">
+                <div class="rcw-recipient-av" id="recipCardAv"></div>
+                <div class="rcw-recipient-info">
+                  <div class="rcw-recipient-eyebrow"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 12.572 12 20l-7.5-7.428A5 5 0 1 1 12 6.006a5 5 0 1 1 7.5 6.566Z"/></svg>Recognizing</div>
+                  <div class="rcw-recipient-name" id="recipCardName"></div>
+                </div>
+                <button type="button" class="rcw-recipient-change" id="recipChange" title="Choose someone else"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+              </div>
+              <input type="hidden" id="recipId"><input type="hidden" id="recipName"><input type="hidden" id="recipAvatar">
+            </div>
+            <div class="rcw-fld">
+              <label class="rcw-label">Recognition type</label>
+              <div class="rcw-ktypes" id="ktypeGrid"></div>
+            </div>
+            <div class="rcw-fld">
+              <label class="rcw-label">Message</label>
+              <textarea class="rcw-in" id="kudosMsg" placeholder="Write something meaningful…"></textarea>
+            </div>
+            <div class="rcw-submit-row">
+              <button class="rcw-submit" id="submitBtn" disabled><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>Send recognition</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="rcw-toast" id="toast"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const ARROW = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`;
+const SPARK = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8"/></svg>`;
+const SEND  = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>`;
+const EDIT  = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>`;
+const CHECK = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`;
+
+const CURRENT_USER = { id: "me", name: "Eira Tope", avatar: "https://i.pravatar.cc/80?img=47" };
+
+const REWARD_TYPES = [
+  { name: "Teamwork",       icon: "ti-users",   points: 50  },
+  { name: "Innovation",     icon: "ti-bulb",    points: 75  },
+  { name: "Leadership",     icon: "ti-star",    points: 100 },
+  { name: "Customer focus", icon: "ti-target",  points: 50  },
+  { name: "Above & beyond", icon: "ti-rocket",  points: 150 },
+];
+
+const MOCK_USERS = [
+  { id: "u1", name: "Alex Kim",      avatar: "https://i.pravatar.cc/80?img=12" },
+  { id: "u2", name: "Jordan Lee",    avatar: "https://i.pravatar.cc/80?img=33" },
+  { id: "u3", name: "Maya Patel",    avatar: "https://i.pravatar.cc/80?img=45" },
+  { id: "u4", name: "Sam Rivera",    avatar: "" },
+  { id: "u5", name: "Casey Morgan",  avatar: "https://i.pravatar.cc/80?img=23" },
+  { id: "u6", name: "Taylor Brooks", avatar: "https://i.pravatar.cc/80?img=15" },
+  { id: "u7", name: "Dana Nguyen",   avatar: "https://i.pravatar.cc/80?img=28" },
+  { id: "u8", name: "Riley Chen",    avatar: "" },
+];
+
+let posts = [
+  { id:"p1", authorId:"me",  fromName: CURRENT_USER.name, fromAvatar: CURRENT_USER.avatar, toName: "Alex Kim",      type: "Teamwork",       pts: 50,  message: "Incredible teamwork during the product launch. You kept the whole team on track!",        created: new Date(Date.now() - 1*3600000).toISOString() },
+  { id:"p2", authorId:"u2",  fromName: "Jordan Lee",      fromAvatar: "https://i.pravatar.cc/80?img=33", toName: "Riley Chen",    type: "Innovation",     pts: 75,  message: "Your idea to automate the onboarding flow saved us hours every week. Brilliant.",         created: new Date(Date.now() - 5*3600000).toISOString() },
+  { id:"p3", authorId:"u4",  fromName: "Sam Rivera",      fromAvatar: "",                                toName: "Taylor Brooks", type: "Above & beyond", pts: 150, message: "Stayed late three nights in a row to get the release out. Couldn't have done it without you.", created: new Date(Date.now() - 86400000).toISOString() },
+  { id:"p4", authorId:"u5",  fromName: "Casey Morgan",    fromAvatar: "https://i.pravatar.cc/80?img=23", toName: "Dana Nguyen",   type: "Leadership",     pts: 100, message: "Thank you for stepping up and leading the client meeting when I was out sick.",          created: new Date(Date.now() - 2*86400000).toISOString() },
+];
+
+let wallFilter = "all", selectedType = null, searchTimeout = null, introUsed = false;
+const initials = n => n.split(" ").map(w => w[0]).join("").toUpperCase().slice(0,2);
+function timeAgo(iso){const m=Math.floor((Date.now()-new Date(iso))/60000);if(m<1)return"just now";if(m<60)return m+"m ago";const h=Math.floor(m/60);if(h<24)return h+"h ago";return Math.floor(h/24)+"d ago";}
+function showToast(msg,ok=true){const t=document.getElementById("toast");t.innerHTML=(ok?SPARK:"")+msg;t.style.background=ok?"var(--dark)":"var(--error)";t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2800);}
+
+function avHtml(cls, extraCls, avatar, name) {
+  const img = avatar ? `<img src="${avatar}" alt="" onerror="this.parentElement.innerHTML='${initials(name)}'">` : initials(name);
+  return `<div class="${cls}${extraCls ? ' '+extraCls : ''}">${img}</div>`;
+}
+
+const grid = document.getElementById("ktypeGrid");
+grid.innerHTML = REWARD_TYPES.map((t,i)=>`<button class="rcw-ktype" data-idx="${i}"><div class="rcw-ktype-ic"><i class="ti ${t.icon}"></i></div><div class="rcw-ktype-name">${t.name}</div><div class="rcw-ktype-pts">+${t.points} pts</div></button>`).join("");
+grid.querySelectorAll(".rcw-ktype").forEach(btn=>btn.addEventListener("click",()=>{grid.querySelectorAll(".rcw-ktype").forEach(b=>b.classList.remove("selected"));btn.classList.add("selected");selectedType=REWARD_TYPES[+btn.dataset.idx];updateSubmit();}));
+
+function buildFilters(){
+  const f=document.getElementById("wallFilters");
+  f.innerHTML=`<button class="rcw-filter ${wallFilter==="all"?"active":""}" data-filter="all">All</button>`+REWARD_TYPES.map(t=>`<button class="rcw-filter ${wallFilter===t.name?"active":""}" data-filter="${t.name}"><i class="ti ${t.icon}"></i>${t.name}</button>`).join("");
+  f.querySelectorAll(".rcw-filter").forEach(btn=>btn.addEventListener("click",()=>{wallFilter=btn.dataset.filter;buildFilters();renderFeed();}));
+}
+
+function renderFeed(){
+  const feed=document.getElementById("kudosFeed");
+  const filtered=wallFilter==="all"?posts:posts.filter(p=>p.type===wallFilter);
+  if(!filtered.length){feed.classList.remove("intro");feed.innerHTML=`<div class="rcw-empty">No recognitions yet${wallFilter!=="all"?` for ${wallFilter}`:""}.</div>`;return;}
+  if(!introUsed){feed.classList.add("intro");introUsed=true;}else feed.classList.remove("intro");
+
+  feed.innerHTML = filtered.map(p => {
+    const rt = REWARD_TYPES.find(r=>r.name===p.type);
+    const ic = rt ? rt.icon : "ti-star";
+    const isOwn = p.authorId === CURRENT_USER.id;
+    const isRecipient = p.toName === CURRENT_USER.name;
+    const fromAv = avHtml("rcw-av","rcw-av-from", p.fromAvatar, p.fromName);
+    const toAv   = p.toName ? avHtml("rcw-av","rcw-av-to", "", p.toName) : "";
+    const badgesHtml = (p.type || (isRecipient && p.pts))
+      ? `<div class="rcw-badges">${p.type?`<span class="rcw-type-badge"><i class="ti ${ic}"></i>${p.type}</span>`:""}${isRecipient&&p.pts?`<span class="rcw-pts-badge">+${p.pts} pts</span>`:""}</div>`
+      : "";
+    return `<div class="rcw-card" data-post-id="${p.id}">
+  <div class="rcw-card-head">
+    <div class="rcw-av-stack">${fromAv}${toAv}</div>
+    <div class="rcw-who">
+      <div class="rcw-from"><span class="rcw-from-name">${p.fromName}</span>${p.toName?ARROW+`<span class="rcw-to">${p.toName}</span>`:""}</div>
+      <div class="rcw-time">${timeAgo(p.created)}</div>
+      ${badgesHtml}
+    </div>
+  </div>
+  <div class="rcw-msg">${p.message}</div>
+  ${isOwn ? `<button class="rcw-edit-btn" title="Edit">${EDIT}</button>` : ""}
+</div>`;
+  }).join("");
+
+  feed.querySelectorAll(".rcw-edit-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const card = btn.closest(".rcw-card");
+      const postId = card.dataset.postId;
+      const post = posts.find(p => p.id === postId);
+      const msgDiv = card.querySelector(".rcw-msg");
+      if (!post || card.querySelector(".rcw-edit-area")) return;
+
+      msgDiv.style.display = "none";
+      btn.style.opacity = "0";
+      btn.style.pointerEvents = "none";
+
+      const editArea = document.createElement("textarea");
+      editArea.className = "rcw-edit-area";
+      editArea.value = post.message;
+
+      const actionsDiv = document.createElement("div");
+      actionsDiv.className = "rcw-edit-actions";
+      actionsDiv.innerHTML = `<button class="rcw-cancel-btn">Cancel</button><button class="rcw-save-btn">${CHECK}Save</button>`;
+
+      card.appendChild(editArea);
+      card.appendChild(actionsDiv);
+      editArea.focus();
+
+      actionsDiv.querySelector(".rcw-cancel-btn").addEventListener("click", () => {
+        editArea.remove(); actionsDiv.remove();
+        msgDiv.style.display = "";
+        btn.style.opacity = ""; btn.style.pointerEvents = "";
+      });
+
+      actionsDiv.querySelector(".rcw-save-btn").addEventListener("click", () => {
+        const newMsg = editArea.value.trim();
+        if (!newMsg) return;
+        post.message = newMsg;
+        msgDiv.textContent = newMsg;
+        msgDiv.style.display = "";
+        editArea.remove(); actionsDiv.remove();
+        btn.style.opacity = ""; btn.style.pointerEvents = "";
+        showToast("Recognition updated!");
+      });
+    });
+  });
+}
+
+const recipSearch=document.getElementById("recipSearch"),dropdown=document.getElementById("userDropdown"),recipId=document.getElementById("recipId"),recipName=document.getElementById("recipName"),recipAvatarInput=document.getElementById("recipAvatar");
+const searchWrap=document.getElementById("searchWrap"),recipCard=document.getElementById("recipCard"),recipCardAv=document.getElementById("recipCardAv"),recipCardName=document.getElementById("recipCardName"),recipLabel=document.getElementById("recipLabel");
+const SEND_DEFAULT=`${SEND}Send recognition`;
+
+function selectRecipient(id,name,avatar){
+  recipId.value=id;recipName.value=name;recipAvatarInput.value=avatar||"";
+  recipCardAv.innerHTML=avatar?`<img src="${avatar}" alt="" onerror="this.parentElement.innerHTML='${initials(name)}'">`:initials(name);
+  recipCardName.textContent=name;
+  dropdown.style.display="none";searchWrap.style.display="none";recipCard.style.display="flex";
+  recipLabel.textContent="Recipient";
+  document.getElementById("submitBtn").innerHTML=`${SEND}Recognize ${name.split(" ")[0]}`;
+  updateSubmit();
+}
+function clearRecipient(){
+  recipId.value="";recipName.value="";recipAvatarInput.value="";recipSearch.value="";
+  recipCard.style.display="none";searchWrap.style.display="";
+  recipLabel.textContent="Recognize a colleague";
+  document.getElementById("submitBtn").innerHTML=SEND_DEFAULT;
+  updateSubmit();recipSearch.focus();
+}
+document.getElementById("recipChange").addEventListener("click",clearRecipient);
+
+recipSearch.addEventListener("input",()=>{
+  clearTimeout(searchTimeout);
+  const q=recipSearch.value.trim().toLowerCase();
+  if(!q){dropdown.style.display="none";return;}
+  searchTimeout=setTimeout(()=>{
+    const matches=MOCK_USERS.filter(u=>u.name.toLowerCase().includes(q));
+    if(!matches.length){dropdown.innerHTML=`<div class="rcw-opt-empty">No results</div>`;}
+    else{
+      dropdown.innerHTML=matches.map(u=>{
+        const av=u.avatar?`<span class="rcw-opt-av"><img src="${u.avatar}" alt="" onerror="this.parentElement.textContent='${initials(u.name)}'"></span>`:`<span class="rcw-opt-av">${initials(u.name)}</span>`;
+        return `<div class="rcw-opt" data-id="${u.id}" data-name="${u.name}" data-avatar="${u.avatar}">${av}${u.name}</div>`;
+      }).join("");
+      dropdown.querySelectorAll(".rcw-opt[data-id]").forEach(opt=>opt.addEventListener("click",()=>selectRecipient(opt.dataset.id,opt.dataset.name,opt.dataset.avatar||"")));
+    }
+    dropdown.style.display="block";
+  },150);
+});
+document.addEventListener("click",e=>{if(!dropdown.contains(e.target)&&e.target!==recipSearch)dropdown.style.display="none";});
+document.getElementById("kudosMsg").addEventListener("input",updateSubmit);
+function updateSubmit(){document.getElementById("submitBtn").disabled=!recipId.value||!selectedType||!document.getElementById("kudosMsg").value.trim();}
+
+document.getElementById("submitBtn").addEventListener("click",()=>{
+  const msg=document.getElementById("kudosMsg").value.trim();
+  if(!selectedType||!recipId.value||!msg)return;
+  const newId = "p" + Date.now();
+  posts.unshift({
+    id: newId, authorId: CURRENT_USER.id,
+    fromName: CURRENT_USER.name, fromAvatar: CURRENT_USER.avatar,
+    toName: recipName.value, type: selectedType.name, pts: selectedType.points,
+    message: msg, created: new Date().toISOString()
+  });
+  showToast(`Recognition sent! +${selectedType.points} pts awarded`);
+  document.getElementById("kudosMsg").value="";selectedType=null;
+  grid.querySelectorAll(".rcw-ktype").forEach(b=>b.classList.remove("selected"));clearRecipient();
+  document.querySelectorAll(".rcw-tab").forEach(b=>b.classList.remove("active"));
+  document.querySelector('[data-tab="wall"]').classList.add("active");
+  document.getElementById("view-wall").style.display="";document.getElementById("view-give").style.display="none";
+  introUsed=false;buildFilters();renderFeed();
+});
+document.querySelectorAll(".rcw-tab").forEach(btn=>btn.addEventListener("click",()=>{
+  document.querySelectorAll(".rcw-tab").forEach(b=>b.classList.remove("active"));btn.classList.add("active");
+  const t=btn.dataset.tab;
+  document.getElementById("view-wall").style.display=t==="wall"?"":"none";
+  document.getElementById("view-give").style.display=t==="give"?"":"none";
+}));
+buildFilters();renderFeed();
+</script>
+</body>
+</html>

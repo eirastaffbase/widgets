@@ -1,0 +1,267 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans)}
+.sb-header{display:flex;align-items:center;justify-content:space-between;padding:1.25rem 1.5rem 1rem;border-bottom:0.5px solid var(--color-border-tertiary)}
+.sb-title{font-size:18px;font-weight:500;color:var(--color-text-primary);display:flex;align-items:center;gap:8px}
+.tab-bar{display:flex;gap:4px;padding:1rem 1.5rem 0}
+.tab{padding:6px 14px;border-radius:var(--border-radius-md);font-size:13px;font-weight:500;cursor:pointer;border:0.5px solid transparent;color:var(--color-text-secondary);background:transparent}
+.tab.active{background:var(--color-background-secondary);border-color:var(--color-border-secondary);color:var(--color-text-primary)}
+.tab:hover:not(.active){background:var(--color-background-secondary)}
+.section{padding:1rem 1.5rem}
+.celebrate-strip{display:flex;gap:10px;overflow-x:auto;padding-bottom:8px;scrollbar-width:none}
+.celebrate-strip::-webkit-scrollbar{display:none}
+.cel-card{flex:0 0 auto;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:10px 14px;display:flex;align-items:center;gap:10px;min-width:180px}
+.cel-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;flex-shrink:0}
+.cel-info{min-width:0}
+.cel-name{font-size:13px;font-weight:500;color:var(--color-text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cel-sub{font-size:11px;color:var(--color-text-secondary)}
+.cel-badge{font-size:18px;margin-left:auto}
+.give-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1.25rem}
+.form-label{font-size:12px;font-weight:500;color:var(--color-text-secondary);margin-bottom:6px;display:block}
+.form-row{margin-bottom:14px}
+select,input,textarea{width:100%;font-family:var(--font-sans);font-size:14px;color:var(--color-text-primary);background:var(--color-background-secondary);border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:8px 10px}
+textarea{resize:vertical;min-height:72px}
+.ktype-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px}
+.ktype{border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:8px 4px;text-align:center;cursor:pointer;background:var(--color-background-secondary);transition:all .15s}
+.ktype:hover{border-color:var(--color-border-primary);background:var(--color-background-primary)}
+.ktype.selected{border-color:#7F77DD;background:#EEEDFE}
+.ktype-icon{font-size:20px;margin-bottom:4px}
+.ktype-label{font-size:11px;font-weight:500;color:var(--color-text-secondary)}
+.ktype-pts{font-size:10px;color:var(--color-text-tertiary)}
+.ktype.selected .ktype-label{color:#3C3489}
+.ktype.selected .ktype-pts{color:#534AB7}
+.submit-btn{width:100%;padding:10px;border-radius:var(--border-radius-md);border:none;background:#7F77DD;color:#fff;font-size:14px;font-weight:500;cursor:pointer}
+.submit-btn:hover{background:#534AB7}
+.submit-btn:disabled{background:var(--color-background-secondary);color:var(--color-text-tertiary);cursor:not-allowed}
+.wall-filters{display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap}
+.filter-btn{padding:5px 12px;border:0.5px solid var(--color-border-secondary);border-radius:20px;font-size:12px;cursor:pointer;background:transparent;color:var(--color-text-secondary)}
+.filter-btn.active{background:#EEEDFE;border-color:#7F77DD;color:#3C3489}
+.kudos-feed{display:flex;flex-direction:column;gap:10px}
+.kudos-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1rem 1.25rem}
+.kudos-head{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.kav{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;flex-shrink:0}
+.kudos-who{flex:1;min-width:0}
+.kudos-from{font-size:12px;font-weight:500;color:var(--color-text-primary)}
+.kudos-time{font-size:11px;color:var(--color-text-tertiary)}
+.kudos-type-badge{font-size:11px;padding:3px 8px;border-radius:12px;font-weight:500;white-space:nowrap}
+.kudos-pts-badge{font-size:11px;padding:3px 8px;border-radius:12px;background:#EEEDFE;color:#3C3489;font-weight:500}
+.kudos-msg{font-size:13px;color:var(--color-text-primary);line-height:1.5;padding-left:42px}
+.kudos-footer{display:flex;align-items:center;gap:8px;margin-top:10px;padding-left:42px}
+.like-btn{background:none;border:none;font-size:12px;color:var(--color-text-secondary);cursor:pointer;display:flex;align-items:center;gap:4px;padding:0}
+.like-btn.liked{color:#D4537E}
+.section-label{font-size:12px;font-weight:500;color:var(--color-text-secondary);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px}
+.toast{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);background:#534AB7;color:#fff;padding:10px 20px;border-radius:var(--border-radius-md);font-size:13px;font-weight:500;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;z-index:10}
+.toast.show{opacity:1}
+.view-wrap{position:relative}
+</style>
+
+<h2 class="sr-only">Employee recognition kudos wall — send kudos and view the recognition feed</h2>
+
+<div class="sb-header">
+  <div class="sb-title"><i class="ti ti-heart" aria-hidden="true" style="font-size:20px;color:#7F77DD"></i> Recognition hub</div>
+  <div style="font-size:12px;color:var(--color-text-secondary)">Staffbase · Team</div>
+</div>
+
+<div style="padding:1rem 1.5rem 0">
+  <div class="section-label">Celebrating today</div>
+  <div class="celebrate-strip" id="celStrip"></div>
+</div>
+
+<div class="tab-bar">
+  <button class="tab active" onclick="switchTab('wall',this)">Kudos wall</button>
+  <button class="tab" onclick="switchTab('give',this)">Give kudos</button>
+</div>
+
+<div class="view-wrap">
+  <div id="view-wall" class="section">
+    <div class="wall-filters">
+      <button class="filter-btn active" onclick="filterWall('all',this)">All</button>
+      <button class="filter-btn" onclick="filterWall('Teamwork',this)">Teamwork</button>
+      <button class="filter-btn" onclick="filterWall('Innovation',this)">Innovation</button>
+      <button class="filter-btn" onclick="filterWall('Leadership',this)">Leadership</button>
+      <button class="filter-btn" onclick="filterWall('Customer focus',this)">Customer focus</button>
+      <button class="filter-btn" onclick="filterWall('Above & beyond',this)">Above & beyond</button>
+    </div>
+    <div class="kudos-feed" id="kudosFeed"></div>
+  </div>
+
+  <div id="view-give" class="section" style="display:none">
+    <div class="give-card">
+      <div class="form-row">
+        <label class="form-label">Recognize a colleague</label>
+        <select id="recip">
+          <option value="">Select employee…</option>
+          <option>Alex Kim</option><option>Jordan Lee</option><option>Maya Patel</option>
+          <option>Sam Rivera</option><option>Casey Morgan</option><option>Taylor Brooks</option>
+          <option>Dana Nguyen</option><option>Riley Chen</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Recognition type</label>
+        <div class="ktype-grid" id="ktypeGrid"></div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Your message</label>
+        <textarea id="kudosMsg" placeholder="Tell them why they're awesome…"></textarea>
+      </div>
+      <button class="submit-btn" id="submitBtn" onclick="submitKudos()">Send kudos ✦</button>
+    </div>
+  </div>
+  <div class="toast" id="toast">Kudos sent! 🎉 +points awarded</div>
+</div>
+
+<script>
+const KTYPES=[
+  {label:'Teamwork',icon:'ti-users',pts:50,bg:'#E1F5EE',tc:'#085041',bc:'#1D9E75'},
+  {label:'Innovation',icon:'ti-bulb',pts:75,bg:'#EEEDFE',tc:'#26215C',bc:'#7F77DD'},
+  {label:'Leadership',icon:'ti-crown',pts:100,bg:'#FAEEDA',tc:'#412402',bc:'#BA7517'},
+  {label:'Customer focus',icon:'ti-star',pts:60,bg:'#FBEAF0',tc:'#4B1528',bc:'#D4537E'},
+  {label:'Above & beyond',icon:'ti-rocket',pts:150,bg:'#FAECE7',tc:'#4A1B0C',bc:'#D85A30'},
+];
+
+const AVATARCOLORS=[
+  {bg:'#EEEDFE',tc:'#3C3489'},{bg:'#E1F5EE',tc:'#085041'},{bg:'#E6F1FB',tc:'#0C447C'},
+  {bg:'#FAEEDA',tc:'#633806'},{bg:'#FBEAF0',tc:'#72243E'},{bg:'#EAF3DE',tc:'#27500A'},
+  {bg:'#FAECE7',tc:'#4A1B0C'},{bg:'#F1EFE8',tc:'#444441'},
+];
+
+const CEL=[
+  {name:'Alex Kim',type:'birthday',initials:'AK',ci:0},
+  {name:'Jordan Lee',type:'3yr anniversary',initials:'JL',ci:2},
+  {name:'Maya Patel',type:'birthday',initials:'MP',ci:4},
+  {name:'Sam Rivera',type:'5yr anniversary',initials:'SR',ci:1},
+];
+
+const FEED=[
+  {from:'Casey M.',to:'Dana N.',type:'Teamwork',pts:50,msg:'Dana jumped in and helped the entire team ship the quarterly report two days early. True team spirit!',time:'2h ago',ci:4,tci:6,likes:5},
+  {from:'Riley C.',to:'Alex K.',type:'Innovation',pts:75,msg:'Alex proposed a brilliant solution that cut our onboarding time in half. Genuinely game-changing thinking.',time:'4h ago',ci:7,tci:0,likes:12},
+  {from:'Taylor B.',to:'Jordan L.',type:'Leadership',pts:100,msg:'Jordan led the cross-functional sync with such clarity and calm. Everyone left knowing exactly what to do.',time:'Yesterday',ci:5,tci:2,likes:8},
+  {from:'Dana N.',to:'Maya P.',type:'Customer focus',pts:60,msg:'Maya went above and beyond to resolve a critical client issue over the weekend. The client sent a thank-you note!',time:'Yesterday',ci:6,tci:4,likes:19},
+  {from:'Alex K.',to:'Sam R.',type:'Above & beyond',pts:150,msg:'Sam singlehandedly managed the incident response while the rest of us were offline. Absolute rockstar.',time:'2 days ago',ci:0,tci:3,likes:31},
+];
+
+let selectedType=null;
+let likedCards=new Set();
+let wallFilter='all';
+
+function getInitials(name){return name.split(' ').map(w=>w[0]).join('')}
+function getAC(i){return AVATARCOLORS[i%AVATARCOLORS.length]}
+function getKtype(label){return KTYPES.find(k=>k.label===label)}
+
+function renderCelebrate(){
+  const strip=document.getElementById('celStrip');
+  CEL.forEach(c=>{
+    const ac=getAC(c.ci);
+    const isBday=c.type==='birthday';
+    const div=document.createElement('div');
+    div.className='cel-card';
+    div.innerHTML=`<div class="cel-avatar" style="background:${ac.bg};color:${ac.tc}">${c.initials}</div>
+    <div class="cel-info"><div class="cel-name">${c.name}</div><div class="cel-sub">${c.type}</div></div>
+    <div class="cel-badge" aria-hidden="true">${isBday?'🎂':'🎖️'}</div>`;
+    strip.appendChild(div);
+  });
+}
+
+function renderKtypes(){
+  const grid=document.getElementById('ktypeGrid');
+  KTYPES.forEach((k,i)=>{
+    const d=document.createElement('div');
+    d.className='ktype';
+    d.dataset.idx=i;
+    d.innerHTML=`<div class="ktype-icon"><i class="ti ${k.icon}" aria-hidden="true" style="font-size:22px;color:${k.bc}"></i></div>
+    <div class="ktype-label">${k.label}</div><div class="ktype-pts">+${k.pts} pts</div>`;
+    d.onclick=()=>selectKtype(i);
+    grid.appendChild(d);
+  });
+}
+
+function selectKtype(i){
+  selectedType=i;
+  document.querySelectorAll('.ktype').forEach((el,idx)=>{
+    el.classList.toggle('selected',idx===i);
+  });
+}
+
+function renderFeed(filter){
+  const feed=document.getElementById('kudosFeed');
+  feed.innerHTML='';
+  const items=filter==='all'?FEED:FEED.filter(f=>f.type===filter);
+  if(!items.length){feed.innerHTML='<div style="text-align:center;color:var(--color-text-tertiary);padding:2rem;font-size:14px">No kudos in this category yet</div>';return;}
+  items.forEach((k,i)=>{
+    const kt=getKtype(k.type);
+    const fac=getAC(k.ci);
+    const tac=getAC(k.tci);
+    const liked=likedCards.has(i);
+    const card=document.createElement('div');
+    card.className='kudos-card';
+    card.dataset.idx=i;
+    card.innerHTML=`<div class="kudos-head">
+      <div class="kav" style="background:${tac.bg};color:${tac.tc}">${getInitials(k.to)}</div>
+      <div class="kudos-who">
+        <div class="kudos-from"><span style="color:var(--color-text-secondary);font-weight:400">from</span> ${k.from} → <strong style="font-weight:500">${k.to}</strong></div>
+        <div class="kudos-time">${k.time}</div>
+      </div>
+      <span class="kudos-type-badge" style="background:${kt.bg};color:${kt.tc}">${k.type}</span>
+      <span class="kudos-pts-badge">+${k.pts}</span>
+    </div>
+    <div class="kudos-msg">${k.msg}</div>
+    <div class="kudos-footer">
+      <button class="like-btn ${liked?'liked':''}" onclick="toggleLike(${i},this)" aria-label="Like this kudos">
+        <i class="ti ti-heart${liked?'':''}" aria-hidden="true"></i> <span class="lc">${k.likes+(liked?1:0)}</span>
+      </button>
+    </div>`;
+    feed.appendChild(card);
+  });
+}
+
+function toggleLike(idx,btn){
+  if(likedCards.has(idx)){likedCards.delete(idx);}else{likedCards.add(idx);}
+  const liked=likedCards.has(idx);
+  btn.classList.toggle('liked',liked);
+  const base=FEED[idx].likes;
+  btn.querySelector('.lc').textContent=base+(liked?1:0);
+}
+
+function filterWall(type,el){
+  wallFilter=type;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  renderFeed(type);
+}
+
+function switchTab(view,el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('view-wall').style.display=view==='wall'?'block':'none';
+  document.getElementById('view-give').style.display=view==='give'?'block':'none';
+}
+
+function submitKudos(){
+  const recip=document.getElementById('recip').value;
+  const msg=document.getElementById('kudosMsg').value.trim();
+  if(!recip||selectedType===null||!msg)return;
+  const kt=KTYPES[selectedType];
+  const newEntry={
+    from:'You',to:recip.split(' ')[0]+' '+recip.split(' ')[1][0]+'.',
+    type:kt.label,pts:kt.pts,msg:msg,time:'Just now',ci:7,tci:1,likes:0
+  };
+  FEED.unshift(newEntry);
+  document.getElementById('recip').value='';
+  document.getElementById('kudosMsg').value='';
+  document.querySelectorAll('.ktype').forEach(el=>el.classList.remove('selected'));
+  selectedType=null;
+  const t=document.getElementById('toast');
+  t.textContent=`Kudos sent to ${recip.split(' ')[0]}! +${kt.pts} pts awarded 🎉`;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3000);
+  switchTab('wall',document.querySelector('.tab'));
+  renderFeed('all');
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelector('.filter-btn').classList.add('active');
+}
+
+renderCelebrate();
+renderKtypes();
+renderFeed('all');
+</script>

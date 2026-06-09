@@ -1,0 +1,233 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.sb-header{display:flex;align-items:center;justify-content:space-between;padding:1.25rem 1.5rem 1rem;border-bottom:0.5px solid var(--color-border-tertiary)}
+.sb-title{font-size:18px;font-weight:500;color:var(--color-text-primary);display:flex;align-items:center;gap:8px}
+.profile-bar{display:flex;align-items:center;gap:14px;padding:1rem 1.5rem;background:var(--color-background-secondary);border-bottom:0.5px solid var(--color-border-tertiary)}
+.pav{width:44px;height:44px;border-radius:50%;background:#EEEDFE;color:#3C3489;font-size:14px;font-weight:500;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.pname{font-size:15px;font-weight:500;color:var(--color-text-primary)}
+.ptitle{font-size:12px;color:var(--color-text-secondary)}
+.pts-box{margin-left:auto;text-align:right}
+.pts-num{font-size:22px;font-weight:500;color:#7F77DD}
+.pts-label{font-size:11px;color:var(--color-text-secondary)}
+.progress-wrap{padding:.75rem 1.5rem;border-bottom:0.5px solid var(--color-border-tertiary)}
+.progress-meta{display:flex;justify-content:space-between;font-size:12px;color:var(--color-text-secondary);margin-bottom:6px}
+.progress-bar{height:6px;background:var(--color-background-secondary);border-radius:3px;overflow:hidden}
+.progress-fill{height:100%;background:#7F77DD;border-radius:3px;transition:width .4s}
+.section{padding:1rem 1.5rem}
+.section-label{font-size:12px;font-weight:500;color:var(--color-text-secondary);margin-bottom:10px;letter-spacing:.5px;text-transform:uppercase}
+.cat-strip{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1rem}
+.cat-btn{padding:5px 12px;border:0.5px solid var(--color-border-secondary);border-radius:20px;font-size:12px;cursor:pointer;background:transparent;color:var(--color-text-secondary)}
+.cat-btn.active{background:#EEEDFE;border-color:#7F77DD;color:#3C3489}
+.rewards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.reward-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:14px;display:flex;flex-direction:column;gap:8px;position:relative;transition:border-color .15s}
+.reward-card.can-afford{cursor:pointer}
+.reward-card.can-afford:hover{border-color:#7F77DD}
+.reward-card.locked{opacity:.55;filter:grayscale(.3)}
+.reward-icon{font-size:28px;text-align:center;margin-bottom:2px}
+.reward-name{font-size:13px;font-weight:500;color:var(--color-text-primary);line-height:1.3}
+.reward-desc{font-size:11px;color:var(--color-text-secondary);line-height:1.4}
+.reward-pts{font-size:12px;font-weight:500;padding:3px 8px;border-radius:12px;display:inline-block;margin-top:auto}
+.reward-pts.affordable{background:#EEEDFE;color:#3C3489}
+.reward-pts.too-pricey{background:var(--color-background-secondary);color:var(--color-text-tertiary)}
+.lock-badge{position:absolute;top:10px;right:10px;font-size:12px;color:var(--color-text-tertiary)}
+.redeem-btn{width:100%;margin-top:8px;padding:7px 0;border-radius:var(--border-radius-md);border:none;background:#7F77DD;color:#fff;font-size:12px;font-weight:500;cursor:pointer}
+.redeem-btn:hover{background:#534AB7}
+.history-list{display:flex;flex-direction:column;gap:8px;margin-top:.5rem}
+.hist-item{display:flex;align-items:center;gap:12px;background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px 14px}
+.hist-icon{font-size:20px;flex-shrink:0}
+.hist-info{flex:1;min-width:0}
+.hist-name{font-size:13px;font-weight:500;color:var(--color-text-primary)}
+.hist-date{font-size:11px;color:var(--color-text-secondary)}
+.hist-pts{font-size:13px;font-weight:500;color:#D85A30}
+.tab-bar{display:flex;gap:4px;padding:1rem 1.5rem 0}
+.tab{padding:6px 14px;border-radius:var(--border-radius-md);font-size:13px;font-weight:500;cursor:pointer;border:0.5px solid transparent;color:var(--color-text-secondary);background:transparent}
+.tab.active{background:var(--color-background-secondary);border-color:var(--color-border-secondary);color:var(--color-text-primary)}
+.tab:hover:not(.active){background:var(--color-background-secondary)}
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;z-index:100;opacity:0;pointer-events:none;transition:opacity .2s}
+.modal-backdrop.open{opacity:1;pointer-events:all}
+.modal{background:var(--color-background-primary);border-radius:var(--border-radius-lg);border:0.5px solid var(--color-border-tertiary);padding:1.5rem;max-width:320px;width:90%}
+.modal-title{font-size:16px;font-weight:500;margin-bottom:6px;color:var(--color-text-primary)}
+.modal-sub{font-size:13px;color:var(--color-text-secondary);margin-bottom:1rem;line-height:1.5}
+.modal-actions{display:flex;gap:8px}
+.mbtn{flex:1;padding:9px;border-radius:var(--border-radius-md);font-size:13px;font-weight:500;cursor:pointer}
+.mbtn-cancel{background:var(--color-background-secondary);border:0.5px solid var(--color-border-secondary);color:var(--color-text-primary)}
+.mbtn-confirm{background:#7F77DD;border:none;color:#fff}
+.mbtn-confirm:hover{background:#534AB7}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1D9E75;color:#fff;padding:10px 20px;border-radius:var(--border-radius-md);font-size:13px;font-weight:500;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;z-index:200}
+.toast.show{opacity:1}
+</style>
+
+<h2 class="sr-only">Rewards redemption — view your points balance and redeem rewards</h2>
+
+<div class="sb-header">
+  <div class="sb-title"><i class="ti ti-gift" aria-hidden="true" style="font-size:20px;color:#7F77DD"></i> My rewards</div>
+  <div style="font-size:12px;color:var(--color-text-secondary)">Staffbase · Team</div>
+</div>
+
+<div class="profile-bar">
+  <div class="pav">SK</div>
+  <div>
+    <div class="pname">Sarah Kim</div>
+    <div class="ptitle">Product Manager · Chicago</div>
+  </div>
+  <div class="pts-box">
+    <div class="pts-num" id="ptsDisplay">485</div>
+    <div class="pts-label">available points</div>
+  </div>
+</div>
+
+<div class="progress-wrap">
+  <div class="progress-meta">
+    <span>Progress to next tier — <strong style="font-weight:500;color:var(--color-text-primary)">Gold</strong></span>
+    <span id="nextTierPts">515 pts to go</span>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="pBar" style="width:49%"></div></div>
+  <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--color-text-tertiary);margin-top:5px">
+    <span>Silver (0)</span><span>Gold (1,000)</span><span>Platinum (2,500)</span>
+  </div>
+</div>
+
+<div class="tab-bar">
+  <button class="tab active" onclick="switchTab('shop',this)">Rewards shop</button>
+  <button class="tab" onclick="switchTab('history',this)">Redemption history</button>
+</div>
+
+<div id="view-shop" class="section">
+  <div class="cat-strip">
+    <button class="cat-btn active" onclick="filterCat('all',this)">All</button>
+    <button class="cat-btn" onclick="filterCat('amazon',this)"><i class="ti ti-brand-amazon" aria-hidden="true"></i> Amazon</button>
+    <button class="cat-btn" onclick="filterCat('giftcard',this)">Gift cards</button>
+    <button class="cat-btn" onclick="filterCat('swag',this)">Company swag</button>
+    <button class="cat-btn" onclick="filterCat('experience',this)">Experiences</button>
+  </div>
+  <div class="rewards-grid" id="rewardsGrid"></div>
+</div>
+
+<div id="view-history" class="section" style="display:none">
+  <div class="section-label">Past redemptions</div>
+  <div class="history-list" id="histList"></div>
+</div>
+
+<div class="modal-backdrop" id="modalBg">
+  <div class="modal">
+    <div class="modal-title" id="modalTitle">Confirm redemption</div>
+    <div class="modal-sub" id="modalSub"></div>
+    <div class="modal-actions">
+      <button class="mbtn mbtn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="mbtn mbtn-confirm" onclick="confirmRedeem()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let userPts=485;
+let pendingReward=null;
+let catFilter='all';
+
+const REWARDS=[
+  {id:0,name:'Amazon $10 credit',desc:'Applied directly to your Amazon account',icon:'ti-brand-amazon',pts:100,cat:'amazon',iconColor:'#BA7517'},
+  {id:1,name:'Amazon $25 credit',desc:'Applied directly to your Amazon account',icon:'ti-brand-amazon',pts:250,cat:'amazon',iconColor:'#BA7517'},
+  {id:2,name:'Amazon $50 credit',desc:'Applied directly to your Amazon account',icon:'ti-brand-amazon',pts:500,cat:'amazon',iconColor:'#BA7517'},
+  {id:3,name:'Starbucks $15',desc:'Digital gift card via email',icon:'ti-coffee',pts:150,cat:'giftcard',iconColor:'#1D9E75'},
+  {id:4,name:'Spotify 3 months',desc:'Premium subscription gift code',icon:'ti-music',pts:200,cat:'giftcard',iconColor:'#3C3489'},
+  {id:5,name:'Netflix 1 month',desc:'Streaming subscription code',icon:'ti-player-play',pts:300,cat:'giftcard',iconColor:'#A32D2D'},
+  {id:6,name:'Staffbase hoodie',desc:'Premium branded hoodie, your size',icon:'ti-shirt',pts:350,cat:'swag',iconColor:'#7F77DD'},
+  {id:7,name:'Staffbase water bottle',desc:'Insulated 32oz with logo',icon:'ti-droplet',pts:175,cat:'swag',iconColor:'#0C447C'},
+  {id:8,name:'Staffbase tote bag',desc:'Canvas tote with embroidered logo',icon:'ti-basket',pts:80,cat:'swag',iconColor:'#3C3489'},
+  {id:9,name:'Team lunch voucher',desc:'$30 lunch for you and a teammate',icon:'ti-tools-kitchen-2',pts:400,cat:'experience',iconColor:'#633806'},
+  {id:10,name:'Learning course',desc:'Udemy or LinkedIn Learning course',icon:'ti-school',pts:500,cat:'experience',iconColor:'#085041'},
+  {id:11,name:'Extra PTO day',desc:'One additional vacation day',icon:'ti-beach',pts:1200,cat:'experience',iconColor:'#185FA5'},
+];
+
+const HISTORY=[
+  {name:'Staffbase tote bag',pts:80,date:'May 28, 2026',icon:'ti-basket'},
+  {name:'Amazon $10 credit',pts:100,date:'Apr 14, 2026',icon:'ti-brand-amazon'},
+  {name:'Starbucks $15',pts:150,date:'Mar 02, 2026',icon:'ti-coffee'},
+];
+
+function canAfford(r){return userPts>=r.pts}
+
+function renderRewards(filter){
+  const grid=document.getElementById('rewardsGrid');
+  grid.innerHTML='';
+  const list=filter==='all'?REWARDS:REWARDS.filter(r=>r.cat===filter);
+  list.sort((a,b)=>canAfford(b)?1:canAfford(a)?-1:0).sort((a,b)=>{
+    const aa=canAfford(a),bb=canAfford(b);
+    return aa===bb?a.pts-b.pts:aa?-1:1;
+  });
+  list.forEach(r=>{
+    const aff=canAfford(r);
+    const card=document.createElement('div');
+    card.className='reward-card '+(aff?'can-afford':'locked');
+    if(aff)card.onclick=()=>openModal(r);
+    card.innerHTML=`${!aff?'<span class="lock-badge" aria-label="Not enough points"><i class="ti ti-lock" aria-hidden="true"></i></span>':''}
+    <div class="reward-icon"><i class="ti ${r.icon}" aria-hidden="true" style="font-size:28px;color:${aff?r.iconColor:'var(--color-text-tertiary)'}"></i></div>
+    <div class="reward-name">${r.name}</div>
+    <div class="reward-desc">${r.desc}</div>
+    <span class="reward-pts ${aff?'affordable':'too-pricey'}">${r.pts.toLocaleString()} pts</span>
+    ${aff?`<button class="redeem-btn" onclick="event.stopPropagation();openModal(${JSON.stringify(r).replace(/"/g,'&quot;')})">Redeem</button>`:''}`;
+    grid.appendChild(card);
+  });
+}
+
+function renderHistory(){
+  const list=document.getElementById('histList');
+  list.innerHTML='';
+  HISTORY.forEach(h=>{
+    const el=document.createElement('div');
+    el.className='hist-item';
+    el.innerHTML=`<i class="ti ${h.icon} hist-icon" aria-hidden="true"></i>
+    <div class="hist-info"><div class="hist-name">${h.name}</div><div class="hist-date">${h.date}</div></div>
+    <div class="hist-pts">-${h.pts}</div>`;
+    list.appendChild(el);
+  });
+}
+
+function filterCat(cat,el){
+  catFilter=cat;
+  document.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  renderRewards(cat);
+}
+
+function switchTab(view,el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('view-shop').style.display=view==='shop'?'block':'none';
+  document.getElementById('view-history').style.display=view==='history'?'block':'none';
+  if(view==='history')renderHistory();
+}
+
+function openModal(r){
+  pendingReward=r;
+  document.getElementById('modalTitle').textContent='Confirm redemption';
+  document.getElementById('modalSub').innerHTML=`You're about to redeem <strong>${r.name}</strong> for <strong>${r.pts} pts</strong>.<br><br>Your remaining balance will be <strong>${(userPts-r.pts).toLocaleString()} pts</strong>.`;
+  document.getElementById('modalBg').classList.add('open');
+}
+
+function closeModal(){
+  document.getElementById('modalBg').classList.remove('open');
+  pendingReward=null;
+}
+
+function confirmRedeem(){
+  if(!pendingReward)return;
+  userPts-=pendingReward.pts;
+  HISTORY.unshift({name:pendingReward.name,pts:pendingReward.pts,date:new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}),icon:pendingReward.icon});
+  document.getElementById('ptsDisplay').textContent=userPts.toLocaleString();
+  const toNext=Math.max(0,1000-userPts);
+  document.getElementById('nextTierPts').textContent=toNext>0?toNext.toLocaleString()+' pts to go':'Tier reached!';
+  document.getElementById('pBar').style.width=Math.min(100,Math.round(userPts/1000*100))+'%';
+  closeModal();
+  renderRewards(catFilter);
+  const t=document.getElementById('toast');
+  t.textContent=`Redeemed! Your ${pendingReward?pendingReward.name:'reward'} is on its way 🎉`;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3200);
+}
+
+renderRewards('all');
+</script>
