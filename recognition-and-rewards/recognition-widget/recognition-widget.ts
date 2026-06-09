@@ -642,8 +642,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
     <div class="${p}-who">
       <div class="${p}-from"><span class="${p}-from-name">${fromName}</span>${post.toName ? `${ICONS.arrow}<span class="${p}-to">${post.toName}</span>` : ""}</div>
       <div class="${p}-time">${timeAgo(post.created)}</div>
-      ${post.type || (isRecipient && post.pts) ? `<div class="${p}-badges">${post.type ? `<span class="${p}-type-badge"><i class="ti ${iconCls}"></i>${post.type}</span>` : ""}${isRecipient && post.pts ? `<span class="${p}-pts-badge">+${post.pts} pts</span>` : ""}</div>` : ""}
     </div>
+    ${post.type || (isRecipient && post.pts) ? `<div class="${p}-badges">${post.type ? `<span class="${p}-type-badge"><i class="ti ${iconCls}"></i>${post.type}</span>` : ""}${isRecipient && post.pts ? `<span class="${p}-pts-badge">+${post.pts} pts</span>` : ""}</div>` : ""}
   </div>
   ${post.message ? `<div class="${p}-msg">${post.message}</div>` : ""}
   ${isOwn ? `<button class="${p}-edit-btn" title="Edit" aria-label="Edit">${ICONS.edit}</button>` : ""}

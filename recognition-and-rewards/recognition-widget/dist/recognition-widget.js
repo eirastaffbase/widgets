@@ -83,7 +83,7 @@ function buildCss(p) {
 .${p}-from .${p}-to{font-weight:700;color:var(--primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex-shrink:1}
 .${p}-from svg{color:var(--gray-lt);flex-shrink:0;display:block}
 .${p}-time{font-size:11px;color:var(--gray-lt);margin-top:1px}
-.${p}-badges{display:flex;align-items:center;gap:5px;margin-top:4px;flex-wrap:wrap}
+.${p}-badges{display:flex;align-items:center;gap:5px;flex-shrink:0;align-self:flex-start}
 .${p}-type-badge{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:5px;white-space:nowrap;background:rgba(0,0,0,.05);color:var(--gray)}
 .${p}-type-badge i{font-size:11px}
 .${p}-pts-badge{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:5px;white-space:nowrap;background:rgba(0,0,0,.05);color:var(--gray)}
@@ -587,8 +587,8 @@ const factory = (BaseBlockClass, widgetApi) => {
     <div class="${p}-who">
       <div class="${p}-from"><span class="${p}-from-name">${fromName}</span>${post.toName ? `${ICONS.arrow}<span class="${p}-to">${post.toName}</span>` : ""}</div>
       <div class="${p}-time">${timeAgo(post.created)}</div>
-      ${post.type || (isRecipient && post.pts) ? `<div class="${p}-badges">${post.type ? `<span class="${p}-type-badge"><i class="ti ${iconCls}"></i>${post.type}</span>` : ""}${isRecipient && post.pts ? `<span class="${p}-pts-badge">+${post.pts} pts</span>` : ""}</div>` : ""}
     </div>
+    ${post.type || (isRecipient && post.pts) ? `<div class="${p}-badges">${post.type ? `<span class="${p}-type-badge"><i class="ti ${iconCls}"></i>${post.type}</span>` : ""}${isRecipient && post.pts ? `<span class="${p}-pts-badge">+${post.pts} pts</span>` : ""}</div>` : ""}
   </div>
   ${post.message ? `<div class="${p}-msg">${post.message}</div>` : ""}
   ${isOwn ? `<button class="${p}-edit-btn" title="Edit" aria-label="Edit">${ICONS.edit}</button>` : ""}

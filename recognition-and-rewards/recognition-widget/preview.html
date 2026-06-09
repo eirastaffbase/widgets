@@ -62,7 +62,7 @@
     .rcw-from .rcw-to{font-weight:700;color:var(--primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex-shrink:1}
     .rcw-from svg{color:var(--gray-lt);flex-shrink:0;display:block}
     .rcw-time{font-size:11px;color:var(--gray-lt);margin-top:1px}
-    .rcw-badges{display:flex;align-items:center;gap:5px;margin-top:4px;flex-wrap:wrap}
+    .rcw-badges{display:flex;align-items:center;gap:5px;flex-shrink:0;align-self:flex-start}
     .rcw-type-badge{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:5px;white-space:nowrap;background:rgba(0,0,0,.05);color:var(--gray)}
     .rcw-type-badge i{font-size:11px}
     .rcw-pts-badge{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:5px;white-space:nowrap;background:rgba(0,0,0,.05);color:var(--gray)}
@@ -206,7 +206,7 @@ const MOCK_USERS = [
 
 let posts = [
   { id:"p1", authorId:"me",  fromName: CURRENT_USER.name, fromAvatar: CURRENT_USER.avatar, toName: "Alex Kim",      type: "Teamwork",       pts: 50,  message: "Incredible teamwork during the product launch. You kept the whole team on track!",        created: new Date(Date.now() - 1*3600000).toISOString() },
-  { id:"p2", authorId:"u2",  fromName: "Jordan Lee",      fromAvatar: "https://i.pravatar.cc/80?img=33", toName: "Riley Chen",    type: "Innovation",     pts: 75,  message: "Your idea to automate the onboarding flow saved us hours every week. Brilliant.",         created: new Date(Date.now() - 5*3600000).toISOString() },
+  { id:"p2", authorId:"u2",  fromName: "Jordan Lee",      fromAvatar: "https://i.pravatar.cc/80?img=33", toName: CURRENT_USER.name, type: "Innovation",  pts: 75,  message: "Your idea to streamline the onboarding flow saved us hours every week. Brilliant work!",  created: new Date(Date.now() - 5*3600000).toISOString() },
   { id:"p3", authorId:"u4",  fromName: "Sam Rivera",      fromAvatar: "",                                toName: "Taylor Brooks", type: "Above & beyond", pts: 150, message: "Stayed late three nights in a row to get the release out. Couldn't have done it without you.", created: new Date(Date.now() - 86400000).toISOString() },
   { id:"p4", authorId:"u5",  fromName: "Casey Morgan",    fromAvatar: "https://i.pravatar.cc/80?img=23", toName: "Dana Nguyen",   type: "Leadership",     pts: 100, message: "Thank you for stepping up and leading the client meeting when I was out sick.",          created: new Date(Date.now() - 2*86400000).toISOString() },
 ];
@@ -253,8 +253,8 @@ function renderFeed(){
     <div class="rcw-who">
       <div class="rcw-from"><span class="rcw-from-name">${p.fromName}</span>${p.toName?ARROW+`<span class="rcw-to">${p.toName}</span>`:""}</div>
       <div class="rcw-time">${timeAgo(p.created)}</div>
-      ${badgesHtml}
     </div>
+    ${badgesHtml}
   </div>
   <div class="rcw-msg">${p.message}</div>
   ${isOwn ? `<button class="rcw-edit-btn" title="Edit">${EDIT}</button>` : ""}
