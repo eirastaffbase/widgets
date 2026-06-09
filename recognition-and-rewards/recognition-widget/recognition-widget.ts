@@ -12,13 +12,6 @@ interface RewardType {
   points: number;
 }
 
-interface UserItem {
-  id: string;
-  firstName: string;
-  lastName: string;
-  avatar: string;
-}
-
 const DEFAULT_CHANNEL = "698f5d37a8522a33d4e1dac5";
 const DEFAULT_ADMIN_ID = "699dc05555c71158d37594e7";
 const DEFAULT_BASE_URL = "https://app.staffbase.com/api";
@@ -47,6 +40,20 @@ const ICONS = {
   edit: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>`,
   check: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`,
 };
+
+// The reward-type icons are Tabler webfont classes (ti-*). Staffbase doesn't bundle
+// that font, so the widget loads it itself — otherwise the icons render blank in the
+// app (they only worked in preview.html because that file links the CDN directly).
+const TABLER_ICONS_HREF = "https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css";
+function ensureTablerIcons(): void {
+  if (typeof document === "undefined") return;
+  if (document.getElementById("sb-tabler-icons")) return;
+  const link = document.createElement("link");
+  link.id = "sb-tabler-icons";
+  link.rel = "stylesheet";
+  link.href = TABLER_ICONS_HREF;
+  document.head.appendChild(link);
+}
 
 function buildCss(p: string): string {
   return `
@@ -118,6 +125,7 @@ textarea.${p}-in{resize:vertical;min-height:84px;line-height:1.55}
 .${p}-opt-av{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--primary),var(--accent));flex-shrink:0;overflow:hidden}
 .${p}-opt-av img{width:100%;height:100%;border-radius:50%;object-fit:cover}
 .${p}-opt-empty{padding:10px 12px;font-size:13px;color:var(--gray-lt)}
+.${p}-opt-head{padding:6px 11px 5px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--gray-lt)}
 /* selected recipient card (replaces the search once a colleague is chosen) */
 .${p}-recipient{display:flex;align-items:center;gap:13px;padding:13px 14px;border-radius:var(--r-md);border:1.5px solid transparent;background:linear-gradient(rgba(var(--primary-rgb),.05),rgba(var(--accent-rgb),.05));box-shadow:0 0 0 1.5px rgba(var(--primary-rgb),.18) inset;animation:${p}-rise .3s cubic-bezier(.22,.9,.3,1)}
 .${p}-recipient-av{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--primary),var(--accent));flex-shrink:0;overflow:hidden}
@@ -242,6 +250,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
     }
 
     async renderBlock(container: HTMLElement): Promise<void> {
+      ensureTablerIcons(); // load the icon font so reward-type icons render inside Staffbase
       const baseUrl = (this.getAttribute("baseurl") || DEFAULT_BASE_URL).replace(/\/+$/, "");
       const channelId = this.getAttribute("channelid") || DEFAULT_CHANNEL;
       const token = this.getAttribute("apitoken") || "";
@@ -430,6 +439,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
           btn.classList.add("active");
           (container.querySelector("#view-wall") as HTMLElement).style.display = t === "wall" ? "" : "none";
           (container.querySelector("#view-give") as HTMLElement).style.display = t === "give" ? "" : "none";
+          if (t === "give") loadUsers(); // warm the directory cache so search is instant
         });
       });
 
@@ -455,51 +465,87 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
       });
 
       // --- User search ---
+      // The widget SDK's getUserList is unreliable across embed contexts, so we
+      // load the directory once via REST (same token as everything else), cache
+      // it, show suggested colleagues when the field is empty, and filter locally.
+      let allUsers: Array<{ id: string; name: string; avatar: string }> = [];
+      let usersLoaded = false;
+      let usersLoading: Promise<void> | null = null;
+
+      function loadUsers(): Promise<void> {
+        if (usersLoaded) return Promise.resolve();
+        if (usersLoading) return usersLoading;
+        usersLoading = (async () => {
+          let list: Array<{ id: string; name: string; avatar: string }> = [];
+          const mapUser = (u: any) => ({
+            id: u.id || "",
+            name: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.displayName || u.userName || "",
+            avatar: u.avatar?.icon?.url || u.avatar?.thumb?.url || u.avatar?.original?.url || "",
+          });
+          try {
+            const r = await fetch(`${baseUrl}/users?limit=200`, apiOpts());
+            if (r.ok) {
+              const d = await r.json();
+              list = (d.data || d || []).map(mapUser);
+            }
+          } catch {}
+          // Fallback to the SDK only if REST returned nothing.
+          if (list.length === 0) {
+            try {
+              const res = await widgetApi.getUserList({ limit: 100 });
+              list = (res.data || []).map(mapUser);
+            } catch {}
+          }
+          allUsers = list.filter(u => u.id && u.name && u.id !== (currentUser?.id || ""));
+          usersLoaded = true;
+        })();
+        return usersLoading;
+      }
+
+      function renderUserOptions(q: string) {
+        const ql = q.trim().toLowerCase();
+        const matches = ql ? allUsers.filter(u => u.name.toLowerCase().includes(ql)) : allUsers.slice(0, 8);
+        if (allUsers.length === 0) {
+          userDropdown.innerHTML = `<div class="${p}-opt-empty">No colleagues found</div>`;
+        } else if (matches.length === 0) {
+          userDropdown.innerHTML = `<div class="${p}-opt-empty">No matches for “${q.trim()}”</div>`;
+        } else {
+          userDropdown.innerHTML = (ql ? "" : `<div class="${p}-opt-head">Suggested</div>`) + matches
+            .map(u => {
+              // Show profile picture when available; fall back to gradient initials on missing/broken image.
+              const av = u.avatar
+                ? `<span class="${p}-opt-av"><img src="${u.avatar}" alt="" onerror="this.parentElement.textContent='${getInitials(u.name)}'"></span>`
+                : `<span class="${p}-opt-av">${getInitials(u.name)}</span>`;
+              return `<div class="${p}-opt" data-id="${u.id}" data-name="${u.name}" data-avatar="${u.avatar}">${av}${u.name}</div>`;
+            })
+            .join("");
+          userDropdown.querySelectorAll(`.${p}-opt[data-id]`).forEach(opt => {
+            opt.addEventListener("click", () => {
+              const el = opt as HTMLElement;
+              selectRecipient(el.dataset.id!, el.dataset.name!, el.dataset.avatar || "");
+            });
+          });
+        }
+        userDropdown.style.display = "block";
+      }
+
+      async function openUserDropdown() {
+        if (recipId.value) return; // a recipient is already chosen
+        if (!usersLoaded) {
+          userDropdown.innerHTML = `<div class="${p}-opt-empty">Loading colleagues…</div>`;
+          userDropdown.style.display = "block";
+        }
+        await loadUsers();
+        renderUserOptions(recipSearch.value);
+      }
+
+      recipSearch.addEventListener("focus", openUserDropdown);
       recipSearch.addEventListener("input", () => {
         if (searchTimeout) clearTimeout(searchTimeout);
-        const q = recipSearch.value.trim();
-        if (!q) {
-          userDropdown.style.display = "none";
-          recipId.value = "";
-          recipName.value = "";
-          updateSubmitState();
-          return;
-        }
         searchTimeout = setTimeout(async () => {
-          try {
-            let users: UserItem[] = [];
-            const res = await widgetApi.getUserList({ limit: 20, filter: q });
-            users = (res.data || []).map((u: { id?: string; firstName?: string; lastName?: string; avatar?: any }) => ({
-              id: u.id || "",
-              firstName: u.firstName || "",
-              lastName: u.lastName || "",
-              avatar: u.avatar?.icon?.url || u.avatar?.thumb?.url || u.avatar?.original?.url || "",
-            }));
-            if (users.length === 0) {
-              userDropdown.innerHTML = `<div class="${p}-opt-empty">No results</div>`;
-            } else {
-              userDropdown.innerHTML = users
-                .map(u => {
-                  const nm = `${u.firstName} ${u.lastName}`.trim();
-                  // Show profile picture when available; fall back to gradient initials on missing/broken image.
-                  const av = u.avatar
-                    ? `<span class="${p}-opt-av"><img src="${u.avatar}" alt="" onerror="this.parentElement.textContent='${getInitials(nm)}'"></span>`
-                    : `<span class="${p}-opt-av">${getInitials(nm)}</span>`;
-                  return `<div class="${p}-opt" data-id="${u.id}" data-name="${nm}" data-avatar="${u.avatar}">${av}${nm}</div>`;
-                })
-                .join("");
-              userDropdown.querySelectorAll(`.${p}-opt[data-id]`).forEach(opt => {
-                opt.addEventListener("click", () => {
-                  const el = opt as HTMLElement;
-                  selectRecipient(el.dataset.id!, el.dataset.name!, el.dataset.avatar || "");
-                });
-              });
-            }
-            userDropdown.style.display = "block";
-          } catch {
-            userDropdown.style.display = "none";
-          }
-        }, 300);
+          await loadUsers();
+          renderUserOptions(recipSearch.value);
+        }, 150);
       });
 
       document.addEventListener("click", (e) => {
@@ -752,7 +798,7 @@ const configurationSchema: any = {
     apitoken: { type: "string", title: "API Token" },
     baseurl: { type: "string", title: "Base URL", default: DEFAULT_BASE_URL },
     channelid: { type: "string", title: "Social Wall Channel ID" },
-    rewardtypes: { type: "string", title: "Reward Types (JSON array)" },
+    rewardtypes: { type: "string", title: "Reward Types (JSON array)", default: JSON.stringify(DEFAULT_REWARD_TYPES, null, 2) },
     pointsfield: { type: "string", title: "Points Profile Field Slug", default: "points" },
     adminuserid: { type: "string", title: "Admin User ID (for profile updates)" },
     notificationlink: { type: "string", title: "Notification Link (page path)" },
@@ -782,7 +828,10 @@ const uiSchema = {
   apitoken: { "ui:widget": "password", "ui:help": "Base64-encoded API token (e.g. from *.staffbase.com or *.staffbase.rocks)" },
   baseurl: { "ui:help": "API base URL e.g. https://yourorg.staffbase.com/api" },
   channelid: { "ui:help": "ID of the Social Wall channel where recognitions will be posted" },
-  rewardtypes: { "ui:widget": "textarea", "ui:help": 'JSON: [{"name":"Teamwork","icon":"ti-users","points":50}] — icon is any Tabler icon class' },
+  rewardtypes: {
+    "ui:widget": "textarea",
+    "ui:help": 'JSON array of {"name","icon","points"}. "icon" is a Tabler icon class — suggested: ti-users, ti-bulb, ti-star, ti-rocket, ti-target, ti-heart, ti-trophy, ti-award, ti-medal, ti-crown, ti-thumb-up, ti-flame, ti-bolt, ti-shield, ti-confetti, ti-mood-happy, ti-hand-love-you, ti-diamond. Browse all at tabler.io/icons.',
+  },
   pointsfield: { "ui:help": "Profile field slug to store/read points (default: points)" },
   adminuserid: { "ui:help": "Admin user ID used as USERID header when updating user profiles" },
   notificationlink: { "ui:help": "Page path the notification links to e.g. /content/page/abc123" },

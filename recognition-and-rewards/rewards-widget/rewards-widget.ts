@@ -36,6 +36,20 @@ const ICONS = {
   medal: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="15" r="6"/><path d="M12 12v3l2 1M8.5 9 6 3M15.5 9 18 3M9 4h6"/></svg>`,
 };
 
+// Catalog icons are Tabler webfont classes (ti-*). Staffbase doesn't bundle that
+// font, so the widget loads it itself — otherwise the icons render blank in the app
+// (they only worked in preview.html because that file links the CDN directly).
+const TABLER_ICONS_HREF = "https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css";
+function ensureTablerIcons(): void {
+  if (typeof document === "undefined") return;
+  if (document.getElementById("sb-tabler-icons")) return;
+  const link = document.createElement("link");
+  link.id = "sb-tabler-icons";
+  link.rel = "stylesheet";
+  link.href = TABLER_ICONS_HREF;
+  document.head.appendChild(link);
+}
+
 function makeApiOpts(token: string, extra?: RequestInit): RequestInit {
   return {
     ...extra,
@@ -242,6 +256,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
     }
 
     async renderBlock(container: HTMLElement): Promise<void> {
+      ensureTablerIcons(); // load the icon font so catalog icons render inside Staffbase
       const baseUrl = (this.getAttribute("baseurl") || DEFAULT_BASE_URL).replace(/\/+$/, "");
       const token = this.getAttribute("apitoken") || "";
       const pointsField = this.getAttribute("pointsfield") || "points";
@@ -608,7 +623,7 @@ const configurationSchema: any = {
     baseurl: { type: "string", title: "Base URL", default: DEFAULT_BASE_URL },
     pointsfield: { type: "string", title: "Points Profile Field Slug", default: "points" },
     adminuserid: { type: "string", title: "Admin User ID" },
-    catalogjson: { type: "string", title: "Catalog Items (JSON array)" },
+    catalogjson: { type: "string", title: "Catalog Items (JSON array)", default: JSON.stringify(DEFAULT_CATALOG, null, 2) },
     usethemecolors: { type: "boolean", title: "Use Theme Colors", default: false },
     backgroundcolor: { type: "string", title: "Background Color", default: "" },
   },
@@ -637,7 +652,7 @@ const uiSchema = {
   adminuserid: { "ui:help": "Admin user ID for USERID header when updating user profiles" },
   catalogjson: {
     "ui:widget": "textarea",
-    "ui:help": 'JSON array: [{"id":"1","name":"Coffee","desc":"...","icon":"ti-coffee","pts":100,"cat":"giftcard"}]',
+    "ui:help": 'JSON array of {"id","name","desc","icon","pts","cat"}. "cat" groups items into filter tabs (e.g. giftcard, swag, experience). "icon" is a Tabler icon class — suggested: ti-brand-amazon, ti-coffee, ti-music, ti-player-play, ti-shirt, ti-droplet, ti-basket, ti-tools-kitchen-2, ti-school, ti-beach, ti-gift, ti-ticket, ti-device-laptop, ti-headphones, ti-book, ti-plane, ti-cup, ti-pizza. Browse all at tabler.io/icons.',
   },
   usethemecolors: { "ui:help": "Pull Primary & Accent from the app's branding theme (uses the API Token). Hides the color pickers below." },
   primarycolor: { "ui:widget": "color", "ui:help": "Primary brand color" },
