@@ -89,8 +89,15 @@ function buildCss(p: string): string {
 .${p}-av-stack{position:relative;width:54px;height:36px;flex-shrink:0}
 .${p}-av-from{position:absolute;left:0;top:0}
 .${p}-av-to{position:absolute;right:0;bottom:-3px;width:26px!important;height:26px!important;font-size:9px!important;border:2.5px solid #fff}
-.${p}-edit-btn{position:absolute;bottom:10px;right:12px;width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,.06);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--gray);opacity:0;transition:opacity .15s,background .15s,color .15s}
-.${p}-card:hover .${p}-edit-btn{opacity:1}
+.${p}-card-foot{display:flex;align-items:center;gap:8px;margin-top:11px}
+.${p}-like-btn{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--gray);background:none;border:none;cursor:pointer;font-family:inherit;padding:5px 10px 5px 8px;border-radius:20px;line-height:1;transition:color .15s,background .15s}
+.${p}-like-btn svg{width:16px;height:16px;transition:transform .15s}
+.${p}-like-btn:hover{color:var(--primary);background:rgba(var(--primary-rgb),.08)}
+.${p}-like-btn:active svg{transform:scale(.82)}
+.${p}-like-btn.liked{color:var(--primary)}
+.${p}-like-btn.liked svg{fill:var(--primary);stroke:var(--primary)}
+.${p}-like-count{min-width:5px;font-variant-numeric:tabular-nums}
+.${p}-edit-btn{width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,.06);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--gray);margin-left:auto;transition:background .15s,color .15s}
 .${p}-edit-btn:hover{background:rgba(var(--primary-rgb),.12)!important;color:var(--primary)!important}
 .${p}-edit-area{width:100%;font-family:inherit;font-size:13px;color:var(--dark);background:#fafafa;border:1.5px solid var(--border);border-radius:var(--r-md);padding:9px 11px;resize:vertical;min-height:64px;line-height:1.55;margin-left:65px;width:calc(100% - 65px);transition:border-color .15s}
 .${p}-edit-area:focus{outline:none;border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(var(--primary-rgb),.12)}
@@ -168,6 +175,10 @@ textarea.${p}-in{resize:vertical;min-height:84px;line-height:1.55}
 /* Beat the host's .mouse button:hover / .touch .button.active red background */
 .${p} .${p}-recipient-change,.${p} .${p}-recipient-change:focus{background:rgba(0,0,0,.04)!important;color:var(--gray)!important}
 .${p} .${p}-recipient-change:hover,.${p} .${p}-recipient-change:active{background:rgba(var(--primary-rgb),.12)!important;color:var(--primary)!important}
+/* Same fix for the edit (pencil) button — keep it a true 28px circle */
+.${p} .${p}-edit-btn,.${p} .${p}-edit-btn:hover,.${p} .${p}-edit-btn:focus,.${p} .${p}-edit-btn:active{width:28px!important;height:28px!important;min-width:0!important;padding:0!important;border:none!important;border-radius:50%!important;display:flex!important;align-items:center;justify-content:center}
+.${p} .${p}-edit-btn,.${p} .${p}-edit-btn:focus{background:rgba(0,0,0,.06)!important;color:var(--gray)!important}
+.${p} .${p}-edit-btn:hover,.${p} .${p}-edit-btn:active{background:rgba(var(--primary-rgb),.12)!important;color:var(--primary)!important}
 .${p}-filter,.${p}-filter:focus,.${p}-filter:active{background:#fff!important;color:var(--gray)!important}
 .${p}-filter:hover{color:var(--primary)!important}
 .${p}-filter.active,.${p}-filter.active:hover,.${p}-filter.active:focus,.${p}-filter.active:active{background:rgba(var(--primary-rgb),.08)!important;color:var(--primary)!important}
@@ -251,6 +262,28 @@ async function fetchThemeColors(baseUrl: string, apiToken: string): Promise<{ pr
   } catch {
     return {};
   }
+}
+
+// ── Session auth (for posting / liking AS the logged-in user) ─────────────────
+// Same approach the my-tasks widget uses for comments: ride the browser session
+// (credentials:include) but supply the CSRF token from the page's auth manager.
+// This is required for posts to carry a real `author` (id + avatar) and for likes.
+function readCsrf(): string {
+  const w: any = window;
+  try { const t = w.we?.authMgr?.csrfToken; if (t) return String(t); } catch (_) {}
+  if (w.csrfToken) return String(w.csrfToken);
+  const m = document.cookie.match(/(?:^|;\s*)(?:csrf|XSRF-TOKEN|csrftoken)=([^;]+)/i);
+  if (m) return decodeURIComponent(m[1]);
+  const meta = document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null;
+  return meta?.content || "";
+}
+function sessionOpts(extra?: RequestInit): RequestInit {
+  const csrf = readCsrf();
+  return {
+    ...extra,
+    credentials: "include",
+    headers: { ...(csrf ? { "x-csrf-token": csrf } : {}), ...(extra?.headers || {}) },
+  };
 }
 
 const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
@@ -584,14 +617,20 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
           // Title embeds structured metadata parseable via RECOG_TITLE_RE — no hidden elements needed.
           const postTitle = `${fromName} recognized ${toName} · ${type.name} · +${type.points}pts`;
           const postContent = `<p>${message}</p>`;
-          await fetch(`${baseUrl}/channels/${channelId}/posts`, {
-            ...apiOpts({ method: "POST", body: JSON.stringify({
+          // Create AS the logged-in user (session+CSRF) so the post carries a real
+          // author (id + avatar) and likes/ownership work. `published:true` publishes
+          // immediately. No comments, no push/email — but keep likes on.
+          await fetch(`${baseUrl}/channels/${channelId}/posts`, sessionOpts({
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
               contents: { en_US: { title: postTitle, content: postContent } },
-              // A `published` timestamp is what actually publishes the post. Without it
-              // the post stays a draft and never shows in the feed (status is ignored).
-              published: new Date().toISOString(),
-            })}),
-          });
+              published: true,
+              commentingEnabled: false,
+              likingEnabled: true,
+              notificationChannels: [],
+            }),
+          }));
 
           // 2. Update recipient points
           try {
@@ -650,7 +689,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
       });
 
       // --- Load wall posts ---
-      let cachedPosts: Array<{
+      type WallPost = {
         id: string;
         title: string;
         content: string;
@@ -658,12 +697,64 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
         type: string;
         pts: number;
         fromName: string;
+        fromId: string;
         toName: string;
         message: string;
         fromAvatar: string;
         toAvatar: string;
-      }> = [];
+        likeCount: number;
+        likedByMe: boolean;
+      };
+      let cachedPosts: WallPost[] = [];
       let introUsed = false;
+
+      // ── Likes (session+CSRF reactions API) ──────────────────────────────
+      async function fetchLikeData(postId: string): Promise<{ count: number; mine: boolean }> {
+        try {
+          const reqs: Promise<Response>[] = [
+            fetch(`${baseUrl}/reactions-count?parentId=${postId}&parentType=post`, sessionOpts()),
+          ];
+          if (currentUser) reqs.push(fetch(`${baseUrl}/reactions?parentId=${postId}&parentType=post&userId=${currentUser.id}`, sessionOpts()));
+          const res = await Promise.all(reqs);
+          const countJson = await res[0].json();
+          const count = (countJson.data || []).find((x: any) => x.type === "LIKE")?.count || 0;
+          let mine = false;
+          if (res[1]) { const mineJson = await res[1].json(); mine = (mineJson.data || []).some((x: any) => x.type === "LIKE"); }
+          return { count, mine };
+        } catch { return { count: 0, mine: false }; }
+      }
+
+      function updateLikeButton(post: WallPost) {
+        const btn = feed.querySelector(`.${p}-card[data-post-id="${post.id}"] .${p}-like-btn`) as HTMLElement | null;
+        if (!btn) return;
+        btn.classList.toggle("liked", post.likedByMe);
+        const c = btn.querySelector(`.${p}-like-count`) as HTMLElement | null;
+        if (c) c.textContent = post.likeCount ? String(post.likeCount) : "";
+      }
+
+      async function toggleLike(post: WallPost) {
+        if (!currentUser) return;
+        const liking = !post.likedByMe;
+        post.likedByMe = liking;
+        post.likeCount = Math.max(0, post.likeCount + (liking ? 1 : -1));
+        updateLikeButton(post);
+        try {
+          if (liking) {
+            await fetch(`${baseUrl}/reactions`, sessionOpts({
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ parentId: post.id, parentType: "post", type: "LIKE" }),
+            }));
+          } else {
+            await fetch(`${baseUrl}/reactions?parentId=${post.id}&parentType=post`, sessionOpts({ method: "DELETE" }));
+          }
+        } catch {
+          // revert on failure
+          post.likedByMe = !liking;
+          post.likeCount = Math.max(0, post.likeCount + (liking ? -1 : 1));
+          updateLikeButton(post);
+          showToast("Couldn't update your like.", false);
+        }
+      }
 
       function renderFeedFromCache() {
         const filtered = wallFilter === "all"
@@ -686,7 +777,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
           const typeData = rewardTypes.find(r => r.name === post.type);
           const iconCls = typeData?.icon || "ti-star";
           const myName = currentUser ? `${currentUser.firstName} ${currentUser.lastName}`.trim() : "";
-          const isOwn = !!myName && myName === post.fromName; // sender can edit their own recognition
+          const isOwn = !!currentUser && post.fromId === currentUser.id; // sender can edit their own recognition
           const isRecipient = !!myName && myName === post.toName;
 
           const fromAvDiv = post.fromAvatar
@@ -708,9 +799,20 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
     ${post.type || (isRecipient && post.pts) ? `<div class="${p}-badges">${post.type ? `<span class="${p}-type-badge"><i class="ti ${iconCls}"></i>${post.type}</span>` : ""}${isRecipient && post.pts ? `<span class="${p}-pts-badge">+${post.pts} pts</span>` : ""}</div>` : ""}
   </div>
   ${post.message ? `<div class="${p}-msg">${post.message}</div>` : ""}
-  ${isOwn ? `<button class="${p}-edit-btn" title="Edit" aria-label="Edit">${ICONS.edit}</button>` : ""}
+  <div class="${p}-card-foot">
+    <button class="${p}-like-btn${post.likedByMe ? " liked" : ""}" data-post-id="${post.id}" aria-label="Like">${ICONS.heart}<span class="${p}-like-count">${post.likeCount || ""}</span></button>
+    ${isOwn ? `<button class="${p}-edit-btn" title="Edit" aria-label="Edit">${ICONS.edit}</button>` : ""}
+  </div>
 </div>`;
         }).join("");
+
+        feed.querySelectorAll(`.${p}-like-btn`).forEach(btn => {
+          btn.addEventListener("click", () => {
+            const id = (btn as HTMLElement).dataset.postId!;
+            const post = cachedPosts.find(cp => cp.id === id);
+            if (post) toggleLike(post);
+          });
+        });
 
         if (currentUser) {
           feed.querySelectorAll(`.${p}-edit-btn`).forEach(btn => {
@@ -750,16 +852,15 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
                 const newMsg = editArea.value.trim();
                 if (!newMsg) return;
                 try {
-                  await fetch(`${baseUrl}/posts/${postId}`, {
-                    ...apiOpts({
-                      method: "PUT",
-                      body: JSON.stringify({
-                        contents: { en_US: { title: post.title, content: `<p>${newMsg}</p>` } },
-                        // Preserve the original publish timestamp so the edit doesn't unpublish or reorder it.
-                        published: post.created,
-                      }),
+                  await fetch(`${baseUrl}/posts/${postId}`, sessionOpts({
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      contents: { en_US: { title: post.title, content: `<p>${newMsg}</p>` } },
+                      // Preserve the original publish timestamp so the edit doesn't unpublish or reorder it.
+                      published: post.created,
                     }),
-                  });
+                  }));
                   post.message = newMsg;
                   if (msgDiv) { msgDiv.textContent = newMsg; msgDiv.style.display = ""; }
                   editArea.remove();
@@ -776,11 +877,39 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
         }
       }
 
+      // Prefer the session read (posts carry a real `author` → sender avatar + edit
+      // ownership). If it fails (no session / permission), fall back to the API token —
+      // posts still load, but the sender avatar falls back to a directory name-match.
+      async function fetchWallPosts(): Promise<any[]> {
+        const url = `${baseUrl}/channels/${channelId}/posts?limit=30`;
+        try {
+          const r = await fetch(url, sessionOpts());
+          if (r.ok) {
+            const j = await r.json();
+            console.log(`[recognition] wall loaded via SESSION — ${(j.data || []).length} posts`);
+            return j.data || [];
+          }
+          console.warn(`[recognition] session wall read failed (HTTP ${r.status}); falling back to API token`);
+        } catch (e) {
+          console.warn("[recognition] session wall read errored; falling back to API token", e);
+        }
+        try {
+          const r2 = await fetch(url, apiOpts());
+          const j2 = await r2.json();
+          console.log(`[recognition] wall loaded via API TOKEN (fallback) — ${(j2.data || []).length} posts; sender avatars resolve by name, not author`);
+          return j2.data || [];
+        } catch (e) {
+          console.error("[recognition] token wall read also failed", e);
+          return [];
+        }
+      }
+
       async function loadWallPosts() {
         try {
-          // Recognition posts are authored by the app, not the sender — so there's no
-          // per-post author avatar. The sender/recipient are names in the title; resolve
-          // their photos from the user directory (name → avatar), incl. the current user.
+          // Read via session so each post carries its real `author` (id + avatar).
+          // The recipient (toName) isn't the author, so resolve their photo from the
+          // directory; for older app-authored posts (no author) we fall back to the
+          // directory for the sender too.
           await loadUsers();
           const avatarByName = new Map<string, string>();
           for (const u of allUsers) {
@@ -790,8 +919,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
             avatarByName.set(`${currentUser.firstName} ${currentUser.lastName}`.trim().toLowerCase(), currentUser.avatar);
           }
 
-          const resp = await fetch(`${baseUrl}/channels/${channelId}/posts?limit=30`, apiOpts()).then(r => r.json());
-          const posts = resp.data || [];
+          const posts = await fetchWallPosts();
           cachedPosts = posts.map((post: any) => {
             const title = post.contents?.en_US?.title || "";
             const content = post.contents?.en_US?.content || "";
@@ -801,11 +929,20 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
             const type     = m?.[3] || "";
             const pts      = m ? parseInt(m[4], 10) : 0;
             const message = content.replace(/<[^>]+>/g, "").trim();
-            const fromAvatar = avatarByName.get(fromName.trim().toLowerCase()) || "";
+            const author = post.author || null;
+            const authorAvatar = author?.avatar?.icon?.url || author?.avatar?.thumb?.url || author?.avatar?.original?.url || "";
+            const fromId = author?.id || "";
+            const fromAvatar = authorAvatar || avatarByName.get(fromName.trim().toLowerCase()) || "";
             const toAvatar = avatarByName.get(toName.trim().toLowerCase()) || "";
-            return { id: post.id, title, content, created: post.created || new Date().toISOString(), type, pts, fromName, toName, message, fromAvatar, toAvatar };
+            return { id: post.id, title, content, created: post.created || new Date().toISOString(), type, pts, fromName, fromId, toName, message, fromAvatar, toAvatar, likeCount: 0, likedByMe: false };
           });
           renderFeedFromCache();
+          // Hydrate like counts + own-like state in parallel, then refresh each button.
+          cachedPosts.forEach(async cp => {
+            const { count, mine } = await fetchLikeData(cp.id);
+            cp.likeCount = count; cp.likedByMe = mine;
+            updateLikeButton(cp);
+          });
         } catch {
           feed.classList.remove("intro");
           feed.innerHTML = `<div class="${p}-empty">Could not load recognitions.</div>`;
