@@ -156,13 +156,20 @@ textarea.${p}-in{resize:vertical;min-height:84px;line-height:1.55}
 .${p} button{width:auto!important;margin:0!important;box-sizing:border-box;font-family:inherit;line-height:normal!important}
 .${p} button:focus,.${p} button:focus-visible{outline:none!important;box-shadow:none}
 
-.${p}-tab,.${p}-tab:hover,.${p}-tab:focus,.${p}-tab:active{background:none!important;color:var(--gray)!important}
-.${p}-tab.active,.${p}-tab.active:hover,.${p}-tab.active:focus,.${p}-tab.active:active{background:#fff!important;color:var(--primary)!important}
+.${p}-tab,.${p}-tab:hover,.${p}-tab:focus,.${p}-tab:active{background:none!important;color:var(--gray)!important;border:none!important}
+.${p}-tab.active,.${p}-tab.active:hover,.${p}-tab.active:focus,.${p}-tab.active:active{background:#fff!important;color:var(--primary)!important;border:none!important}
+/* Force a true 30px circle — beats the host's button{width:90%;padding:10px} and our own width:auto reset (needs >.${p} button specificity) */
+.${p} .${p}-recipient-change,.${p} .${p}-recipient-change:hover,.${p} .${p}-recipient-change:focus,.${p} .${p}-recipient-change:active{width:30px!important;height:30px!important;min-width:0!important;padding:0!important;border:none!important;border-radius:50%!important;display:flex!important;align-items:center;justify-content:center;flex-shrink:0}
 .${p}-filter,.${p}-filter:focus,.${p}-filter:active{background:#fff!important;color:var(--gray)!important}
 .${p}-filter:hover{color:var(--primary)!important}
 .${p}-filter.active,.${p}-filter.active:hover,.${p}-filter.active:focus,.${p}-filter.active:active{background:rgba(var(--primary-rgb),.08)!important;color:var(--primary)!important}
 .${p}-ktype,.${p}-ktype:hover,.${p}-ktype:focus,.${p}-ktype:active{background:#fff!important;color:var(--dark)!important}
 .${p}-ktype.selected,.${p}-ktype.selected:hover,.${p}-ktype.selected:focus,.${p}-ktype.selected:active{background:rgba(var(--primary-rgb),.05)!important}
+/* Lock our intended borders so the host's button / button:focus border can't bleed through */
+.${p}-filter,.${p}-filter:hover,.${p}-filter:focus,.${p}-filter:active{border:1.5px solid var(--border)!important}
+.${p}-filter.active,.${p}-filter.active:hover,.${p}-filter.active:focus,.${p}-filter.active:active{border-color:transparent!important}
+.${p}-ktype,.${p}-ktype:hover,.${p}-ktype:focus,.${p}-ktype:active{border:1.5px solid var(--border)!important}
+.${p}-ktype.selected,.${p}-ktype.selected:hover,.${p}-ktype.selected:focus,.${p}-ktype.selected:active{border-color:var(--primary)!important}
 .${p}-submit,.${p}-submit:hover,.${p}-submit:focus,.${p}-submit:active{background:linear-gradient(135deg,var(--primary),var(--accent))!important;color:var(--primary-text)!important;border:none!important}
 .${p}-submit:disabled{background:var(--border)!important;color:var(--gray-lt)!important;cursor:not-allowed;box-shadow:none!important;transform:none!important;filter:none!important}
 `;
@@ -565,7 +572,9 @@ const factory = (BaseBlockClass, widgetApi) => {
                         const postContent = `<p>${message}</p>`;
                         yield fetch(`${baseUrl}/channels/${channelId}/posts`, Object.assign({}, apiOpts({ method: "POST", body: JSON.stringify({
                                 contents: { en_US: { title: postTitle, content: postContent } },
-                                status: "published",
+                                // A `published` timestamp is what actually publishes the post. Without it
+                                // the post stays a draft and never shows in the feed (status is ignored).
+                                published: new Date().toISOString(),
                             }) })));
                         // 2. Update recipient points
                         try {
@@ -688,11 +697,12 @@ const factory = (BaseBlockClass, widgetApi) => {
                                     if (!newMsg)
                                         return;
                                     try {
-                                        yield fetch(`${baseUrl}/channels/${channelId}/posts/${postId}`, Object.assign({}, apiOpts({
+                                        yield fetch(`${baseUrl}/posts/${postId}`, Object.assign({}, apiOpts({
                                             method: "PUT",
                                             body: JSON.stringify({
                                                 contents: { en_US: { title: post.title, content: `<p>${newMsg}</p>` } },
-                                                status: "published",
+                                                // Preserve the original publish timestamp so the edit doesn't unpublish or reorder it.
+                                                published: post.created,
                                             }),
                                         })));
                                         post.message = newMsg;

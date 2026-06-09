@@ -129,7 +129,8 @@ function buildCss(p) {
 .${p}-hero::after{content:"";position:absolute;right:-40px;top:-40px;width:150px;height:150px;border-radius:50%;background:rgba(255,255,255,.12)}
 .${p}-hero::before{content:"";position:absolute;right:30px;bottom:-50px;width:110px;height:110px;border-radius:50%;background:rgba(255,255,255,.08)}
 .${p}-hero-top{display:flex;align-items:center;gap:12px;position:relative;z-index:1}
-.${p}-av{width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.22);color:var(--primary-text);font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;backdrop-filter:blur(4px)}
+.${p}-av{width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.22);color:var(--primary-text);font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;backdrop-filter:blur(4px);overflow:hidden}
+.${p}-av img{width:100%;height:100%;border-radius:50%;object-fit:cover}
 .${p}-name{font-size:15px;font-weight:800;line-height:1.2}
 .${p}-utitle{font-size:12px;font-weight:500;opacity:.85;margin-top:1px}
 .${p}-pts-box{margin-left:auto;text-align:right}
@@ -218,11 +219,15 @@ function buildCss(p) {
 .${p} button{width:auto!important;margin:0!important;box-sizing:border-box;font-family:inherit;line-height:normal!important}
 .${p} button:focus,.${p} button:focus-visible{outline:none!important;box-shadow:none}
 .${p}-redeem,.${p}-mbtn{width:100%!important}
-.${p}-tab,.${p}-tab:hover,.${p}-tab:focus,.${p}-tab:active{background:none!important;color:var(--gray)!important}
-.${p}-tab.active,.${p}-tab.active:hover,.${p}-tab.active:focus,.${p}-tab.active:active{background:#fff!important;color:var(--primary)!important}
+.${p}-tab,.${p}-tab:hover,.${p}-tab:focus,.${p}-tab:active{background:none!important;color:var(--gray)!important;border:none!important}
+.${p}-tab.active,.${p}-tab.active:hover,.${p}-tab.active:focus,.${p}-tab.active:active{background:#fff!important;color:var(--primary)!important;border:none!important}
 .${p}-cat,.${p}-cat:focus,.${p}-cat:active{background:#fff!important;color:var(--gray)!important}
 .${p}-cat:hover{color:var(--primary)!important}
 .${p}-cat.active,.${p}-cat.active:hover,.${p}-cat.active:focus,.${p}-cat.active:active{background:rgba(var(--primary-rgb),.08)!important;color:var(--primary)!important}
+/* Lock our intended borders so the host's button / button:focus border can't bleed through */
+.${p}-cat,.${p}-cat:hover,.${p}-cat:focus,.${p}-cat:active{border:1.5px solid var(--border)!important}
+.${p}-cat.active,.${p}-cat.active:hover,.${p}-cat.active:focus,.${p}-cat.active:active{border-color:transparent!important}
+.${p}-rcard.afford .${p}-redeem{border:none!important}
 .${p}-redeem,.${p}-redeem:hover,.${p}-redeem:focus,.${p}-redeem:active,
 .${p}-mconfirm,.${p}-mconfirm:hover,.${p}-mconfirm:focus,.${p}-mconfirm:active{background:linear-gradient(135deg,var(--primary),var(--accent))!important;color:var(--primary-text)!important;border:none!important}
 .${p}-mcancel,.${p}-mcancel:hover,.${p}-mcancel:focus,.${p}-mcancel:active{background:var(--bg-soft)!important;color:var(--gray)!important;border:none!important}
@@ -236,7 +241,7 @@ const factory = (BaseBlockClass, widgetApi) => {
         }
         renderBlock(container) {
             return __awaiter(this, void 0, void 0, function* () {
-                var _a;
+                var _a, _b, _c, _d, _e, _f, _g;
                 ensureTablerIcons(); // load the icon font so catalog icons render inside Staffbase
                 const baseUrl = (this.getAttribute("baseurl") || DEFAULT_BASE_URL).replace(/\/+$/, "");
                 const token = this.getAttribute("apitoken") || "";
@@ -264,12 +269,13 @@ const factory = (BaseBlockClass, widgetApi) => {
                     if (raw)
                         catalog = JSON.parse(raw);
                 }
-                catch (_b) { }
+                catch (_h) { }
                 // Get current user via widget API, then fetch full profile for custom fields
                 let userId = "";
                 let userName = "";
                 let userTitle = "";
                 let userInitials = "??";
+                let userAvatar = "";
                 let userPts = 0;
                 try {
                     const prof = yield widgetApi.getUserInformation();
@@ -282,16 +288,17 @@ const factory = (BaseBlockClass, widgetApi) => {
                         userName = `${firstName} ${lastName}`.trim();
                         userTitle = [data.position || prof.position, data.location || prof.location].filter(Boolean).join(" · ");
                         userInitials = ((firstName[0] || "") + (lastName[0] || "")).toUpperCase() || "??";
-                        userPts = parseInt(((_a = data === null || data === void 0 ? void 0 : data.profile) === null || _a === void 0 ? void 0 : _a[pointsField]) || "0", 10);
+                        userAvatar = ((_b = (_a = data.avatar) === null || _a === void 0 ? void 0 : _a.icon) === null || _b === void 0 ? void 0 : _b.url) || ((_d = (_c = data.avatar) === null || _c === void 0 ? void 0 : _c.thumb) === null || _d === void 0 ? void 0 : _d.url) || ((_f = (_e = data.avatar) === null || _e === void 0 ? void 0 : _e.original) === null || _f === void 0 ? void 0 : _f.url) || "";
+                        userPts = parseInt(((_g = data === null || data === void 0 ? void 0 : data.profile) === null || _g === void 0 ? void 0 : _g[pointsField]) || "0", 10);
                     }
                 }
-                catch (_c) { }
+                catch (_j) { }
                 const historyKey = `rewards-history-${userId || "anon"}`;
                 let history = [];
                 try {
                     history = JSON.parse(localStorage.getItem(historyKey) || "[]");
                 }
-                catch (_d) { }
+                catch (_k) { }
                 // Compute tier
                 function renderTierBar(pts) {
                     const tier = getTier(pts);
@@ -319,7 +326,7 @@ const factory = (BaseBlockClass, widgetApi) => {
 
   <div class="${p}-hero">
     <div class="${p}-hero-top">
-      <div class="${p}-av">${userInitials}</div>
+      <div class="${p}-av">${userAvatar ? `<img src="${userAvatar}" alt="" onerror="this.parentElement.textContent='${userInitials}'">` : userInitials}</div>
       <div>
         <div class="${p}-name">${userName || "Loading…"}</div>
         <div class="${p}-utitle">${userTitle}</div>

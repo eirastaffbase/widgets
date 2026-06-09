@@ -148,7 +148,8 @@ function buildCss(p: string): string {
 .${p}-hero::after{content:"";position:absolute;right:-40px;top:-40px;width:150px;height:150px;border-radius:50%;background:rgba(255,255,255,.12)}
 .${p}-hero::before{content:"";position:absolute;right:30px;bottom:-50px;width:110px;height:110px;border-radius:50%;background:rgba(255,255,255,.08)}
 .${p}-hero-top{display:flex;align-items:center;gap:12px;position:relative;z-index:1}
-.${p}-av{width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.22);color:var(--primary-text);font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;backdrop-filter:blur(4px)}
+.${p}-av{width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.22);color:var(--primary-text);font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;backdrop-filter:blur(4px);overflow:hidden}
+.${p}-av img{width:100%;height:100%;border-radius:50%;object-fit:cover}
 .${p}-name{font-size:15px;font-weight:800;line-height:1.2}
 .${p}-utitle{font-size:12px;font-weight:500;opacity:.85;margin-top:1px}
 .${p}-pts-box{margin-left:auto;text-align:right}
@@ -237,11 +238,15 @@ function buildCss(p: string): string {
 .${p} button{width:auto!important;margin:0!important;box-sizing:border-box;font-family:inherit;line-height:normal!important}
 .${p} button:focus,.${p} button:focus-visible{outline:none!important;box-shadow:none}
 .${p}-redeem,.${p}-mbtn{width:100%!important}
-.${p}-tab,.${p}-tab:hover,.${p}-tab:focus,.${p}-tab:active{background:none!important;color:var(--gray)!important}
-.${p}-tab.active,.${p}-tab.active:hover,.${p}-tab.active:focus,.${p}-tab.active:active{background:#fff!important;color:var(--primary)!important}
+.${p}-tab,.${p}-tab:hover,.${p}-tab:focus,.${p}-tab:active{background:none!important;color:var(--gray)!important;border:none!important}
+.${p}-tab.active,.${p}-tab.active:hover,.${p}-tab.active:focus,.${p}-tab.active:active{background:#fff!important;color:var(--primary)!important;border:none!important}
 .${p}-cat,.${p}-cat:focus,.${p}-cat:active{background:#fff!important;color:var(--gray)!important}
 .${p}-cat:hover{color:var(--primary)!important}
 .${p}-cat.active,.${p}-cat.active:hover,.${p}-cat.active:focus,.${p}-cat.active:active{background:rgba(var(--primary-rgb),.08)!important;color:var(--primary)!important}
+/* Lock our intended borders so the host's button / button:focus border can't bleed through */
+.${p}-cat,.${p}-cat:hover,.${p}-cat:focus,.${p}-cat:active{border:1.5px solid var(--border)!important}
+.${p}-cat.active,.${p}-cat.active:hover,.${p}-cat.active:focus,.${p}-cat.active:active{border-color:transparent!important}
+.${p}-rcard.afford .${p}-redeem{border:none!important}
 .${p}-redeem,.${p}-redeem:hover,.${p}-redeem:focus,.${p}-redeem:active,
 .${p}-mconfirm,.${p}-mconfirm:hover,.${p}-mconfirm:focus,.${p}-mconfirm:active{background:linear-gradient(135deg,var(--primary),var(--accent))!important;color:var(--primary-text)!important;border:none!important}
 .${p}-mcancel,.${p}-mcancel:hover,.${p}-mcancel:focus,.${p}-mcancel:active{background:var(--bg-soft)!important;color:var(--gray)!important;border:none!important}
@@ -288,6 +293,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
       let userName = "";
       let userTitle = "";
       let userInitials = "??";
+      let userAvatar = "";
       let userPts = 0;
       try {
         const prof: any = await widgetApi.getUserInformation();
@@ -300,6 +306,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
           userName = `${firstName} ${lastName}`.trim();
           userTitle = [data.position || prof.position, data.location || prof.location].filter(Boolean).join(" · ");
           userInitials = ((firstName[0] || "") + (lastName[0] || "")).toUpperCase() || "??";
+          userAvatar = data.avatar?.icon?.url || data.avatar?.thumb?.url || data.avatar?.original?.url || "";
           userPts = parseInt(data?.profile?.[pointsField] || "0", 10);
         }
       } catch {}
@@ -339,7 +346,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
 
   <div class="${p}-hero">
     <div class="${p}-hero-top">
-      <div class="${p}-av">${userInitials}</div>
+      <div class="${p}-av">${userAvatar ? `<img src="${userAvatar}" alt="" onerror="this.parentElement.textContent='${userInitials}'">` : userInitials}</div>
       <div>
         <div class="${p}-name">${userName || "Loading…"}</div>
         <div class="${p}-utitle">${userTitle}</div>
