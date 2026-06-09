@@ -89,16 +89,22 @@ function buildCss(p: string): string {
 .${p}-av-stack{position:relative;width:54px;height:36px;flex-shrink:0}
 .${p}-av-from{position:absolute;left:0;top:0}
 .${p}-av-to{position:absolute;right:0;bottom:-3px;width:26px!important;height:26px!important;font-size:9px!important;border:2.5px solid #fff}
-.${p}-card-foot{display:flex;align-items:center;gap:8px;margin-top:11px}
-.${p}-like-btn{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--gray);background:none;border:none;cursor:pointer;font-family:inherit;padding:5px 10px 5px 8px;border-radius:20px;line-height:1;transition:color .15s,background .15s}
-.${p}-like-btn svg{width:16px;height:16px;transition:transform .15s}
-.${p}-like-btn:hover{color:var(--primary);background:rgba(var(--primary-rgb),.08)}
+/* Profile links on names + avatars */
+.${p}-plink{color:inherit;text-decoration:none;cursor:pointer}
+.${p}-from-name.${p}-plink:hover,.${p}-to.${p}-plink:hover{text-decoration:underline}
+a.${p}-av{cursor:pointer}
+/* Hover-revealed actions, bottom-right */
+.${p}-actions{position:absolute;bottom:10px;right:12px;display:flex;align-items:center;gap:7px;opacity:0;transform:translateY(3px);transition:opacity .15s,transform .15s;pointer-events:none}
+.${p}-card:hover .${p}-actions,.${p}-card:focus-within .${p}-actions{opacity:1;transform:none;pointer-events:auto}
+.${p}-like-btn{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--gray);background:#fff;border:1px solid var(--border);cursor:pointer;font-family:inherit;padding:5px 11px;border-radius:20px;line-height:1;box-shadow:var(--shadow-sm);transition:color .15s,border-color .15s}
+.${p}-like-btn svg{width:15px;height:15px;transition:transform .15s}
+.${p}-like-btn:hover{color:var(--primary);border-color:rgba(var(--primary-rgb),.4)}
 .${p}-like-btn:active svg{transform:scale(.82)}
-.${p}-like-btn.liked{color:var(--primary)}
+.${p}-like-btn.liked{color:var(--primary);border-color:rgba(var(--primary-rgb),.4)}
 .${p}-like-btn.liked svg{fill:var(--primary);stroke:var(--primary)}
 .${p}-like-count{min-width:5px;font-variant-numeric:tabular-nums}
-.${p}-edit-btn{width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,.06);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--gray);margin-left:auto;transition:background .15s,color .15s}
-.${p}-edit-btn:hover{background:rgba(var(--primary-rgb),.12)!important;color:var(--primary)!important}
+.${p}-edit-btn{width:30px;height:30px;border-radius:50%;background:#fff;border:1px solid var(--border);box-shadow:var(--shadow-sm);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--gray);transition:background .15s,color .15s,border-color .15s}
+.${p}-edit-btn:hover{color:var(--primary);border-color:rgba(var(--primary-rgb),.4)}
 .${p}-edit-area{width:100%;font-family:inherit;font-size:13px;color:var(--dark);background:#fafafa;border:1.5px solid var(--border);border-radius:var(--r-md);padding:9px 11px;resize:vertical;min-height:64px;line-height:1.55;margin-left:65px;width:calc(100% - 65px);transition:border-color .15s}
 .${p}-edit-area:focus{outline:none;border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(var(--primary-rgb),.12)}
 .${p}-edit-actions{display:flex;gap:7px;justify-content:flex-end;margin-top:8px}
@@ -176,9 +182,13 @@ textarea.${p}-in{resize:vertical;min-height:84px;line-height:1.55}
 .${p} .${p}-recipient-change,.${p} .${p}-recipient-change:focus{background:rgba(0,0,0,.04)!important;color:var(--gray)!important}
 .${p} .${p}-recipient-change:hover,.${p} .${p}-recipient-change:active{background:rgba(var(--primary-rgb),.12)!important;color:var(--primary)!important}
 /* Same fix for the edit (pencil) button — keep it a true 28px circle */
-.${p} .${p}-edit-btn,.${p} .${p}-edit-btn:hover,.${p} .${p}-edit-btn:focus,.${p} .${p}-edit-btn:active{width:28px!important;height:28px!important;min-width:0!important;padding:0!important;border:none!important;border-radius:50%!important;display:flex!important;align-items:center;justify-content:center}
-.${p} .${p}-edit-btn,.${p} .${p}-edit-btn:focus{background:rgba(0,0,0,.06)!important;color:var(--gray)!important}
-.${p} .${p}-edit-btn:hover,.${p} .${p}-edit-btn:active{background:rgba(var(--primary-rgb),.12)!important;color:var(--primary)!important}
+.${p} .${p}-edit-btn,.${p} .${p}-edit-btn:hover,.${p} .${p}-edit-btn:focus,.${p} .${p}-edit-btn:active{width:30px!important;height:30px!important;min-width:0!important;padding:0!important;border:1px solid var(--border)!important;border-radius:50%!important;display:flex!important;align-items:center;justify-content:center;background:#fff!important}
+.${p} .${p}-edit-btn,.${p} .${p}-edit-btn:focus,.${p} .${p}-edit-btn:active{color:var(--gray)!important}
+.${p} .${p}-edit-btn:hover{color:var(--primary)!important;border-color:rgba(var(--primary-rgb),.4)!important}
+/* like button: keep white bg (beat host .mouse button:hover red), keep its pill border */
+.${p} .${p}-like-btn,.${p} .${p}-like-btn:hover,.${p} .${p}-like-btn:focus,.${p} .${p}-like-btn:active{background:#fff!important;width:auto!important;border:1px solid var(--border)!important;border-radius:20px!important}
+.${p} .${p}-like-btn,.${p} .${p}-like-btn:focus,.${p} .${p}-like-btn:active{color:var(--gray)!important}
+.${p} .${p}-like-btn:hover,.${p} .${p}-like-btn.liked{color:var(--primary)!important;border-color:rgba(var(--primary-rgb),.4)!important}
 .${p}-filter,.${p}-filter:focus,.${p}-filter:active{background:#fff!important;color:var(--gray)!important}
 .${p}-filter:hover{color:var(--primary)!important}
 .${p}-filter.active,.${p}-filter.active:hover,.${p}-filter.active:focus,.${p}-filter.active:active{background:rgba(var(--primary-rgb),.08)!important;color:var(--primary)!important}
@@ -301,6 +311,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
       const adminId = this.getAttribute("adminuserid") || DEFAULT_ADMIN_ID;
       const notificationLink = this.getAttribute("notificationlink") || "";
       const apiOpts = (extra?: RequestInit) => makeApiOpts(token, extra);
+      // App origin (strip /api) for in-app profile links, e.g. https://org.staffbase.com/profile/<id>
+      const appOrigin = baseUrl.replace(/\/api\/?$/, "");
+      const profileUrl = (id: string) => `${appOrigin}/profile/${id}`;
 
       // ── Theming ────────────────────────────────────────────────────────
       let primaryColor = this.getAttribute("primarycolor") || DEFAULT_PRIMARY_COLOR;
@@ -699,6 +712,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
         fromName: string;
         fromId: string;
         toName: string;
+        toId: string;
         message: string;
         fromAvatar: string;
         toAvatar: string;
@@ -777,29 +791,39 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
           const typeData = rewardTypes.find(r => r.name === post.type);
           const iconCls = typeData?.icon || "ti-star";
           const myName = currentUser ? `${currentUser.firstName} ${currentUser.lastName}`.trim() : "";
-          const isOwn = !!currentUser && post.fromId === currentUser.id; // sender can edit their own recognition
+          // Prefer the real author id; fall back to a name match for older app-authored posts.
+          const isOwn = !!currentUser && (post.fromId ? post.fromId === currentUser.id : myName === post.fromName);
           const isRecipient = !!myName && myName === post.toName;
 
-          const fromAvDiv = post.fromAvatar
-            ? `<div class="${p}-av ${p}-av-from"><img src="${post.fromAvatar}" alt="" onerror="this.parentElement.innerHTML='${fromInitials}'"></div>`
-            : `<div class="${p}-av ${p}-av-from">${fromInitials}</div>`;
+          // Wrap avatars / names in a profile link when we know the person's id.
+          const fromInner = post.fromAvatar ? `<img src="${post.fromAvatar}" alt="" onerror="this.parentElement.innerHTML='${fromInitials}'">` : fromInitials;
+          const fromAvDiv = post.fromId
+            ? `<a class="${p}-av ${p}-av-from" href="${profileUrl(post.fromId)}">${fromInner}</a>`
+            : `<div class="${p}-av ${p}-av-from">${fromInner}</div>`;
+          const toInner = post.toAvatar ? `<img src="${post.toAvatar}" alt="" onerror="this.parentElement.innerHTML='${toInitials}'">` : toInitials;
           const toAvDiv = post.toName
-            ? (post.toAvatar
-                ? `<div class="${p}-av ${p}-av-to"><img src="${post.toAvatar}" alt="" onerror="this.parentElement.innerHTML='${toInitials}'"></div>`
-                : `<div class="${p}-av ${p}-av-to">${toInitials}</div>`)
+            ? (post.toId
+                ? `<a class="${p}-av ${p}-av-to" href="${profileUrl(post.toId)}">${toInner}</a>`
+                : `<div class="${p}-av ${p}-av-to">${toInner}</div>`)
             : "";
+          const fromNameEl = post.fromId
+            ? `<a class="${p}-from-name ${p}-plink" href="${profileUrl(post.fromId)}">${fromName}</a>`
+            : `<span class="${p}-from-name">${fromName}</span>`;
+          const toNameEl = post.toId
+            ? `<a class="${p}-to ${p}-plink" href="${profileUrl(post.toId)}">${post.toName}</a>`
+            : `<span class="${p}-to">${post.toName}</span>`;
 
           return `<div class="${p}-card" data-post-id="${post.id}">
   <div class="${p}-card-head">
     <div class="${p}-av-stack">${fromAvDiv}${toAvDiv}</div>
     <div class="${p}-who">
-      <div class="${p}-from"><span class="${p}-from-name">${fromName}</span>${post.toName ? `${ICONS.arrow}<span class="${p}-to">${post.toName}</span>` : ""}</div>
+      <div class="${p}-from">${fromNameEl}${post.toName ? `${ICONS.arrow}${toNameEl}` : ""}</div>
       <div class="${p}-time">${timeAgo(post.created)}</div>
     </div>
     ${post.type || (isRecipient && post.pts) ? `<div class="${p}-badges">${post.type ? `<span class="${p}-type-badge"><i class="ti ${iconCls}"></i>${post.type}</span>` : ""}${isRecipient && post.pts ? `<span class="${p}-pts-badge">+${post.pts} pts</span>` : ""}</div>` : ""}
   </div>
   ${post.message ? `<div class="${p}-msg">${post.message}</div>` : ""}
-  <div class="${p}-card-foot">
+  <div class="${p}-actions">
     <button class="${p}-like-btn${post.likedByMe ? " liked" : ""}" data-post-id="${post.id}" aria-label="Like">${ICONS.heart}<span class="${p}-like-count">${post.likeCount || ""}</span></button>
     ${isOwn ? `<button class="${p}-edit-btn" title="Edit" aria-label="Edit">${ICONS.edit}</button>` : ""}
   </div>
@@ -912,11 +936,16 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
           // directory for the sender too.
           await loadUsers();
           const avatarByName = new Map<string, string>();
+          const idByName = new Map<string, string>();
           for (const u of allUsers) {
-            if (u.avatar) avatarByName.set(u.name.trim().toLowerCase(), u.avatar);
+            const key = u.name.trim().toLowerCase();
+            if (u.avatar) avatarByName.set(key, u.avatar);
+            if (u.id) idByName.set(key, u.id);
           }
-          if (currentUser && currentUser.avatar) {
-            avatarByName.set(`${currentUser.firstName} ${currentUser.lastName}`.trim().toLowerCase(), currentUser.avatar);
+          if (currentUser) {
+            const meKey = `${currentUser.firstName} ${currentUser.lastName}`.trim().toLowerCase();
+            if (currentUser.avatar) avatarByName.set(meKey, currentUser.avatar);
+            idByName.set(meKey, currentUser.id);
           }
 
           const posts = await fetchWallPosts();
@@ -931,10 +960,11 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
             const message = content.replace(/<[^>]+>/g, "").trim();
             const author = post.author || null;
             const authorAvatar = author?.avatar?.icon?.url || author?.avatar?.thumb?.url || author?.avatar?.original?.url || "";
-            const fromId = author?.id || "";
+            const fromId = author?.id || idByName.get(fromName.trim().toLowerCase()) || "";
+            const toId = idByName.get(toName.trim().toLowerCase()) || "";
             const fromAvatar = authorAvatar || avatarByName.get(fromName.trim().toLowerCase()) || "";
             const toAvatar = avatarByName.get(toName.trim().toLowerCase()) || "";
-            return { id: post.id, title, content, created: post.created || new Date().toISOString(), type, pts, fromName, fromId, toName, message, fromAvatar, toAvatar, likeCount: 0, likedByMe: false };
+            return { id: post.id, title, content, created: post.created || new Date().toISOString(), type, pts, fromName, fromId, toName, toId, message, fromAvatar, toAvatar, likeCount: 0, likedByMe: false };
           });
           renderFeedFromCache();
           // Hydrate like counts + own-like state in parallel, then refresh each button.
