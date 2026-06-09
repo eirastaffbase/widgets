@@ -165,6 +165,9 @@ textarea.${p}-in{resize:vertical;min-height:84px;line-height:1.55}
 .${p}-tab.active,.${p}-tab.active:hover,.${p}-tab.active:focus,.${p}-tab.active:active{background:#fff!important;color:var(--primary)!important;border:none!important}
 /* Force a true 30px circle — beats the host's button{width:90%;padding:10px} and our own width:auto reset (needs >.${p} button specificity) */
 .${p} .${p}-recipient-change,.${p} .${p}-recipient-change:hover,.${p} .${p}-recipient-change:focus,.${p} .${p}-recipient-change:active{width:30px!important;height:30px!important;min-width:0!important;padding:0!important;border:none!important;border-radius:50%!important;display:flex!important;align-items:center;justify-content:center;flex-shrink:0}
+/* Beat the host's .mouse button:hover / .touch .button.active red background */
+.${p} .${p}-recipient-change,.${p} .${p}-recipient-change:focus{background:rgba(0,0,0,.04)!important;color:var(--gray)!important}
+.${p} .${p}-recipient-change:hover,.${p} .${p}-recipient-change:active{background:rgba(var(--primary-rgb),.12)!important;color:var(--primary)!important}
 .${p}-filter,.${p}-filter:focus,.${p}-filter:active{background:#fff!important;color:var(--gray)!important}
 .${p}-filter:hover{color:var(--primary)!important}
 .${p}-filter.active,.${p}-filter.active:hover,.${p}-filter.active:focus,.${p}-filter.active:active{background:rgba(var(--primary-rgb),.08)!important;color:var(--primary)!important}

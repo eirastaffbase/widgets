@@ -13,6 +13,8 @@ const DEFAULT_ADMIN_ID = "699dc05555c71158d37594e7";
 const DEFAULT_BASE_URL = "https://app.staffbase.com/api";
 const DEFAULT_PRIMARY_COLOR = "#DA2E32";
 const DEFAULT_ACCENT_COLOR = "#F59E0B";
+// Google Apps Script that logs redemptions to a sheet (userID | redemptionTitle | redemptionDateTime).
+const DEFAULT_REDEMPTION_URL = "https://script.google.com/macros/s/AKfycbygqJVW55MpR6getveUqXrosMcve0sASnCEnmsJRSPuhibrp23P-gWQzgXi9W4O1pl8/exec";
 // ── Inline SVG chrome icons (data-driven catalog icons stay Tabler) ───────────
 const ICONS = {
     gift: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12v9H4v-9M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7"/></svg>`,
@@ -247,6 +249,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const token = this.getAttribute("apitoken") || "";
                 const pointsField = this.getAttribute("pointsfield") || "points";
                 const adminId = this.getAttribute("adminuserid") || DEFAULT_ADMIN_ID;
+                const redemptionUrl = (this.getAttribute("redemptionurl") || DEFAULT_REDEMPTION_URL).trim();
                 const apiOpts = (extra) => makeApiOpts(token, extra);
                 // ── Theming ────────────────────────────────────────────────────────
                 let primaryColor = this.getAttribute("primarycolor") || DEFAULT_PRIMARY_COLOR;
@@ -293,12 +296,51 @@ const factory = (BaseBlockClass, widgetApi) => {
                     }
                 }
                 catch (_j) { }
+                // History lives in the Apps Script sheet (userID | redemptionTitle | redemptionDateTime).
+                // localStorage is kept only as an offline cache so the list isn't empty if the fetch fails.
                 const historyKey = `rewards-history-${userId || "anon"}`;
                 let history = [];
                 try {
                     history = JSON.parse(localStorage.getItem(historyKey) || "[]");
                 }
                 catch (_k) { }
+                function fmtDate(s) {
+                    const d = new Date(s);
+                    return isNaN(d.getTime()) ? String(s || "") : d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+                }
+                // The sheet only stores the title; recover icon + points by matching the catalog.
+                function rowToEntry(row) {
+                    const title = row.redemptionTitle || "";
+                    const match = catalog.find(c => c.name === title);
+                    return { name: title, icon: (match === null || match === void 0 ? void 0 : match.icon) || "ti-gift", pts: (match === null || match === void 0 ? void 0 : match.pts) || 0, date: fmtDate(row.redemptionDateTime || "") };
+                }
+                function loadRemoteHistory() {
+                    return __awaiter(this, void 0, void 0, function* () {
+                        if (!redemptionUrl || !userId)
+                            return;
+                        try {
+                            const r = yield fetch(`${redemptionUrl}?userId=${encodeURIComponent(userId)}`);
+                            const d = yield r.json();
+                            history = (d.data || []).map(rowToEntry);
+                            try {
+                                localStorage.setItem(historyKey, JSON.stringify(history.slice(0, 50)));
+                            }
+                            catch (_a) { }
+                            renderHistory();
+                        }
+                        catch (_b) { }
+                    });
+                }
+                function saveRemoteRedemption(item, iso) {
+                    if (!redemptionUrl || !userId)
+                        return;
+                    // Fire-and-forget POST; text/plain keeps it a "simple" CORS request (no preflight).
+                    fetch(redemptionUrl, {
+                        method: "POST",
+                        headers: { "Content-Type": "text/plain;charset=utf-8" },
+                        body: JSON.stringify({ userID: userId, redemptionTitle: item.name, redemptionDateTime: iso }),
+                    }).catch(() => { });
+                }
                 // Compute tier
                 function renderTierBar(pts) {
                     const tier = getTier(pts);
@@ -433,7 +475,7 @@ const factory = (BaseBlockClass, widgetApi) => {
     <div class="${p}-hname">${h.name}</div>
     <div class="${p}-hdate">${h.date}</div>
   </div>
-  <div class="${p}-hpts">-${h.pts.toLocaleString()} pts</div>
+  ${h.pts ? `<div class="${p}-hpts">-${h.pts.toLocaleString()} pts</div>` : ""}
 </div>`).join("");
                 }
                 // --- Tabs ---
@@ -556,18 +598,15 @@ const factory = (BaseBlockClass, widgetApi) => {
                             currentPts = newPts;
                             updatePtsDisplay();
                             renderGrid();
-                            // Save to history
-                            const entry = {
-                                name: item.name,
-                                icon: item.icon,
-                                pts: item.pts,
-                                date: new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }),
-                            };
+                            // Save to history: log to the sheet, optimistically update the list + local cache.
+                            const nowIso = new Date().toISOString();
+                            const entry = { name: item.name, icon: item.icon, pts: item.pts, date: fmtDate(nowIso) };
                             history.unshift(entry);
                             try {
                                 localStorage.setItem(historyKey, JSON.stringify(history.slice(0, 50)));
                             }
                             catch (_b) { }
+                            saveRemoteRedemption(item, nowIso);
                             showSuccess(item);
                         }
                         catch (_c) {
@@ -583,10 +622,11 @@ const factory = (BaseBlockClass, widgetApi) => {
                 });
                 renderGrid();
                 renderHistory();
+                loadRemoteHistory(); // refresh from the sheet (re-renders when it returns)
             });
         }
         static get observedAttributes() {
-            return ["apitoken", "baseurl", "pointsfield", "catalogjson", "adminuserid", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor"];
+            return ["apitoken", "baseurl", "pointsfield", "catalogjson", "adminuserid", "redemptionurl", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor"];
         }
     };
 };
@@ -597,6 +637,7 @@ const configurationSchema = {
         baseurl: { type: "string", title: "Base URL", default: DEFAULT_BASE_URL },
         pointsfield: { type: "string", title: "Points Profile Field Slug", default: "points" },
         adminuserid: { type: "string", title: "Admin User ID" },
+        redemptionurl: { type: "string", title: "Redemption Log URL (Apps Script)", default: DEFAULT_REDEMPTION_URL },
         catalogjson: { type: "string", title: "Catalog Items (JSON array)", default: JSON.stringify(DEFAULT_CATALOG, null, 2) },
         usethemecolors: { type: "boolean", title: "Use Theme Colors", default: false },
         backgroundcolor: { type: "string", title: "Background Color", default: "" },
@@ -623,6 +664,7 @@ const uiSchema = {
     baseurl: { "ui:help": "API base URL e.g. https://yourorg.staffbase.com/api" },
     pointsfield: { "ui:help": "Profile field slug that stores points (default: points)" },
     adminuserid: { "ui:help": "Admin user ID for USERID header when updating user profiles" },
+    redemptionurl: { "ui:help": "Deployed Google Apps Script /exec URL that logs redemptions (columns: userID | redemptionTitle | redemptionDateTime). Leave blank to disable remote history." },
     catalogjson: {
         "ui:widget": "textarea",
         "ui:help": 'JSON array of {"id","name","desc","icon","pts","cat"}. "cat" groups items into filter tabs (e.g. giftcard, swag, experience). "icon" is a Tabler icon class — suggested: ti-brand-amazon, ti-coffee, ti-music, ti-player-play, ti-shirt, ti-droplet, ti-basket, ti-tools-kitchen-2, ti-school, ti-beach, ti-gift, ti-ticket, ti-device-laptop, ti-headphones, ti-book, ti-plane, ti-cup, ti-pizza. Browse all at tabler.io/icons.',
@@ -635,7 +677,7 @@ const uiSchema = {
 const blockDefinition = {
     name: "rewards-widget",
     label: "Rewards Widget",
-    attributes: ["apitoken", "baseurl", "pointsfield", "catalogjson", "adminuserid", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor"],
+    attributes: ["apitoken", "baseurl", "pointsfield", "catalogjson", "adminuserid", "redemptionurl", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor"],
     factory,
     configurationSchema,
     uiSchema,
