@@ -289,7 +289,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
         if (raw) rewardTypes = JSON.parse(raw);
       } catch {}
 
-      let currentUser: { id: string; firstName: string; lastName: string } | null = null;
+      let currentUser: { id: string; firstName: string; lastName: string; avatar: string } | null = null;
       try {
         const prof: any = await widgetApi.getUserInformation();
         const id: string = prof.id || "";
@@ -301,6 +301,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
             id,
             firstName: data.firstName || prof.firstName || "",
             lastName: data.lastName || prof.lastName || "",
+            avatar: data.avatar?.icon?.url || data.avatar?.thumb?.url || data.avatar?.original?.url || "",
           };
         }
       } catch {}
@@ -660,7 +661,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
         toName: string;
         message: string;
         fromAvatar: string;
-        postAuthorId: string;
+        toAvatar: string;
       }> = [];
       let introUsed = false;
 
@@ -684,14 +685,17 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
           const toInitials = post.toName ? getInitials(post.toName) : "";
           const typeData = rewardTypes.find(r => r.name === post.type);
           const iconCls = typeData?.icon || "ti-star";
-          const isOwn = currentUser && post.postAuthorId === currentUser.id;
-          const isRecipient = currentUser && `${currentUser.firstName} ${currentUser.lastName}`.trim() === post.toName;
+          const myName = currentUser ? `${currentUser.firstName} ${currentUser.lastName}`.trim() : "";
+          const isOwn = !!myName && myName === post.fromName; // sender can edit their own recognition
+          const isRecipient = !!myName && myName === post.toName;
 
           const fromAvDiv = post.fromAvatar
             ? `<div class="${p}-av ${p}-av-from"><img src="${post.fromAvatar}" alt="" onerror="this.parentElement.innerHTML='${fromInitials}'"></div>`
             : `<div class="${p}-av ${p}-av-from">${fromInitials}</div>`;
           const toAvDiv = post.toName
-            ? `<div class="${p}-av ${p}-av-to">${toInitials}</div>`
+            ? (post.toAvatar
+                ? `<div class="${p}-av ${p}-av-to"><img src="${post.toAvatar}" alt="" onerror="this.parentElement.innerHTML='${toInitials}'"></div>`
+                : `<div class="${p}-av ${p}-av-to">${toInitials}</div>`)
             : "";
 
           return `<div class="${p}-card" data-post-id="${post.id}">
@@ -774,6 +778,18 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
 
       async function loadWallPosts() {
         try {
+          // Recognition posts are authored by the app, not the sender — so there's no
+          // per-post author avatar. The sender/recipient are names in the title; resolve
+          // their photos from the user directory (name → avatar), incl. the current user.
+          await loadUsers();
+          const avatarByName = new Map<string, string>();
+          for (const u of allUsers) {
+            if (u.avatar) avatarByName.set(u.name.trim().toLowerCase(), u.avatar);
+          }
+          if (currentUser && currentUser.avatar) {
+            avatarByName.set(`${currentUser.firstName} ${currentUser.lastName}`.trim().toLowerCase(), currentUser.avatar);
+          }
+
           const resp = await fetch(`${baseUrl}/channels/${channelId}/posts?limit=30`, apiOpts()).then(r => r.json());
           const posts = resp.data || [];
           cachedPosts = posts.map((post: any) => {
@@ -785,9 +801,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
             const type     = m?.[3] || "";
             const pts      = m ? parseInt(m[4], 10) : 0;
             const message = content.replace(/<[^>]+>/g, "").trim();
-            const fromAvatar = post.author?.avatar?.thumb?.url || post.author?.avatar?.icon?.url || post.author?.avatar?.original?.url || "";
-            const postAuthorId = post.author?.id || "";
-            return { id: post.id, title, content, created: post.created || new Date().toISOString(), type, pts, fromName, toName, message, fromAvatar, postAuthorId };
+            const fromAvatar = avatarByName.get(fromName.trim().toLowerCase()) || "";
+            const toAvatar = avatarByName.get(toName.trim().toLowerCase()) || "";
+            return { id: post.id, title, content, created: post.created || new Date().toISOString(), type, pts, fromName, toName, message, fromAvatar, toAvatar };
           });
           renderFeedFromCache();
         } catch {

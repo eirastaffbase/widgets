@@ -254,6 +254,7 @@ const factory = (BaseBlockClass, widgetApi) => {
         }
         renderBlock(container) {
             return __awaiter(this, void 0, void 0, function* () {
+                var _a, _b, _c, _d, _e, _f;
                 ensureTablerIcons(); // load the icon font so reward-type icons render inside Staffbase
                 const baseUrl = (this.getAttribute("baseurl") || DEFAULT_BASE_URL).replace(/\/+$/, "");
                 const channelId = this.getAttribute("channelid") || DEFAULT_CHANNEL;
@@ -283,7 +284,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     if (raw)
                         rewardTypes = JSON.parse(raw);
                 }
-                catch (_a) { }
+                catch (_g) { }
                 let currentUser = null;
                 try {
                     const prof = yield widgetApi.getUserInformation();
@@ -296,10 +297,11 @@ const factory = (BaseBlockClass, widgetApi) => {
                             id,
                             firstName: data.firstName || prof.firstName || "",
                             lastName: data.lastName || prof.lastName || "",
+                            avatar: ((_b = (_a = data.avatar) === null || _a === void 0 ? void 0 : _a.icon) === null || _b === void 0 ? void 0 : _b.url) || ((_d = (_c = data.avatar) === null || _c === void 0 ? void 0 : _c.thumb) === null || _d === void 0 ? void 0 : _d.url) || ((_f = (_e = data.avatar) === null || _e === void 0 ? void 0 : _e.original) === null || _f === void 0 ? void 0 : _f.url) || "",
                         };
                     }
                 }
-                catch (_b) { }
+                catch (_h) { }
                 // --- Build HTML ---
                 container.innerHTML = `<style>${buildCss(p)}</style>
 <div class="${p}" style="--primary:${primaryColor};--primary-rgb:${primaryRgb};--accent:${accentColor};--accent-rgb:${accentRgb};--primary-text:${primaryText};background:${bgColor || "transparent"}">
@@ -643,13 +645,16 @@ const factory = (BaseBlockClass, widgetApi) => {
                         const toInitials = post.toName ? getInitials(post.toName) : "";
                         const typeData = rewardTypes.find(r => r.name === post.type);
                         const iconCls = (typeData === null || typeData === void 0 ? void 0 : typeData.icon) || "ti-star";
-                        const isOwn = currentUser && post.postAuthorId === currentUser.id;
-                        const isRecipient = currentUser && `${currentUser.firstName} ${currentUser.lastName}`.trim() === post.toName;
+                        const myName = currentUser ? `${currentUser.firstName} ${currentUser.lastName}`.trim() : "";
+                        const isOwn = !!myName && myName === post.fromName; // sender can edit their own recognition
+                        const isRecipient = !!myName && myName === post.toName;
                         const fromAvDiv = post.fromAvatar
                             ? `<div class="${p}-av ${p}-av-from"><img src="${post.fromAvatar}" alt="" onerror="this.parentElement.innerHTML='${fromInitials}'"></div>`
                             : `<div class="${p}-av ${p}-av-from">${fromInitials}</div>`;
                         const toAvDiv = post.toName
-                            ? `<div class="${p}-av ${p}-av-to">${toInitials}</div>`
+                            ? (post.toAvatar
+                                ? `<div class="${p}-av ${p}-av-to"><img src="${post.toAvatar}" alt="" onerror="this.parentElement.innerHTML='${toInitials}'"></div>`
+                                : `<div class="${p}-av ${p}-av-to">${toInitials}</div>`)
                             : "";
                         return `<div class="${p}-card" data-post-id="${post.id}">
   <div class="${p}-card-head">
@@ -730,10 +735,22 @@ const factory = (BaseBlockClass, widgetApi) => {
                 function loadWallPosts() {
                     return __awaiter(this, void 0, void 0, function* () {
                         try {
+                            // Recognition posts are authored by the app, not the sender — so there's no
+                            // per-post author avatar. The sender/recipient are names in the title; resolve
+                            // their photos from the user directory (name → avatar), incl. the current user.
+                            yield loadUsers();
+                            const avatarByName = new Map();
+                            for (const u of allUsers) {
+                                if (u.avatar)
+                                    avatarByName.set(u.name.trim().toLowerCase(), u.avatar);
+                            }
+                            if (currentUser && currentUser.avatar) {
+                                avatarByName.set(`${currentUser.firstName} ${currentUser.lastName}`.trim().toLowerCase(), currentUser.avatar);
+                            }
                             const resp = yield fetch(`${baseUrl}/channels/${channelId}/posts?limit=30`, apiOpts()).then(r => r.json());
                             const posts = resp.data || [];
                             cachedPosts = posts.map((post) => {
-                                var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
+                                var _a, _b, _c, _d;
                                 const title = ((_b = (_a = post.contents) === null || _a === void 0 ? void 0 : _a.en_US) === null || _b === void 0 ? void 0 : _b.title) || "";
                                 const content = ((_d = (_c = post.contents) === null || _c === void 0 ? void 0 : _c.en_US) === null || _d === void 0 ? void 0 : _d.content) || "";
                                 const m = RECOG_TITLE_RE.exec(title);
@@ -742,9 +759,9 @@ const factory = (BaseBlockClass, widgetApi) => {
                                 const type = (m === null || m === void 0 ? void 0 : m[3]) || "";
                                 const pts = m ? parseInt(m[4], 10) : 0;
                                 const message = content.replace(/<[^>]+>/g, "").trim();
-                                const fromAvatar = ((_g = (_f = (_e = post.author) === null || _e === void 0 ? void 0 : _e.avatar) === null || _f === void 0 ? void 0 : _f.thumb) === null || _g === void 0 ? void 0 : _g.url) || ((_k = (_j = (_h = post.author) === null || _h === void 0 ? void 0 : _h.avatar) === null || _j === void 0 ? void 0 : _j.icon) === null || _k === void 0 ? void 0 : _k.url) || ((_o = (_m = (_l = post.author) === null || _l === void 0 ? void 0 : _l.avatar) === null || _m === void 0 ? void 0 : _m.original) === null || _o === void 0 ? void 0 : _o.url) || "";
-                                const postAuthorId = ((_p = post.author) === null || _p === void 0 ? void 0 : _p.id) || "";
-                                return { id: post.id, title, content, created: post.created || new Date().toISOString(), type, pts, fromName, toName, message, fromAvatar, postAuthorId };
+                                const fromAvatar = avatarByName.get(fromName.trim().toLowerCase()) || "";
+                                const toAvatar = avatarByName.get(toName.trim().toLowerCase()) || "";
+                                return { id: post.id, title, content, created: post.created || new Date().toISOString(), type, pts, fromName, toName, message, fromAvatar, toAvatar };
                             });
                             renderFeedFromCache();
                         }
