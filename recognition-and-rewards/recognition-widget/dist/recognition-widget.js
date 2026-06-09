@@ -309,9 +309,11 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const adminId = this.getAttribute("adminuserid") || DEFAULT_ADMIN_ID;
                 const notificationLink = this.getAttribute("notificationlink") || "";
                 const apiOpts = (extra) => makeApiOpts(token, extra);
-                // App origin (strip /api) for in-app profile links, e.g. https://org.staffbase.com/profile/<id>
+                // App origin (strip /api) for in-app profile links. /openlink/profile/<id> is the
+                // platform's internal-link form; combined with class="link-internal" + a
+                // data-user-id attribute, Staffbase shows its native profile hovercard on hover.
                 const appOrigin = baseUrl.replace(/\/api\/?$/, "");
-                const profileUrl = (id) => `${appOrigin}/profile/${id}`;
+                const profileUrl = (id) => `${appOrigin}/openlink/profile/${id}`;
                 // ── Theming ────────────────────────────────────────────────────────
                 let primaryColor = this.getAttribute("primarycolor") || DEFAULT_PRIMARY_COLOR;
                 let accentColor = this.getAttribute("accentcolor") || DEFAULT_ACCENT_COLOR;
@@ -767,22 +769,23 @@ const factory = (BaseBlockClass, widgetApi) => {
                         // Prefer the real author id; fall back to a name match for older app-authored posts.
                         const isOwn = !!currentUser && (post.fromId ? post.fromId === currentUser.id : myName === post.fromName);
                         const isRecipient = !!myName && myName === post.toName;
-                        // Wrap avatars / names in a profile link when we know the person's id.
-                        const fromInner = post.fromAvatar ? `<img src="${post.fromAvatar}" alt="" onerror="this.parentElement.innerHTML='${fromInitials}'">` : fromInitials;
+                        // Wrap avatars / names in a profile link with data-user-id so Staffbase's
+                        // native hovercard pops on hover (same trigger the celebration widget uses).
+                        const fromInner = post.fromAvatar ? `<img src="${post.fromAvatar}" alt="" data-user-id="${post.fromId}" data-type="thumb" data-size="36" onerror="this.parentElement.innerHTML='${fromInitials}'">` : fromInitials;
                         const fromAvDiv = post.fromId
-                            ? `<a class="${p}-av ${p}-av-from" href="${profileUrl(post.fromId)}">${fromInner}</a>`
+                            ? `<a class="${p}-av ${p}-av-from link-internal" href="${profileUrl(post.fromId)}" data-user-id="${post.fromId}">${fromInner}</a>`
                             : `<div class="${p}-av ${p}-av-from">${fromInner}</div>`;
-                        const toInner = post.toAvatar ? `<img src="${post.toAvatar}" alt="" onerror="this.parentElement.innerHTML='${toInitials}'">` : toInitials;
+                        const toInner = post.toAvatar ? `<img src="${post.toAvatar}" alt="" data-user-id="${post.toId}" data-type="thumb" data-size="36" onerror="this.parentElement.innerHTML='${toInitials}'">` : toInitials;
                         const toAvDiv = post.toName
                             ? (post.toId
-                                ? `<a class="${p}-av ${p}-av-to" href="${profileUrl(post.toId)}">${toInner}</a>`
+                                ? `<a class="${p}-av ${p}-av-to link-internal" href="${profileUrl(post.toId)}" data-user-id="${post.toId}">${toInner}</a>`
                                 : `<div class="${p}-av ${p}-av-to">${toInner}</div>`)
                             : "";
                         const fromNameEl = post.fromId
-                            ? `<a class="${p}-from-name ${p}-plink" href="${profileUrl(post.fromId)}">${fromName}</a>`
+                            ? `<a class="${p}-from-name ${p}-plink link-internal" href="${profileUrl(post.fromId)}" data-user-id="${post.fromId}">${fromName}</a>`
                             : `<span class="${p}-from-name">${fromName}</span>`;
                         const toNameEl = post.toId
-                            ? `<a class="${p}-to ${p}-plink" href="${profileUrl(post.toId)}">${post.toName}</a>`
+                            ? `<a class="${p}-to ${p}-plink link-internal" href="${profileUrl(post.toId)}" data-user-id="${post.toId}">${post.toName}</a>`
                             : `<span class="${p}-to">${post.toName}</span>`;
                         return `<div class="${p}-card" data-post-id="${post.id}">
   <div class="${p}-card-head">
