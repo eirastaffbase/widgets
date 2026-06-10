@@ -89,6 +89,9 @@ function fetchThemeColors(baseUrl, apiToken) {
         };
         try {
             const res = yield fetch(`${baseUrl}/theming/themes/primary`, {
+                // Token-only: omit the session cookie so the request is evaluated as the
+                // service identity, not the viewing user (who may lack theme access).
+                credentials: "omit",
                 headers: { Authorization: `Basic ${apiToken}`, Accept: "application/json" },
             });
             if (!res.ok)

@@ -39,6 +39,7 @@ const ICONS = {
   close: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>`,
   edit: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>`,
   check: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`,
+  pin: `<svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" stroke="none"><path d="M12 0A8 8 0 0 0 4 8c0 3.5 5 12 7.15 15.52a1 1 0 0 0 1.7 0C15 20 20 11.5 20 8a8 8 0 0 0-8-8Zm0 11.5A3.5 3.5 0 1 1 15.5 8 3.5 3.5 0 0 1 12 11.5Z"/></svg>`,
 };
 
 // The reward-type icons are Tabler webfont classes (ti-*). Staffbase doesn't bundle
@@ -93,6 +94,21 @@ function buildCss(p: string): string {
 .${p}-plink{color:inherit;text-decoration:none;cursor:pointer}
 .${p}-from-name.${p}-plink:hover,.${p}-to.${p}-plink:hover{text-decoration:underline}
 a.${p}-av{cursor:pointer}
+/* Custom profile hovercard (mirrors the platform's native card) */
+.${p}-hovercard{position:fixed;z-index:99999;width:264px;background:#fff;border-radius:16px;box-shadow:0 14px 44px rgba(0,0,0,.18);overflow:hidden;opacity:0;transform:translateY(5px) scale(.98);transition:opacity .14s,transform .14s;pointer-events:none}
+.${p}-hovercard.show{opacity:1;transform:none;pointer-events:auto}
+.${p}-hc-banner{height:58px;background:linear-gradient(135deg,var(--primary),var(--accent))}
+.${p}-hc-av{width:70px;height:70px;border-radius:50%;margin:-35px auto 0;border:4px solid #fff;background:linear-gradient(135deg,var(--primary),var(--accent));color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;overflow:hidden;position:relative;z-index:1}
+.${p}-hc-av img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.${p}-hc-name{text-align:center;font-size:16px;font-weight:800;color:var(--dark);margin-top:11px;padding:0 16px;line-height:1.3}
+.${p}-hc-pron{font-size:12px;font-weight:500;color:var(--gray-lt)}
+.${p}-hc-pos{text-align:center;font-size:13px;font-weight:700;color:var(--gray);margin-top:7px;padding:0 16px;line-height:1.4}
+.${p}-hc-dept{text-align:center;font-size:13px;color:var(--gray);padding:0 16px;line-height:1.4}
+.${p}-hc-headline{text-align:center;font-size:13px;color:var(--gray-lt);margin-top:7px;padding:0 16px;line-height:1.45}
+.${p}-hc-loc{display:flex;align-items:center;justify-content:center;gap:5px;font-size:12.5px;color:var(--gray);margin-top:9px}
+.${p}-hc-loc svg{color:var(--gray-lt);flex-shrink:0}
+.${p}-hc-btn{display:block;margin:14px;padding:9px;text-align:center;font-size:13px;font-weight:700;border-radius:10px;background:rgba(var(--primary-rgb),.09);color:var(--primary)!important;text-decoration:none;transition:background .15s}
+.${p}-hc-btn:hover{background:rgba(var(--primary-rgb),.16);text-decoration:none}
 /* Actions, bottom-right: like is always visible (borderless icon); edit reveals on
    hover to its right, so the like nudges left to make room. */
 .${p}-actions{position:absolute;bottom:11px;right:14px;display:flex;align-items:center;gap:10px}
@@ -255,6 +271,9 @@ async function fetchThemeColors(baseUrl: string, apiToken: string): Promise<{ pr
   };
   try {
     const res = await fetch(`${baseUrl}/theming/themes/primary`, {
+      // Token-only: omit the session cookie so the request is evaluated as the
+      // service identity, not the viewing user (who may lack theme access).
+      credentials: "omit",
       headers: { Authorization: `Basic ${apiToken}`, Accept: "application/json" },
     });
     if (!res.ok) return {};
@@ -532,19 +551,26 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
       // The widget SDK's getUserList is unreliable across embed contexts, so we
       // load the directory once via REST (same token as everything else), cache
       // it, show suggested colleagues when the field is empty, and filter locally.
-      let allUsers: Array<{ id: string; name: string; avatar: string }> = [];
+      type DirUser = { id: string; name: string; avatar: string; position: string; department: string; location: string; pronouns: string; headline: string };
+      let allUsers: DirUser[] = [];
       let usersLoaded = false;
       let usersLoading: Promise<void> | null = null;
+      const userById = new Map<string, DirUser>();
 
       function loadUsers(): Promise<void> {
         if (usersLoaded) return Promise.resolve();
         if (usersLoading) return usersLoading;
         usersLoading = (async () => {
-          let list: Array<{ id: string; name: string; avatar: string }> = [];
-          const mapUser = (u: any) => ({
+          let list: DirUser[] = [];
+          const mapUser = (u: any): DirUser => ({
             id: u.id || "",
             name: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.displayName || u.userName || "",
             avatar: u.avatar?.icon?.url || u.avatar?.thumb?.url || u.avatar?.original?.url || "",
+            position: u.position || u.profile?.position || "",
+            department: u.department || u.profile?.department || "",
+            location: u.location || u.profile?.location || "",
+            pronouns: u.profile?.pronouns || u.pronouns || "",
+            headline: u.profileHeadline || u.profile?.profileHeadline || "",
           });
           try {
             const r = await fetch(`${baseUrl}/users?limit=200`, apiOpts());
@@ -561,6 +587,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
             } catch {}
           }
           allUsers = list.filter(u => u.id && u.name && u.id !== (currentUser?.id || ""));
+          for (const u of list) if (u.id) userById.set(u.id, u);
           usersLoaded = true;
         })();
         return usersLoading;
@@ -806,19 +833,19 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
           // profile hovercard pops on hover (matches the platform's own author links).
           const fromInner = post.fromAvatar ? `<img src="${post.fromAvatar}" alt="" onerror="this.parentElement.innerHTML='${fromInitials}'">` : fromInitials;
           const fromAvDiv = post.fromId
-            ? `<a class="${p}-av ${p}-av-from internal-link clickable" href="${profileUrl(post.fromId)}">${fromInner}</a>`
+            ? `<a class="${p}-av ${p}-av-from internal-link clickable" href="${profileUrl(post.fromId)}" data-uid="${post.fromId}">${fromInner}</a>`
             : `<div class="${p}-av ${p}-av-from">${fromInner}</div>`;
           const toInner = post.toAvatar ? `<img src="${post.toAvatar}" alt="" onerror="this.parentElement.innerHTML='${toInitials}'">` : toInitials;
           const toAvDiv = post.toName
             ? (post.toId
-                ? `<a class="${p}-av ${p}-av-to internal-link clickable" href="${profileUrl(post.toId)}">${toInner}</a>`
+                ? `<a class="${p}-av ${p}-av-to internal-link clickable" href="${profileUrl(post.toId)}" data-uid="${post.toId}">${toInner}</a>`
                 : `<div class="${p}-av ${p}-av-to">${toInner}</div>`)
             : "";
           const fromNameEl = post.fromId
-            ? `<a class="${p}-from-name ${p}-plink internal-link clickable" href="${profileUrl(post.fromId)}">${fromName}</a>`
+            ? `<a class="${p}-from-name ${p}-plink internal-link clickable" href="${profileUrl(post.fromId)}" data-uid="${post.fromId}">${fromName}</a>`
             : `<span class="${p}-from-name">${fromName}</span>`;
           const toNameEl = post.toId
-            ? `<a class="${p}-to ${p}-plink internal-link clickable" href="${profileUrl(post.toId)}">${post.toName}</a>`
+            ? `<a class="${p}-to ${p}-plink internal-link clickable" href="${profileUrl(post.toId)}" data-uid="${post.toId}">${post.toName}</a>`
             : `<span class="${p}-to">${post.toName}</span>`;
 
           return `<div class="${p}-card" data-post-id="${post.id}">
@@ -908,6 +935,66 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
           });
         }
       }
+
+      // ── Custom profile hovercard ────────────────────────────────────────
+      // The platform's native hovercard is React/Radix-bound to its own nodes and
+      // can't attach to our injected links, so we render our own (same look) on
+      // hover of any [data-uid] author link, using the cached directory profile.
+      const rootEl = container.querySelector(`.${p}`) as HTMLElement;
+      const hc = document.createElement("div");
+      hc.className = `${p}-hovercard`;
+      rootEl.appendChild(hc);
+      let hcShowTimer: ReturnType<typeof setTimeout> | null = null;
+      let hcHideTimer: ReturnType<typeof setTimeout> | null = null;
+
+      function positionHover(anchor: HTMLElement) {
+        const r = anchor.getBoundingClientRect();
+        const w = 264, gap = 8;
+        let left = r.left + r.width / 2 - w / 2;
+        left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
+        const h = hc.offsetHeight || 230;
+        let top = r.bottom + gap;
+        if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - gap - h); // flip above
+        hc.style.left = `${left}px`;
+        hc.style.top = `${top}px`;
+      }
+
+      function showHover(id: string, anchor: HTMLElement) {
+        const u = userById.get(id);
+        if (!u) return;
+        const initials = getInitials(u.name);
+        const av = u.avatar
+          ? `<img src="${u.avatar}" alt="" onerror="this.parentElement.innerHTML='${initials}'">`
+          : initials;
+        hc.innerHTML = `
+          <div class="${p}-hc-banner"></div>
+          <div class="${p}-hc-av">${av}</div>
+          <div class="${p}-hc-name">${u.name}${u.pronouns ? ` <span class="${p}-hc-pron">(${u.pronouns})</span>` : ""}</div>
+          ${u.position ? `<div class="${p}-hc-pos">${u.position}</div>` : ""}
+          ${u.department ? `<div class="${p}-hc-dept">${u.department}</div>` : ""}
+          ${u.headline ? `<div class="${p}-hc-headline">${u.headline}</div>` : ""}
+          ${u.location ? `<div class="${p}-hc-loc">${ICONS.pin}${u.location}</div>` : ""}
+          <a class="${p}-hc-btn internal-link clickable" href="${profileUrl(id)}">View profile</a>`;
+        hc.classList.add("show");
+        positionHover(anchor);
+      }
+      function hideHover() { hc.classList.remove("show"); }
+
+      feed.addEventListener("mouseover", (e) => {
+        const a = (e.target as HTMLElement).closest(`[data-uid]`) as HTMLElement | null;
+        if (!a || !feed.contains(a)) return;
+        if (hcHideTimer) clearTimeout(hcHideTimer);
+        if (hcShowTimer) clearTimeout(hcShowTimer);
+        hcShowTimer = setTimeout(() => showHover(a.getAttribute("data-uid")!, a), 220);
+      });
+      feed.addEventListener("mouseout", (e) => {
+        const a = (e.target as HTMLElement).closest(`[data-uid]`) as HTMLElement | null;
+        if (!a) return;
+        if (hcShowTimer) clearTimeout(hcShowTimer);
+        hcHideTimer = setTimeout(hideHover, 180);
+      });
+      hc.addEventListener("mouseenter", () => { if (hcHideTimer) clearTimeout(hcHideTimer); });
+      hc.addEventListener("mouseleave", () => { hcHideTimer = setTimeout(hideHover, 150); });
 
       // Prefer the session read (posts carry a real `author` → sender avatar + edit
       // ownership). If it fails (no session / permission), fall back to the API token —
