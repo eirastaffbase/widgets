@@ -96,12 +96,83 @@ function hexToRgb(hex: string): string {
   return `${parseInt(h.slice(0, 2), 16) || 0},${parseInt(h.slice(2, 4), 16) || 0},${parseInt(h.slice(4, 6), 16) || 0}`;
 }
 
-function contrastColor(hex: string): string {
+function relLuminance(hex: string): number {
   const h = (hex.replace("#", "") + "000000").slice(0, 6);
   const r = parseInt(h.slice(0, 2), 16) / 255, g = parseInt(h.slice(2, 4), 16) / 255, b = parseInt(h.slice(4, 6), 16) / 255;
   const lin = (c: number) => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-  const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-  return L > 0.45 ? "#1a1a1a" : "#ffffff";
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+}
+
+function contrastColor(hex: string): string {
+  return relLuminance(hex) > 0.45 ? "#1a1a1a" : "#ffffff";
+}
+
+function contrastOnWhite(hex: string): number {
+  return 1.05 / (relLuminance(hex) + 0.05);
+}
+
+function hexToHsl(hex: string): { h: number; s: number; l: number } {
+  const x = (hex.replace("#", "") + "000000").slice(0, 6);
+  const r = parseInt(x.slice(0, 2), 16) / 255, g = parseInt(x.slice(2, 4), 16) / 255, b = parseInt(x.slice(4, 6), 16) / 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+  const l = (mx + mn) / 2;
+  let s = 0, h = 0;
+  if (d) {
+    s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+    if (mx === r) h = ((g - b) / d) % 6;
+    else if (mx === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h *= 60; if (h < 0) h += 360;
+  }
+  return { h, s, l };
+}
+
+function hslToHex(h: number, s: number, l: number): string {
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = l - c / 2;
+  let r = 0, g = 0, b = 0;
+  if (h < 60) [r, g, b] = [c, x, 0];
+  else if (h < 120) [r, g, b] = [x, c, 0];
+  else if (h < 180) [r, g, b] = [0, c, x];
+  else if (h < 240) [r, g, b] = [0, x, c];
+  else if (h < 300) [r, g, b] = [x, 0, c];
+  else [r, g, b] = [c, 0, x];
+  const to = (v: number) => Math.round((v + m) * 255).toString(16).padStart(2, "0");
+  return `#${to(r)}${to(g)}${to(b)}`;
+}
+
+// Darken a color (keep hue/saturation) until it reads on a white background.
+function darkenToContrast(hex: string, target = 4.5): string {
+  let { h, s, l } = hexToHsl(hex);
+  let out = hex;
+  for (let i = 0; i < 50 && contrastOnWhite(out) < target && l > 0.04; i++) {
+    l = Math.max(0, l - 0.02);
+    out = hslToHex(h, s, l);
+  }
+  return out;
+}
+
+// Darkest still-saturated palette color for use ON WHITE (text/UI), darkened
+// further if needed for readability. "" if nothing usable.
+function pickOnWhite(cands: string[]): string {
+  const isHex = (s: string) => /^#[0-9a-fA-F]{3,8}$/.test(s);
+  const scored = cands.filter(isHex).map(hex => ({ hex, ...hexToHsl(hex), contrast: contrastOnWhite(hex) }));
+  let pool = scored.filter(c => c.s >= 0.35 && c.l >= 0.12 && c.l <= 0.85);
+  if (!pool.length) pool = scored.filter(c => c.s >= 0.2 && c.l <= 0.9);
+  if (!pool.length) return "";
+  pool.sort((a, b) => (b.contrast - a.contrast) || (b.s - a.s));
+  return darkenToContrast(pool[0].hex, 4.5);
+}
+
+// Most vivid palette color (for gradient accents, on a colored background).
+function pickVivid(cands: string[], exclude = ""): string {
+  const isHex = (s: string) => /^#[0-9a-fA-F]{3,8}$/.test(s);
+  const pool = cands.filter(isHex).map(hex => ({ hex, ...hexToHsl(hex) }))
+    .filter(c => c.s >= 0.3 && c.l >= 0.15 && c.l <= 0.92)
+    .sort((a, b) => b.s - a.s);
+  if (!pool.length) return "";
+  return (pool.find(c => c.hex.toLowerCase() !== exclude.toLowerCase()) || pool[0]).hex;
 }
 
 async function fetchThemeColors(baseUrl: string, apiToken: string): Promise<{ primary?: string; accent?: string }> {
@@ -124,13 +195,24 @@ async function fetchThemeColors(baseUrl: string, apiToken: string): Promise<{ pr
       if (c && c.id && c.color) customs[c.id] = c.color;
     }
     const resolve = (v?: string): string => !v ? "" : (v[0] === "#" ? v : (customs[v] || ""));
-    let primary = resolve("primary-brand-color") || customs["legacy-background-color"] ||
-      (typeof data?.globalTheme?.interfaceColor === "string" ? data.globalTheme.interfaceColor : "");
-    let accent = resolve(data?.desktopTheme?.components?.navigation?.accentColor);
-    if (!isHex(accent) || isNeutralExtreme(accent) || accent.toLowerCase() === String(primary).toLowerCase()) {
-      accent = resolve("secondary-brand-color");
+
+    // primary = darkest still-saturated theme color (it sits on the white widget bg);
+    // accent = most vivid color (only used in gradients). A configured brand color can
+    // be too light (e.g. #F7DDED) to read on white, so we never just trust it here.
+    const palette = [
+      ...Object.values(customs),
+      typeof data?.globalTheme?.interfaceColor === "string" ? data.globalTheme.interfaceColor : "",
+      resolve(data?.desktopTheme?.components?.navigation?.accentColor),
+    ].filter(c => isHex(c) && !isNeutralExtreme(c));
+
+    let primary = pickOnWhite(palette);
+    if (!primary) {
+      primary = resolve("primary-brand-color") || customs["legacy-background-color"] ||
+        (typeof data?.globalTheme?.interfaceColor === "string" ? data.globalTheme.interfaceColor : "");
+      if (isHex(primary)) primary = darkenToContrast(primary, 4.5);
     }
-    if (!isHex(accent) || isNeutralExtreme(accent)) accent = String(primary);
+    let accent = pickVivid(palette, primary) || resolve(data?.desktopTheme?.components?.navigation?.accentColor) || primary;
+
     return {
       primary: isHex(String(primary)) ? String(primary) : undefined,
       accent: isHex(String(accent)) ? String(accent) : undefined,
