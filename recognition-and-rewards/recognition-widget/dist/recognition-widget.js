@@ -90,7 +90,8 @@ function buildCss(p) {
 .${p}-from-name.${p}-plink:hover,.${p}-to.${p}-plink:hover{text-decoration:underline}
 a.${p}-av{cursor:pointer}
 /* Custom profile hovercard (mirrors the platform's native card) */
-.${p}-hovercard{position:fixed;z-index:99999;width:264px;background:#fff;border-radius:16px;box-shadow:0 14px 44px rgba(0,0,0,.18);overflow:hidden;opacity:0;transform:translateY(5px) scale(.98);transition:opacity .14s,transform .14s;pointer-events:none}
+.${p}-hovercard{position:fixed;z-index:99999;width:264px;background:#fff;border-radius:16px;box-shadow:0 14px 44px rgba(0,0,0,.18);overflow:hidden;opacity:0;transform:translateY(5px) scale(.98);transition:opacity .14s,transform .14s;pointer-events:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+.${p}-hovercard *{box-sizing:border-box;margin:0;padding:0}
 .${p}-hovercard.show{opacity:1;transform:none;pointer-events:auto}
 .${p}-hc-banner{height:58px;background:linear-gradient(135deg,var(--primary),var(--accent))}
 .${p}-hc-av{width:70px;height:70px;border-radius:50%;margin:-35px auto 0;border:4px solid #fff;background:linear-gradient(135deg,var(--primary),var(--accent));color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;overflow:hidden;position:relative;z-index:1}
@@ -243,17 +244,100 @@ function hexToRgb(hex) {
     const h = (hex.replace("#", "") + "000000").slice(0, 6);
     return `${parseInt(h.slice(0, 2), 16) || 0},${parseInt(h.slice(2, 4), 16) || 0},${parseInt(h.slice(4, 6), 16) || 0}`;
 }
-function contrastColor(hex) {
+function relLuminance(hex) {
     const h = (hex.replace("#", "") + "000000").slice(0, 6);
     const r = parseInt(h.slice(0, 2), 16) / 255, g = parseInt(h.slice(2, 4), 16) / 255, b = parseInt(h.slice(4, 6), 16) / 255;
     const lin = (c) => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-    const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-    return L > 0.45 ? "#1a1a1a" : "#ffffff";
+    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+}
+function contrastColor(hex) {
+    return relLuminance(hex) > 0.45 ? "#1a1a1a" : "#ffffff";
+}
+// Contrast ratio of a color against white (the widget's background).
+function contrastOnWhite(hex) {
+    return 1.05 / (relLuminance(hex) + 0.05);
+}
+function hexToHsl(hex) {
+    const x = (hex.replace("#", "") + "000000").slice(0, 6);
+    const r = parseInt(x.slice(0, 2), 16) / 255, g = parseInt(x.slice(2, 4), 16) / 255, b = parseInt(x.slice(4, 6), 16) / 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+    const l = (mx + mn) / 2;
+    let s = 0, h = 0;
+    if (d) {
+        s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+        if (mx === r)
+            h = ((g - b) / d) % 6;
+        else if (mx === g)
+            h = (b - r) / d + 2;
+        else
+            h = (r - g) / d + 4;
+        h *= 60;
+        if (h < 0)
+            h += 360;
+    }
+    return { h, s, l };
+}
+function hslToHex(h, s, l) {
+    const c = (1 - Math.abs(2 * l - 1)) * s;
+    const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+    const m = l - c / 2;
+    let r = 0, g = 0, b = 0;
+    if (h < 60)
+        [r, g, b] = [c, x, 0];
+    else if (h < 120)
+        [r, g, b] = [x, c, 0];
+    else if (h < 180)
+        [r, g, b] = [0, c, x];
+    else if (h < 240)
+        [r, g, b] = [0, x, c];
+    else if (h < 300)
+        [r, g, b] = [x, 0, c];
+    else
+        [r, g, b] = [c, 0, x];
+    const to = (v) => Math.round((v + m) * 255).toString(16).padStart(2, "0");
+    return `#${to(r)}${to(g)}${to(b)}`;
+}
+// Darken a color (keep hue/saturation) until it reads on a white background.
+function darkenToContrast(hex, target = 4.5) {
+    let { h, s, l } = hexToHsl(hex);
+    let out = hex;
+    for (let i = 0; i < 50 && contrastOnWhite(out) < target && l > 0.04; i++) {
+        l = Math.max(0, l - 0.02);
+        out = hslToHex(h, s, l);
+    }
+    return out;
+}
+// From a palette, pick the color to use ON WHITE (names, active tab, etc.): the
+// darkest one that's still clearly saturated, then darken further if it's still
+// too light to read. Returns "" if nothing usable (caller falls back).
+function pickOnWhite(cands) {
+    const isHex = (s) => /^#[0-9a-fA-F]{3,8}$/.test(s);
+    const scored = cands.filter(isHex).map(hex => (Object.assign(Object.assign({ hex }, hexToHsl(hex)), { contrast: contrastOnWhite(hex) })));
+    // Saturated, not near-white / near-black / gray.
+    let pool = scored.filter(c => c.s >= 0.35 && c.l >= 0.12 && c.l <= 0.85);
+    if (!pool.length)
+        pool = scored.filter(c => c.s >= 0.2 && c.l <= 0.9);
+    if (!pool.length)
+        return "";
+    // Darkest first (highest contrast on white); tie-break toward more saturated.
+    pool.sort((a, b) => (b.contrast - a.contrast) || (b.s - a.s));
+    return darkenToContrast(pool[0].hex, 4.5);
+}
+// Most vivid color in the palette (used for gradient accents, where it sits on a
+// colored background so light/bright is fine). Avoids matching `exclude`.
+function pickVivid(cands, exclude = "") {
+    const isHex = (s) => /^#[0-9a-fA-F]{3,8}$/.test(s);
+    const pool = cands.filter(isHex).map(hex => (Object.assign({ hex }, hexToHsl(hex))))
+        .filter(c => c.s >= 0.3 && c.l >= 0.15 && c.l <= 0.92)
+        .sort((a, b) => b.s - a.s);
+    if (!pool.length)
+        return "";
+    return (pool.find(c => c.hex.toLowerCase() !== exclude.toLowerCase()) || pool[0]).hex;
 }
 // Pull Primary/Accent from the Staffbase branding theme (token-auth GET).
 function fetchThemeColors(baseUrl, apiToken) {
     return __awaiter(this, void 0, void 0, function* () {
-        var _a, _b, _c, _d, _e;
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j;
         const isHex = (s) => /^#[0-9a-fA-F]{3,8}$/.test(s);
         const isNeutralExtreme = (s) => {
             const x = s.replace("#", "").toLowerCase();
@@ -275,20 +359,31 @@ function fetchThemeColors(baseUrl, apiToken) {
                     customs[c.id] = c.color;
             }
             const resolve = (v) => !v ? "" : (v[0] === "#" ? v : (customs[v] || ""));
-            let primary = resolve("primary-brand-color") || customs["legacy-background-color"] ||
-                (typeof ((_b = data === null || data === void 0 ? void 0 : data.globalTheme) === null || _b === void 0 ? void 0 : _b.interfaceColor) === "string" ? data.globalTheme.interfaceColor : "");
-            let accent = resolve((_e = (_d = (_c = data === null || data === void 0 ? void 0 : data.desktopTheme) === null || _c === void 0 ? void 0 : _c.components) === null || _d === void 0 ? void 0 : _d.navigation) === null || _e === void 0 ? void 0 : _e.accentColor);
-            if (!isHex(accent) || isNeutralExtreme(accent) || accent.toLowerCase() === String(primary).toLowerCase()) {
-                accent = resolve("secondary-brand-color");
+            // Gather every color the theme exposes, then choose intelligently:
+            //  - primary  = darkest still-saturated color (it sits on the white widget bg)
+            //  - accent   = most vivid color (only used in gradients, on colored bg)
+            // A configured brand color can be too light (e.g. #F7DDED) to read on white,
+            // so we never just trust primary-brand-color for on-white text.
+            const palette = [
+                ...Object.values(customs),
+                typeof ((_b = data === null || data === void 0 ? void 0 : data.globalTheme) === null || _b === void 0 ? void 0 : _b.interfaceColor) === "string" ? data.globalTheme.interfaceColor : "",
+                resolve((_e = (_d = (_c = data === null || data === void 0 ? void 0 : data.desktopTheme) === null || _c === void 0 ? void 0 : _c.components) === null || _d === void 0 ? void 0 : _d.navigation) === null || _e === void 0 ? void 0 : _e.accentColor),
+            ].filter(c => isHex(c) && !isNeutralExtreme(c));
+            let primary = pickOnWhite(palette);
+            // Fallback to the old resolution if the palette had nothing saturated.
+            if (!primary) {
+                primary = resolve("primary-brand-color") || customs["legacy-background-color"] ||
+                    (typeof ((_f = data === null || data === void 0 ? void 0 : data.globalTheme) === null || _f === void 0 ? void 0 : _f.interfaceColor) === "string" ? data.globalTheme.interfaceColor : "");
+                if (isHex(primary))
+                    primary = darkenToContrast(primary, 4.5);
             }
-            if (!isHex(accent) || isNeutralExtreme(accent))
-                accent = String(primary);
+            let accent = pickVivid(palette, primary) || resolve((_j = (_h = (_g = data === null || data === void 0 ? void 0 : data.desktopTheme) === null || _g === void 0 ? void 0 : _g.components) === null || _h === void 0 ? void 0 : _h.navigation) === null || _j === void 0 ? void 0 : _j.accentColor) || primary;
             return {
                 primary: isHex(String(primary)) ? String(primary) : undefined,
                 accent: isHex(String(accent)) ? String(accent) : undefined,
             };
         }
-        catch (_f) {
+        catch (_k) {
             return {};
         }
     });
@@ -908,10 +1003,12 @@ const factory = (BaseBlockClass, widgetApi) => {
                 // The platform's native hovercard is React/Radix-bound to its own nodes and
                 // can't attach to our injected links, so we render our own (same look) on
                 // hover of any [data-uid] author link, using the cached directory profile.
-                const rootEl = container.querySelector(`.${p}`);
                 const hc = document.createElement("div");
                 hc.className = `${p}-hovercard`;
-                rootEl.appendChild(hc);
+                // Appended to <body> (not the widget root) so position:fixed is viewport-relative
+                // and can't be thrown off by a transformed ancestor. Carry the theme vars inline.
+                hc.style.cssText = `--primary:${primaryColor};--primary-rgb:${primaryRgb};--accent:${accentColor};--accent-rgb:${accentRgb};--primary-text:${primaryText};--dark:#1A1A1A;--gray:#6b7280;--gray-lt:#9ca3af;--border:#e5e7eb`;
+                document.body.appendChild(hc);
                 let hcShowTimer = null;
                 let hcHideTimer = null;
                 function positionHover(anchor) {
