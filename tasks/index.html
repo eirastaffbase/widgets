@@ -27,7 +27,7 @@
   .badge{font-size:12px;font-weight:600;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);padding:5px 11px;border-radius:999px;backdrop-filter:blur(4px)}
 
   /* ── Cards ── */
-  main{margin-top:-78px;padding-bottom:72px}
+  main{position:relative;z-index:2;margin-top:-78px;padding-bottom:72px}
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:20px}
   .card{background:#fff;border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column;transition:transform .18s ease,box-shadow .18s ease}
   .card:hover{transform:translateY(-3px);box-shadow:0 2px 6px rgba(0,0,0,.07),0 18px 44px rgba(0,0,0,.1)}
@@ -54,6 +54,9 @@
   .btn:active{transform:scale(.97)}
   .btn-primary{background:var(--red);color:#fff;box-shadow:0 3px 10px rgba(var(--red-rgb),.3)}
   .btn-primary:hover{filter:brightness(1.05)}
+  .btn-ghost{background:#f3f4f6;color:var(--ink)}
+  .btn-ghost:hover{filter:brightness(.96)}
+  .btn-ghost.copied{background:#dcfce7;color:#166534}
 
   /* ── Preview modal ── */
   .overlay{position:fixed;inset:0;background:rgba(15,16,18,.55);backdrop-filter:blur(3px);opacity:0;pointer-events:none;transition:opacity .2s;z-index:1000;display:flex;flex-direction:column}
@@ -62,6 +65,46 @@
   .modal-bar h3{font-size:15px;font-weight:700}
   .modal-bar .sub{font-size:12px;opacity:.7}
   .modal-bar .spacer{flex:1}
+  .colors{display:flex;align-items:center;gap:12px}
+  .colors label{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:rgba(255,255,255,.85);text-transform:uppercase;letter-spacing:.04em;cursor:pointer;white-space:nowrap}
+  .colors input[type=color]{width:26px;height:26px;padding:0;border:1px solid rgba(255,255,255,.35);border-radius:7px;background:none;cursor:pointer}
+  .colors input[type=color]::-webkit-color-swatch-wrapper{padding:2px}
+  .colors input[type=color]::-webkit-color-swatch{border:none;border-radius:5px}
+  .colors .reset{border:none;background:rgba(255,255,255,.14);color:#fff;font-family:inherit;font-size:11px;font-weight:700;padding:6px 10px;border-radius:7px;cursor:pointer}
+  .colors .reset:hover{background:rgba(255,255,255,.26)}
+  .cfg-btn{border:none;background:rgba(255,255,255,.14);color:#fff;font-family:inherit;font-size:12px;font-weight:700;padding:7px 12px;border-radius:9px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+  .cfg-btn:hover,.cfg-btn.active{background:rgba(255,255,255,.28)}
+  @media(max-width:760px){
+    .modal-bar{flex-wrap:wrap}
+    .colors label span{display:none}
+  }
+
+  /* ── Config panel ── */
+  .config{flex-shrink:0;background:#fff;border-bottom:1px solid var(--line);padding:16px 20px;max-height:44vh;overflow:auto}
+  .config[hidden]{display:none}
+  .cfg-head{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+  .cfg-status{font-size:12.5px;font-weight:700;display:inline-flex;align-items:center;gap:6px}
+  .cfg-status.live{color:#166534}
+  .cfg-status.dummy{color:var(--gray)}
+  .cfg-actions{margin-left:auto;display:flex;gap:8px}
+  .cfg-actions button{border:none;border-radius:9px;padding:8px 15px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;background:var(--red);color:#fff}
+  .cfg-actions button:hover{filter:brightness(1.05)}
+  .cfg-actions button.ghost{background:#f3f4f6;color:var(--ink)}
+  .cfg-fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px 16px}
+  .cf{display:flex;flex-direction:column;gap:5px}
+  .cf>span{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;font-weight:700;color:var(--ink)}
+  .cf input[type=text],.cf input[type=password]{font-family:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;color:var(--ink);background:#fff;width:100%}
+  .cf input:focus{outline:none;border-color:var(--red)}
+  .cf-bool{flex-direction:row;align-items:center;gap:9px}
+  .cf-bool input{width:17px;height:17px;accent-color:var(--red);cursor:pointer}
+  .cf-bool span{font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:700;color:var(--ink)}
+  .cfg-hint{margin-top:13px;font-size:12px;color:var(--gray);line-height:1.55}
+  .cfg-hint b{color:var(--ink)}
+
+  /* ── Guide link ── */
+  .hero .cta{display:inline-flex;align-items:center;gap:8px;margin-top:24px;background:#fff;color:var(--red);font-size:14px;font-weight:800;text-decoration:none;padding:11px 18px;border-radius:11px;box-shadow:0 6px 20px rgba(0,0,0,.18);transition:transform .12s,box-shadow .12s}
+  .hero .cta:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(0,0,0,.24)}
+  .hero .cta svg{width:17px;height:17px}
   .seg{display:inline-flex;background:rgba(255,255,255,.14);border-radius:9px;padding:3px}
   .seg button{border:none;background:none;color:#fff;font-family:inherit;font-size:12px;font-weight:700;padding:5px 12px;border-radius:7px;cursor:pointer;opacity:.7}
   .seg button.active{background:#fff;color:var(--ink);opacity:1}
@@ -90,6 +133,10 @@
       <span class="badge">🎨 Primary + accent theming</span>
       <span class="badge">📱 Mobile &amp; desktop</span>
     </div>
+    <a class="cta" href="https://docs.google.com/document/d/1J5x0iB3HNisgN9VFwH60a32OB1CF23qwHg2HDgyrabI/edit?usp=sharing" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+      Read the install guide
+    </a>
   </div>
 </header>
 
@@ -111,12 +158,23 @@
       <div class="sub" id="m-sub"></div>
     </div>
     <div class="spacer"></div>
+    <button type="button" class="cfg-btn" id="m-cfg" title="Edit config parameters">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Config
+    </button>
+    <div class="colors" id="m-colors">
+      <label><span>Primary</span><input type="color" data-c="primarycolor" value="#da2e32" title="Primary color"></label>
+      <label><span>Accent</span><input type="color" data-c="accentcolor" value="#F2A900" title="Accent color"></label>
+      <label><span>Background</span><input type="color" data-c="backgroundcolor" value="#ffffff" title="Background color"></label>
+      <button type="button" class="reset" id="m-reset" title="Reset colors">Reset</button>
+    </div>
     <div class="seg" id="m-width">
       <button data-w="mobile" class="active">Mobile</button>
       <button data-w="desktop">Desktop</button>
     </div>
     <button class="x" id="m-close" aria-label="Close">✕</button>
   </div>
+  <div class="config" id="m-config" hidden></div>
   <div class="stage"><div class="device" id="device"></div></div>
   <div class="note">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
@@ -179,10 +237,47 @@ const DUMMY_SHEET_TASKS = {
   ],
 };
 
+// Audit-mode dummy data. My Tasks audit mode reads "[type: audit-result]" system
+// tasks (their description carries a JSON summary) plus "Audit finding:" tasks in the
+// same list. Two audits give the history tabs something to switch between.
+const DUMMY_AUDIT = {
+  audit1: {
+    list:{ id:"audit1", name:"Audit — June 12, 2026 9:12 AM", color:"#7C3AED", numberOfOpenTasks:3, numberOfClosedTasks:0 },
+    tasks:[
+      { id:"a1-sys", title:"Audit Result", description:'[type: audit-result] {"score":78,"passing":false,"taskCount":3,"store":"Store #1234","auditor":"Nicole Adams","date":"June 12, 2026","notes":"Two critical food-safety findings need same-day correction."}', status:"OPEN", priority:"Priority_3", dueDate:null, taskListId:"audit1", assigneeIds:[], groupIds:[], attachmentIds:[] },
+      { id:"a1-f1", title:"Walk-in cooler above safe temperature", description:"Audit finding: FS-003 — Walk-in cooler reading 6°C, above the 4°C maximum.\nAudit: Audit — June 12, 2026 9:12 AM\nAuditor: Nicole Adams\nSeverity: Critical", status:"OPEN", priority:"Priority_1", dueDate:"2026-06-15T00:00:00Z", taskListId:"audit1", assigneeIds:[MOCK_USER_ID], groupIds:[], attachmentIds:[] },
+      { id:"a1-f2", title:"Handwashing signage missing", description:"Audit finding: FS-011 — Handwashing reminder signage missing at the prep sink.\nAudit: Audit — June 12, 2026 9:12 AM\nAuditor: Nicole Adams\nSeverity: Critical", status:"OPEN", priority:"Priority_1", dueDate:"2026-06-16T00:00:00Z", taskListId:"audit1", assigneeIds:[MOCK_USER_ID], groupIds:[], attachmentIds:[] },
+      { id:"a1-f3", title:"Dry-storage shelving needs cleaning", description:"Audit finding: CL-007 — Dry-storage shelving shows dust build-up.\nAudit: Audit — June 12, 2026 9:12 AM\nAuditor: Nicole Adams", status:"OPEN", priority:"Priority_2", dueDate:"2026-06-18T00:00:00Z", taskListId:"audit1", assigneeIds:[MOCK_USER_ID], groupIds:[], attachmentIds:[] },
+    ],
+  },
+  audit2: {
+    list:{ id:"audit2", name:"Audit — June 5, 2026 2:30 PM", color:"#7C3AED", numberOfOpenTasks:0, numberOfClosedTasks:1 },
+    tasks:[
+      { id:"a2-sys", title:"Audit Result", description:'[type: audit-result] {"score":96,"passing":true,"taskCount":1,"store":"Store #6523","auditor":"Nicole Adams","date":"June 5, 2026","notes":"Strong pass — one minor merchandising fix."}', status:"OPEN", priority:"Priority_3", dueDate:null, taskListId:"audit2", assigneeIds:[], groupIds:[], attachmentIds:[] },
+      { id:"a2-f1", title:"Endcap planogram out of date", description:"Audit finding: MR-002 — Seasonal endcap not reset to the current planogram.\nAudit: Audit — June 5, 2026 2:30 PM\nAuditor: Nicole Adams", status:"CLOSED", priority:"Priority_3", dueDate:"2026-06-07T00:00:00Z", taskListId:"audit2", assigneeIds:[MOCK_USER_ID], groupIds:[], attachmentIds:[] },
+    ],
+  },
+};
+const DUMMY_LISTS_BY_INST = {
+  inst1: [ { id:"list1", name:"June Tasks", color:"#0369A1", numberOfOpenTasks:3, numberOfClosedTasks:1 }, DUMMY_AUDIT.audit1.list ],
+  inst2: [ DUMMY_AUDIT.audit2.list ],
+};
+// Recurring-task templates — hidden "[type: recur-template]" tasks whose [rrule:] tag
+// encodes the schedule. The Recurring Tasks widget scans task lists for these; My Tasks
+// hides them. Kept on list1 so the schedule builder + calendar have data to show.
+const DUMMY_RECUR = [
+  { id:"tpl-safety", title:"Pre-Shift Safety Huddle", description:"Run the pre-shift safety briefing with all floor associates. [type: recur-template] [rrule: id=sched-safety;f=WEEKLY;i=1;d=MO,TU,WE,TH,FR;time=08:00;tz=America/Los_Angeles;due=0;lvl=high;t=Safety;s=2026-06-01]", status:"OPEN", priority:"Priority_1", dueDate:null, taskListId:"list1", assigneeIds:[MOCK_USER_ID], groupIds:["grp-crew"], attachmentIds:[] },
+  { id:"tpl-inv", title:"Month-End Inventory Count", description:"Complete the full month-end inventory count — dry goods, proteins, produce. [type: recur-template] [rrule: id=sched-inv;f=MONTHLY;i=1;mm=dom;dom=28;time=18:00;tz=America/Los_Angeles;due=2;lvl=critical;t=Finance;s=2026-06-01]", status:"OPEN", priority:"Priority_1", dueDate:null, taskListId:"list1", assigneeIds:[MOCK_USER_ID], groupIds:["grp-mgr"], attachmentIds:[] },
+  { id:"tpl-dt", title:"Drive-Thru Timing Check", description:"Log drive-thru service times during the lunch peak. [type: recur-template] [rrule: id=sched-dt;f=DAILY;i=1;time=12:00;tz=America/Los_Angeles;due=0;lvl=normal;t=Operations;s=2026-06-01]", status:"OPEN", priority:"Priority_3", dueDate:null, taskListId:"list1", assigneeIds:[MOCK_USER_ID], groupIds:[], attachmentIds:[] },
+];
+
 function mockJson(data){ const b=JSON.stringify(data); return { ok:true, status:200, json:async()=>data, text:async()=>b, headers:{get:()=>null} }; }
 
-// Airtight fetch: nothing real. Sheet stubbed, translations echoed, writes faked.
+// Live mode → real network (uses the user's apitoken). Dummy mode → airtight mock below.
+const nativeFetch = window.fetch.bind(window);
+let liveMode = false;
 window.fetch = async (url, opts) => {
+  if (liveMode) return nativeFetch(url, opts);
   const u = String(url); const method = ((opts&&opts.method)||"GET").toUpperCase();
   await new Promise(r=>setTimeout(r,120));
 
@@ -200,8 +295,17 @@ window.fetch = async (url, opts) => {
     if (method!=="GET") return mockJson({ id:"preview-"+Math.random().toString(36).slice(2), status:"OPEN" }); // fake write
     if (u.includes("/installations")) return mockJson(DUMMY_INSTALLS);
     if (u.includes("/branch")) return mockJson({ id:"preview", config:{ defaultLocale:"en_US", availableLocales:["en_US","es_ES","de_DE","fr_FR","zh_CN","ar_SA"] } });
-    if (/\/lists\b/.test(u) || /\/tasklist/.test(u)) return mockJson([{ id:"list1", name:"June Tasks", color:"#0369A1", numberOfOpenTasks:3, numberOfClosedTasks:1 }]);
-    if (/\/task(\b|\?)/.test(u)) return mockJson(DUMMY_TASKS);
+    if (/\/lists\b/.test(u) || /\/tasklist/.test(u)) {
+      const im = u.match(/\/tasks\/([^/]+)\/lists/);
+      const instId = im ? im[1] : "inst1";
+      return mockJson(DUMMY_LISTS_BY_INST[instId] || DUMMY_LISTS_BY_INST.inst1);
+    }
+    if (/\/task(\b|\?)/.test(u)) {
+      const lm = u.match(/[?&]listId=([^&]+)/);
+      const lid = lm ? decodeURIComponent(lm[1]) : "";
+      if (DUMMY_AUDIT[lid]) return mockJson(DUMMY_AUDIT[lid].tasks);
+      return mockJson(DUMMY_TASKS.concat(DUMMY_RECUR)); // list1 / default (recur templates hidden in My Tasks)
+    }
     if (u.includes("/comments")) return mockJson(DUMMY_COMMENTS);
     if (u.includes("/groups/search")) return mockJson(DUMMY_GROUPS_SEARCH);
     if (u.includes("/groups")) return mockJson(DUMMY_GROUPS);
@@ -298,6 +402,7 @@ grid.innerHTML = WIDGETS.map(w => `
       </details>
       <div class="actions">
         <button class="btn btn-primary" data-key="${w.key}">▶ Live preview</button>
+        <button class="btn btn-ghost" data-copy="${w.key}">Copy install link</button>
       </div>
     </div>
   </div>`).join("");
@@ -308,6 +413,9 @@ const device  = document.getElementById("device");
 const mTitle  = document.getElementById("m-title");
 const mSub    = document.getElementById("m-sub");
 let currentWidget = null;
+const COLOR_DEFAULTS = { primarycolor:"#da2e32", accentcolor:"#F2A900", backgroundcolor:"" };
+let colorOverrides = {};
+let configOverrides = {};
 
 function renderWidget(w){
   device.innerHTML = "";
@@ -316,10 +424,12 @@ function renderWidget(w){
   const WidgetClass = def.blockDefinition.factory(MockBaseBlock, mockWidgetApi);
   const inst = new WidgetClass();
   inst._attrs = Object.assign({
-    apitoken:"preview-token", baseurl:"https://app.staffbase.com/api",
+    apitoken:"", baseurl:"https://app.staffbase.com/api",
     primarycolor:"#da2e32", accentcolor:"#F2A900", backgroundcolor:"",
     storelabelsingular:"Store", storelabelplural:"Stores",
-  }, w.attrs || {});
+  }, w.attrs || {}, configOverrides, colorOverrides);
+  // Live data only when the user supplied their own API token; otherwise dummy data.
+  liveMode = !!String(inst._attrs.apitoken || "").trim();
   try { inst.renderBlock(device); }
   catch(e){ device.innerHTML = `<div style="padding:40px;text-align:center;color:#da2e32">Preview error: ${e.message}</div>`; }
 }
@@ -328,6 +438,11 @@ function openPreview(key){
   currentWidget = WIDGETS.find(x=>x.key===key);
   mTitle.textContent = currentWidget.name;
   mSub.textContent = currentWidget.note || "Live preview · dummy data";
+  resetColors();
+  configOverrides = {};
+  buildConfig(currentWidget);
+  mConfig.hidden = true;
+  document.getElementById("m-cfg").classList.remove("active");
   overlay.classList.add("open");
   document.body.style.overflow = "hidden";
   // default mobile width
@@ -346,7 +461,17 @@ function closePreview(){
   });
 }
 
-grid.addEventListener("click", e=>{ const b=e.target.closest("[data-key]"); if(b){ location.hash=b.dataset.key; openPreview(b.dataset.key); } });
+grid.addEventListener("click", e=>{
+  const copy=e.target.closest("[data-copy]");
+  if(copy){
+    const url=new URL(`${copy.dataset.copy}/dist/${copy.dataset.copy}.js`, location.href).href;
+    const done=()=>{ const t=copy.textContent; copy.textContent="✓ Copied!"; copy.classList.add("copied"); setTimeout(()=>{ copy.textContent=t; copy.classList.remove("copied"); },1600); };
+    if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(url).then(done).catch(()=>prompt("Copy install link:",url)); }
+    else { prompt("Copy install link:",url); }
+    return;
+  }
+  const b=e.target.closest("[data-key]"); if(b){ location.hash=b.dataset.key; openPreview(b.dataset.key); }
+});
 // Deep-link: #widget-key auto-opens that preview (shareable). Wait for bundles to register.
 function openFromHash(){
   const key=location.hash.replace(/^#/,"");
@@ -359,6 +484,112 @@ window.addEventListener("hashchange", openFromHash);
 document.getElementById("m-close").addEventListener("click", closePreview);
 overlay.addEventListener("click", e=>{ if(e.target===overlay) closePreview(); });
 document.addEventListener("keydown", e=>{ if(e.key==="Escape" && overlay.classList.contains("open")) closePreview(); });
+// ── Config editor ──────────────────────────────────────────────────────────
+const mConfig = document.getElementById("m-config");
+// Colors get dedicated pickers above, so they're skipped in the generated fields.
+const COLOR_PICKER_KEYS = new Set(["primarycolor","accentcolor","backgroundcolor"]);
+const CONFIG_BASE = { apitoken:"", baseurl:"https://app.staffbase.com/api", storelabelsingular:"Store", storelabelplural:"Stores" };
+function escAttr(s){ return String(s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;"); }
+
+// Pull every configurable param straight from the widget's registered block
+// definition (configurationSchema), so anything added later shows up automatically.
+// Returns [{key, type, def, title}] in the block's declared attribute order, or null
+// if the bundle hasn't registered yet (we fall back to the static catalogue defaults).
+function schemaParams(key){
+  const def = registeredBlocks[key];
+  const bd = def && def.blockDefinition;
+  const schema = bd && bd.configurationSchema;
+  if(!bd || !schema || !schema.properties) return null;
+  const props = Object.assign({}, schema.properties);
+  // Conditional params live under dependencies.*.oneOf[].properties (e.g. primary/accent).
+  const deps = schema.dependencies || {};
+  for(const dk in deps){
+    for(const branch of (deps[dk].oneOf || [])){
+      const bp = branch.properties || {};
+      for(const pk in bp){ if(pk!==dk && !props[pk]) props[pk] = bp[pk]; }
+    }
+  }
+  const order = (bd.attributes && bd.attributes.length ? bd.attributes.slice() : Object.keys(props)).filter(k=>props[k]);
+  for(const k in props){ if(order.indexOf(k)===-1) order.push(k); }
+  return order.map(k=>({ key:k, type:props[k].type, def:props[k].default!=null?String(props[k].default):"", title:props[k].title||k }));
+}
+
+function fieldHtml(key,type,val,title){
+  const t = title?` title="${escAttr(title)}"`:"";
+  if(key==="apitoken")
+    return `<label class="cf"${t}><span>apitoken</span><input type="password" data-k="apitoken" value="${escAttr(val)}" placeholder="Blank = dummy data" autocomplete="off"></label>`;
+  if(type==="boolean"||val==="true"||val==="false")
+    return `<label class="cf cf-bool"${t}><input type="checkbox" data-k="${key}" ${val==="true"?"checked":""}><span>${key}</span></label>`;
+  return `<label class="cf"${t}><span>${key}</span><input type="text" data-k="${key}" value="${escAttr(val)}"></label>`;
+}
+function buildConfig(w){
+  const params = schemaParams(w.key);
+  const attrs = w.attrs || {};
+  let entries;
+  if(params){
+    entries = params.filter(p=>!COLOR_PICKER_KEYS.has(p.key)).map(p=>({
+      key:p.key, type:p.type, title:p.title,
+      // Preview defaults (w.attrs) win over the schema default; apitoken is forced
+      // blank so previews start on dummy data (the schema default is a real token).
+      val: p.key==="apitoken" ? "" : (attrs[p.key]!=null ? String(attrs[p.key]) : p.def),
+    }));
+  } else {
+    // Fallback before the bundle registers: static catalogue defaults.
+    const cfg = Object.assign({}, CONFIG_BASE, attrs);
+    entries = Object.keys(cfg).map(k=>({ key:k, type:(cfg[k]==="true"||cfg[k]==="false")?"boolean":"string", title:k, val:cfg[k] }));
+  }
+  mConfig.innerHTML = `
+    <div class="cfg-head">
+      <span class="cfg-status" id="cfg-status"></span>
+      <div class="cfg-actions">
+        <button type="button" id="cfg-apply">Apply &amp; reload</button>
+        <button type="button" id="cfg-reset" class="ghost">Reset</button>
+      </div>
+    </div>
+    <div class="cfg-fields">${entries.map(e=>fieldHtml(e.key,e.type,e.val,e.title)).join("")}</div>
+    <p class="cfg-hint">Change any parameter (e.g. toggle <b>auditmode</b> or edit <b>typecolors</b>) and hit <b>Apply &amp; reload</b> — these work with dummy data too. Enter your Staffbase <b>apitoken</b> to fetch <b>live data</b> instead; live calls go straight from your browser to the API/sheet. Leave it blank to stay on dummy data.</p>`;
+  document.getElementById("cfg-apply").onclick = applyConfig;
+  document.getElementById("cfg-reset").onclick = ()=>{ configOverrides={}; buildConfig(w); if(currentWidget) renderWidget(currentWidget); };
+  updateCfgStatus();
+}
+function applyConfig(){
+  configOverrides = {};
+  mConfig.querySelectorAll("[data-k]").forEach(inp=>{
+    configOverrides[inp.dataset.k] = inp.type==="checkbox" ? (inp.checked?"true":"false") : inp.value;
+  });
+  if(currentWidget) renderWidget(currentWidget);
+  updateCfgStatus();
+}
+function updateCfgStatus(){
+  const el = document.getElementById("cfg-status"); if(!el) return;
+  const inp = mConfig.querySelector('[data-k="apitoken"]');
+  const tok = String((inp ? inp.value : "")||"").trim();
+  el.className = "cfg-status "+(tok?"live":"dummy");
+  el.textContent = tok ? "● Live data — using your apitoken" : "● Dummy data — no API calls";
+}
+document.getElementById("m-cfg").addEventListener("click", ()=>{
+  mConfig.hidden = !mConfig.hidden;
+  document.getElementById("m-cfg").classList.toggle("active", !mConfig.hidden);
+});
+mConfig.addEventListener("input", e=>{ if(e.target.dataset && e.target.dataset.k==="apitoken") updateCfgStatus(); });
+
+// Live color editing — apply overrides and re-render the widget.
+function resetColors(){
+  colorOverrides = {};
+  document.querySelectorAll("#m-colors input[type=color]").forEach(inp=>{
+    const def = COLOR_DEFAULTS[inp.dataset.c];
+    inp.value = def || "#ffffff";
+  });
+}
+document.getElementById("m-colors").addEventListener("input", e=>{
+  const inp = e.target.closest("input[type=color]"); if(!inp) return;
+  colorOverrides[inp.dataset.c] = inp.value;
+  if(currentWidget) renderWidget(currentWidget);
+});
+document.getElementById("m-reset").addEventListener("click", ()=>{
+  resetColors();
+  if(currentWidget) renderWidget(currentWidget);
+});
 document.getElementById("m-width").addEventListener("click", e=>{
   const b=e.target.closest("button"); if(!b) return;
   document.querySelectorAll("#m-width button").forEach(x=>x.classList.remove("active"));
