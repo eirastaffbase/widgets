@@ -67,6 +67,8 @@ export const STRINGS: Bundles = {
     immediately: "Immediately",
     unassigned: "— Unassigned —",
     withinDays: "Within {d}d",
+    notifyAssignedText: "You were assigned a new task: {title}",
+    notifyGroupAssignedText: "Your group {group} was assigned a task: {title}",
     auditor: "Auditor",
     scoreSummary: "{e} / {t} pts · {a} of {c} answered",
     nThreshold: "{n}% threshold",

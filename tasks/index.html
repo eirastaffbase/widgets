@@ -126,7 +126,7 @@
   <div class="wrap">
     <div class="eyebrow"><span class="dot"></span> Staffbase Widgets</div>
     <h1>Task Widgets</h1>
-    <p>Four widgets for creating, running, auditing, and scheduling Staffbase tasks — each auto-translates to the viewer's language and adapts to your brand colors. Click any widget to preview it live.</p>
+    <p>Five widgets for creating, managing, auditing, and scheduling Staffbase tasks — each auto-translates to the viewer's language and adapts to your brand colors. Click any widget to preview it live.</p>
     <div class="badges">
       <span class="badge">🌍 15 locales · auto-detected</span>
       <span class="badge">↔ RTL support</span>
@@ -200,11 +200,13 @@ const registeredBlocks = {};
 window.defineBlock = (def) => { registeredBlocks[def.blockDefinition.name] = def; };
 
 // ── Dummy data ──────────────────────────────────────────────────────────
+// system_manager points at the viewer's externalID ("100") so Manager Tasks'
+// "direct reports" mode resolves Maria/James/Priya as Nicole's team.
 const DUMMY_USERS = {
-  "u-maria": { id:"u-maria", firstName:"Maria", lastName:"Lopez", avatar:{icon:{url:"https://i.pravatar.cc/100?img=5"}} },
-  "u-james": { id:"u-james", firstName:"James", lastName:"Chen",  avatar:{icon:{url:"https://i.pravatar.cc/100?img=12"}} },
-  "u-priya": { id:"u-priya", firstName:"Priya", lastName:"Nair",  avatar:{icon:{url:"https://i.pravatar.cc/100?img=32"}} },
-  [MOCK_USER_ID]: { id:MOCK_USER_ID, firstName:"Nicole", lastName:"Adams", config:{locale:"en_US"}, avatar:{icon:{url:"https://i.pravatar.cc/100?img=47"}} },
+  "u-maria": { id:"u-maria", firstName:"Maria", lastName:"Lopez", profile:{system_manager:"100"}, avatar:{icon:{url:"https://i.pravatar.cc/100?img=5"}} },
+  "u-james": { id:"u-james", firstName:"James", lastName:"Chen",  profile:{system_manager:"100"}, avatar:{icon:{url:"https://i.pravatar.cc/100?img=12"}} },
+  "u-priya": { id:"u-priya", firstName:"Priya", lastName:"Nair",  profile:{system_manager:"100"}, avatar:{icon:{url:"https://i.pravatar.cc/100?img=32"}} },
+  [MOCK_USER_ID]: { id:MOCK_USER_ID, firstName:"Nicole", lastName:"Adams", externalID:"100", config:{locale:"en_US"}, avatar:{icon:{url:"https://i.pravatar.cc/100?img=47"}} },
 };
 const DUMMY_USERS_LIST = { data: Object.values(DUMMY_USERS) };
 const DUMMY_GROUPS = { data:[
@@ -218,16 +220,42 @@ const DUMMY_INSTALLS = { data:[
   { id:"inst1", pluginID:"tasks", config:{localization:{en_US:{title:"Store #1234"}}} },
   { id:"inst2", pluginID:"tasks", config:{localization:{en_US:{title:"Store #6523"}}} },
 ]};
+// Manager Tasks shows the whole team; My Tasks (showalltasks=false) filters to
+// the viewer, so the u-maria/james/priya tasks below only surface in Manager
+// Tasks. createDate/updateDate feed the Manager "Recent activity" feed.
 const DUMMY_TASKS = [
-  { id:"t1", title:"EOM Inventory Count", description:"Complete full store inventory count for April — dry goods, proteins, produce, packaging. [type: Finance]", status:"OPEN", dueDate:"2026-06-30T00:00:00Z", priority:"Priority_1", taskListId:"list1", assigneeIds:[MOCK_USER_ID], groupIds:[], attachmentIds:[] },
-  { id:"t2", title:"Drive-Thru Speed of Service Focus", description:"Review drive-thru times with shift leads this week. [type: Operations]", status:"OPEN", dueDate:"2026-06-12T00:00:00Z", priority:"Priority_2", taskListId:"list1", assigneeIds:[MOCK_USER_ID], groupIds:[], attachmentIds:[] },
-  { id:"t3", title:"Q2 Food Safety Certification", description:"Ensure all shift leads have completed ServSafe. [type: Compliance]", status:"OPEN", dueDate:"2026-06-18T00:00:00Z", priority:"Priority_3", taskListId:"list1", assigneeIds:[MOCK_USER_ID], groupIds:[], attachmentIds:[] },
-  { id:"t4", title:"Guest Love Training Module", description:"Complete the 15-min customer interaction refresher. [type: Training]", status:"CLOSED", dueDate:"2026-05-20T00:00:00Z", priority:"Priority_3", taskListId:"list1", assigneeIds:[MOCK_USER_ID], groupIds:[], attachmentIds:[] },
+  { id:"t1", title:"EOM Inventory Count", description:"Complete full store inventory count for April — dry goods, proteins, produce, packaging. [type: Finance]", status:"OPEN", dueDate:"2026-06-30T00:00:00Z", priority:"Priority_1", taskListId:"list1", assigneeIds:[MOCK_USER_ID], groupIds:[], attachmentIds:[], creatorId:MOCK_USER_ID, createDate:"2026-06-19T08:00:00Z", updateDate:"2026-06-19T08:00:00Z" },
+  { id:"t2", title:"Drive-Thru Speed of Service Focus", description:"Review drive-thru times with shift leads this week. [type: Operations]", status:"OPEN", dueDate:"2026-06-12T00:00:00Z", priority:"Priority_2", taskListId:"list1", assigneeIds:[MOCK_USER_ID], groupIds:[], attachmentIds:[], creatorId:MOCK_USER_ID, createDate:"2026-06-15T08:00:00Z", updateDate:"2026-06-15T08:00:00Z" },
+  { id:"t3", title:"Q2 Food Safety Certification", description:"Ensure all shift leads have completed ServSafe. [type: Compliance]", status:"OPEN", dueDate:"2026-06-18T00:00:00Z", priority:"Priority_3", taskListId:"list1", assigneeIds:[MOCK_USER_ID], groupIds:[], attachmentIds:[], creatorId:MOCK_USER_ID, createDate:"2026-06-14T08:00:00Z", updateDate:"2026-06-14T08:00:00Z" },
+  { id:"t4", title:"Guest Love Training Module", description:"Complete the 15-min customer interaction refresher. [type: Training]", status:"CLOSED", dueDate:"2026-05-20T00:00:00Z", priority:"Priority_3", taskListId:"list1", assigneeIds:[MOCK_USER_ID], groupIds:[], attachmentIds:[], creatorId:MOCK_USER_ID, createDate:"2026-05-12T08:00:00Z", updateDate:"2026-06-23T07:30:00Z" },
+  // ── Team members' tasks (Manager Tasks only) ──
+  { id:"m1", title:"Verify allergen labels", description:"Check allergen labels on all prep stations. [type: Compliance]", status:"OPEN", dueDate:"2026-06-20T00:00:00Z", priority:"Priority_1", taskListId:"list1", assigneeIds:["u-maria"], groupIds:[], attachmentIds:[], creatorId:MOCK_USER_ID, createDate:"2026-06-18T09:00:00Z", updateDate:"2026-06-18T09:00:00Z" },
+  { id:"m2", title:"Deep clean fryer station", description:"Full breakdown and clean of fryer station B. [type: Operations]", status:"CLOSED", dueDate:"2026-06-19T00:00:00Z", priority:"Priority_2", taskListId:"list1", assigneeIds:["u-james"], groupIds:[], attachmentIds:[], creatorId:MOCK_USER_ID, createDate:"2026-06-15T09:00:00Z", updateDate:"2026-06-22T14:30:00Z" },
+  { id:"m3", title:"Onboard new shift lead", description:"Run first-week onboarding checklist with new hire. [type: Training]", status:"OPEN", dueDate:"2026-07-02T00:00:00Z", priority:"Priority_3", taskListId:"list1", assigneeIds:["u-priya"], groupIds:[], attachmentIds:[], creatorId:MOCK_USER_ID, createDate:"2026-06-22T11:00:00Z", updateDate:"2026-06-22T11:00:00Z" },
+  { id:"m4", title:"Monthly equipment inspection", description:"Inspect fryer calibration, hood filters, refrigeration. [type: Operations]", status:"OPEN", dueDate:"2026-06-28T00:00:00Z", priority:"Priority_2", taskListId:"list1", assigneeIds:["u-james"], groupIds:[], attachmentIds:[], creatorId:MOCK_USER_ID, createDate:"2026-06-21T09:00:00Z", updateDate:"2026-06-21T09:00:00Z" },
+  { id:"m5", title:"Restock drive-thru station", description:"Refill sauces, napkins, cups before lunch peak. [type: Operations]", status:"CLOSED", dueDate:"2026-06-21T00:00:00Z", priority:"Priority_3", taskListId:"list1", assigneeIds:["u-maria"], groupIds:[], attachmentIds:[], creatorId:MOCK_USER_ID, createDate:"2026-06-20T09:00:00Z", updateDate:"2026-06-21T16:10:00Z" },
+  { id:"m6", title:"Quarterly compliance review", description:"Review updated food-handling policy, sign acknowledgement. [type: Compliance]", status:"OPEN", dueDate:"2026-06-16T00:00:00Z", priority:"Priority_1", taskListId:"list1", assigneeIds:["u-priya"], groupIds:[], attachmentIds:[], creatorId:MOCK_USER_ID, createDate:"2026-06-12T09:00:00Z", updateDate:"2026-06-12T09:00:00Z" },
+  { id:"m7", title:"Update menu board artwork", description:"Swap in the June LTO panels. [type: Merchandising]", status:"CLOSED", dueDate:"2026-06-20T00:00:00Z", priority:"Priority_3", taskListId:"list1", assigneeIds:["u-maria"], groupIds:[], attachmentIds:[], creatorId:MOCK_USER_ID, createDate:"2026-06-17T09:00:00Z", updateDate:"2026-06-20T13:00:00Z" },
+  { id:"m8", title:"Schedule HVAC maintenance", description:"Book the quarterly HVAC service visit. [type: Operations]", status:"OPEN", dueDate:"2026-06-27T00:00:00Z", priority:"Priority_2", taskListId:"list1", assigneeIds:["u-james"], groupIds:[], attachmentIds:[], creatorId:MOCK_USER_ID, createDate:"2026-06-20T09:00:00Z", updateDate:"2026-06-20T09:00:00Z" },
+  // Recurring instance (generated by the scheduler — carries a [recur:] stamp) → "A recurring task was created for …"
+  { id:"m9", title:"Pre-Shift Safety Huddle", description:"Run the pre-shift safety briefing. [type: Safety] [recur: sched-safety@2026-06-23]", status:"OPEN", dueDate:"2026-06-23T00:00:00Z", priority:"Priority_1", taskListId:"list1", assigneeIds:["u-james"], groupIds:[], attachmentIds:[], creatorId:"token-runner", createDate:"2026-06-23T06:00:00Z", updateDate:"2026-06-23T06:00:00Z" },
 ];
 const DUMMY_COMMENTS = { data:[
   { id:"c1", authorId:"u-maria", content:"<p>Started the dry-storage count — about halfway done.</p>", createdAt:new Date(Date.now()-936e5).toISOString() },
   { id:"c2", authorId:"u-james", content:"<p>Thanks Maria! I'll take the walk-in cooler this afternoon.</p>", createdAt:new Date(Date.now()-108e5).toISOString() },
 ], total:2 };
+// Per-task comments for the activity feed. t1 also carries a hidden [tasks:edit]
+// audit comment — it appears as an edit in Manager Tasks' activity feed but is
+// suppressed from the visible comment list everywhere.
+const DUMMY_COMMENTS_BY_TASK = {
+  t1: { data:[
+    { id:"c1", authorId:"u-maria", content:"<p>Started the dry-storage count — about halfway done.</p>", createdAt:new Date(Date.now()-936e5).toISOString() },
+    { id:"e1", authorId:MOCK_USER_ID, content:"<p>[tasks:edit] reassigned “EOM Inventory Count” to Maria Lopez</p>", createdAt:new Date(Date.now()-72e5).toISOString() },
+  ], total:2 },
+  m1: { data:[
+    { id:"c3", authorId:"u-priya", content:"<p>Labels verified on stations 1–3, finishing the rest after lunch.</p>", createdAt:new Date(Date.now()-54e5).toISOString() },
+  ], total:1 },
+};
 const DUMMY_SHEET_TASKS = {
   sheet:"Preview",
   tasks:[
@@ -266,9 +294,9 @@ const DUMMY_LISTS_BY_INST = {
 // encodes the schedule. The Recurring Tasks widget scans task lists for these; My Tasks
 // hides them. Kept on list1 so the schedule builder + calendar have data to show.
 const DUMMY_RECUR = [
-  { id:"tpl-safety", title:"Pre-Shift Safety Huddle", description:"Run the pre-shift safety briefing with all floor associates. [type: recur-template] [rrule: id=sched-safety;f=WEEKLY;i=1;d=MO,TU,WE,TH,FR;time=08:00;tz=America/Los_Angeles;due=0;lvl=high;t=Safety;s=2026-06-01]", status:"OPEN", priority:"Priority_1", dueDate:null, taskListId:"list1", assigneeIds:[MOCK_USER_ID], groupIds:["grp-crew"], attachmentIds:[] },
-  { id:"tpl-inv", title:"Month-End Inventory Count", description:"Complete the full month-end inventory count — dry goods, proteins, produce. [type: recur-template] [rrule: id=sched-inv;f=MONTHLY;i=1;mm=dom;dom=28;time=18:00;tz=America/Los_Angeles;due=2;lvl=critical;t=Finance;s=2026-06-01]", status:"OPEN", priority:"Priority_1", dueDate:null, taskListId:"list1", assigneeIds:[MOCK_USER_ID], groupIds:["grp-mgr"], attachmentIds:[] },
-  { id:"tpl-dt", title:"Drive-Thru Timing Check", description:"Log drive-thru service times during the lunch peak. [type: recur-template] [rrule: id=sched-dt;f=DAILY;i=1;time=12:00;tz=America/Los_Angeles;due=0;lvl=normal;t=Operations;s=2026-06-01]", status:"OPEN", priority:"Priority_3", dueDate:null, taskListId:"list1", assigneeIds:[MOCK_USER_ID], groupIds:[], attachmentIds:[] },
+  { id:"tpl-safety", title:"Pre-Shift Safety Huddle", description:"Run the pre-shift safety briefing with all floor associates. [type: recur-template] [rrule: id=sched-safety;f=WEEKLY;i=1;d=MO,TU,WE,TH,FR;time=08:00;tz=America/Los_Angeles;due=0;lvl=high;t=Safety;s=2026-06-01]", status:"OPEN", priority:"Priority_1", dueDate:null, taskListId:"list1", creatorId:MOCK_USER_ID, createDate:"2026-06-10T09:00:00Z", assigneeIds:[MOCK_USER_ID], groupIds:["grp-crew"], attachmentIds:[] },
+  { id:"tpl-inv", title:"Month-End Inventory Count", description:"Complete the full month-end inventory count — dry goods, proteins, produce. [type: recur-template] [rrule: id=sched-inv;f=MONTHLY;i=1;mm=dom;dom=28;time=18:00;tz=America/Los_Angeles;due=2;lvl=critical;t=Finance;s=2026-06-01]", status:"OPEN", priority:"Priority_1", dueDate:null, taskListId:"list1", creatorId:MOCK_USER_ID, createDate:"2026-06-10T09:00:00Z", assigneeIds:[MOCK_USER_ID], groupIds:["grp-mgr"], attachmentIds:[] },
+  { id:"tpl-dt", title:"Drive-Thru Timing Check", description:"Log drive-thru service times during the lunch peak. [type: recur-template] [rrule: id=sched-dt;f=DAILY;i=1;time=12:00;tz=America/Los_Angeles;due=0;lvl=normal;t=Operations;s=2026-06-01]", status:"OPEN", priority:"Priority_3", dueDate:null, taskListId:"list1", creatorId:MOCK_USER_ID, createDate:"2026-06-10T09:00:00Z", assigneeIds:[MOCK_USER_ID], groupIds:[], attachmentIds:[] },
 ];
 
 function mockJson(data){ const b=JSON.stringify(data); return { ok:true, status:200, json:async()=>data, text:async()=>b, headers:{get:()=>null} }; }
@@ -306,7 +334,10 @@ window.fetch = async (url, opts) => {
       if (DUMMY_AUDIT[lid]) return mockJson(DUMMY_AUDIT[lid].tasks);
       return mockJson(DUMMY_TASKS.concat(DUMMY_RECUR)); // list1 / default (recur templates hidden in My Tasks)
     }
-    if (u.includes("/comments")) return mockJson(DUMMY_COMMENTS);
+    if (u.includes("/comments")) {
+      const tid = (u.match(/\/task\/([^/]+)\/comments/) || [])[1] || "";
+      return mockJson(DUMMY_COMMENTS_BY_TASK[tid] || { data:[], total:0 });
+    }
     if (u.includes("/groups/search")) return mockJson(DUMMY_GROUPS_SEARCH);
     if (u.includes("/groups")) return mockJson(DUMMY_GROUPS);
     if (/\/users\/[^/?]+/.test(u)) { const id=u.split("/users/")[1].split(/[?#]/)[0]; return mockJson(DUMMY_USERS[id]||{id,firstName:"Team",lastName:"Member"}); }
@@ -343,6 +374,22 @@ const WIDGETS = [
       ["debugmode","On-screen debug log (true/false)."],
     ],
     attrs:{ showalltasks:"false", showdonetasks:"true", enablecomments:"true", allowtaskcreation:"true", auditmode:"false" },
+  },
+  {
+    key:"manager-tasks-widget", name:"Manager Tasks", tag:"Team dashboard",
+    icon:'<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
+    desc:"A manager-facing dashboard across the team's Tasks spaces. Filter every task by team member, see completion-rate, overdue and per-member charts plus a recent-activity feed, and reassign any task to multiple people and groups at once.",
+    feats:["Team-member filter","Completion + overdue charts","Per-member breakdown","Recent-activity feed","Multi-assign reassign"],
+    params:[...COMMON,
+      ["teamsource","Who fills the dropdown: reports (direct reports) / userids / everyone."],
+      ["teamuserids","Comma-separated user IDs (when teamsource=userids)."],
+      ["showcharts","Show the dashboard charts + activity feed (true/false)."],
+      ["typecolors","Comma-separated hex palette for type badges."],
+      ["showdonetasks","Include completed tasks (true/false)."],
+      ["allowtaskassignment","Allow reassigning tasks — multiple people + groups (true/false)."],
+      ["debugmode","On-screen debug log (true/false)."],
+    ],
+    attrs:{ teamsource:"everyone", showcharts:"true", allowtaskassignment:"true", showdonetasks:"true" },
   },
   {
     key:"audit-widget", name:"Audit Form", tag:"Guided store audit",
@@ -601,6 +648,7 @@ document.getElementById("m-width").addEventListener("click", e=>{
 
 <!-- Widget bundles (register via window.defineBlock) -->
 <script src="my-tasks-widget/dist/my-tasks-widget.js"></script>
+<script src="manager-tasks-widget/dist/manager-tasks-widget.js"></script>
 <script src="audit-widget/dist/audit-widget.js"></script>
 <script src="recurring-tasks-widget/dist/recurring-tasks-widget.js"></script>
 <script src="tasks-integration-widget/dist/tasks-integration-widget.js"></script>

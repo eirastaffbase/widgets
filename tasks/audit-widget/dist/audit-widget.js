@@ -320,6 +320,8 @@ const STRINGS = {
         immediately: "Immediately",
         unassigned: "— Unassigned —",
         withinDays: "Within {d}d",
+        notifyAssignedText: "You were assigned a new task: {title}",
+        notifyGroupAssignedText: "Your group {group} was assigned a task: {title}",
         auditor: "Auditor",
         scoreSummary: "{e} / {t} pts · {a} of {c} answered",
         nThreshold: "{n}% threshold",
@@ -1332,6 +1334,7 @@ const configurationSchema = {
         storelabelsingular: { type: "string", title: "Store Label (singular)", default: "Store" },
         storelabelplural: { type: "string", title: "Store Label (plural)", default: "Stores" },
         passthreshold: { type: "string", title: "Pass Threshold (%)", default: DEFAULT_THRESHOLD },
+        notifyonassign: { type: "boolean", title: "Notify on Assignment", default: false },
     },
     // When "Use Theme Colors" is off, expose the manual Primary/Accent pickers.
     // When on, they're hidden (colors are pulled from the branding theme instead).
@@ -1365,6 +1368,7 @@ const uiSchema = {
     storelabelsingular: { "ui:help": "e.g. Store, Location, Branch" },
     storelabelplural: { "ui:help": "e.g. Stores, Locations, Branches" },
     passthreshold: { "ui:help": "Score % required to pass (default 90)" },
+    notifyonassign: { "ui:help": "Send a Staffbase notification (“You were assigned a new task”) to people/groups when audit failure tasks are created and assigned. Off by default (audits can create many tasks at once)." },
 };
 // ── Color utilities ───────────────────────────────────────────────────────────
 function hexToRgb(hex) {
@@ -1428,6 +1432,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const storeS = this.getAttribute("storelabelsingular") || "Store";
                 const storeP = this.getAttribute("storelabelplural") || "Stores";
                 const passThreshold = parseFloat(this.getAttribute("passthreshold") || DEFAULT_THRESHOLD);
+                const notifyOnAssign = this.getAttribute("notifyonassign") === "true"; // off by default (bulk creator)
                 // When "Use Theme Colors" is on, pull Primary/Accent from the branding theme
                 // (token-auth GET). Failures fall back silently to the values above.
                 if (this.getAttribute("usethemecolors") === "true") {
@@ -1464,9 +1469,13 @@ const factory = (BaseBlockClass, widgetApi) => {
                 let demoCount = 0;
                 let demoTimer;
                 const responses = {};
+                // Multi-assign: each task can carry several groups AND several users.
+                // taskAssignType is now only the active picker tab (display), not the mode.
                 const taskGroupOverrides = {};
                 const taskUserOverrides = {};
                 const taskAssignType = {};
+                const selG = (qid) => taskGroupOverrides[qid] || (taskGroupOverrides[qid] = []);
+                const selU = (qid) => taskUserOverrides[qid] || (taskUserOverrides[qid] = []);
                 const taskFiles = {}; // per-question photo attachments
                 let allUsers = [];
                 let defaultUserId = ""; // Nicole Adams fallback
@@ -1780,6 +1789,10 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-gp-opt:last-child{border-bottom:none}
           .${p}-gp-opt:hover{background:rgba(var(--primary-rgb),.05)}
           .${p}-gp-opt.sel{background:rgba(var(--primary-rgb),.06);font-weight:600;color:var(--primary)}
+          .${p}-gp-opt .${p}-gp-ck{display:none;color:var(--primary);flex-shrink:0}
+          .${p}-gp-opt.sel .${p}-gp-ck{display:flex}
+          .${p}-gp-chips{display:flex;flex-wrap:wrap;gap:4px}
+          .${p}-gp-chip{display:inline-flex;align-items:center;background:rgba(var(--primary-rgb),.1);color:var(--primary);font-weight:600;font-size:12px;padding:2px 8px;border-radius:20px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
           .${p}-gp-none{padding:16px;text-align:center;color:var(--gray-lt);font-size:12px}
 
           .${p}-ms-wrap{position:relative}
@@ -1827,6 +1840,33 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const hspinEl = container.querySelector(`#${p}-hspin`);
                 // ── Helpers ───────────────────────────────────────────────────────
                 const apiOpts = (extra) => (Object.assign(Object.assign({}, extra), { credentials: "omit", headers: { Authorization: `Basic ${apiToken}`, "Content-Type": "application/json" } }));
+                // Notify newly-assigned people/groups when a failure task is created. Users
+                // get "You were assigned…"; each group gets a named "Your group X…".
+                // Off by default (audits can create many tasks). Basic-token POST; best-effort.
+                function notifyAssigned(userIds, groups, title) {
+                    return audit_widget_awaiter(this, void 0, void 0, function* () {
+                        if (!notifyOnAssign)
+                            return;
+                        const send = (ids, text) => audit_widget_awaiter(this, void 0, void 0, function* () {
+                            if (!ids.length)
+                                return;
+                            const content = { en_US: { text } };
+                            if (locale && locale !== "en_US")
+                                content[locale] = { text };
+                            try {
+                                yield fetch(`${baseUrl}/branch/notifications`, apiOpts({
+                                    method: "POST",
+                                    body: JSON.stringify({ accessorIds: ids, channels: ["notificationCenter", "push"], content, icon: { en_US: { type: "font", char: "n" } } }),
+                                }));
+                            }
+                            catch (_) { }
+                        });
+                        if (userIds.length)
+                            yield send(userIds, tr("notifyAssignedText").replace("{title}", title));
+                        for (const g of groups)
+                            yield send([g.id], tr("notifyGroupAssignedText").replace("{group}", g.name).replace("{title}", title));
+                    });
+                }
                 function esc(s) { return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
                 function showBanner(t, msg) { bannerEl.className = `${p}-banner ${t}`; bannerEl.style.display = "block"; bannerEl.textContent = msg; }
                 function hideBanner() { bannerEl.style.display = "none"; }
@@ -2806,26 +2846,26 @@ const factory = (BaseBlockClass, widgetApi) => {
                         genBtn.addEventListener("click", () => {
                             hideBanner();
                             for (const q of failedTasks()) {
-                                if (taskGroupOverrides[q.id] || taskUserOverrides[q.id])
+                                if (selG(q.id).length || selU(q.id).length)
                                     continue; // already assigned
                                 if (q.taskRole) {
                                     const m = fuzzyMatchGroup(q.taskRole, allGroups);
                                     if (m) {
-                                        taskGroupOverrides[q.id] = m;
+                                        taskGroupOverrides[q.id] = [m];
                                         taskAssignType[q.id] = "group";
                                         continue;
                                     }
                                     // No group matched the role — try matching an individual user by name.
                                     const u = fuzzyMatchUser(q.taskRole, allUsers);
                                     if (u) {
-                                        taskUserOverrides[q.id] = u;
+                                        taskUserOverrides[q.id] = [u];
                                         taskAssignType[q.id] = "user";
                                         continue;
                                     }
                                 }
                                 // Nothing matched — fall back to the default user (Nicole Adams).
                                 if (defaultUserId) {
-                                    taskUserOverrides[q.id] = defaultUserId;
+                                    taskUserOverrides[q.id] = [defaultUserId];
                                     taskAssignType[q.id] = "user";
                                 }
                             }
@@ -3242,16 +3282,16 @@ const factory = (BaseBlockClass, widgetApi) => {
                     const failHtml = ft.length === 0
                         ? `<div class="${p}-state"><strong>${tr("noFailures")}</strong>${tr("allPassedOrNa")}</div>`
                         : ft.map(q => {
-                            const gid = taskGroupOverrides[q.id] || "";
-                            const uid = taskUserOverrides[q.id] || "";
+                            const gids = selG(q.id);
+                            const uids = selU(q.id);
                             const atype = taskAssignType[q.id] || "group";
-                            const selGroup = allGroups.find(g => g.id === gid);
-                            const selUser = allUsers.find(u => u.id === uid);
-                            const selLabel = atype === "user" && selUser
-                                ? `<span style="color:var(--dark)">${esc(selUser.name)}</span>`
-                                : atype === "group" && selGroup
-                                    ? `<span style="color:var(--dark)">${esc(selGroup.name)}</span>`
-                                    : `<span class="${p}-gp-ph">${tr("unassigned")}</span>`;
+                            const chipNames = [
+                                ...gids.map(id => { var _a; return (_a = allGroups.find(g => g.id === id)) === null || _a === void 0 ? void 0 : _a.name; }).filter(Boolean),
+                                ...uids.map(id => { var _a; return (_a = allUsers.find(u => u.id === id)) === null || _a === void 0 ? void 0 : _a.name; }).filter(Boolean),
+                            ];
+                            const selLabel = chipNames.length
+                                ? `<span class="${p}-gp-chips">${chipNames.map(n => `<span class="${p}-gp-chip">${esc(n)}</span>`).join("")}</span>`
+                                : `<span class="${p}-gp-ph">${tr("unassigned")}</span>`;
                             const due = q.taskDue === 0 ? tr("immediately") : tr("withinDays").replace("{d}", String(q.taskDue));
                             return `<div class="${p}-fail-item">
               <div class="${p}-fail-head">
@@ -3322,61 +3362,58 @@ const factory = (BaseBlockClass, widgetApi) => {
                         const tab = (taskAssignType[qid] || "group");
                         list.dataset.tab = tab;
                         const fl = filter.toLowerCase();
+                        // Rebuild the trigger label as chips from the current multi-selection.
+                        const gpLabel = (id) => {
+                            const names = [
+                                ...selG(id).map(g => { var _a; return (_a = allGroups.find(x => x.id === g)) === null || _a === void 0 ? void 0 : _a.name; }).filter(Boolean),
+                                ...selU(id).map(u => { var _a; return (_a = allUsers.find(x => x.id === u)) === null || _a === void 0 ? void 0 : _a.name; }).filter(Boolean),
+                            ];
+                            return names.length
+                                ? `<span class="${p}-gp-chips">${names.map(n => `<span class="${p}-gp-chip">${esc(n)}</span>`).join("")}</span>`
+                                : `<span class="${p}-gp-ph">${tr("unassigned")}</span>`;
+                        };
                         if (tab === "user") {
-                            const selId = taskUserOverrides[qid] || "";
-                            const opts = [{ id: "", name: "— No assignee —", avatar: "" }, ...allUsers].filter(u => !fl || u.name.toLowerCase().includes(fl));
+                            const opts = allUsers.filter(u => !fl || u.name.toLowerCase().includes(fl));
                             if (!opts.length) {
                                 list.innerHTML = `<div class="${p}-gp-none">${tr("noPeopleFound")}</div>`;
                                 return;
                             }
+                            const sel = selU(qid);
                             list.innerHTML = opts.map(u => `
-              <div class="${p}-gp-opt${u.id === selId ? " sel" : ""}" data-uid="${esc(u.id)}" data-uname="${esc(u.name)}" data-dtype="user" data-qid="${esc(qid)}">
+              <div class="${p}-gp-opt${sel.indexOf(u.id) !== -1 ? " sel" : ""}" data-id="${esc(u.id)}" data-dtype="user" data-qid="${esc(qid)}">
                 <span>${esc(u.name)}</span>
-                ${u.id === selId ? iCheck : ""}
+                <span class="${p}-gp-ck">${iCheck}</span>
               </div>`).join("");
                         }
                         else {
-                            const selId = taskGroupOverrides[qid] || "";
-                            const opts = [{ id: "", name: "— No group —" }, ...allGroups].filter(g => !fl || g.name.toLowerCase().includes(fl));
+                            const opts = allGroups.filter(g => !fl || g.name.toLowerCase().includes(fl));
                             if (!opts.length) {
                                 list.innerHTML = `<div class="${p}-gp-none">${tr("noGroupsFound")}</div>`;
                                 return;
                             }
+                            const sel = selG(qid);
                             list.innerHTML = opts.map(g => `
-              <div class="${p}-gp-opt${g.id === selId ? " sel" : ""}" data-gid="${esc(g.id)}" data-gname="${esc(g.name)}" data-dtype="group" data-qid="${esc(qid)}">
+              <div class="${p}-gp-opt${sel.indexOf(g.id) !== -1 ? " sel" : ""}" data-id="${esc(g.id)}" data-dtype="group" data-qid="${esc(qid)}">
                 <span>${esc(g.name)}</span>
-                ${g.id === selId ? iCheck : ""}
+                <span class="${p}-gp-ck">${iCheck}</span>
               </div>`).join("");
                         }
                         list.querySelectorAll(`.${p}-gp-opt`).forEach((opt) => {
-                            opt.addEventListener("click", () => {
+                            opt.addEventListener("click", (ev) => {
+                                ev.stopPropagation();
                                 const el = opt;
                                 const qid2 = el.dataset.qid;
-                                const dtype = el.dataset.dtype;
-                                taskAssignType[qid2] = dtype;
-                                let label = `<span class="${p}-gp-ph">${tr("unassigned")}</span>`;
-                                if (dtype === "user") {
-                                    const uid = el.dataset.uid || "";
-                                    const uname = el.dataset.uname || "";
-                                    taskUserOverrides[qid2] = uid;
-                                    if (uid)
-                                        label = `<span style="color:var(--dark)">${esc(uname)}</span>`;
-                                }
-                                else {
-                                    const gid = el.dataset.gid || "";
-                                    const gname = el.dataset.gname || "";
-                                    taskGroupOverrides[qid2] = gid;
-                                    if (gid)
-                                        label = `<span style="color:var(--dark)">${esc(gname)}</span>`;
-                                }
+                                const id = el.dataset.id || "";
+                                const arr = el.dataset.dtype === "user" ? selU(qid2) : selG(qid2);
+                                const ix = arr.indexOf(id);
+                                if (ix === -1)
+                                    arr.push(id);
+                                else
+                                    arr.splice(ix, 1);
+                                el.classList.toggle("sel"); // toggle, keep dropdown open
                                 const trigger2 = contentEl.querySelector(`.${p}-gp-trigger[data-qid="${qid2}"]`);
                                 if (trigger2)
-                                    trigger2.innerHTML = label;
-                                const dd = contentEl.querySelector(`.${p}-gp-dropdown[data-qid="${qid2}"]`);
-                                if (dd)
-                                    dd.classList.remove("show");
-                                trigger2 === null || trigger2 === void 0 ? void 0 : trigger2.classList.remove("open");
-                                renderGpList(qid2, "");
+                                    trigger2.innerHTML = gpLabel(qid2);
                             });
                         });
                     }
@@ -3541,16 +3578,16 @@ const factory = (BaseBlockClass, widgetApi) => {
                                         description: `Audit finding: ${q.id} — FAIL: ${q.text}\nAudit: ${listName}\nAuditor: ${auditorName}\nSeverity: ${q.taskPriority}`,
                                         status: "OPEN", priority: prio, taskListId: listId, dueDate: due,
                                     };
-                                    const atype = taskAssignType[q.id] || "group";
-                                    const gid2 = taskGroupOverrides[q.id] || "";
-                                    const uid2 = taskUserOverrides[q.id] || "";
-                                    if (atype === "user" && uid2)
-                                        body.assigneeIds = [uid2];
-                                    else if (gid2)
-                                        body.groupIds = [gid2];
+                                    const gids2 = selG(q.id);
+                                    const uids2 = selU(q.id);
+                                    if (uids2.length)
+                                        body.assigneeIds = [...uids2];
+                                    if (gids2.length)
+                                        body.groupIds = [...gids2];
                                     const r = yield fetch(`${baseUrl}/tasks/${selectedInstId}/task`, Object.assign(Object.assign({ method: "POST" }, apiOpts()), { body: JSON.stringify(body) }));
                                     if (r.ok) {
                                         logLine(`✓ ${q.taskTitle || q.text}`, "ok");
+                                        notifyAssigned(uids2, gids2.map(id => ({ id, name: (allGroups.find(g => g.id === id) || { name: id }).name })), q.taskTitle || q.text);
                                         const files = taskFiles[q.id] || [];
                                         if (files.length) {
                                             try {
@@ -3601,14 +3638,14 @@ const factory = (BaseBlockClass, widgetApi) => {
             });
         }
         static get observedAttributes() {
-            return ["appsscripturl", "apitoken", "baseurl", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor", "storelabelsingular", "storelabelplural", "passthreshold"];
+            return ["appsscripturl", "apitoken", "baseurl", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor", "storelabelsingular", "storelabelplural", "passthreshold", "notifyonassign"];
         }
     };
 };
 // ── Block registration ────────────────────────────────────────────────────────
 const blockDefinition = {
     name: "audit-widget", label: "Audit Widget",
-    attributes: ["appsscripturl", "apitoken", "baseurl", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor", "storelabelsingular", "storelabelplural", "passthreshold"],
+    attributes: ["appsscripturl", "apitoken", "baseurl", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor", "storelabelsingular", "storelabelplural", "passthreshold", "notifyonassign"],
     factory, configurationSchema, uiSchema, blockLevel: "block", iconUrl: "",
 };
 window.defineBlock({ blockDefinition, author: "Staffbase", version: "1.0.0" });
