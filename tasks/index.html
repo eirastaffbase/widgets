@@ -255,6 +255,14 @@ const DUMMY_COMMENTS_BY_TASK = {
   m1: { data:[
     { id:"c3", authorId:"u-priya", content:"<p>Labels verified on stations 1–3, finishing the rest after lunch.</p>", createdAt:new Date(Date.now()-54e5).toISOString() },
   ], total:1 },
+  // Completion is logged as a hidden [tasks:edit] comment (so the feed credits the
+  // actual person). t4 = own task; m2 = completing someone else's task.
+  t4: { data:[
+    { id:"e2", authorId:MOCK_USER_ID, content:"<p>[tasks:edit] completed “Guest Love Training Module”</p>", createdAt:new Date(Date.now()-30e5).toISOString() },
+  ], total:1 },
+  m2: { data:[
+    { id:"e3", authorId:MOCK_USER_ID, content:"<p>[tasks:edit] completed James Chen's task “Deep clean fryer station”</p>", createdAt:new Date(Date.now()-18e5).toISOString() },
+  ], total:1 },
 };
 const DUMMY_SHEET_TASKS = {
   sheet:"Preview",

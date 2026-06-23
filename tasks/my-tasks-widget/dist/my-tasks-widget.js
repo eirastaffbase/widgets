@@ -1784,6 +1784,7 @@ const configurationSchema = {
         allowtaskcreation: { type: "boolean", title: "Allow Task Creation", default: false },
         allowtaskassignment: { type: "boolean", title: "Allow Task Assignment (audit mode)", default: false },
         notifyonassign: { type: "boolean", title: "Notify on Assignment", default: true },
+        detailedlogging: { type: "boolean", title: "Detailed Activity Logging", default: false },
         debugmode: { type: "boolean", title: "Debug Mode (on-screen logs)", default: false },
     },
     // When "Use Theme Colors" is off, expose the manual Primary/Accent pickers.
@@ -1824,6 +1825,7 @@ const uiSchema = {
     allowtaskcreation: { "ui:help": "Show a “New Task” button so users can create tasks from this widget" },
     allowtaskassignment: { "ui:help": "In audit mode, allow reassigning a task (to a group or person) from its detail panel" },
     notifyonassign: { "ui:help": "Send a Staffbase notification (“You were assigned a new task”) to people newly assigned a task via this widget" },
+    detailedlogging: { "ui:help": "Record reassignments and completions as hidden activity entries the Manager Tasks widget surfaces in its activity feed. Off by default." },
     debugmode: { "ui:help": "Show an on-screen log panel with a copy button — useful for debugging inside the mobile app" },
 };
 // ── Color utilities ───────────────────────────────────────────────────────────
@@ -1938,6 +1940,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const allowCreate = this.getAttribute("allowtaskcreation") === "true";
                 const allowAssign = this.getAttribute("allowtaskassignment") === "true";
                 const notifyOnAssign = this.getAttribute("notifyonassign") !== "false";
+                const detailedLogging = this.getAttribute("detailedlogging") === "true";
                 const storeSingular = this.getAttribute("storelabelsingular") || "Store";
                 const debugMode = this.getAttribute("debugmode") === "true";
                 const primaryRgb = hexToRgb(primaryColor);
@@ -2964,7 +2967,8 @@ const factory = (BaseBlockClass, widgetApi) => {
                             // Hidden audit comment (→ Manager activity feed) + notify the newly assigned.
                             const nm = (id) => { var _a; return ((_a = (usersList || []).find(u => u.id === id)) === null || _a === void 0 ? void 0 : _a.name) || groupMap.get(id) || id; };
                             const allNames = [...body.assigneeIds, ...body.groupIds].map(nm);
-                            postEditComment(task, `reassigned “${task.title}” to ${allNames.length ? allNames.join(", ") : "no one"}`);
+                            if (detailedLogging)
+                                postEditComment(task, `reassigned “${task.title}” to ${allNames.length ? allNames.join(", ") : "no one"}`);
                             const newUsers = body.assigneeIds.filter(id => !prevUsers.has(id));
                             const newGroups = body.groupIds.filter(id => !prevGroups.has(id)).map(id => ({ id, name: groupMap.get(id) || id }));
                             notifyAssigned(newUsers, newGroups, task.title);
@@ -3030,6 +3034,25 @@ const factory = (BaseBlockClass, widgetApi) => {
                             return null;
                         }
                     });
+                }
+                // "Chriscelle" / "Chriscelle and Andrea" / "Chriscelle and Andrea, +1 more"
+                function ownerLabel(task) {
+                    const names = task.assigneeIds.map(id => { var _a; return ((_a = (usersList || []).find(u => u.id === id)) === null || _a === void 0 ? void 0 : _a.name) || id; }).filter(Boolean);
+                    if (names.length === 0)
+                        return "";
+                    if (names.length === 1)
+                        return names[0];
+                    if (names.length === 2)
+                        return `${names[0]} and ${names[1]}`;
+                    return `${names[0]} and ${names[1]}, +${names.length - 2} more`;
+                }
+                // Status-change action text → activity feed. Credits the actor with completing
+                // someone else's task when they aren't an assignee, e.g. "completed Chriscelle's task".
+                function statusAction(task, newStatus) {
+                    const verb = newStatus === "CLOSED" ? "completed" : "reopened";
+                    const mine = !!currentUserId && task.assigneeIds.indexOf(currentUserId) !== -1;
+                    const owner = ownerLabel(task);
+                    return (!mine && owner) ? `${verb} ${owner}'s task “${task.title}”` : `${verb} “${task.title}”`;
                 }
                 // Hidden audit comment → feeds the Manager Tasks activity feed; suppressed
                 // from the visible comment list here. Best-effort (needs the user session).
@@ -4218,6 +4241,10 @@ const factory = (BaseBlockClass, widgetApi) => {
                         if (!res.ok)
                             throw new Error(`HTTP ${res.status}`);
                         task.status = newStatus;
+                        if (detailedLogging) {
+                            yield fetchUsers();
+                            postEditComment(task, statusAction(task, newStatus));
+                        }
                         renderDetailContent(task);
                         const cardEl = listWrap.querySelector(`[data-task-id="${task.id}"]`);
                         if (cardEl) {
@@ -4281,8 +4308,13 @@ const factory = (BaseBlockClass, widgetApi) => {
                             if (!res.ok)
                                 throw new Error(`HTTP ${res.status}`);
                             const task = allTasks.find(t => t.id === taskId);
-                            if (task)
+                            if (task) {
                                 task.status = newStatus;
+                                if (detailedLogging) {
+                                    yield fetchUsers();
+                                    postEditComment(task, statusAction(task, newStatus));
+                                }
+                            }
                             setTimeout(() => { if (!auditMode) {
                                 renderTypeFilters();
                                 renderList();
@@ -4900,14 +4932,14 @@ const factory = (BaseBlockClass, widgetApi) => {
             }
         }
         static get observedAttributes() {
-            return ["apitoken", "baseurl", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor", "storelabelsingular", "storelabelplural", "typecolors", "showalltasks", "showdonetasks", "auditmode", "enablecomments", "allowtaskcreation", "allowtaskassignment", "notifyonassign", "debugmode"];
+            return ["apitoken", "baseurl", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor", "storelabelsingular", "storelabelplural", "typecolors", "showalltasks", "showdonetasks", "auditmode", "enablecomments", "allowtaskcreation", "allowtaskassignment", "notifyonassign", "detailedlogging", "debugmode"];
         }
     };
 };
 // ── Block registration ────────────────────────────────────────────────────────
 const blockDefinition = {
     name: "my-tasks-widget", label: "My Tasks Widget",
-    attributes: ["apitoken", "baseurl", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor", "storelabelsingular", "storelabelplural", "typecolors", "showalltasks", "showdonetasks", "auditmode", "enablecomments", "allowtaskcreation", "allowtaskassignment", "notifyonassign", "debugmode"],
+    attributes: ["apitoken", "baseurl", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor", "storelabelsingular", "storelabelplural", "typecolors", "showalltasks", "showdonetasks", "auditmode", "enablecomments", "allowtaskcreation", "allowtaskassignment", "notifyonassign", "detailedlogging", "debugmode"],
     factory, configurationSchema, uiSchema, blockLevel: "block", iconUrl: "",
 };
 window.defineBlock({ blockDefinition, author: "Staffbase", version: "1.0.0" });
