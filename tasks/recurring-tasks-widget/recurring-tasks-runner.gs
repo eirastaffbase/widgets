@@ -80,6 +80,9 @@ function readEnvs() {
 function processEnv(env) {
   var created = 0, skipped = 0, pending = 0, failed = 0, notToday = 0;
   var headers = { Authorization: "Basic " + env.apiToken, "Content-Type": "application/json" };
+  // Group id → name, so a [notify: yes] template can send a named "Your group X
+  // was assigned a task" notification. Fetched once per env (best-effort).
+  var groupNames = fetchGroupNames(env.baseUrl, headers);
 
   // Stores: merge the classic /installations list (which only ever returns
   // unrestricted stores) with the tasks-plugin search, the only endpoint that
@@ -148,7 +151,7 @@ function processEnv(env) {
         }
 
         try {
-          createTask(env.baseUrl, headers, inst.id, l.id, t, rule, sid, todayStr, ymd);
+          createTask(env.baseUrl, headers, inst.id, l.id, t, rule, sid, todayStr, ymd, groupNames);
           Logger.log("  ✓ created: " + label);
           created++;
         } catch (e) {
@@ -162,7 +165,7 @@ function processEnv(env) {
   return { created: created, skipped: skipped, pending: pending, failed: failed, notToday: notToday };
 }
 
-function createTask(baseUrl, headers, installId, listId, tmpl, rule, sid, todayStr, ymd) {
+function createTask(baseUrl, headers, installId, listId, tmpl, rule, sid, todayStr, ymd, groupNames) {
   var realDesc = stripTags(tmpl.description || "");
   var desc = realDesc;
   if (rule.taskType) desc += (desc ? " " : "") + "[type: " + rule.taskType + "]";
@@ -191,6 +194,53 @@ function createTask(baseUrl, headers, installId, listId, tmpl, rule, sid, todayS
   });
   var code = res.getResponseCode();
   if (code < 200 || code >= 300) throw new Error("HTTP " + code + " " + res.getContentText().slice(0, 200));
+
+  // Opt-in notifications: only when the template carries a [notify: yes] marker.
+  // Templates without it (older widgets) send nothing — backwards compatible.
+  if (/\[notify:\s*yes\]/i.test(tmpl.description || "")) {
+    notifyAssignees(baseUrl, headers, tmpl.title, body.assigneeIds, body.groupIds, groupNames || {});
+  }
+}
+
+// POST a "You were assigned a new task" notification to the task's assignees, and
+// a named "Your group X was assigned a task" to each assigned group. Best-effort.
+function notifyAssignees(baseUrl, headers, title, userIds, groupIds, groupNames) {
+  function send(ids, text) {
+    if (!ids || !ids.length) return;
+    try {
+      UrlFetchApp.fetch(baseUrl + "/branch/notifications", {
+        method: "post", contentType: "application/json", headers: headers,
+        payload: JSON.stringify({
+          accessorIds: ids, channels: ["notificationCenter", "push"],
+          content: { en_US: { text: text } }, icon: { en_US: { type: "font", char: "n" } }
+        }), muteHttpExceptions: true
+      });
+    } catch (e) { Logger.log("  notify failed: " + e.message); }
+  }
+  if (userIds && userIds.length) send(userIds, "You were assigned a new task: " + title);
+  (groupIds || []).forEach(function (gid) {
+    send([gid], "Your group " + (groupNames[gid] || "") + " was assigned a task: " + title);
+  });
+}
+
+// Build a group id → name map (best-effort; merges /groups + /groups/search).
+function fetchGroupNames(baseUrl, headers) {
+  var map = {};
+  function take(g) {
+    if (!g || !g.id) return;
+    var loc = g.config && g.config.localization && g.config.localization.en_US;
+    var name = (loc && (loc.title || loc.name)) || g.name;
+    if (name) map[g.id] = name;
+  }
+  try {
+    var legacy = apiJson(baseUrl + "/groups?limit=200", headers);
+    ((legacy && legacy.data) || []).forEach(take);
+  } catch (e) {}
+  try {
+    var search = apiJson(baseUrl + "/groups/search?limit=200&sort=name_ASC", headers);
+    ((search && (search.entries || search.data)) || []).forEach(function (e) { take(e.data || e); });
+  } catch (e) {}
+  return map;
 }
 
 // ── Recurrence model (mirrors recurring-tasks-widget.ts) ─────────────────────
@@ -265,6 +315,7 @@ function stripTags(text) {
     .replace(/\[type:\s*[^\]]+\]/i, "")
     .replace(/\[recur:\s*[^\]]+\]/i, "")
     .replace(/\[lvl:\s*[^\]]+\]/i, "")
+    .replace(/\[notify:\s*[^\]]+\]/i, "")
     .replace(/\s{2,}/g, " ")
     .trim();
 }

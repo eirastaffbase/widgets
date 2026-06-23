@@ -1892,6 +1892,7 @@ function stripTags(text) {
         .replace(RRULE_REGEX, "")
         .replace(TYPE_REGEX, "")
         .replace(RECUR_REGEX, "")
+        .replace(/\[notify:\s*[^\]]+\]/i, "")
         .replace(/\s{2,}/g, " ")
         .trim();
 }
@@ -1968,6 +1969,10 @@ const factory = (BaseBlockClass, widgetApi) => {
             const storeP = this.getAttribute("storelabelplural") || "Stores";
             const typeList = (this.getAttribute("tasktypes") || "Finance,Operations,Training,Compliance,Safety")
                 .split(",").map(s => s.trim()).filter(Boolean);
+            // When on, templates carry a [notify: yes] marker so the scheduled runner
+            // notifies assignees when it creates each occurrence. Default off (and the
+            // runner ignores templates without the marker — backwards compatible).
+            const notifyOnAssign = this.getAttribute("notifyonassign") === "true";
             // Valid hex colors only; if blank/all-cleared, palette stays empty → original color system.
             TYPE_PALETTE = (this.getAttribute("typecolors") || "").split(",").map(s => s.trim()).filter(c => /^#?[0-9a-fA-F]{3,8}$/.test(c)).map(c => c[0] === "#" ? c : `#${c}`);
             // Register types up front (configured list + any seen on schedules) so colors are stable & repeat-free.
@@ -3244,7 +3249,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const sid = editingId || genId();
                 const assigneeIds = selectedAssignees.filter(a => a.type === "user").map(a => a.id);
                 const groupIds = selectedAssignees.filter(a => a.type === "group").map(a => a.id);
-                const templateDesc = `${baseDesc ? baseDesc + " " : ""}[type: ${TEMPLATE_TYPE}] [rrule: id=${sid};${encodeRule(rule)}]`;
+                const templateDesc = `${baseDesc ? baseDesc + " " : ""}[type: ${TEMPLATE_TYPE}] [rrule: id=${sid};${encodeRule(rule)}]${notifyOnAssign ? " [notify: yes]" : ""}`;
                 saveBtn.disabled = true;
                 saveBtn.innerHTML = `<span class="${p}-spin"></span> Saving…`;
                 statusEl.style.display = "none";
@@ -3434,7 +3439,7 @@ const factory = (BaseBlockClass, widgetApi) => {
             }
         }
         static get observedAttributes() {
-            return ["apitoken", "baseurl", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor", "storelabelsingular", "storelabelplural", "tasktypes", "typecolors"];
+            return ["apitoken", "baseurl", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor", "storelabelsingular", "storelabelplural", "tasktypes", "typecolors", "notifyonassign"];
         }
     };
 };
@@ -3481,6 +3486,7 @@ const configurationSchema = {
         storelabelplural: { type: "string", title: "Store Label (plural)", default: "Stores" },
         tasktypes: { type: "string", title: "Task Types (comma-separated)", default: "Finance,Operations,Training,Compliance,Safety" },
         typecolors: { type: "string", title: "Type Colors (comma-separated hex)", default: "#DA2E32,#0369A1,#2E7D4A,#D97706,#7C3AED,#4A90A4,#8B4513,#0EA5E9" },
+        notifyonassign: { type: "boolean", title: "Notify on Assignment", default: false },
     },
     // When "Use Theme Colors" is off, expose the manual Primary/Accent pickers.
     // When on, they're hidden (colors are pulled from the branding theme instead).
@@ -3514,12 +3520,13 @@ const uiSchema = {
     storelabelplural: { "ui:help": "e.g. Stores, Locations, Branches" },
     tasktypes: { "ui:help": "Comma-separated list of task type options shown in the Type dropdown" },
     typecolors: { "ui:help": "Type-badge palette. Colors are assigned to each type in order; all are used before any repeat. Clear it to use the built-in colors." },
+    notifyonassign: { "ui:help": "Notify assignees each time the scheduled runner creates an occurrence (writes a [notify: yes] marker the runner reads). Off by default; requires the updated runner script." },
 };
 // ── Block registration ──────────────────────────────────────────────────────────────
 const blockDefinition = {
     name: "recurring-tasks-widget",
     label: "Recurring Tasks Widget",
-    attributes: ["apitoken", "baseurl", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor", "storelabelsingular", "storelabelplural", "tasktypes", "typecolors"],
+    attributes: ["apitoken", "baseurl", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor", "storelabelsingular", "storelabelplural", "tasktypes", "typecolors", "notifyonassign"],
     factory, configurationSchema, uiSchema, blockLevel: "block", iconUrl: "",
 };
 window.defineBlock({ blockDefinition, author: "Staffbase", version: "1.0.0" });

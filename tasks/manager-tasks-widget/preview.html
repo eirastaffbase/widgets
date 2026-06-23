@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manager Tasks Widget — Preview</title>
+  <style>
+    body {
+      margin: 0; background: #f3f4f6;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      display: flex; justify-content: center; align-items: flex-start;
+      min-height: 100vh; padding: 32px 16px; box-sizing: border-box;
+    }
+    .preview-wrap { width: 100%; max-width: 560px; }
+    .preview-label {
+      font-size: 11px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase;
+      color: #9ca3af; text-align: center; margin-bottom: 12px;
+    }
+    .widget-shell { background: white; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,.10); overflow: hidden; }
+  </style>
+</head>
+<body>
+  <div class="preview-wrap">
+    <div class="preview-label">Widget Preview — Manager Tasks</div>
+    <div class="widget-shell"><div id="widget-root"></div></div>
+  </div>
+
+  <script>
+  /* ───────────────────────────────────────────────────────────────────────
+     Standalone preview mock. This file does NOT load the built widget bundle;
+     it reimplements a simplified version of the Manager Tasks widget with
+     dummy data so the team dropdown, dashboard charts, activity log and the
+     multi-assign reassign picker can be demoed without a Staffbase token.
+     ─────────────────────────────────────────────────────────────────────── */
+  const PRIMARY = "#da2e32", ACCENT = "#da2e32";
+  const p = "mgr";
+  const DAY = 86400000;
+  const iso = d => new Date(d).toISOString();
+
+  // ── Dummy team members ────────────────────────────────────────────────
+  const TEAM = [
+    { id: "u1", name: "Maria Jackson" },
+    { id: "u2", name: "Jason Morgan" },
+    { id: "u3", name: "Jenny Chen" },
+    { id: "u4", name: "Joseph Smith" },
+    { id: "u5", name: "London Kay" },
+  ];
+  const GROUPS = [
+    { id: "g1", name: "Front of House" },
+    { id: "g2", name: "Kitchen Team" },
+    { id: "g3", name: "Shift Leads" },
+  ];
+  const NAMES = { mgr:"Nicole Adams", system:"" };
+  const nameOf = id => NAMES[id] || (TEAM.find(m => m.id === id) || {}).name || id;
+
+  // ── Dummy tasks (assigned across the team) ────────────────────────────
+  let TASKS = [
+    { id:"t1", title:"Complete daily safety checklist", type:"storetask", status:"OPEN", priority:"Priority_1",
+      due: Date.now()-1*DAY, assignees:["u1"], store:"North Hollywood", list:"Opening Checklist",
+      created: Date.now()-3*DAY, updated: Date.now()-1*DAY },
+    { id:"t2", title:"Restock Drive-Thru Station B", type:"storetask", status:"OPEN", priority:"Priority_2",
+      due: Date.now()+2*DAY, assignees:["u2"], store:"North Hollywood", list:"Daily Ops",
+      created: Date.now()-2*DAY, updated: Date.now()-2*DAY },
+    { id:"t3", title:"Food safety training — Module 4", type:"training", status:"DONE", priority:"Priority_1",
+      due: Date.now()-4*DAY, assignees:["u3"], store:"North Hollywood", list:"Q2 Training",
+      created: Date.now()-6*DAY, updated: Date.now()-2*60*60*1000 },
+    { id:"t4", title:"Monthly equipment inspection", type:"maintenance", status:"OPEN", priority:"Priority_2",
+      due: Date.now()+5*DAY, assignees:["u4"], store:"Burbank", list:"April Maintenance",
+      created: Date.now()-1*DAY, updated: Date.now()-1*DAY },
+    { id:"t5", title:"Quarterly compliance review", type:"compliance", status:"OPEN", priority:"Priority_3",
+      due: Date.now()-2*DAY, assignees:["u1","u5"], store:"Burbank", list:"Q2 Compliance",
+      created: Date.now()-5*DAY, updated: Date.now()-2*DAY },
+    { id:"t6", title:"Update front counter menu board", type:"storetask", status:"DONE", priority:"Priority_3",
+      due: Date.now()-2*DAY, assignees:["u5"], store:"North Hollywood", list:"April Ops",
+      created: Date.now()-7*DAY, updated: Date.now()-26*60*60*1000 },
+    { id:"t7", title:"Submit end-of-week sales report", type:null, status:"OPEN", priority:"Priority_2",
+      due: Date.now()+1*DAY, assignees:["u2"], store:"Burbank", list:"Weekly Reports",
+      created: Date.now()-1*DAY, updated: Date.now()-1*DAY },
+    { id:"t8", title:"Deep clean fryer station", type:"maintenance", status:"DONE", priority:"Priority_2",
+      due: Date.now()-3*DAY, assignees:["u4"], store:"North Hollywood", list:"April Maintenance",
+      created: Date.now()-4*DAY, updated: Date.now()-5*60*60*1000 },
+    { id:"t9", title:"Verify allergen labels", type:"compliance", status:"OPEN", priority:"Priority_1",
+      due: Date.now()-1*DAY, assignees:["u3"], store:"North Hollywood", list:"Q2 Compliance",
+      created: Date.now()-2*DAY, updated: Date.now()-1*DAY },
+    { id:"t10", title:"Onboard new shift lead", type:"training", status:"OPEN", priority:"Priority_3",
+      due: Date.now()+9*DAY, assignees:["u1"], store:"Burbank", list:"Q2 Training",
+      created: Date.now()-12*60*60*1000, updated: Date.now()-12*60*60*1000 },
+    { id:"t11", title:"Count opening cash drawer", type:"storetask", status:"DONE", priority:"Priority_3",
+      due: Date.now()-1*DAY, assignees:["u5"], store:"North Hollywood", list:"Opening Checklist",
+      created: Date.now()-1*DAY, updated: Date.now()-9*60*60*1000 },
+    { id:"t12", title:"Schedule HVAC maintenance", type:"maintenance", status:"OPEN", priority:"Priority_2",
+      due: Date.now()+3*DAY, assignees:["u2"], store:"Burbank", list:"April Maintenance",
+      created: Date.now()-3*DAY, updated: Date.now()-3*DAY },
+  ];
+
+  // Most tasks are created by the manager (viewer). Add a self-created task and a
+  // recurring instance so the activity feed shows every message type.
+  TASKS.forEach(t => { if (!t.creator) t.creator = "mgr"; });
+  TASKS.push(
+    { id:"s1", title:"Plan Q3 staffing", type:null, status:"OPEN", priority:"Priority_2", due:Date.now()+6*DAY, assignees:["mgr"], creator:"mgr", store:"Burbank", list:"Planning", created:Date.now()-2*60*60*1000, updated:Date.now()-2*60*60*1000 },
+    { id:"r1", title:"Pre-Shift Safety Huddle", type:"safety", status:"OPEN", priority:"Priority_1", due:Date.now(), assignees:["u2"], creator:"system", recur:true, store:"North Hollywood", list:"Daily", created:Date.now()-90*60*1000, updated:Date.now()-90*60*1000 },
+  );
+  // Recurring schedule templates (hidden from the list; feed only).
+  const RECUR = [
+    { id:"tpl1", title:"Pre-Shift Safety Huddle", assignees:["u2"], creator:"mgr", cadence:"every Friday", created:Date.now()-60*60*1000 },
+  ];
+  // Real comment + a hidden [tasks:edit] marker (shown as an edit, hidden as a comment).
+  const FEED = [
+    { kind:"comment", who:"u1", title:"Complete daily safety checklist", when:Date.now()-35*60*1000 },
+    { kind:"edit", who:"mgr", action:"reassigned “Restock Drive-Thru Station B” to Maria Jackson, Kitchen Team", when:Date.now()-15*60*1000 },
+  ];
+
+  // ── State ─────────────────────────────────────────────────────────────
+  let selectedMember = "";          // "" = all team members
+  let statusFilter = "open";        // open | done | all
+  let priorityFilter = "all";       // all | Priority_1..3
+  let overdueOnly = false;
+  let sortBy = "due";               // due | priority | assignee | created
+  let membersExpanded = false;
+  let reassignFor = null;           // task id whose picker is open
+  let reassignSel = { users: new Set(), groups: new Set() };
+
+  // ── Helpers ───────────────────────────────────────────────────────────
+  const esc = s => String(s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const TYPE_COLORS = { storetask:"#da2e32", compliance:"#8B4513", maintenance:"#2E7D4A", training:"#4A90A4", audit:"#7C3AED", safety:"#D97706", inventory:"#0369A1" };
+  const typeColor = t => TYPE_COLORS[t] || "#6b7280";
+  const prioLabel = p => p==="Priority_1"?"High":p==="Priority_2"?"Med":"Low";
+  const prioColor = p => p==="Priority_1"?"#C41E3A":p==="Priority_2"?"#D97706":"#6b7280";
+  const isDone = t => t.status === "DONE";
+  const isOverdue = t => !isDone(t) && t.due < Date.now();
+  const initials = n => n.trim().split(/\s+/).map(x=>x[0]).slice(0,2).join("").toUpperCase();
+  const fmtDate = ms => new Date(ms).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
+  function relTime(ms){ const s=Math.floor((Date.now()-ms)/1000);
+    if(s<60)return"just now"; if(s<3600)return Math.floor(s/60)+"m ago";
+    if(s<86400)return Math.floor(s/3600)+"h ago"; if(s<604800)return Math.floor(s/86400)+"d ago";
+    return fmtDate(ms); }
+
+  // The set of tasks in scope (team filter / selected member).
+  function inScope(t){
+    if (selectedMember) return t.assignees.indexOf(selectedMember) !== -1;
+    return true; // "all team members" → whole demo set
+  }
+  function chartBase(){ return TASKS.filter(inScope); }
+  function listTasks(){
+    const rank = t => t.priority==="Priority_1"?0:t.priority==="Priority_2"?1:2;
+    const out = TASKS.filter(t => inScope(t)
+      && (statusFilter==="all" || (statusFilter==="open"?!isDone(t):isDone(t)))
+      && (priorityFilter==="all" || t.priority===priorityFilter)
+      && (!overdueOnly || isOverdue(t)));
+    out.sort((a,b)=>
+      sortBy==="priority" ? rank(a)-rank(b)||a.due-b.due :
+      sortBy==="assignee" ? nameOf(a.assignees[0]||"~").localeCompare(nameOf(b.assignees[0]||"~")) :
+      sortBy==="created"  ? b.created-a.created :
+                            a.due-b.due);
+    return out;
+  }
+
+  const root = document.getElementById("widget-root");
+
+  function donut(pct, color){
+    const r=26, c=2*Math.PI*r, v=Math.max(0,Math.min(100,pct)), off=c*(1-v/100);
+    const cap=(v>=100||v<=0)?"butt":"round"; // avoid the round-cap lump on a full/empty ring
+    const fs=Math.round(v)>=100?13:16;       // shrink "100%" so it fits the ring
+    return `<svg width="72" height="72" viewBox="0 0 72 72" class="${p}-donut">
+      <circle cx="36" cy="36" r="${r}" fill="none" stroke="#e5e7eb" stroke-width="8"/>
+      <circle cx="36" cy="36" r="${r}" fill="none" stroke="${color}" stroke-width="8" stroke-linecap="${cap}"
+        stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}" transform="rotate(-90 36 36)"/>
+      <text x="36" y="36" text-anchor="middle" dominant-baseline="central" class="${p}-donut-txt" style="font-size:${fs}px">${Math.round(v)}%</text>
+    </svg>`;
+  }
+
+  function renderCharts(){
+    const base = chartBase();
+    const total = base.length, done = base.filter(isDone).length, open = total-done;
+    const overdue = base.filter(isOverdue).length;
+    const pct = total ? done/total*100 : 0;
+    const openTasks = base.filter(t=>!isDone(t));
+    const pc = lv => openTasks.filter(t=>t.priority===lv).length;
+    const p1=pc("Priority_1"), p2=pc("Priority_2"), p3=openTasks.length-p1-p2;
+
+    const scope = selectedMember ? TEAM.filter(m=>m.id===selectedMember) : TEAM;
+    const allRows = scope.map(m=>{
+      const mine = base.filter(t=>t.assignees.indexOf(m.id)!==-1);
+      const d = mine.filter(isDone).length;
+      return { id:m.id, name:m.name, total:mine.length, open:mine.length-d, done:d, overdue:mine.filter(isOverdue).length };
+    }).filter(r=>r.total>0).sort((a,b)=>b.total-a.total);
+    const CAP = 4;
+    const canExpand = !selectedMember && allRows.length>CAP;
+    const rows = (membersExpanded||selectedMember) ? allRows : allRows.slice(0,CAP);
+    const maxT = Math.max(1, ...rows.map(r=>r.total));
+
+    const priBar = (label,n,color)=>{
+      const w = openTasks.length ? Math.round(n/openTasks.length*100) : 0;
+      return `<div class="${p}-pri-row"><span class="${p}-pri-lbl">${label}</span><div class="${p}-pri-track"><div class="${p}-pri-fill" style="width:${w}%;background:${color}"></div></div><span class="${p}-pri-n">${n}</span></div>`;
+    };
+
+    const memberHtml = rows.map(r=>{
+      const dw = Math.round(r.done/maxT*100), ow = Math.round(r.open/maxT*100);
+      return `<div class="${p}-dash-row${r.id===selectedMember?" active":""}" data-mid="${r.id}" role="button" tabindex="0">
+        <div class="${p}-dash-name"><span class="${p}-dash-av fb">${initials(r.name)}</span><span>${esc(r.name)}</span></div>
+        <div class="${p}-dash-bar"><div class="${p}-dash-seg done" style="width:${dw}%"></div><div class="${p}-dash-seg open" style="width:${ow}%"></div></div>
+        <div class="${p}-dash-counts"><b>${r.open}</b> open${r.overdue?` · <span class="${p}-dash-over">${r.overdue} overdue</span>`:""}</div>
+      </div>`;
+    }).join("") + (canExpand?`<button type="button" class="${p}-dash-toggle" id="${p}-members-toggle">${membersExpanded?"Show fewer":"Show all "+allRows.length}</button>`:"");
+
+    return `<div class="${p}-dash">
+      <div class="${p}-stat-grid">
+        <div class="${p}-stat">${donut(pct, pct>=66?"#2E7D4A":pct>=33?"#D97706":"#C41E3A")}
+          <div class="${p}-stat-meta"><div class="${p}-stat-lbl">Completion</div><div class="${p}-stat-sub">${done}/${total} done</div></div></div>
+        <div class="${p}-stat"><div class="${p}-stat-num ${overdue?"bad":""}">${overdue}</div>
+          <div class="${p}-stat-meta"><div class="${p}-stat-lbl">Overdue</div><div class="${p}-stat-sub">of ${open} open</div></div></div>
+        <div class="${p}-stat"><div class="${p}-stat-num">${open}</div>
+          <div class="${p}-stat-meta"><div class="${p}-stat-lbl">Open</div><div class="${p}-stat-sub">${total} total</div></div></div>
+        <div class="${p}-stat ${p}-stat-pri"><div class="${p}-stat-lbl">Open by priority</div>
+          ${priBar("High",p1,prioColor("Priority_1"))}${priBar("Med",p2,prioColor("Priority_2"))}${priBar("Low",p3,prioColor("Priority_3"))}</div>
+      </div>
+      ${memberHtml?`<div class="${p}-dash-members"><div class="${p}-dash-h">By team member</div>${memberHtml}</div>`:""}
+    </div>`;
+  }
+
+  function renderActivity(){
+    const q = s => `<span class="${p}-act-task">“${esc(s)}”</span>`;
+    const targets = t => t.assignees.map(nameOf).filter(Boolean).join(", ");
+    const evs = [];
+    for(const t of chartBase()){
+      if(t.recur){ evs.push({ body:`A recurring task was created for ${esc(targets(t)||"someone")} ${q(t.title)}`, when:t.created }); }
+      else {
+        const self = t.assignees.length===1 && t.assignees[0]===t.creator;
+        const phrase = self ? "created a task for themselves"
+          : targets(t) ? `created a task for ${esc(targets(t))}` : "created a task";
+        evs.push({ who:nameOf(t.creator), body:`${phrase} ${q(t.title)}`, when:t.created });
+      }
+      if(isDone(t)) evs.push({ who:nameOf(t.assignees[0]), body:`completed ${q(t.title)}`, when:t.updated });
+    }
+    for(const r of RECUR) evs.push({ who:nameOf(r.creator), body:`added a recurring task for ${esc(r.assignees.map(nameOf).join(", "))} · ${esc(r.cadence)} ${q(r.title)}`, when:r.created });
+    for(const f of FEED){
+      if(f.kind==="comment") evs.push({ who:nameOf(f.who), body:`commented on ${q(f.title)}`, when:f.when });
+      else evs.push({ who:nameOf(f.who), body:esc(f.action), when:f.when }); // hidden [tasks:edit] → edit line
+    }
+    evs.sort((a,b)=>b.when-a.when);
+    const top = evs.slice(0,7);
+    if(!top.length) return "";
+    const sysIco = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/><polyline points="12 7 12 12 15 14"/></svg>`;
+    return `<div class="${p}-activity"><div class="${p}-act-h">Recent activity</div>${top.map(e=>`
+      <div class="${p}-act-item">
+        ${e.who ? `<span class="${p}-act-av fb">${initials(e.who)}</span>` : `<span class="${p}-act-av sys">${sysIco}</span>`}
+        <div class="${p}-act-body">${e.who?`<b>${esc(e.who)}</b> `:""}${e.body}</div>
+        <span class="${p}-act-time">${relTime(e.when)}</span>
+      </div>`).join("")}</div>`;
+  }
+
+  function reassignPicker(task){
+    if(reassignFor !== task.id) return "";
+    const optRow = (id,name,sel,type)=>`<div class="${p}-reassign-opt${sel?" sel":""}" data-type="${type}" data-id="${id}">
+        <span>${esc(name)}</span>
+        <svg class="${p}-ck" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>`;
+    const n = reassignSel.users.size + reassignSel.groups.size;
+    return `<div class="${p}-reassign-pop">
+      <div class="${p}-reassign-results">
+        <div class="${p}-reassign-h">Groups</div>
+        ${GROUPS.map(g=>optRow(g.id,g.name,reassignSel.groups.has(g.id),"group")).join("")}
+        <div class="${p}-reassign-h">People</div>
+        ${TEAM.map(u=>optRow(u.id,u.name,reassignSel.users.has(u.id),"user")).join("")}
+      </div>
+      <div class="${p}-reassign-foot">
+        <span class="${p}-reassign-sel">${n?n+" selected":"None selected"}</span>
+        <span style="display:flex;gap:6px">
+          <button type="button" class="${p}-reassign-clear">Clear</button>
+          <button type="button" class="${p}-reassign-save">Save</button>
+        </span>
+      </div>
+    </div>`;
+  }
+
+  function taskCard(t){
+    const overdue = isOverdue(t);
+    const who = t.assignees.map(nameOf).join(", ");
+    const iUser=`<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
+    const iCal=`<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+    const iEdit=`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+    return `<div class="${p}-card ${isDone(t)?"done":""}">
+      <div class="${p}-card-inner">
+        <div class="${p}-card-body">
+          <div class="${p}-card-top">
+            ${t.type?`<span class="${p}-type-badge" style="background:${typeColor(t.type)}">${t.type}</span>`:""}
+            ${t.priority!=="Priority_3"?`<span class="${p}-prio-badge" style="color:${prioColor(t.priority)};border-color:${prioColor(t.priority)}">${prioLabel(t.priority)}</span>`:""}
+          </div>
+          <div class="${p}-card-title">${esc(t.title)}</div>
+          <div class="${p}-card-meta">
+            <span class="${p}-meta-item ${overdue?"overdue":""}">${iCal} ${overdue?"Overdue: ":""}${fmtDate(t.due)}</span>
+            <span class="${p}-meta-item">${iUser} ${esc(who)}</span>
+          </div>
+          <div class="${p}-reassign">
+            <button type="button" class="${p}-reassign-btn" data-reassign="${t.id}">${iEdit} Reassign</button>
+            ${reassignPicker(t)}
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function render(){
+    const tasks = listTasks();
+    const memberOpts = [`<option value="">All team members (${TEAM.length})</option>`]
+      .concat(TEAM.map(m=>`<option value="${m.id}"${m.id===selectedMember?" selected":""}>${esc(m.name)}</option>`)).join("");
+
+    const grouped = new Map();
+    tasks.forEach(t=>{ const k=t.type||"__none__"; if(!grouped.has(k))grouped.set(k,[]); grouped.get(k).push(t); });
+    const keys = [...grouped.keys()].sort((a,b)=> a==="__none__"?1 : b==="__none__"?-1 : a.localeCompare(b));
+    let listHtml = "";
+    if(!tasks.length){ listHtml = `<div class="${p}-state"><strong>No tasks here</strong></div>`; }
+    else { for(const k of keys){ const g=grouped.get(k);
+      listHtml += `<div class="${p}-section-label">${k==="__none__"?"No Type":k} <span style="font-weight:400">(${g.length})</span></div>` + g.map(taskCard).join(""); } }
+
+    root.innerHTML = `
+      <style>
+        .${p}{--primary:${PRIMARY};--primary-rgb:218,46,50;--accent:${ACCENT};--primary-text:#fff;--dark:#1A1A1A;--gray:#6b7280;--gray-lt:#9ca3af;--border:#e5e7eb;--success:#2E7D4A;--error:#C41E3A;--r-sm:6px;--r-md:10px;--r-lg:14px;--shadow-sm:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);--shadow-md:0 4px 16px rgba(0,0,0,.10);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--dark);padding:20px}
+        .${p} *,.${p} *::before,.${p} *::after{box-sizing:border-box;margin:0;padding:0}
+        .${p}-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+        .${p}-title{font-size:18px;font-weight:800;display:flex;align-items:center;gap:10px}
+        .${p}-title-dot{width:10px;height:10px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--accent))}
+        .${p}-badge-count{background:var(--primary);color:#fff;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700}
+        /* dashboard */
+        .${p}-charts{margin-bottom:16px}
+        .${p}-stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+        .${p}-stat{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:12px 14px;box-shadow:var(--shadow-sm)}
+        .${p}-stat-pri{flex-direction:column;align-items:stretch;gap:6px}
+        .${p}-donut-txt{font-size:16px;font-weight:800;fill:var(--dark)}
+        .${p}-stat-num{font-size:30px;font-weight:800;line-height:1;min-width:34px;text-align:center}
+        .${p}-stat-num.bad{color:var(--error)}
+        .${p}-stat-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray)}
+        .${p}-stat-sub{font-size:11px;color:var(--gray-lt);margin-top:2px}
+        .${p}-pri-row{display:flex;align-items:center;gap:7px}
+        .${p}-pri-lbl{font-size:11px;color:var(--gray);width:36px}
+        .${p}-pri-track{flex:1;height:7px;background:var(--border);border-radius:6px;overflow:hidden}
+        .${p}-pri-fill{height:100%;border-radius:6px}
+        .${p}-pri-n{font-size:11px;font-weight:700;width:18px;text-align:end}
+        .${p}-dash-members{margin-top:12px;background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:12px 14px;box-shadow:var(--shadow-sm)}
+        .${p}-dash-h,.${p}-act-h{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray);margin-bottom:10px}
+        .${p}-dash-row{display:grid;grid-template-columns:minmax(90px,1.3fr) 2fr auto;gap:10px;align-items:center;margin-bottom:5px;padding:4px 6px;margin-inline:-6px;border-radius:8px;cursor:pointer;transition:background .12s}
+        .${p}-dash-row:hover{background:rgba(var(--primary-rgb),.05)}
+        .${p}-dash-row.active{background:rgba(var(--primary-rgb),.1)}
+        .${p}-dash-row.active .${p}-dash-name span:last-child{color:var(--primary)}
+        .${p}-dash-toggle{margin-top:6px;width:100%;border:none;background:none;font-family:inherit;font-size:12px;font-weight:700;color:var(--primary);cursor:pointer;padding:5px}
+        .${p}-dash-row:last-child{margin-bottom:0}
+        .${p}-dash-name{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;min-width:0}
+        .${p}-dash-name span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .${p}-dash-av{width:22px;height:22px;border-radius:50%;flex-shrink:0}
+        .${p}-dash-av.fb{display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--primary),var(--accent))}
+        .${p}-dash-bar{display:flex;height:10px;border-radius:6px;overflow:hidden;background:var(--border)}
+        .${p}-dash-seg.done{background:var(--success)}
+        .${p}-dash-seg.open{background:var(--primary)}
+        .${p}-dash-counts{font-size:11px;color:var(--gray);white-space:nowrap}
+        .${p}-dash-over{color:var(--error);font-weight:600}
+        /* activity */
+        .${p}-activity{margin-bottom:16px;background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:12px 14px;box-shadow:var(--shadow-sm)}
+        .${p}-act-item{display:flex;align-items:flex-start;gap:9px;padding:7px 0;border-top:1px solid var(--border)}
+        .${p}-act-item:first-of-type{border-top:none}
+        .${p}-act-av{width:26px;height:26px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff}
+        .${p}-act-av.fb{background:linear-gradient(135deg,var(--primary),var(--accent))}
+        .${p}-act-av.sys{background:#eef0f3;color:var(--gray)}
+        .${p}-act-body{flex:1;min-width:0;font-size:12px;line-height:1.45;color:var(--gray)}
+        .${p}-act-body b{color:var(--dark);font-weight:700}
+        .${p}-act-task{color:var(--dark)}
+        .${p}-act-time{font-size:11px;color:var(--gray-lt);white-space:nowrap}
+        /* filters */
+        .${p}-filters{display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap}
+        .${p}-team-wrap{position:relative;display:flex;align-items:center}
+        .${p}-team-ico{position:absolute;left:10px;color:var(--gray);display:flex;pointer-events:none}
+        .${p}-team-select{appearance:none;-webkit-appearance:none;padding:7px 28px 7px 30px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 9px center;font-size:12px;font-weight:600;color:var(--dark);cursor:pointer;font-family:inherit}
+        .${p}-team-select:hover{border-color:var(--primary)}
+        .${p}-status-toggle{display:flex;border:1.5px solid var(--border);border-radius:20px;overflow:hidden;background:#fff}
+        .${p}-mini-select{appearance:none;-webkit-appearance:none;padding:7px 26px 7px 11px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 8px center;font-size:12px;font-weight:600;color:var(--dark);cursor:pointer;font-family:inherit}
+        .${p}-chip{display:inline-flex;align-items:center;gap:5px;padding:7px 12px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fff;font-size:12px;font-weight:600;color:var(--gray);cursor:pointer;font-family:inherit;white-space:nowrap}
+        .${p}-chip.active{background:var(--error);border-color:var(--error);color:#fff}
+        .${p}-status-opt{padding:6px 13px;font-size:12px;font-weight:600;cursor:pointer;color:var(--gray);border:none;background:none;font-family:inherit}
+        .${p}-status-opt.active{background:var(--primary);color:#fff}
+        /* list + cards */
+        .${p}-section-label{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--gray-lt);padding:6px 0 8px}
+        .${p}-card{background:#fff;border-radius:var(--r-lg);box-shadow:var(--shadow-sm);border:1px solid var(--border);border-left:3px solid var(--primary);margin-bottom:8px}
+        .${p}-card.done{border-left-color:var(--border);opacity:.72}
+        .${p}-card-inner{padding:13px 16px}
+        .${p}-card-top{display:flex;gap:7px;margin-bottom:4px}
+        .${p}-type-badge{padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#fff}
+        .${p}-prio-badge{padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;border:1.5px solid currentColor}
+        .${p}-card-title{font-size:14px;font-weight:700;line-height:1.3}
+        .${p}-card.done .${p}-card-title{text-decoration:line-through;color:var(--gray)}
+        .${p}-card-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:7px}
+        .${p}-meta-item{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--gray-lt)}
+        .${p}-meta-item.overdue{color:var(--error);font-weight:600}
+        /* reassign */
+        .${p}-reassign{margin-top:9px;position:relative}
+        .${p}-reassign-btn{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--primary);background:rgba(var(--primary-rgb),.07);border:none;border-radius:var(--r-sm);cursor:pointer;font-family:inherit;padding:6px 11px}
+        .${p}-reassign-btn:hover{background:rgba(var(--primary-rgb),.13)}
+        .${p}-reassign-pop{margin-top:8px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fff;box-shadow:var(--shadow-md);overflow:hidden}
+        .${p}-reassign-results{max-height:220px;overflow-y:auto}
+        .${p}-reassign-h{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-lt);padding:8px 12px 4px}
+        .${p}-reassign-opt{display:flex;align-items:center;gap:8px;padding:9px 12px;font-size:13px;cursor:pointer}
+        .${p}-reassign-opt:hover{background:rgba(var(--primary-rgb),.06)}
+        .${p}-reassign-opt .${p}-ck{margin-inline-start:auto;color:var(--success);display:none}
+        .${p}-reassign-opt.sel{background:rgba(var(--primary-rgb),.06)}
+        .${p}-reassign-opt.sel span:first-of-type{font-weight:600}
+        .${p}-reassign-opt.sel .${p}-ck{display:block}
+        .${p}-reassign-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border-top:1px solid var(--border);background:#fafafa}
+        .${p}-reassign-sel{font-size:11px;color:var(--gray);font-weight:600}
+        .${p}-reassign-save,.${p}-reassign-clear{font-family:inherit;font-size:12px;font-weight:700;border-radius:var(--r-sm);cursor:pointer;padding:6px 12px;border:none}
+        .${p}-reassign-save{background:var(--primary);color:#fff}
+        .${p}-reassign-clear{background:transparent;color:var(--gray)}
+        .${p}-state{padding:40px 20px;text-align:center;color:var(--gray-lt);font-size:13px}
+        .${p}-state strong{color:var(--gray);display:block;font-size:14px}
+      </style>
+
+      <div class="${p}">
+        <div class="${p}-header">
+          <div class="${p}-title"><span class="${p}-title-dot"></span>Team Tasks
+            <span class="${p}-badge-count">${tasks.length}</span></div>
+        </div>
+
+        <div class="${p}-charts">${renderCharts()}</div>
+        ${renderActivity()}
+
+        <div class="${p}-filters">
+          <div class="${p}-team-wrap">
+            <span class="${p}-team-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+            <select class="${p}-team-select" id="${p}-team-select">${memberOpts}</select>
+          </div>
+          <div class="${p}-status-toggle">
+            <button type="button" class="${p}-status-opt ${statusFilter==="open"?"active":""}" data-status="open">Open</button>
+            <button type="button" class="${p}-status-opt ${statusFilter==="done"?"active":""}" data-status="done">Done</button>
+            <button type="button" class="${p}-status-opt ${statusFilter==="all"?"active":""}" data-status="all">Both</button>
+          </div>
+          <select class="${p}-mini-select" id="${p}-prio-select">
+            <option value="all"${priorityFilter==="all"?" selected":""}>All priorities</option>
+            <option value="Priority_1"${priorityFilter==="Priority_1"?" selected":""}>High</option>
+            <option value="Priority_2"${priorityFilter==="Priority_2"?" selected":""}>Med</option>
+            <option value="Priority_3"${priorityFilter==="Priority_3"?" selected":""}>Low</option>
+          </select>
+          <select class="${p}-mini-select" id="${p}-sort-select">
+            <option value="due"${sortBy==="due"?" selected":""}>Due date</option>
+            <option value="priority"${sortBy==="priority"?" selected":""}>Priority</option>
+            <option value="assignee"${sortBy==="assignee"?" selected":""}>Assignee</option>
+            <option value="created"${sortBy==="created"?" selected":""}>Newest</option>
+          </select>
+          <button type="button" class="${p}-chip${overdueOnly?" active":""}" id="${p}-overdue-chip">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Overdue only
+          </button>
+        </div>
+
+        <div id="${p}-list">${listHtml}</div>
+      </div>`;
+
+    wire();
+  }
+
+  function wire(){
+    root.querySelector(`#${p}-team-select`).addEventListener("change", e => {
+      selectedMember = e.target.value; reassignFor = null; render();
+    });
+    root.querySelectorAll(`.${p}-status-opt`).forEach(b =>
+      b.addEventListener("click", () => { statusFilter = b.dataset.status; reassignFor = null; render(); }));
+    root.querySelector(`#${p}-prio-select`).addEventListener("change", e => { priorityFilter = e.target.value; reassignFor=null; render(); });
+    root.querySelector(`#${p}-sort-select`).addEventListener("change", e => { sortBy = e.target.value; reassignFor=null; render(); });
+    root.querySelector(`#${p}-overdue-chip`).addEventListener("click", () => { overdueOnly = !overdueOnly; reassignFor=null; render(); });
+    // Clicking a "By team member" row filters the view to that person (toggles off if active).
+    root.querySelectorAll(`.${p}-dash-row[data-mid]`).forEach(row =>
+      row.addEventListener("click", () => { const mid=row.dataset.mid; selectedMember = selectedMember===mid?"":mid; reassignFor=null; render(); }));
+    const mt = root.querySelector(`#${p}-members-toggle`);
+    if (mt) mt.addEventListener("click", () => { membersExpanded = !membersExpanded; render(); });
+
+    root.querySelectorAll(`.${p}-reassign-btn`).forEach(b =>
+      b.addEventListener("click", () => {
+        const id = b.dataset.reassign;
+        if (reassignFor === id) { reassignFor = null; }
+        else {
+          reassignFor = id;
+          const t = TASKS.find(x => x.id === id);
+          reassignSel = { users: new Set(t.assignees), groups: new Set() };
+        }
+        render();
+      }));
+    root.querySelectorAll(`.${p}-reassign-opt`).forEach(o =>
+      o.addEventListener("click", () => {
+        const set = o.dataset.type === "user" ? reassignSel.users : reassignSel.groups;
+        const id = o.dataset.id;
+        if (set.has(id)) set.delete(id); else set.add(id);
+        render(); // re-render keeps the picker open (reassignFor unchanged)
+      }));
+    const saveBtn = root.querySelector(`.${p}-reassign-save`);
+    if (saveBtn) saveBtn.addEventListener("click", () => {
+      const t = TASKS.find(x => x.id === reassignFor);
+      if (t) t.assignees = [...reassignSel.users];   // groups omitted from the demo card meta
+      reassignFor = null; render();
+    });
+    const clearBtn = root.querySelector(`.${p}-reassign-clear`);
+    if (clearBtn) clearBtn.addEventListener("click", () => { reassignSel = { users:new Set(), groups:new Set() }; render(); });
+  }
+
+  render();
+  </script>
+</body>
+</html>

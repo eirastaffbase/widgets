@@ -258,6 +258,58 @@ function fetchThemeColors(baseUrl_1, apiToken_1) {
 const STRINGS = {
     en_US: {
         myTasks: "My Tasks",
+        // ── Manager view ──────────────────────────────────────────────────
+        managerTitle: "Team Tasks",
+        teamMember: "Team member",
+        allTeamMembers: "All team members",
+        noReports: "You have no direct reports.",
+        noTeamConfigured: "No team members configured — add user IDs in the widget settings.",
+        noTeamData: "No tasks to chart yet.",
+        completionRate: "Completion",
+        overdueStat: "Overdue",
+        openTasks: "Open",
+        totalLabel: "total",
+        ofNOpen: "of {n} open",
+        byPriority: "Open by priority",
+        byMember: "By team member",
+        priHigh: "High",
+        priMed: "Medium",
+        priLow: "Low",
+        more: "more",
+        showAllN: "Show all {n}",
+        showFewer: "Show fewer",
+        // Filters / sort
+        allPriorities: "All priorities",
+        overdueOnly: "Overdue only",
+        sortDue: "Due date",
+        sortPriority: "Priority",
+        sortAssignee: "Assignee",
+        sortNewest: "Newest",
+        // Activity feed
+        recentActivity: "Recent activity",
+        actCompleted: "completed",
+        actCommented: "commented on",
+        actCreatedSelf: "created a task for themselves",
+        actCreatedFor: "created a task for {who}",
+        actCreatedPlain: "created a task",
+        actAddedRecurringFor: "added a recurring task for {who}",
+        actRecurringInstanceFor: "A recurring task was created for {who}",
+        unassignedLabel: "someone",
+        cadDaily: "daily",
+        cadWeekdays: "on weekdays",
+        cadWeeklyEvery: "every {d}",
+        cadWeeklyDays: "on {d}",
+        cadMonthlyDom: "monthly on the {n}",
+        cadMonthly: "monthly",
+        noActivity: "No recent activity.",
+        notifyAssignedText: "You were assigned a new task: {title}",
+        notifyGroupAssignedText: "Your group {group} was assigned a task: {title}",
+        assignTo: "Assign to",
+        someone: "Someone",
+        save: "Save",
+        clearAll: "Clear",
+        nSelected: "{n} selected",
+        noneSelected: "None selected",
         auditResults: "Audit Results",
         newTask: "New task",
         refresh: "Refresh",
@@ -281,12 +333,6 @@ const STRINGS = {
         unassign: "Unassign",
         reassign: "Reassign",
         assign: "Assign",
-        save: "Save",
-        clearAll: "Clear",
-        nSelected: "{n} selected",
-        noneSelected: "None selected",
-        notifyAssignedText: "You were assigned a new task: {title}",
-        notifyGroupAssignedText: "Your group {group} was assigned a task: {title}",
         add: "Add",
         send: "Send",
         noCommentsYet: "No comments yet. Be the first to comment.",
@@ -1749,8 +1795,8 @@ const STRINGS = {
     },
 };
 
-;// ./my-tasks-widget.ts
-var my_tasks_widget_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
+;// ./manager-tasks-widget.ts
+var manager_tasks_widget_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
         function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
@@ -1777,13 +1823,20 @@ const configurationSchema = {
         storelabelsingular: { type: "string", title: "Store Label (singular)", default: "Store" },
         storelabelplural: { type: "string", title: "Store Label (plural)", default: "Stores" },
         typecolors: { type: "string", title: "Type Colors (comma-separated hex)", default: "#DA2E32,#0369A1,#2E7D4A,#D97706,#7C3AED,#4A90A4,#8B4513,#0EA5E9" },
-        showalltasks: { type: "boolean", title: "Show All Tasks (not just mine)", default: false },
+        teamsource: { type: "string", title: "Team Members", default: "reports",
+            oneOf: [
+                { const: "reports", title: "My direct reports (from the org hierarchy)" },
+                { const: "userids", title: "Specific user IDs" },
+                { const: "everyone", title: "Everyone with tasks" },
+            ] },
+        teamuserids: { type: "string", title: "Team User IDs", default: "" },
+        showcharts: { type: "boolean", title: "Show Dashboard Charts", default: true },
+        notifyonassign: { type: "boolean", title: "Notify on Assignment", default: true },
         showdonetasks: { type: "boolean", title: "Include Completed Tasks", default: true },
         auditmode: { type: "boolean", title: "Audit Mode", default: false },
         enablecomments: { type: "boolean", title: "Enable Comments (experimental)", default: false },
-        allowtaskcreation: { type: "boolean", title: "Allow Task Creation", default: false },
+        allowtaskcreation: { type: "boolean", title: "Allow Task Creation", default: true },
         allowtaskassignment: { type: "boolean", title: "Allow Task Assignment (audit mode)", default: false },
-        notifyonassign: { type: "boolean", title: "Notify on Assignment", default: true },
         debugmode: { type: "boolean", title: "Debug Mode (on-screen logs)", default: false },
     },
     // When "Use Theme Colors" is off, expose the manual Primary/Accent pickers.
@@ -1817,13 +1870,15 @@ const uiSchema = {
     storelabelsingular: { "ui:help": "e.g. Store, Location, Branch" },
     storelabelplural: { "ui:help": "e.g. Stores, Locations, Branches" },
     typecolors: { "ui:help": "Type-badge palette. Colors are assigned to each type in order; all are used before any repeat." },
-    showalltasks: { "ui:help": "When enabled, tasks from all users are shown — not just yours" },
+    teamsource: { "ui:help": "Who appears in the team-member dropdown. “My direct reports” = users whose manager field points to the viewer; “Specific user IDs” uses the list below; “Everyone with tasks” lists every assignee found across the stores." },
+    teamuserids: { "ui:help": "Comma- or space-separated Staffbase user IDs. Only used when Team Members = “Specific user IDs”." },
+    showcharts: { "ui:help": "Show the completion / overdue / per-member dashboard above the task list" },
+    notifyonassign: { "ui:help": "Send a Staffbase notification (“You were assigned a new task”) to people newly assigned a task via this widget" },
     showdonetasks: { "ui:help": "When enabled, completed tasks are included in the view" },
     auditmode: { "ui:help": "When enabled, shows audit results and history instead of regular tasks" },
     enablecomments: { "ui:help": "Experimental: show a comments section in the task detail panel (uses the logged-in user's session)" },
     allowtaskcreation: { "ui:help": "Show a “New Task” button so users can create tasks from this widget" },
     allowtaskassignment: { "ui:help": "In audit mode, allow reassigning a task (to a group or person) from its detail panel" },
-    notifyonassign: { "ui:help": "Send a Staffbase notification (“You were assigned a new task”) to people newly assigned a task via this widget" },
     debugmode: { "ui:help": "Show an on-screen log panel with a copy button — useful for debugging inside the mobile app" },
 };
 // ── Color utilities ───────────────────────────────────────────────────────────
@@ -1911,10 +1966,10 @@ function priorityColor(p) {
 }
 // ── Widget factory ────────────────────────────────────────────────────────────
 const factory = (BaseBlockClass, widgetApi) => {
-    return class MyTasksWidget extends BaseBlockClass {
+    return class ManagerTasksWidget extends BaseBlockClass {
         constructor() { super(); }
         renderBlock(container) {
-            return my_tasks_widget_awaiter(this, void 0, void 0, function* () {
+            return manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
                 const apiToken = this.getAttribute("apitoken") || DEFAULT_API_TOKEN;
                 const baseUrl = (this.getAttribute("baseurl") || DEFAULT_BASE_URL).replace(/\/$/, "");
                 let primaryColor = this.getAttribute("primarycolor") || DEFAULT_PRIMARY_COLOR;
@@ -1931,23 +1986,36 @@ const factory = (BaseBlockClass, widgetApi) => {
                 }
                 // Valid hex colors only; if blank/all-cleared, TYPE_PALETTE stays empty → original color system.
                 TYPE_PALETTE = (this.getAttribute("typecolors") || "").split(",").map(s => s.trim()).filter(c => /^#?[0-9a-fA-F]{3,8}$/.test(c)).map(c => c[0] === "#" ? c : `#${c}`);
-                const showAll = this.getAttribute("showalltasks") === "true";
+                const showAll = true; // manager view always shows the whole team, never just the viewer
                 const showDone = this.getAttribute("showdonetasks") !== "false";
                 const auditMode = this.getAttribute("auditmode") === "true";
+                // ── Manager-view config ───────────────────────────────────────────
+                const teamSource = (this.getAttribute("teamsource") || "reports");
+                const teamUserIds = (this.getAttribute("teamuserids") || "").split(/[\s,]+/).map(s => s.trim()).filter(Boolean);
+                const showCharts = this.getAttribute("showcharts") !== "false";
+                const notifyOnAssign = this.getAttribute("notifyonassign") !== "false";
                 const enableComments = this.getAttribute("enablecomments") === "true";
                 const allowCreate = this.getAttribute("allowtaskcreation") === "true";
                 const allowAssign = this.getAttribute("allowtaskassignment") === "true";
-                const notifyOnAssign = this.getAttribute("notifyonassign") !== "false";
                 const storeSingular = this.getAttribute("storelabelsingular") || "Store";
                 const debugMode = this.getAttribute("debugmode") === "true";
                 const primaryRgb = hexToRgb(primaryColor);
                 const accentRgb = hexToRgb(accentColor);
                 const primaryText = contrastColor(primaryColor);
-                const p = "mtw";
+                const p = "mgr";
                 let allTasks = [];
+                let recurTemplates = []; // hidden [recur-template] tasks → activity feed only
+                const activityComments = new Map(); // taskId → comments (activity feed)
+                let activityCommentsLoaded = false;
+                const EDIT_MARK = "[tasks:edit]"; // hidden audit-comment marker
                 let activeTypeFilters = new Set();
                 let activeStatusFilter = "open";
                 let activeInstallFilter = "all";
+                // ── Manager filters / sort ─────────────────────────────────────────
+                let priorityFilter = "all"; // all | Priority_1 | Priority_2 | Priority_3
+                let overdueOnly = false;
+                let sortBy = "due"; // due | priority | assignee | created
+                let membersExpanded = false; // "By team member" show-all toggle
                 let activeAuditListId = "";
                 let auditLists = [];
                 let showCompletedAudit = false;
@@ -1980,8 +2048,13 @@ const factory = (BaseBlockClass, widgetApi) => {
                 let usersList = null; // lazy, for reassign picker
                 let userGroupIds = [];
                 const groupMap = new Map(); // groupId → name
-                const EDIT_MARK = "[tasks:edit]"; // hidden audit-comment marker (shared w/ manager widget)
-                const isEditCommentText = (txt) => txt.trim().indexOf(EDIT_MARK) === 0;
+                // ── Manager-view state ─────────────────────────────────────────────
+                // teamMembers drives the filter dropdown; selectedMember = "" means "all".
+                let teamMembers = [];
+                const teamMemberSet = new Set();
+                let selectedMember = ""; // "" = all team members
+                let teamNote = ""; // e.g. "no direct reports found"
+                let allUsersRaw = null; // full /users objects (profile, avatar)
                 // ── Render skeleton ────────────────────────────────────────────────
                 container.innerHTML = `
         <style>
@@ -2165,9 +2238,77 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-store-tab:hover{border-color:var(--accent);color:var(--accent);background:rgba(var(--accent-rgb),.06)}
           .${p}-store-tab.active{background:var(--primary);border-color:var(--primary);color:var(--primary-text)}
           /* ── Filter bar ── */
-          .${p}-filters{display:flex;gap:8px;margin-bottom:16px;align-items:center}
-          .${p}-type-wrap{position:relative;flex:1;min-width:0}
+          .${p}-filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;align-items:center}
+          /* ── Team-member dropdown (own full-width row) ── */
+          .${p}-team-wrap{position:relative;display:flex;align-items:center;margin-bottom:8px}
+          .${p}-team-ico{position:absolute;left:10px;color:var(--gray);pointer-events:none;display:flex;z-index:1}
+          .${p}-team-caret{position:absolute;right:9px;color:var(--gray);pointer-events:none}
+          .${p}-team-select{appearance:none;-webkit-appearance:none;flex:1;width:100%;padding:8px 28px 8px 30px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fff;font-size:13px;font-weight:600;color:var(--dark);cursor:pointer;font-family:inherit;transition:all .15s}
+          /* ── Mini selects (priority / sort) + overdue chip ── */
+          .${p}-mini-select{appearance:none;-webkit-appearance:none;flex:0 0 auto;padding:7px 26px 7px 11px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 8px center;font-size:12px;font-weight:600;color:var(--dark);cursor:pointer;font-family:inherit;transition:border-color .15s}
+          .${p}-mini-select:hover{border-color:var(--primary)}
+          .${p}-mini-select:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(var(--primary-rgb),.12)}
+          .${p}-chip{display:inline-flex;align-items:center;gap:5px;flex:0 0 auto;padding:7px 12px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fff;font-size:12px;font-weight:600;color:var(--gray);cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap}
+          .${p}-chip:hover{border-color:var(--error);color:var(--error)}
+          .${p}-chip.active{background:var(--error);border-color:var(--error);color:#fff}
+          @media (max-width:480px){
+            .${p}-type-wrap{flex:1 1 100%}
+            .${p}-mini-select,.${p}-chip{flex:1 1 auto}
+          }
+          .${p}-team-select:hover{border-color:var(--primary)}
+          .${p}-team-select:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(var(--primary-rgb),.12)}
+          /* ── Manager dashboard ── */
+          .${p}-charts{margin-bottom:16px}
+          .${p}-dash-empty{padding:18px;text-align:center;color:var(--gray-lt);font-size:13px;background:#fafafa;border:1px solid var(--border);border-radius:var(--r-lg)}
+          .${p}-stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+          .${p}-stat{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:12px 14px;box-shadow:var(--shadow-sm)}
+          .${p}-stat-pri{flex-direction:column;align-items:stretch;gap:6px}
+          .${p}-donut{flex-shrink:0}
+          .${p}-donut-txt{font-size:16px;font-weight:800;fill:var(--dark)}
+          .${p}-stat-num{font-size:30px;font-weight:800;line-height:1;color:var(--dark);min-width:34px;text-align:center}
+          .${p}-stat-num.bad{color:var(--error)}
+          .${p}-stat-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray)}
+          .${p}-stat-sub{font-size:11px;color:var(--gray-lt);margin-top:2px}
+          .${p}-pri-row{display:flex;align-items:center;gap:7px}
+          .${p}-pri-lbl{font-size:11px;color:var(--gray);width:48px;flex-shrink:0}
+          .${p}-pri-track{flex:1;height:7px;background:var(--border);border-radius:6px;overflow:hidden}
+          .${p}-pri-fill{height:100%;border-radius:6px;transition:width .4s ease}
+          .${p}-pri-n{font-size:11px;font-weight:700;color:var(--dark);width:18px;text-align:end}
+          .${p}-dash-members{margin-top:12px;background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:12px 14px;box-shadow:var(--shadow-sm)}
+          .${p}-dash-h,.${p}-act-h{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray);margin-bottom:10px}
+          .${p}-dash-row{display:grid;grid-template-columns:minmax(90px,1.3fr) 2fr auto;gap:10px;align-items:center;margin-bottom:5px;padding:4px 6px;margin-inline:-6px;border-radius:8px;cursor:pointer;transition:background .12s}
+          .${p}-dash-row:hover{background:rgba(var(--primary-rgb),.05)}
+          .${p}-dash-row.active{background:rgba(var(--primary-rgb),.1)}
+          .${p}-dash-row.active .${p}-dash-name span{color:var(--primary)}
+          .${p}-dash-toggle{margin-top:6px;width:100%;border:none;background:none;font-family:inherit;font-size:12px;font-weight:700;color:var(--primary);cursor:pointer;padding:5px}
+          .${p}-dash-toggle:hover{text-decoration:underline}
+          .${p}-dash-row:last-child{margin-bottom:0}
+          .${p}-dash-name{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--dark);min-width:0}
+          .${p}-dash-name span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+          .${p}-dash-av{width:22px;height:22px;border-radius:50%;object-fit:cover;flex-shrink:0;background:var(--border)}
+          .${p}-dash-av-fb{align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--primary),var(--accent))}
+          .${p}-dash-bar{display:flex;height:10px;border-radius:6px;overflow:hidden;background:var(--border)}
+          .${p}-dash-seg{height:100%}
+          .${p}-dash-seg.done{background:var(--success)}
+          .${p}-dash-seg.open{background:var(--primary)}
+          .${p}-dash-counts{font-size:11px;color:var(--gray);white-space:nowrap}
+          .${p}-dash-over{color:var(--error);font-weight:600}
+          .${p}-dash-more{font-size:11px;color:var(--gray-lt);text-align:center;margin-top:6px}
+          /* ── Activity log ── */
+          .${p}-activity{margin-bottom:16px;background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:12px 14px;box-shadow:var(--shadow-sm)}
+          .${p}-act-item{display:flex;align-items:flex-start;gap:9px;padding:7px 0;border-top:1px solid var(--border)}
+          .${p}-act-item:first-of-type{border-top:none}
+          .${p}-act-av{width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff}
+          .${p}-act-av.fb{background:linear-gradient(135deg,var(--primary),var(--accent))}
+          .${p}-act-sys{background:#eef0f3;color:var(--gray)}
+          .${p}-act-dot{flex-shrink:0;width:8px;height:8px;border-radius:50%;margin-top:6px}
+          .${p}-act-body{flex:1;min-width:0;font-size:12px;line-height:1.45;color:var(--gray)}
+          .${p}-act-body b{color:var(--dark);font-weight:700}
+          .${p}-act-task{color:var(--dark)}
+          .${p}-act-time{font-size:11px;color:var(--gray-lt);white-space:nowrap;flex-shrink:0}
+          .${p}-type-wrap{position:relative;flex:1 1 130px;min-width:120px}
           .${p}-type-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:6px;padding:7px 11px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fff;font-size:12px;font-weight:600;color:var(--gray);cursor:pointer;font-family:inherit;transition:all .15s;text-align:start}
+          .${p}-type-btn span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
           .${p}-type-btn:hover,.${p}-type-btn.open{border-color:var(--accent);color:var(--accent)}
           .${p}-type-btn svg{flex-shrink:0;transition:transform .15s}
           .${p}-type-btn.open svg{transform:rotate(180deg)}
@@ -2329,14 +2470,14 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-other-toggle:hover{border-color:var(--gray);color:var(--gray)}
         
           /* RTL: flip horizontal directional arrows */
-          [dir="rtl"] .mtw-audit-arrow svg{transform:scaleX(-1)}
+          [dir="rtl"] .mgr-audit-arrow svg{transform:scaleX(-1)}
         </style>
 
         <div class="${p}">
           <div class="${p}-header">
             <div class="${p}-title">
               <span class="${p}-title-dot"></span>
-              <span id="${p}-title-text">${auditMode ? tr("auditResults") : tr("myTasks")}</span>
+              <span id="${p}-title-text">${auditMode ? tr("auditResults") : tr("managerTitle")}</span>
               <span class="${p}-badge-count" id="${p}-count">0</span>
             </div>
             <div class="${p}-header-actions">
@@ -2363,7 +2504,15 @@ const factory = (BaseBlockClass, widgetApi) => {
           <div class="${p}-store-tabs" id="${p}-store-tabs" style="display:none"></div>
           <div class="${p}-banner" id="${p}-banner"></div>
 
+          ${!auditMode ? `<div class="${p}-charts" id="${p}-charts"></div>` : ""}
+          ${!auditMode ? `<div class="${p}-activity" id="${p}-activity" style="display:none"></div>` : ""}
+
           ${!auditMode ? `
+          <div class="${p}-team-wrap" id="${p}-team-wrap" style="display:none">
+            <span class="${p}-team-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+            <select class="${p}-team-select" id="${p}-team-select" aria-label="${tr("teamMember")}"></select>
+            <svg class="${p}-team-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
           <div class="${p}-filters">
             <div class="${p}-type-wrap" id="${p}-type-wrap">
               <button type="button" class="${p}-type-btn" id="${p}-type-btn">
@@ -2377,6 +2526,22 @@ const factory = (BaseBlockClass, widgetApi) => {
               <button type="button" class="${p}-status-opt" data-status="done">${tr("done")}</button>
               ${showDone ? `<button type="button" class="${p}-status-opt" data-status="all">${tr("both")}</button>` : ""}
             </div>
+            <select class="${p}-mini-select" id="${p}-prio-select" aria-label="${tr("byPriority")}">
+              <option value="all">${tr("allPriorities")}</option>
+              <option value="Priority_1">${tr("priHigh")}</option>
+              <option value="Priority_2">${tr("priMed")}</option>
+              <option value="Priority_3">${tr("priLow")}</option>
+            </select>
+            <select class="${p}-mini-select" id="${p}-sort-select" aria-label="Sort">
+              <option value="due">${tr("sortDue")}</option>
+              <option value="priority">${tr("sortPriority")}</option>
+              <option value="assignee">${tr("sortAssignee")}</option>
+              <option value="created">${tr("sortNewest")}</option>
+            </select>
+            <button type="button" class="${p}-chip" id="${p}-overdue-chip" aria-pressed="false">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              ${tr("overdueOnly")}
+            </button>
           </div>` : ""}
 
           <div id="${p}-list-wrap">
@@ -2393,6 +2558,13 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const storeTabs = container.querySelector(`#${p}-store-tabs`);
                 const listWrap = container.querySelector(`#${p}-list-wrap`);
                 const refreshBtn = container.querySelector(`#${p}-refresh`);
+                const chartsEl = !auditMode ? container.querySelector(`#${p}-charts`) : null;
+                const activityEl = !auditMode ? container.querySelector(`#${p}-activity`) : null;
+                const teamWrap = !auditMode ? container.querySelector(`#${p}-team-wrap`) : null;
+                const teamSelect = !auditMode ? container.querySelector(`#${p}-team-select`) : null;
+                const prioSelect = !auditMode ? container.querySelector(`#${p}-prio-select`) : null;
+                const sortSelect = !auditMode ? container.querySelector(`#${p}-sort-select`) : null;
+                const overdueChip = !auditMode ? container.querySelector(`#${p}-overdue-chip`) : null;
                 const typeBtn = !auditMode ? container.querySelector(`#${p}-type-btn`) : null;
                 const typeLabelEl = !auditMode ? container.querySelector(`#${p}-type-label`) : null;
                 const typeMenu = !auditMode ? container.querySelector(`#${p}-type-menu`) : null;
@@ -2421,32 +2593,32 @@ const factory = (BaseBlockClass, widgetApi) => {
                 // lifecycle explicitly via refs stashed on `this`.
                 const self = this;
                 // Tear down artifacts from a previous render of this same host (re-renders)
-                if (self._mtwOverlay) {
-                    self._mtwOverlay.remove();
-                    self._mtwOverlay = undefined;
+                if (self._mgrOverlay) {
+                    self._mgrOverlay.remove();
+                    self._mgrOverlay = undefined;
                 }
-                if (self._mtwDetail) {
-                    self._mtwDetail.remove();
-                    self._mtwDetail = undefined;
+                if (self._mgrDetail) {
+                    self._mgrDetail.remove();
+                    self._mgrDetail = undefined;
                 }
-                if (self._mtwAModal) {
-                    self._mtwAModal.remove();
-                    self._mtwAModal = undefined;
+                if (self._mgrAModal) {
+                    self._mgrAModal.remove();
+                    self._mgrAModal = undefined;
                 }
-                if (self._mtwCreate) {
-                    self._mtwCreate.remove();
-                    self._mtwCreate = undefined;
+                if (self._mgrCreate) {
+                    self._mgrCreate.remove();
+                    self._mgrCreate = undefined;
                 }
-                if (self._mtwDocClick) {
-                    document.removeEventListener("click", self._mtwDocClick);
-                    self._mtwDocClick = undefined;
+                if (self._mgrDocClick) {
+                    document.removeEventListener("click", self._mgrDocClick);
+                    self._mgrDocClick = undefined;
                 }
-                if (self._mtwDocKey) {
-                    document.removeEventListener("keydown", self._mtwDocKey);
-                    self._mtwDocKey = undefined;
+                if (self._mgrDocKey) {
+                    document.removeEventListener("keydown", self._mgrDocKey);
+                    self._mgrDocKey = undefined;
                 }
                 const instId = Math.random().toString(36).slice(2);
-                container.dataset.mtwInst = instId;
+                container.dataset.mgrInst = instId;
                 container.dataset.sbPortalHost = instId;
                 // Defensive sweep: remove any body-appended portal node — from this or any
                 // sibling task widget — whose owning host is no longer in the DOM.
@@ -2459,13 +2631,13 @@ const factory = (BaseBlockClass, widgetApi) => {
                 });
                 const overlayEl = document.createElement("div");
                 overlayEl.className = `${p}-overlay`;
-                overlayEl.dataset.mtwInst = instId;
+                overlayEl.dataset.mgrInst = instId;
                 overlayEl.dataset.sbPortal = instId;
                 document.body.appendChild(overlayEl);
-                self._mtwOverlay = overlayEl;
+                self._mgrOverlay = overlayEl;
                 const detailEl = document.createElement("div");
                 detailEl.className = `${p}-detail`;
-                detailEl.dataset.mtwInst = instId;
+                detailEl.dataset.mgrInst = instId;
                 detailEl.dataset.sbPortal = instId;
                 detailEl.innerHTML = `
         <div class="${p}-detail-handle"></div>
@@ -2481,7 +2653,7 @@ const factory = (BaseBlockClass, widgetApi) => {
         </div>
       `;
                 document.body.appendChild(detailEl);
-                self._mtwDetail = detailEl;
+                self._mgrDetail = detailEl;
                 const detailBadges = detailEl.querySelector(`#${p}-detail-badges-${instId}`);
                 const detailBody = detailEl.querySelector(`#${p}-detail-body-${instId}`);
                 const detailToggle = detailEl.querySelector(`#${p}-detail-toggle-${instId}`);
@@ -2500,7 +2672,7 @@ const factory = (BaseBlockClass, widgetApi) => {
         </div>`;
                 attModal.dataset.sbPortal = instId;
                 document.body.appendChild(attModal);
-                self._mtwAModal = attModal;
+                self._mgrAModal = attModal;
                 const aName = attModal.querySelector(`#${p}-amodal-name-${instId}`);
                 const aBody = attModal.querySelector(`#${p}-amodal-body-${instId}`);
                 const aDl = attModal.querySelector(`#${p}-amodal-dl-${instId}`);
@@ -2535,7 +2707,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 aX.addEventListener("click", closeAttModal);
                 attModal.addEventListener("click", e => { if (e.target === attModal)
                     closeAttModal(); });
-                aDl.addEventListener("click", () => my_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                aDl.addEventListener("click", () => manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
                     if (!dlUrl)
                         return;
                     const name = dlName;
@@ -2615,7 +2787,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     if (debugLog.length > 500)
                         debugLog.shift();
                     try {
-                        console.log("[mtw]", ...args);
+                        console.log("[mgr]", ...args);
                     }
                     catch (_) { }
                     if (debugBodyEl) {
@@ -2648,7 +2820,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                         const collapsed = panel.classList.toggle("collapsed");
                         e.target.textContent = collapsed ? "Show" : "Hide";
                     });
-                    copyBtn.addEventListener("click", () => my_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                    copyBtn.addEventListener("click", () => manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
                         const text = debugLog.join("\n");
                         let ok = false;
                         try {
@@ -2719,7 +2891,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 }
                 // Upload a File to Staffbase media via the resumable TUS protocol.
                 function uploadMedia(file) {
-                    return my_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                    return manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
                         var _a, _b, _c, _d;
                         const create = yield fetch(`${baseUrl}/media/tus`, {
                             method: "POST", credentials: "omit",
@@ -2766,7 +2938,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     });
                 }
                 function mediaMeta(id) {
-                    return my_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                    return manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
                         try {
                             const r = yield fetch(`${baseUrl}/media/medium/${id}/metadata`, apiOpts());
                             return r.ok ? yield r.json() : null;
@@ -2842,7 +3014,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 // Reading comments works with the Basic token (confirmed). Only the
                 // POST needs the user session, so the read uses the token path here.
                 function loadComments(task) {
-                    return my_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                    return manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
                         const url = `${baseUrl}/tasks/${task.installationId}/task/${task.id}/comments${currentUserId ? `?viewedBy=${currentUserId}` : ""}`;
                         dlog("GET comments", url);
                         const r = yield fetch(url, apiOpts({ headers: { Accept: CMT_HTML_ACCEPT } }));
@@ -2858,15 +3030,15 @@ const factory = (BaseBlockClass, widgetApi) => {
                             d = [];
                         }
                         const arr = Array.isArray(d) ? d : (d.data || []);
-                        // Hide the widget's own hidden [tasks:edit] audit comments (they only feed
-                        // the Manager Tasks activity feed).
-                        return arr.filter(c => !isEditCommentText(commentText(c).replace(/<[^>]+>/g, " ")));
+                        // Hide the widget's own hidden [tasks:edit] audit comments from the UI
+                        // (count + list). They power the activity feed only.
+                        return arr.filter(c => !isEditComment(commentPlain(c)));
                     });
                 }
                 // User lookup (for avatars + names on comments), cached.
                 const userCache = new Map();
                 function fetchUser(id) {
-                    return my_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                    return manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
                         var _a, _b, _c, _d, _e, _f;
                         if (!id)
                             return { name: "User", avatar: "" };
@@ -2889,7 +3061,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     });
                 }
                 function fetchUsers() {
-                    return my_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                    return manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
                         if (usersList)
                             return usersList;
                         try {
@@ -2907,6 +3079,112 @@ const factory = (BaseBlockClass, widgetApi) => {
                         return usersList;
                     });
                 }
+                // ── Manager view: team resolution ──────────────────────────────────
+                const userDisplayName = (u) => [u === null || u === void 0 ? void 0 : u.firstName, u === null || u === void 0 ? void 0 : u.lastName].filter(Boolean).join(" ") || (u === null || u === void 0 ? void 0 : u.displayName) || (u === null || u === void 0 ? void 0 : u.userName) || (u === null || u === void 0 ? void 0 : u.id) || "";
+                const userAvatarUrl = (u) => { var _a, _b, _c, _d, _e, _f; return ((_b = (_a = u === null || u === void 0 ? void 0 : u.avatar) === null || _a === void 0 ? void 0 : _a.icon) === null || _b === void 0 ? void 0 : _b.url) || ((_d = (_c = u === null || u === void 0 ? void 0 : u.avatar) === null || _c === void 0 ? void 0 : _c.thumb) === null || _d === void 0 ? void 0 : _d.url) || ((_f = (_e = u === null || u === void 0 ? void 0 : u.avatar) === null || _e === void 0 ? void 0 : _e.original) === null || _f === void 0 ? void 0 : _f.url) || ""; };
+                // Full /users objects (carry profile.system_manager + avatar). Cached; also
+                // seeds the lightweight `usersList` used by the reassign picker.
+                function fetchAllUsersRaw() {
+                    return manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                        if (allUsersRaw)
+                            return allUsersRaw;
+                        try {
+                            const r = yield fetch(`${baseUrl}/users?limit=200`, apiOpts());
+                            const d = r.ok ? yield r.json() : null;
+                            allUsersRaw = ((d === null || d === void 0 ? void 0 : d.data) || (Array.isArray(d) ? d : []));
+                        }
+                        catch (_) {
+                            allUsersRaw = [];
+                        }
+                        if (!usersList)
+                            usersList = allUsersRaw.map(u => ({ id: u.id, name: userDisplayName(u) }));
+                        return allUsersRaw;
+                    });
+                }
+                // Build teamMembers per the `teamsource` config. Runs in load() after tasks
+                // are fetched (the "everyone" mode reads assignees off allTasks).
+                function resolveTeam() {
+                    return manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                        var _a, _b, _c;
+                        teamMembers = [];
+                        teamMemberSet.clear();
+                        teamNote = "";
+                        const users = yield fetchAllUsersRaw();
+                        const byId = new Map(users.map(u => [u.id, u]));
+                        if (teamSource === "everyone") {
+                            const ids = new Set();
+                            for (const t of allTasks) {
+                                if (t.taskType === "audit-result")
+                                    continue;
+                                for (const a of t.assigneeIds)
+                                    ids.add(a);
+                            }
+                            teamMembers = [...ids].map(id => { const u = byId.get(id); return { id, name: u ? userDisplayName(u) : id, avatar: u ? userAvatarUrl(u) : "" }; });
+                        }
+                        else if (teamSource === "userids") {
+                            teamMembers = teamUserIds.map(id => { const u = byId.get(id); return { id, name: u ? userDisplayName(u) : id, avatar: u ? userAvatarUrl(u) : "" }; });
+                            if (!teamMembers.length)
+                                teamNote = tr("noTeamConfigured");
+                        }
+                        else { // reports — match others' profile.system_manager against my externalID
+                            let ext = String((_b = (_a = byId.get(currentUserId)) === null || _a === void 0 ? void 0 : _a.externalID) !== null && _b !== void 0 ? _b : "");
+                            if (!ext && currentUserId) {
+                                try {
+                                    const r = yield fetch(`${baseUrl}/users/${currentUserId}`, apiOpts());
+                                    if (r.ok) {
+                                        const d = yield r.json();
+                                        ext = String((_c = d.externalID) !== null && _c !== void 0 ? _c : "");
+                                    }
+                                }
+                                catch (_) { }
+                            }
+                            const reports = ext ? users.filter(u => { var _a, _b; return String((_b = (_a = u.profile) === null || _a === void 0 ? void 0 : _a.system_manager) !== null && _b !== void 0 ? _b : "") === ext; }) : [];
+                            teamMembers = reports.map(u => ({ id: u.id, name: userDisplayName(u), avatar: userAvatarUrl(u) }));
+                            teamNote = teamMembers.length ? "" : tr("noReports");
+                        }
+                        teamMembers.sort((a, b) => a.name.localeCompare(b.name));
+                        // Keep a current selection valid across reloads.
+                        if (selectedMember && !teamMembers.some(m => m.id === selectedMember))
+                            selectedMember = "";
+                        for (const m of teamMembers)
+                            teamMemberSet.add(m.id);
+                        dlog("team", teamSource, "members:", teamMembers.length, teamNote || "");
+                    });
+                }
+                // Whether a task falls within the current team scope / selected member.
+                function inTeam(t) {
+                    if (selectedMember)
+                        return t.assigneeIds.indexOf(selectedMember) !== -1;
+                    if (teamSource === "everyone")
+                        return true; // whole accessible system (mode, not a fallback)
+                    // Scoped modes (reports / userids): only the team's tasks. No team → nothing.
+                    return teamMemberSet.size ? t.assigneeIds.some(a => teamMemberSet.has(a)) : false;
+                }
+                // Resolve a user id → display name (teamMembers → /users → id). Sync.
+                function displayNameSync(id) {
+                    const m = teamMembers.find(x => x.id === id);
+                    if (m)
+                        return m.name;
+                    const u = (allUsersRaw || []).find(x => x.id === id);
+                    return u ? userDisplayName(u) : id;
+                }
+                // Sort a task list per the active sort control (applied in filteredTasks).
+                function sortTasks(list) {
+                    const due = (t) => t.dueDate ? new Date(t.dueDate).getTime() : Infinity;
+                    const rank = (t) => t.priority === "Priority_1" ? 0 : t.priority === "Priority_2" ? 1 : 2;
+                    const created = (t) => t.createDate ? Date.parse(t.createDate) : 0;
+                    const aName = (t) => t.assigneeIds.length ? displayNameSync(t.assigneeIds[0]).toLowerCase() : "~";
+                    const arr = list.slice();
+                    if (sortBy === "priority")
+                        arr.sort((a, b) => rank(a) - rank(b) || due(a) - due(b));
+                    else if (sortBy === "assignee")
+                        arr.sort((a, b) => aName(a).localeCompare(aName(b)) || due(a) - due(b));
+                    else if (sortBy === "created")
+                        arr.sort((a, b) => created(b) - created(a));
+                    else
+                        arr.sort((a, b) => due(a) - due(b)); // "due" default
+                    return arr;
+                }
                 // Reassign picker (audit mode). Searchable groups + people; PATCHes the task.
                 function wireReassign(task) {
                     const root = detailBody.querySelector(`#${p}-reassign-${instId}`);
@@ -2916,6 +3194,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     const pop = root.querySelector(`.${p}-reassign-pop`);
                     const search = root.querySelector(`.${p}-reassign-search`);
                     const results = root.querySelector(`.${p}-reassign-results`);
+                    const foot = root.querySelector(`.${p}-reassign-foot`);
                     const selLbl = root.querySelector(`.${p}-reassign-sel`);
                     const saveBtn = root.querySelector(`.${p}-reassign-save`);
                     const clearBtn = root.querySelector(`.${p}-reassign-clear`);
@@ -2923,7 +3202,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     const uIco = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
                     const ckIco = `<svg class="${p}-ck" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
                     // Multi-select: seed from the task's current assignment, toggle on click,
-                    // PATCH both arrays together on Save (the API accepts multiples).
+                    // and PATCH both arrays together on Save (the API accepts multiples).
                     const selUsers = new Set(task.assigneeIds);
                     const selGroups = new Set(task.groupIds);
                     const groupsArr = () => { const o = []; groupMap.forEach((name, id) => o.push({ id, name })); return o.sort((a, b) => a.name.localeCompare(b.name)); };
@@ -2951,7 +3230,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                             updateFoot();
                         }));
                     };
-                    const apply = () => my_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                    const apply = () => manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
                         const prevUsers = new Set(task.assigneeIds), prevGroups = new Set(task.groupIds);
                         const body = { assigneeIds: [...selUsers], groupIds: [...selGroups] };
                         saveBtn.disabled = true;
@@ -2961,9 +3240,8 @@ const factory = (BaseBlockClass, widgetApi) => {
                                 throw new Error(`HTTP ${r.status}`);
                             task.groupIds = body.groupIds;
                             task.assigneeIds = body.assigneeIds;
-                            // Hidden audit comment (→ Manager activity feed) + notify the newly assigned.
-                            const nm = (id) => { var _a; return ((_a = (usersList || []).find(u => u.id === id)) === null || _a === void 0 ? void 0 : _a.name) || groupMap.get(id) || id; };
-                            const allNames = [...body.assigneeIds, ...body.groupIds].map(nm);
+                            // Activity: hidden audit comment "{author} reassigned …" + notify the newly added.
+                            const allNames = [...body.assigneeIds.map(displayNameSync), ...body.groupIds.map(g => groupMap.get(g) || g)];
                             postEditComment(task, `reassigned “${task.title}” to ${allNames.length ? allNames.join(", ") : "no one"}`);
                             const newUsers = body.assigneeIds.filter(id => !prevUsers.has(id));
                             const newGroups = body.groupIds.filter(id => !prevGroups.has(id)).map(id => ({ id, name: groupMap.get(id) || id }));
@@ -2978,7 +3256,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                             saveBtn.disabled = false;
                         }
                     });
-                    btn.addEventListener("click", () => my_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                    btn.addEventListener("click", () => manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
                         if (pop.style.display !== "none") {
                             pop.style.display = "none";
                             return;
@@ -3009,7 +3287,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     return `<span class="${p}-cmt-av ${p}-cmt-av-fb">${esc(initials(info.name))}</span>`;
                 }
                 function postComment(task, text) {
-                    return my_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                    return manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
                         const url = `${baseUrl}/tasks/${task.installationId}/task/${task.id}/comments`;
                         const body = JSON.stringify({ content: commentDoc(text) });
                         dlog("POST comment", url, "csrf?", readCsrf() ? "yes" : "no", "body", body);
@@ -3029,42 +3307,6 @@ const factory = (BaseBlockClass, widgetApi) => {
                         catch (_) {
                             return null;
                         }
-                    });
-                }
-                // Hidden audit comment → feeds the Manager Tasks activity feed; suppressed
-                // from the visible comment list here. Best-effort (needs the user session).
-                function postEditComment(task, action) {
-                    return my_tasks_widget_awaiter(this, void 0, void 0, function* () {
-                        try {
-                            yield postComment(task, `${EDIT_MARK} ${action}`);
-                        }
-                        catch (_) { }
-                    });
-                }
-                // Notifications to newly-assigned people/groups (Basic token). Users get
-                // "You were assigned…"; each group gets a named "Your group X was assigned…".
-                function notifyAssigned(userIds, groups, title) {
-                    return my_tasks_widget_awaiter(this, void 0, void 0, function* () {
-                        if (!notifyOnAssign)
-                            return;
-                        const send = (ids, text) => my_tasks_widget_awaiter(this, void 0, void 0, function* () {
-                            if (!ids.length)
-                                return;
-                            const content = { en_US: { text } };
-                            if (locale && locale !== "en_US")
-                                content[locale] = { text };
-                            try {
-                                yield fetch(`${baseUrl}/branch/notifications`, apiOpts({
-                                    method: "POST",
-                                    body: JSON.stringify({ accessorIds: ids, channels: ["notificationCenter", "push"], content, icon: { en_US: { type: "font", char: "n" } } }),
-                                }));
-                            }
-                            catch (_) { }
-                        });
-                        if (userIds.length)
-                            yield send(userIds, tr("notifyAssignedText").replace("{title}", title));
-                        for (const g of groups)
-                            yield send([g.id], tr("notifyGroupAssignedText").replace("{group}", g.name).replace("{title}", title));
                     });
                 }
                 function commentText(c) {
@@ -3110,7 +3352,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 // Inline comment attachments: comment text carries [attachment:<id>] tokens.
                 const mediaCache = new Map();
                 function metaCached(id) {
-                    return my_tasks_widget_awaiter(this, void 0, void 0, function* () { if (mediaCache.has(id))
+                    return manager_tasks_widget_awaiter(this, void 0, void 0, function* () { if (mediaCache.has(id))
                         return mediaCache.get(id); const m = yield mediaMeta(id); mediaCache.set(id, m); return m; });
                 }
                 const ATT_TOKEN = /\[attachment:([A-Za-z0-9]+)\]/g;
@@ -3130,9 +3372,46 @@ const factory = (BaseBlockClass, widgetApi) => {
                         return `<a class="${p}-cmt-att" href="${esc(full) || "#"}" target="_blank" rel="noopener" ${data}>${iClip}<span>${name}</span></a>`;
                     });
                 }
+                // Hidden audit comment (powers the activity feed's "edit" events; suppressed
+                // from the visible comment list). Posts via the user session (best-effort).
+                function postEditComment(task, action) {
+                    return manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                        try {
+                            yield postComment(task, `${EDIT_MARK} ${action}`);
+                        }
+                        catch (_) { }
+                    });
+                }
+                // Staffbase notifications to newly-assigned people/groups (Basic token, no
+                // session needed). Users get "You were assigned…"; each group gets a named
+                // "Your group X was assigned…". Best-effort.
+                function notifyAssigned(userIds, groups, title) {
+                    return manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                        if (!notifyOnAssign)
+                            return;
+                        const send = (ids, text) => manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                            if (!ids.length)
+                                return;
+                            const content = { en_US: { text } };
+                            if (locale && locale !== "en_US")
+                                content[locale] = { text };
+                            try {
+                                yield fetch(`${baseUrl}/branch/notifications`, apiOpts({
+                                    method: "POST",
+                                    body: JSON.stringify({ accessorIds: ids, channels: ["notificationCenter", "push"], content, icon: { en_US: { type: "font", char: "n" } } }),
+                                }));
+                            }
+                            catch (_) { }
+                        });
+                        if (userIds.length)
+                            yield send(userIds, tr("notifyAssignedText").replace("{title}", title));
+                        for (const g of groups)
+                            yield send([g.id], tr("notifyGroupAssignedText").replace("{group}", g.name).replace("{title}", title));
+                    });
+                }
                 // Render the comments list inside the open detail panel.
                 function renderComments(task) {
-                    return my_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                    return manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
                         const list = detailBody.querySelector(`#${p}-cmt-list-${instId}`);
                         if (!list)
                             return;
@@ -3203,7 +3482,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     list.querySelectorAll(`.${p}-cmt-tr`).forEach(b => b.addEventListener("click", e => { e.stopPropagation(); toggleComments(); }));
                 }
                 function toggleComments() {
-                    return my_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                    return manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
                         if (cmtTrBusy || !lastCmt)
                             return;
                         if (!cmtTranslated) {
@@ -3222,7 +3501,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 }
                 // Render the attachment tiles inside the open detail panel for a task.
                 function renderAttachments(task) {
-                    return my_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                    return manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
                         const grid = detailBody.querySelector(`#${p}-att-grid-${instId}`);
                         if (!grid)
                             return;
@@ -3255,7 +3534,7 @@ const factory = (BaseBlockClass, widgetApi) => {
           </div>`;
                         }).join("");
                         grid.querySelectorAll(`.${p}-att-x`).forEach(btn => {
-                            btn.addEventListener("click", () => my_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                            btn.addEventListener("click", () => manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
                                 const rid = btn.dataset.id || "";
                                 const next = (task.attachmentIds || []).filter(x => x !== rid);
                                 btn.disabled = true;
@@ -3295,9 +3574,11 @@ const factory = (BaseBlockClass, widgetApi) => {
                 }
                 // ── Filtered tasks (normal mode) ──────────────────────────────────
                 function filteredTasks() {
-                    return allTasks.filter(t => {
+                    const out = allTasks.filter(t => {
                         if (t.taskType === "audit-result")
                             return false; // always hide system tasks
+                        if (!inTeam(t))
+                            return false; // manager view: team-member dropdown filter
                         if (activeInstallFilter !== "all" && t.installationId !== activeInstallFilter)
                             return false;
                         if (activeTypeFilters.size > 0) {
@@ -3305,6 +3586,10 @@ const factory = (BaseBlockClass, widgetApi) => {
                             if (!activeTypeFilters.has(key))
                                 return false;
                         }
+                        if (priorityFilter !== "all" && t.priority !== priorityFilter)
+                            return false;
+                        if (overdueOnly && !isOverdue(t))
+                            return false;
                         const isDone = t.status === "DONE" || t.status === "done" || t.status === "CLOSED";
                         if (activeStatusFilter === "open" && isDone)
                             return false;
@@ -3312,6 +3597,295 @@ const factory = (BaseBlockClass, widgetApi) => {
                             return false;
                         return true;
                     });
+                    return sortTasks(out);
+                }
+                // ── Manager dashboard ──────────────────────────────────────────────
+                const isDoneStatus = (t) => t.status === "DONE" || t.status === "done" || t.status === "CLOSED";
+                const isOverdue = (t) => !isDoneStatus(t) && !!t.dueDate && new Date(t.dueDate).getTime() < Date.now();
+                // Charts span all statuses (they describe the split), but honour the team,
+                // store and type filters so the dashboard matches the list you're viewing.
+                function chartBase() {
+                    return allTasks.filter(t => {
+                        if (t.taskType === "audit-result")
+                            return false;
+                        if (!inTeam(t))
+                            return false;
+                        if (activeInstallFilter !== "all" && t.installationId !== activeInstallFilter)
+                            return false;
+                        if (activeTypeFilters.size > 0) {
+                            const key = t.taskType || "__none__";
+                            if (!activeTypeFilters.has(key))
+                                return false;
+                        }
+                        return true;
+                    });
+                }
+                // Populate the team-member <select> and toggle its visibility.
+                function renderTeamSelect() {
+                    if (!teamSelect || !teamWrap)
+                        return;
+                    if (!teamMembers.length) {
+                        teamWrap.style.display = "none";
+                        return;
+                    }
+                    teamWrap.style.display = "";
+                    const opts = [`<option value="">${esc(tr("allTeamMembers"))} (${teamMembers.length})</option>`]
+                        .concat(teamMembers.map(m => `<option value="${esc(m.id)}"${m.id === selectedMember ? " selected" : ""}>${esc(m.name)}</option>`));
+                    teamSelect.innerHTML = opts.join("");
+                    teamSelect.value = selectedMember;
+                }
+                // Donut ring (completion %). Pure inline SVG, no deps.
+                function donut(pct, color) {
+                    const r = 26, c = 2 * Math.PI * r;
+                    const v = Math.max(0, Math.min(100, pct));
+                    const off = c * (1 - v / 100);
+                    // Round caps look nice mid-arc but leave an overlapping "lump" on a full
+                    // (100%) or empty (0%) ring — use butt caps at the extremes.
+                    const cap = (v >= 100 || v <= 0) ? "butt" : "round";
+                    const fs = Math.round(v) >= 100 ? 13 : 16; // "100%" is wider — shrink so it fits the ring
+                    return `<svg width="72" height="72" viewBox="0 0 72 72" class="${p}-donut">
+          <circle cx="36" cy="36" r="${r}" fill="none" stroke="var(--border)" stroke-width="8"/>
+          <circle cx="36" cy="36" r="${r}" fill="none" stroke="${color}" stroke-width="8" stroke-linecap="${cap}"
+            stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}" transform="rotate(-90 36 36)"/>
+          <text x="36" y="36" text-anchor="middle" dominant-baseline="central" class="${p}-donut-txt" style="font-size:${fs}px">${Math.round(v)}%</text>
+        </svg>`;
+                }
+                function renderCharts() {
+                    if (!chartsEl)
+                        return;
+                    if (!showCharts) {
+                        chartsEl.style.display = "none";
+                        return;
+                    }
+                    const base = chartBase();
+                    const total = base.length;
+                    const done = base.filter(isDoneStatus).length;
+                    const open = total - done;
+                    const overdue = base.filter(isOverdue).length;
+                    const pct = total ? done / total * 100 : 0;
+                    // Priority split (open tasks only — that's what a manager acts on).
+                    const openTasks = base.filter(t => !isDoneStatus(t));
+                    const pCount = (lv) => openTasks.filter(t => t.priority === lv).length;
+                    const p1 = pCount("Priority_1"), p2 = pCount("Priority_2"), p3 = openTasks.length - p1 - p2;
+                    if (!total) {
+                        chartsEl.style.display = "";
+                        chartsEl.innerHTML = `<div class="${p}-dash-empty">${esc(teamNote || tr("noTeamData"))}</div>`;
+                        return;
+                    }
+                    chartsEl.style.display = "";
+                    // Per-member breakdown (open / done / overdue), busiest first, capped.
+                    const scope = selectedMember ? teamMembers.filter(m => m.id === selectedMember) : teamMembers;
+                    const memberRows = scope.map(m => {
+                        const mine = base.filter(t => t.assigneeIds.indexOf(m.id) !== -1);
+                        const mDone = mine.filter(isDoneStatus).length;
+                        const mOver = mine.filter(isOverdue).length;
+                        return { id: m.id, name: m.name, avatar: m.avatar, total: mine.length, open: mine.length - mDone, done: mDone, overdue: mOver };
+                    }).filter(r => r.total > 0).sort((a, b) => b.total - a.total);
+                    const CAP = 4;
+                    // Cap to 4 unless expanded (a single selected member always shows).
+                    const canExpand = !selectedMember && memberRows.length > CAP;
+                    const shown = (membersExpanded || selectedMember) ? memberRows : memberRows.slice(0, CAP);
+                    const maxTotal = Math.max(1, ...shown.map(r => r.total));
+                    const memberHtml = shown.length ? shown.map(r => {
+                        const dw = r.total ? Math.round(r.done / maxTotal * 100) : 0;
+                        const ow = r.total ? Math.round(r.open / maxTotal * 100) : 0;
+                        const av = r.avatar
+                            ? `<img class="${p}-dash-av" src="${esc(r.avatar)}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span class="${p}-dash-av ${p}-dash-av-fb" style="display:none">${esc(initials(r.name))}</span>`
+                            : `<span class="${p}-dash-av ${p}-dash-av-fb">${esc(initials(r.name))}</span>`;
+                        return `<div class="${p}-dash-row${r.id === selectedMember ? " active" : ""}" data-mid="${esc(r.id)}" role="button" tabindex="0" title="${tr("teamMember")}: ${esc(r.name)}">
+            <div class="${p}-dash-name">${av}<span>${esc(r.name)}</span></div>
+            <div class="${p}-dash-bar">
+              <div class="${p}-dash-seg done" style="width:${dw}%" title="${tr("done")}: ${r.done}"></div>
+              <div class="${p}-dash-seg open" style="width:${ow}%" title="${tr("open")}: ${r.open}"></div>
+            </div>
+            <div class="${p}-dash-counts"><b>${r.open}</b> ${tr("open").toLowerCase()}${r.overdue ? ` · <span class="${p}-dash-over">${r.overdue} ${tr("overdueLabel").toLowerCase()}</span>` : ""}</div>
+          </div>`;
+                    }).join("") + (canExpand ? `<button type="button" class="${p}-dash-toggle" id="${p}-members-toggle">${membersExpanded ? tr("showFewer") : tr("showAllN").replace("{n}", String(memberRows.length))}</button>` : "") : "";
+                    const priBar = (label, n, color) => {
+                        const w = openTasks.length ? Math.round(n / openTasks.length * 100) : 0;
+                        return `<div class="${p}-pri-row"><span class="${p}-pri-lbl">${esc(label)}</span><div class="${p}-pri-track"><div class="${p}-pri-fill" style="width:${w}%;background:${color}"></div></div><span class="${p}-pri-n">${n}</span></div>`;
+                    };
+                    chartsEl.innerHTML = `
+          <div class="${p}-dash">
+            <div class="${p}-stat-grid">
+              <div class="${p}-stat">
+                ${donut(pct, pct >= 66 ? "var(--success)" : pct >= 33 ? "#D97706" : "var(--error)")}
+                <div class="${p}-stat-meta"><div class="${p}-stat-lbl">${tr("completionRate")}</div><div class="${p}-stat-sub">${done}/${total} ${tr("done").toLowerCase()}</div></div>
+              </div>
+              <div class="${p}-stat">
+                <div class="${p}-stat-num ${overdue ? "bad" : ""}">${overdue}</div>
+                <div class="${p}-stat-meta"><div class="${p}-stat-lbl">${tr("overdueStat")}</div><div class="${p}-stat-sub">${tr("ofNOpen").replace("{n}", String(open))}</div></div>
+              </div>
+              <div class="${p}-stat">
+                <div class="${p}-stat-num">${open}</div>
+                <div class="${p}-stat-meta"><div class="${p}-stat-lbl">${tr("openTasks")}</div><div class="${p}-stat-sub">${total} ${tr("totalLabel")}</div></div>
+              </div>
+              <div class="${p}-stat ${p}-stat-pri">
+                <div class="${p}-stat-lbl">${tr("byPriority")}</div>
+                ${priBar(tr("priHigh"), p1, priorityColor("Priority_1"))}
+                ${priBar(tr("priMed"), p2, priorityColor("Priority_2"))}
+                ${priBar(tr("priLow"), p3, priorityColor("Priority_3"))}
+              </div>
+            </div>
+            ${memberHtml ? `<div class="${p}-dash-members"><div class="${p}-dash-h">${tr("byMember")}</div>${memberHtml}</div>` : ""}
+          </div>`;
+                    // Clicking a member row filters the whole view to them (toggles off if active).
+                    chartsEl.querySelectorAll(`.${p}-dash-row[data-mid]`).forEach(row => {
+                        row.addEventListener("click", () => {
+                            const mid = row.dataset.mid || "";
+                            selectedMember = selectedMember === mid ? "" : mid;
+                            if (teamSelect)
+                                teamSelect.value = selectedMember;
+                            renderList();
+                        });
+                    });
+                    const toggle = chartsEl.querySelector(`#${p}-members-toggle`);
+                    toggle === null || toggle === void 0 ? void 0 : toggle.addEventListener("click", () => { membersExpanded = !membersExpanded; renderCharts(); });
+                }
+                // ── Activity feed ──────────────────────────────────────────────────
+                const ordinal = (n) => { const v = n % 100, s = ["th", "st", "nd", "rd"]; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
+                // Human cadence from a recurring template's [rrule:] tag → "every Friday" etc.
+                function describeRrule(desc) {
+                    const m = RRULE_REGEX.exec(desc);
+                    if (!m)
+                        return tr("cadDaily");
+                    const kv = {};
+                    m[0].replace(/^\[rrule:\s*/i, "").replace(/\]$/, "").split(";").forEach(part => { const i = part.indexOf("="); if (i > 0)
+                        kv[part.slice(0, i).trim()] = part.slice(i + 1).trim(); });
+                    const DN = { SU: "Sunday", MO: "Monday", TU: "Tuesday", WE: "Wednesday", TH: "Thursday", FR: "Friday", SA: "Saturday" };
+                    const f = (kv.f || "DAILY").toUpperCase();
+                    if (f === "WEEKLY") {
+                        const days = (kv.d || "").split(",").map(s => s.trim().toUpperCase()).filter(d => DN[d]);
+                        if (!days.length)
+                            return tr("cadDaily");
+                        if (days.length === 5 && ["MO", "TU", "WE", "TH", "FR"].every(d => days.indexOf(d) !== -1))
+                            return tr("cadWeekdays");
+                        if (days.length === 1)
+                            return tr("cadWeeklyEvery").replace("{d}", DN[days[0]]);
+                        return tr("cadWeeklyDays").replace("{d}", days.map(d => DN[d] + "s").join(", "));
+                    }
+                    if (f === "MONTHLY") {
+                        const n = parseInt(kv.dom || "", 10);
+                        if (!isNaN(n))
+                            return tr("cadMonthlyDom").replace("{n}", ordinal(n));
+                        return tr("cadMonthly");
+                    }
+                    return tr("cadDaily");
+                }
+                // Assignee + group names for a task (joined). Empty string when unassigned.
+                function assigneeNames(t) {
+                    const names = t.assigneeIds.map(a => displayNameSync(a));
+                    const groups = t.groupIds.map(g => groupMap.get(g) || "").filter(Boolean);
+                    return [...names, ...groups].join(", ");
+                }
+                const stripTags = (h) => h.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+                const commentPlain = (c) => stripTags(commentText(c));
+                const isEditComment = (txt) => txt.trim().indexOf(EDIT_MARK) === 0;
+                const editAction = (txt) => txt.trim().slice(EDIT_MARK.length).trim();
+                function buildActivityEvents() {
+                    const byId = new Map((allUsersRaw || []).map(u => [u.id, u]));
+                    const nameOf = (id) => { const u = byId.get(id); if (u)
+                        return userDisplayName(u); const m = teamMembers.find(x => x.id === id); return m ? m.name : tr("someone"); };
+                    const avOf = (id) => { const u = byId.get(id); return u ? userAvatarUrl(u) : ""; };
+                    const q = (s) => `<span class="${p}-act-task">“${esc(ct(s))}”</span>`;
+                    const evs = [];
+                    for (const t of chartBase()) {
+                        const created = t.createDate ? Date.parse(t.createDate) : 0;
+                        if (t.isRecurring) {
+                            evs.push({ body: `${tr("actRecurringInstanceFor").replace("{who}", esc(assigneeNames(t) || tr("unassignedLabel")))} ${q(t.title)}`, when: created, iso: t.createDate || "" });
+                        }
+                        else if (t.creatorId) {
+                            const self = t.assigneeIds.length === 1 && t.groupIds.length === 0 && t.assigneeIds[0] === t.creatorId;
+                            const phrase = self ? tr("actCreatedSelf")
+                                : assigneeNames(t) ? tr("actCreatedFor").replace("{who}", esc(assigneeNames(t)))
+                                    : tr("actCreatedPlain");
+                            evs.push({ whoName: nameOf(t.creatorId), avatar: avOf(t.creatorId), body: `${phrase} ${q(t.title)}`, when: created, iso: t.createDate || "" });
+                        }
+                        if (isDoneStatus(t)) {
+                            const actor = t.assigneeIds[0] || t.creatorId || "";
+                            const iso = t.updateDate || t.createDate || "";
+                            evs.push({ whoName: actor ? nameOf(actor) : undefined, avatar: actor ? avOf(actor) : "", body: `${tr("actCompleted")} ${q(t.title)}`, when: iso ? Date.parse(iso) : 0, iso });
+                        }
+                    }
+                    for (const t of recurTemplates) {
+                        const iso = t.createDate || "";
+                        const phrase = tr("actAddedRecurringFor").replace("{who}", esc(assigneeNames(t) || tr("unassignedLabel")));
+                        evs.push({ whoName: t.creatorId ? nameOf(t.creatorId) : undefined, avatar: t.creatorId ? avOf(t.creatorId) : "",
+                            body: `${phrase} · ${esc(describeRrule(t.description || ""))} ${q(t.title)}`, when: iso ? Date.parse(iso) : 0, iso });
+                    }
+                    // Comments + hidden [tasks:edit] markers (fetched by loadActivityComments)
+                    activityComments.forEach((comments, taskId) => {
+                        const t = allTasks.find(x => x.id === taskId);
+                        if (!t)
+                            return;
+                        for (const c of comments) {
+                            const txt = commentPlain(c);
+                            if (!txt)
+                                continue;
+                            const author = commentAuthorId(c);
+                            const iso = c.createdAt || c.created || c.createDate || c.updateDate || "";
+                            // Edit markers carry a self-contained action (incl. the task name);
+                            // real comments read "commented on '<task>'".
+                            const body = isEditComment(txt) ? esc(editAction(txt)) : `${tr("actCommented")} ${q(t.title)}`;
+                            evs.push({ whoName: author ? nameOf(author) : undefined, avatar: author ? avOf(author) : "", body, when: iso ? Date.parse(iso) : 0, iso });
+                        }
+                    });
+                    return evs.sort((a, b) => b.when - a.when);
+                }
+                // Best-effort: pull comments for the most-recently-updated in-scope tasks
+                // (bounded) so the feed can show comments + widget edits. Runs once per load.
+                function loadActivityComments() {
+                    return manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                        if (activityCommentsLoaded)
+                            return;
+                        activityCommentsLoaded = true;
+                        const scope = allTasks.filter(t => t.taskType !== "audit-result" && inTeam(t))
+                            .sort((a, b) => (b.updateDate ? Date.parse(b.updateDate) : 0) - (a.updateDate ? Date.parse(a.updateDate) : 0))
+                            .slice(0, 25);
+                        if (!scope.length)
+                            return;
+                        yield Promise.all(scope.map((t) => manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                            if (activityComments.has(t.id))
+                                return;
+                            try {
+                                const r = yield fetch(`${baseUrl}/tasks/${t.installationId}/task/${t.id}/comments`, apiOpts({ headers: { Accept: CMT_HTML_ACCEPT } }));
+                                const d = r.ok ? yield r.json() : null;
+                                activityComments.set(t.id, Array.isArray(d) ? d : ((d === null || d === void 0 ? void 0 : d.data) || []));
+                            }
+                            catch (_) {
+                                activityComments.set(t.id, []);
+                            }
+                        })));
+                        renderActivity(); // re-render with comment/edit events (guard prevents re-fetch)
+                    });
+                }
+                function renderActivity() {
+                    if (!activityEl)
+                        return;
+                    if (!showCharts) {
+                        activityEl.style.display = "none";
+                        return;
+                    }
+                    const top = buildActivityEvents().slice(0, 7);
+                    if (!top.length) {
+                        activityEl.style.display = "none";
+                        if (!activityCommentsLoaded)
+                            loadActivityComments();
+                        return;
+                    }
+                    activityEl.style.display = "";
+                    const sysIco = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/><polyline points="12 7 12 12 15 14"/></svg>`;
+                    activityEl.innerHTML = `<div class="${p}-act-h">${tr("recentActivity")}</div>` + top.map(e => {
+                        const av = e.whoName
+                            ? (e.avatar
+                                ? `<img class="${p}-act-av" src="${esc(e.avatar)}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span class="${p}-act-av fb" style="display:none">${esc(initials(e.whoName))}</span>`
+                                : `<span class="${p}-act-av fb">${esc(initials(e.whoName))}</span>`)
+                            : `<span class="${p}-act-av ${p}-act-sys">${sysIco}</span>`;
+                        const time = e.iso ? commentTime(e.iso) : "";
+                        const lead = e.whoName ? `<b>${esc(e.whoName)}</b> ` : "";
+                        return `<div class="${p}-act-item">${av}<div class="${p}-act-body">${lead}${e.body}</div>${time ? `<span class="${p}-act-time">${esc(time)}</span>` : ""}</div>`;
+                    }).join("");
+                    loadActivityComments();
                 }
                 // ── Store tabs ────────────────────────────────────────────────────
                 function renderStoreTabs() {
@@ -3482,21 +4056,28 @@ const factory = (BaseBlockClass, widgetApi) => {
                     renderTypeFilters();
                 } };
                 document.addEventListener("click", onDocClick);
-                self._mtwDocClick = onDocClick;
+                self._mgrDocClick = onDocClick;
                 // ── Render task list ──────────────────────────────────────────────
                 function renderList() {
                     if (auditMode) {
                         renderAuditContent();
                         return;
                     }
+                    renderCharts();
+                    renderActivity();
                     const tasks = filteredTasks();
                     countEl.textContent = String(tasks.length);
                     if (!tasks.length) {
-                        const emptyMsg = allTasks.filter(t => t.taskType !== "audit-result").length === 0
-                            ? tr("noTasksFound")
-                            : activeStatusFilter === "open" ? tr("allCaughtUpPersonal") : tr("noCompletedTasks");
+                        // No resolved team (e.g. reports mode with no direct reports) → say so.
+                        const emptyMsg = teamNote
+                            ? teamNote
+                            : allTasks.filter(t => t.taskType !== "audit-result").length === 0
+                                ? tr("noTasksFound")
+                                : activeStatusFilter === "open" ? tr("allCaughtUpPersonal") : tr("noCompletedTasks");
+                        const allDoneIcon = `<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`;
+                        const emptyIcon = `<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`;
                         listWrap.innerHTML = `<div class="${p}-state">
-            <span class="${p}-state-icon">${activeStatusFilter === "open" && allTasks.length > 0 ? "✓" : "📋"}</span>
+            <span class="${p}-state-icon">${activeStatusFilter === "open" && allTasks.length > 0 ? allDoneIcon : emptyIcon}</span>
             <strong>${emptyMsg}</strong>
           </div>`;
                         return;
@@ -3847,7 +4428,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 if (vv) {
                     vv.addEventListener("resize", onViewport);
                     vv.addEventListener("scroll", onViewport);
-                    self._mtwVV = onViewport;
+                    self._mgrVV = onViewport;
                 }
                 // Parse an audit-generated description into structured fields.
                 // Matches the format produced by the audit widget:
@@ -3903,13 +4484,16 @@ const factory = (BaseBlockClass, widgetApi) => {
                     // Assignee section: group vs person tabs (only shown when there are groups or assignees)
                     const hasGroup = task.groupIds.length > 0;
                     const hasAssignee = task.assigneeIds.length > 0;
-                    const showAssignTabs = (hasGroup || hasAssignee) && auditMode;
+                    const showAssignTabs = (hasGroup || hasAssignee) && allowAssign;
+                    // Resolve an assignee id to a display name (teamMembers → /users → id).
+                    const nameForUid = (id) => { const m = teamMembers.find(x => x.id === id); if (m)
+                        return m.name; const u = (allUsersRaw || []).find(x => x.id === id); return u ? userDisplayName(u) : id; };
                     let assigneeHtml = "";
                     if (hasGroup || hasAssignee) {
                         if (showAssignTabs) {
                             const groupNames = task.groupIds.map(gid => groupName(gid)).filter(Boolean);
                             const groupHtml = groupNames.map(gn => `<div class="${p}-detail-meta-row">${iGroup} ${esc(gn)}</div>`).join("") || `<div style='font-size:12px;color:var(--gray-lt)'>${tr("noGroupAssigned")}</div>`;
-                            const personHtml = task.assigneeIds.length > 0 ? task.assigneeIds.map(aid => `<div class="${p}-detail-meta-row" data-uid="${esc(aid)}">${iUser} <span>${esc(aid)}</span></div>`).join("") : `<div style='font-size:12px;color:var(--gray-lt)'>${tr("noIndividualAssignee")}</div>`;
+                            const personHtml = task.assigneeIds.length > 0 ? task.assigneeIds.map(aid => `<div class="${p}-detail-meta-row" data-uid="${esc(aid)}">${iUser} <span>${esc(nameForUid(aid))}</span></div>`).join("") : `<div style='font-size:12px;color:var(--gray-lt)'>${tr("noIndividualAssignee")}</div>`;
                             assigneeHtml = `
               <div class="${p}-assign-tabs" id="${p}-assign-tabs-${instId}">
                 <button type="button" class="${p}-assign-tab${detailAssignTab === "group" ? " active" : ""}" data-tab="group">${tr("group")}</button>
@@ -3931,7 +4515,7 @@ const factory = (BaseBlockClass, widgetApi) => {
             ${task.installationTitle ? `<div class="${p}-detail-meta-row">${iStore} ${esc(task.installationTitle)}</div>` : ""}
             ${task.listName ? `<div class="${p}-detail-meta-row">${iList} ${esc(task.listName)}</div>` : ""}
             ${assigneeHtml}
-            ${auditMode && allowAssign ? `<div class="${p}-reassign" id="${p}-reassign-${instId}">
+            ${allowAssign ? `<div class="${p}-reassign" id="${p}-reassign-${instId}">
               <button type="button" class="${p}-reassign-btn" data-act="open"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> ${(task.groupIds.length || task.assigneeIds.length) ? tr("reassign") : tr("assign")}</button>
               <div class="${p}-reassign-pop" style="display:none">
                 <input type="text" class="${p}-reassign-search" placeholder="${tr("searchPeopleGroups")}">
@@ -3996,8 +4580,8 @@ const factory = (BaseBlockClass, widgetApi) => {
                         fetchUser(uid).then(u => { const s = row.querySelector("span"); if (s && u.name)
                             s.textContent = u.name; });
                     });
-                    // Reassign control (audit mode + allowtaskassignment)
-                    if (auditMode && allowAssign)
+                    // Reassign control (manager view: gated only by allowtaskassignment)
+                    if (allowAssign)
                         wireReassign(task);
                     if (enableComments) {
                         renderComments(task);
@@ -4069,7 +4653,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                             cInput.style.height = Math.min(cInput.scrollHeight, 140) + "px";
                             updateSendVisibility();
                         });
-                        cFile === null || cFile === void 0 ? void 0 : cFile.addEventListener("change", () => my_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                        cFile === null || cFile === void 0 ? void 0 : cFile.addEventListener("change", () => manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
                             const files = Array.from(cFile.files || []);
                             cFile.value = "";
                             if (!files.length)
@@ -4096,7 +4680,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                             renderChips();
                             updateSendVisibility();
                         }));
-                        const submit = () => my_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                        const submit = () => manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
                             const text = ((cInput === null || cInput === void 0 ? void 0 : cInput.value) || "").trim();
                             if ((!text && !pending.length) || !cSend || !cInput)
                                 return;
@@ -4148,7 +4732,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     const attInput = detailBody.querySelector(`#${p}-att-input-${instId}`);
                     if (attAdd && attInput) {
                         // attAdd is a <label for> → opens the picker natively (mobile-reliable).
-                        attInput.addEventListener("change", () => my_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                        attInput.addEventListener("change", () => manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
                             const files = Array.from(attInput.files || []);
                             attInput.value = "";
                             if (!files.length)
@@ -4205,8 +4789,8 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const onDocKey = (e) => { if (e.key === "Escape" && (detailTask || detailAudit))
                     closeDetail(); };
                 document.addEventListener("keydown", onDocKey);
-                self._mtwDocKey = onDocKey;
-                detailToggle.addEventListener("click", () => my_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                self._mgrDocKey = onDocKey;
+                detailToggle.addEventListener("click", () => manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
                     if (!detailTask)
                         return;
                     const task = detailTask;
@@ -4252,7 +4836,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 }
                 // ── Toggle task status ────────────────────────────────────────────
                 function toggleTask(checkEl) {
-                    return my_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                    return manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
                         const taskId = checkEl.dataset.taskId;
                         const installId = checkEl.dataset.installId;
                         const currentStatus = checkEl.dataset.status;
@@ -4316,6 +4900,10 @@ const factory = (BaseBlockClass, widgetApi) => {
                             renderList();
                         });
                     });
+                    // Priority / sort / overdue-only controls → re-render list + dashboard.
+                    prioSelect === null || prioSelect === void 0 ? void 0 : prioSelect.addEventListener("change", () => { priorityFilter = prioSelect.value || "all"; renderList(); });
+                    sortSelect === null || sortSelect === void 0 ? void 0 : sortSelect.addEventListener("change", () => { sortBy = sortSelect.value || "due"; renderList(); });
+                    overdueChip === null || overdueChip === void 0 ? void 0 : overdueChip.addEventListener("click", () => { overdueOnly = !overdueOnly; overdueChip.classList.toggle("active", overdueOnly); overdueChip.setAttribute("aria-pressed", String(overdueOnly)); renderList(); });
                 }
                 // ── Locale resolution ─────────────────────────────────────────────
                 // Resolve the viewer's locale (once), rebind `t`, set text direction,
@@ -4324,7 +4912,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 // time, so it picks up the new locale automatically.
                 let localeApplied = false;
                 function applyLocale() {
-                    return my_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                    return manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
                         var _a;
                         if (localeApplied)
                             return;
@@ -4372,7 +4960,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                             el.textContent = val; };
                         const setAttr = (id, attr, val) => { const el = container.querySelector(`#${id}`); if (el)
                             el.setAttribute(attr, val); };
-                        setText(`${p}-title-text`, auditMode ? tr("auditResults") : tr("myTasks"));
+                        setText(`${p}-title-text`, auditMode ? tr("auditResults") : tr("managerTitle"));
                         setText(`${p}-new-label`, tr("newTask"));
                         setAttr(`${p}-new`, "title", tr("newTask"));
                         setAttr(`${p}-refresh`, "title", tr("refresh"));
@@ -4402,7 +4990,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 // One batched POST to /api/translations via the logged-in user's session
                 // (same auth path as comments). Source = branch default (en_US).
                 function translateSend(payload) {
-                    return my_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                    return manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
                         var _a;
                         const r = yield fetch(`${baseUrl}/translations`, sessionOpts({
                             method: "POST",
@@ -4421,7 +5009,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                         lbl.textContent = translateBusy ? tr("translating") : contentTranslated ? tr("showOriginal") : tr("translateBtn");
                 }
                 function toggleTranslate() {
-                    return my_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                    return manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
                         if (translateBusy)
                             return;
                         if (!contentTranslated) {
@@ -4468,7 +5056,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 // surfaces access-restricted stores — then filtered to the viewer's own
                 // access. NOTE: this access check is client-side only; see HANDOVER.md.
                 function fetchTaskStores() {
-                    return my_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                    return manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
                         var _a, _b;
                         let viewerId = "";
                         let viewerGroups = [];
@@ -4526,14 +5114,17 @@ const factory = (BaseBlockClass, widgetApi) => {
                 }
                 // ── Load data ─────────────────────────────────────────────────────
                 function load() {
-                    return my_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                    return manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
                         var _a, _b, _c, _d, _e, _f;
                         refreshBtn.disabled = true;
                         refreshBtn.innerHTML = `<span class="${p}-spin" style="width:14px;height:14px;border-width:2px"></span>`;
                         hideBanner();
                         allTasks = [];
+                        recurTemplates = [];
                         auditLists = [];
                         activeAuditListId = "";
+                        activityComments.clear();
+                        activityCommentsLoaded = false;
                         activeInstallFilter = "all";
                         activeTypeFilters.clear();
                         dropdownOpen = false;
@@ -4635,8 +5226,20 @@ const factory = (BaseBlockClass, widgetApi) => {
                                             const desc = t.description || "";
                                             const lname = t.taskListId ? (listMap.get(t.taskListId) || "") : "";
                                             let taskType = parseTaskType(t.title || "") || parseTaskType(desc);
-                                            // Recurring-task templates are hidden system tasks — never show them.
+                                            // Recurring-task templates are hidden system tasks — kept out of
+                                            // the list/charts, but captured for the activity feed ("added a
+                                            // recurring task …").
                                             if (taskType === "recur-template") {
+                                                recurTemplates.push({
+                                                    id: t.id, title: t.title || "(no title)", description: desc,
+                                                    status: t.status || "OPEN", priority: t.priority || "Priority_3",
+                                                    dueDate: t.dueDate || null, taskType,
+                                                    installationId: inst.id, installationTitle: inst.title,
+                                                    listId: t.taskListId || "", listName: lname,
+                                                    groupIds: t.groupIds || [], assigneeIds: t.assigneeIds || [], attachmentIds: [],
+                                                    createDate: t.createDate || undefined, updateDate: t.updateDate || undefined,
+                                                    creatorId: t.creatorId || undefined, creatorType: t.creatorType || undefined,
+                                                });
                                                 seen.delete(t.id);
                                                 continue;
                                             }
@@ -4659,6 +5262,8 @@ const factory = (BaseBlockClass, widgetApi) => {
                                                 attachmentIds: t.attachmentIds || [],
                                                 auditSeverity: lvlCritical ? "Critical" : (sevM ? sevM[1] : undefined),
                                                 isRecurring: RECUR_REGEX.test(desc),
+                                                createDate: t.createDate || undefined, updateDate: t.updateDate || undefined,
+                                                creatorId: t.creatorId || undefined, creatorType: t.creatorType || undefined,
                                             });
                                         }
                                     }
@@ -4724,11 +5329,16 @@ const factory = (BaseBlockClass, widgetApi) => {
                                 renderList();
                             }
                             else {
+                                // Resolve the manager's team, then paint the dropdown + dashboard.
+                                yield resolveTeam();
+                                renderTeamSelect();
                                 renderStoreTabs();
                                 renderTypeFilters();
                                 renderList();
-                                if (allTasks.filter(t => t.taskType !== "audit-result").length === 0) {
-                                    showBanner("info", "No tasks found. Your manager can enable \"Show All Tasks\" to see all store tasks.");
+                                if (teamNote)
+                                    showBanner("info", teamNote);
+                                else if (allTasks.filter(t => t.taskType !== "audit-result").length === 0) {
+                                    showBanner("info", tr("noTasksFound"));
                                 }
                             }
                         }
@@ -4740,6 +5350,11 @@ const factory = (BaseBlockClass, widgetApi) => {
                     });
                 }
                 refreshBtn.addEventListener("click", load);
+                // Team-member dropdown → filter list + dashboard (no refetch).
+                teamSelect === null || teamSelect === void 0 ? void 0 : teamSelect.addEventListener("change", () => {
+                    selectedMember = teamSelect.value || "";
+                    renderList();
+                });
                 // ── Create task sheet ─────────────────────────────────────────────────
                 if (allowCreate && !auditMode) {
                     const newBtn = container.querySelector(`#${p}-new`);
@@ -4757,7 +5372,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                             createEl.className = `${p}-create`;
                             createEl.dataset.sbPortal = instId;
                             document.body.appendChild(createEl);
-                            self._mtwCreate = createEl;
+                            self._mgrCreate = createEl;
                         }
                         const instOpts = allInstalls.map(i => `<option value="${esc(i.id)}">${esc(i.title)}</option>`).join("");
                         const firstInst = allInstalls[0].id;
@@ -4785,6 +5400,15 @@ const factory = (BaseBlockClass, widgetApi) => {
                 <div class="${p}-fld"><label>${tr("dueDate")}</label><input type="date" class="${p}-in" id="${p}-c-due"></div>
                 <div class="${p}-fld"><label>${tr("priority")}</label><select class="${p}-sel" id="${p}-c-prio"><option value="Priority_3">${tr("normal")}</option><option value="Priority_2">${tr("medium")}</option><option value="Priority_1">${tr("high")}</option><option value="critical">${tr("critical")}</option></select></div>
               </div>
+              <div class="${p}-fld"><label>${tr("assignTo")}</label>
+                <div class="${p}-reassign" id="${p}-c-assign">
+                  <button type="button" class="${p}-reassign-btn" id="${p}-c-assign-btn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span id="${p}-c-assign-lbl">${tr("assign")}</span></button>
+                  <div class="${p}-reassign-pop" id="${p}-c-assign-pop" style="display:none">
+                    <input type="text" class="${p}-reassign-search" id="${p}-c-assign-search" placeholder="${tr("searchPeopleGroups")}">
+                    <div class="${p}-reassign-results" id="${p}-c-assign-results"></div>
+                  </div>
+                </div>
+              </div>
             </div>
             <div class="${p}-create-foot">
               <button type="button" class="${p}-btn-cancel" id="${p}-c-cancel">${tr("cancel")}</button>
@@ -4804,9 +5428,56 @@ const factory = (BaseBlockClass, widgetApi) => {
                             if (isNew)
                                 typeNew.focus();
                         });
+                        // Assign-to multi-select (people + groups), reusing the reassign picker styles.
+                        const cSelUsers = new Set(), cSelGroups = new Set();
+                        const cBtn = $("c-assign-btn"), cPop = $("c-assign-pop"), cSearch = $("c-assign-search"), cResults = $("c-assign-results"), cLbl = $("c-assign-lbl");
+                        const cgIco = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
+                        const cuIco = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
+                        const cckIco = `<svg class="${p}-ck" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+                        const cGroups = () => { const o = []; groupMap.forEach((name, id) => o.push({ id, name })); return o.sort((a, b) => a.name.localeCompare(b.name)); };
+                        const cLabel = () => {
+                            const names = [...[...cSelGroups].map(id => groupMap.get(id) || id), ...[...cSelUsers].map(id => { var _a; return ((_a = (usersList || []).find(u => u.id === id)) === null || _a === void 0 ? void 0 : _a.name) || id; })];
+                            cLbl.textContent = names.length ? (names.length <= 2 ? names.join(", ") : tr("nSelected").replace("{n}", String(names.length))) : tr("assign");
+                        };
+                        const cRender = (q) => {
+                            const ql = q.trim().toLowerCase();
+                            const groups = cGroups().filter(g => !ql || g.name.toLowerCase().includes(ql)).slice(0, 30);
+                            const users = (usersList || []).filter(u => !ql || u.name.toLowerCase().includes(ql)).slice(0, 30);
+                            let html = "";
+                            if (groups.length)
+                                html += `<div class="${p}-reassign-h">${tr("groups")}</div>` + groups.map(g => `<div class="${p}-reassign-opt${cSelGroups.has(g.id) ? " sel" : ""}" data-type="group" data-id="${esc(g.id)}">${cgIco}<span>${esc(g.name)}</span>${cckIco}</div>`).join("");
+                            html += `<div class="${p}-reassign-h">${tr("people")}</div>` + (users.length ? users.map(u => `<div class="${p}-reassign-opt${cSelUsers.has(u.id) ? " sel" : ""}" data-type="user" data-id="${esc(u.id)}">${cuIco}<span>${esc(u.name)}</span>${cckIco}</div>`).join("") : `<div class="${p}-reassign-empty">${usersList ? tr("noMatches") : tr("loading")}</div>`);
+                            cResults.innerHTML = html;
+                            cResults.querySelectorAll(`.${p}-reassign-opt`).forEach((o) => o.addEventListener("click", () => {
+                                const el = o;
+                                const id = el.dataset.id;
+                                const set = el.dataset.type === "group" ? cSelGroups : cSelUsers;
+                                if (set.has(id))
+                                    set.delete(id);
+                                else
+                                    set.add(id);
+                                el.classList.toggle("sel");
+                                cLabel();
+                            }));
+                        };
+                        cBtn.addEventListener("click", () => manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                            if (cPop.style.display !== "none") {
+                                cPop.style.display = "none";
+                                return;
+                            }
+                            cPop.style.display = "block";
+                            cRender("");
+                            cSearch.value = "";
+                            cSearch.focus();
+                            if (!usersList) {
+                                yield fetchUsers();
+                                cRender(cSearch.value);
+                            }
+                        }));
+                        cSearch.addEventListener("input", () => cRender(cSearch.value));
                         $("c-x").addEventListener("click", closeCreate);
                         $("c-cancel").addEventListener("click", closeCreate);
-                        $("c-save").addEventListener("click", () => my_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                        $("c-save").addEventListener("click", () => manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
                             const title = ($("c-title").value || "").trim();
                             if (!title) {
                                 $("c-title").focus();
@@ -4842,9 +5513,15 @@ const factory = (BaseBlockClass, widgetApi) => {
                                     body.description = finalDesc;
                                 if (due)
                                     body.dueDate = `${due}T00:00:00.000Z`;
+                                if (cSelUsers.size)
+                                    body.assigneeIds = [...cSelUsers];
+                                if (cSelGroups.size)
+                                    body.groupIds = [...cSelGroups];
                                 const r = yield fetch(`${baseUrl}/tasks/${instId2}/task`, Object.assign(Object.assign({ method: "POST" }, apiOpts()), { body: JSON.stringify(body) }));
                                 if (!r.ok)
                                     throw new Error(`HTTP ${r.status}`);
+                                // Notify the people/groups this task was just assigned to.
+                                notifyAssigned([...cSelUsers], [...cSelGroups].map(id => ({ id, name: groupMap.get(id) || id })), title);
                                 closeCreate();
                                 hideBanner();
                                 yield load();
@@ -4869,45 +5546,45 @@ const factory = (BaseBlockClass, widgetApi) => {
         }
         disconnectedCallback() {
             const self = this;
-            if (self._mtwOverlay) {
-                self._mtwOverlay.remove();
-                self._mtwOverlay = undefined;
+            if (self._mgrOverlay) {
+                self._mgrOverlay.remove();
+                self._mgrOverlay = undefined;
             }
-            if (self._mtwDetail) {
-                self._mtwDetail.remove();
-                self._mtwDetail = undefined;
+            if (self._mgrDetail) {
+                self._mgrDetail.remove();
+                self._mgrDetail = undefined;
             }
-            if (self._mtwAModal) {
-                self._mtwAModal.remove();
-                self._mtwAModal = undefined;
+            if (self._mgrAModal) {
+                self._mgrAModal.remove();
+                self._mgrAModal = undefined;
             }
-            if (self._mtwCreate) {
-                self._mtwCreate.remove();
-                self._mtwCreate = undefined;
+            if (self._mgrCreate) {
+                self._mgrCreate.remove();
+                self._mgrCreate = undefined;
             }
-            if (self._mtwDocClick) {
-                document.removeEventListener("click", self._mtwDocClick);
-                self._mtwDocClick = undefined;
+            if (self._mgrDocClick) {
+                document.removeEventListener("click", self._mgrDocClick);
+                self._mgrDocClick = undefined;
             }
-            if (self._mtwDocKey) {
-                document.removeEventListener("keydown", self._mtwDocKey);
-                self._mtwDocKey = undefined;
+            if (self._mgrDocKey) {
+                document.removeEventListener("keydown", self._mgrDocKey);
+                self._mgrDocKey = undefined;
             }
-            if (self._mtwVV && window.visualViewport) {
-                window.visualViewport.removeEventListener("resize", self._mtwVV);
-                window.visualViewport.removeEventListener("scroll", self._mtwVV);
-                self._mtwVV = undefined;
+            if (self._mgrVV && window.visualViewport) {
+                window.visualViewport.removeEventListener("resize", self._mgrVV);
+                window.visualViewport.removeEventListener("scroll", self._mgrVV);
+                self._mgrVV = undefined;
             }
         }
         static get observedAttributes() {
-            return ["apitoken", "baseurl", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor", "storelabelsingular", "storelabelplural", "typecolors", "showalltasks", "showdonetasks", "auditmode", "enablecomments", "allowtaskcreation", "allowtaskassignment", "notifyonassign", "debugmode"];
+            return ["apitoken", "baseurl", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor", "storelabelsingular", "storelabelplural", "typecolors", "teamsource", "teamuserids", "showcharts", "notifyonassign", "showdonetasks", "auditmode", "enablecomments", "allowtaskcreation", "allowtaskassignment", "debugmode"];
         }
     };
 };
 // ── Block registration ────────────────────────────────────────────────────────
 const blockDefinition = {
-    name: "my-tasks-widget", label: "My Tasks Widget",
-    attributes: ["apitoken", "baseurl", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor", "storelabelsingular", "storelabelplural", "typecolors", "showalltasks", "showdonetasks", "auditmode", "enablecomments", "allowtaskcreation", "allowtaskassignment", "notifyonassign", "debugmode"],
+    name: "manager-tasks-widget", label: "Manager Tasks Widget",
+    attributes: ["apitoken", "baseurl", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor", "storelabelsingular", "storelabelplural", "typecolors", "teamsource", "teamuserids", "showcharts", "notifyonassign", "showdonetasks", "auditmode", "enablecomments", "allowtaskcreation", "allowtaskassignment", "debugmode"],
     factory, configurationSchema, uiSchema, blockLevel: "block", iconUrl: "",
 };
 window.defineBlock({ blockDefinition, author: "Staffbase", version: "1.0.0" });
