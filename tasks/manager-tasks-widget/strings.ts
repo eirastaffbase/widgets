@@ -36,6 +36,8 @@ export const STRINGS: Bundles = {
     sortNewest: "Newest",
     // Activity feed
     recentActivity: "Recent activity",
+    activityLog: "Activity log",
+    viewAllActivity: "View full log ({n})",
     actCompleted: "completed",
     actCommented: "commented on",
     actCreatedSelf: "created a task for themselves",

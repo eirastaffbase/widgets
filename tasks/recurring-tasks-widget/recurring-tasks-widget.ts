@@ -149,6 +149,7 @@ function stripTags(text: string): string {
     .replace(TYPE_REGEX, "")
     .replace(RECUR_REGEX, "")
     .replace(/\[notify:\s*[^\]]+\]/i, "")
+    .replace(/\[by:\s*[^\]]+\]/i, "")
     .replace(/\s{2,}/g, " ")
     .trim();
 }
@@ -360,10 +361,12 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       // No user is fetched elsewhere in this widget, so we read it here:
       // getUserInformation() → id → GET /users/{id} → config.locale. Done
       // before the skeleton so the whole form renders in the right language.
+      let myUserId = ""; // stamped into templates as [by:] so the manager activity feed shows who scheduled it
       try {
         const prof: any = await widgetApi.getUserInformation();
         let configLocale = "";
         const uid = prof?.id || "";
+        myUserId = uid;
         if (uid) {
           const r = await fetch(`${baseUrl}/users/${uid}`, apiOpts());
           if (r.ok) { const u = await r.json(); configLocale = u?.config?.locale || ""; }
@@ -1419,7 +1422,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         const sid = editingId || genId();
         const assigneeIds = selectedAssignees.filter(a => a.type === "user").map(a => a.id);
         const groupIds = selectedAssignees.filter(a => a.type === "group").map(a => a.id);
-        const templateDesc = `${baseDesc ? baseDesc + " " : ""}[type: ${TEMPLATE_TYPE}] [rrule: id=${sid};${encodeRule(rule)}]${notifyOnAssign ? " [notify: yes]" : ""}`;
+        const templateDesc = `${baseDesc ? baseDesc + " " : ""}[type: ${TEMPLATE_TYPE}] [rrule: id=${sid};${encodeRule(rule)}]${myUserId ? ` [by: ${myUserId}]` : ""}${notifyOnAssign ? " [notify: yes]" : ""}`;
 
         saveBtn.disabled = true; saveBtn.innerHTML = `<span class="${p}-spin"></span> Saving…`;
         statusEl.style.display = "none";

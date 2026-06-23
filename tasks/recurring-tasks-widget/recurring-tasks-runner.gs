@@ -316,6 +316,7 @@ function stripTags(text) {
     .replace(/\[recur:\s*[^\]]+\]/i, "")
     .replace(/\[lvl:\s*[^\]]+\]/i, "")
     .replace(/\[notify:\s*[^\]]+\]/i, "")
+    .replace(/\[by:\s*[^\]]+\]/i, "")
     .replace(/\s{2,}/g, " ")
     .trim();
 }

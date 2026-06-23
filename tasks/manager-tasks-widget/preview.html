@@ -195,11 +195,12 @@
     };
 
     const memberHtml = rows.map(r=>{
-      const dw = Math.round(r.done/maxT*100), ow = Math.round(r.open/maxT*100);
+      const onTrack = Math.max(0, r.open - r.overdue);
+      const dw = Math.round(r.done/maxT*100), ow = Math.round(onTrack/maxT*100), vw = Math.round(r.overdue/maxT*100);
       return `<div class="${p}-dash-row${r.id===selectedMember?" active":""}" data-mid="${r.id}" role="button" tabindex="0">
         <div class="${p}-dash-name"><span class="${p}-dash-av fb">${initials(r.name)}</span><span>${esc(r.name)}</span></div>
-        <div class="${p}-dash-bar"><div class="${p}-dash-seg done" style="width:${dw}%"></div><div class="${p}-dash-seg open" style="width:${ow}%"></div></div>
-        <div class="${p}-dash-counts"><b>${r.open}</b> open${r.overdue?` · <span class="${p}-dash-over">${r.overdue} overdue</span>`:""}</div>
+        <div class="${p}-dash-bar"><div class="${p}-dash-seg done" style="width:${dw}%"></div><div class="${p}-dash-seg open" style="width:${ow}%"></div><div class="${p}-dash-seg over" style="width:${vw}%"></div></div>
+        <div class="${p}-dash-counts"><b>${r.open}</b> open${r.overdue?` · <span class="${p}-dash-over" title="${r.overdue} overdue">${r.overdue}</span>`:""}</div>
       </div>`;
     }).join("") + (canExpand?`<button type="button" class="${p}-dash-toggle" id="${p}-members-toggle">${membersExpanded?"Show fewer":"Show all "+allRows.length}</button>`:"");
 
@@ -338,7 +339,7 @@
         .${p}-pri-n{font-size:11px;font-weight:700;width:18px;text-align:end}
         .${p}-dash-members{margin-top:12px;background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:12px 14px;box-shadow:var(--shadow-sm)}
         .${p}-dash-h,.${p}-act-h{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray);margin-bottom:10px}
-        .${p}-dash-row{display:grid;grid-template-columns:minmax(90px,1.3fr) 2fr auto;gap:10px;align-items:center;margin-bottom:5px;padding:4px 6px;margin-inline:-6px;border-radius:8px;cursor:pointer;transition:background .12s}
+        .${p}-dash-row{display:grid;grid-template-columns:104px 1fr 74px;gap:10px;align-items:center;margin-bottom:5px;padding:4px 6px;margin-inline:-6px;border-radius:8px;cursor:pointer;transition:background .12s}
         .${p}-dash-row:hover{background:rgba(var(--primary-rgb),.05)}
         .${p}-dash-row.active{background:rgba(var(--primary-rgb),.1)}
         .${p}-dash-row.active .${p}-dash-name span:last-child{color:var(--primary)}
@@ -350,8 +351,9 @@
         .${p}-dash-av.fb{display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--primary),var(--accent))}
         .${p}-dash-bar{display:flex;height:10px;border-radius:6px;overflow:hidden;background:var(--border)}
         .${p}-dash-seg.done{background:var(--success)}
-        .${p}-dash-seg.open{background:var(--primary)}
-        .${p}-dash-counts{font-size:11px;color:var(--gray);white-space:nowrap}
+        .${p}-dash-seg.open{background:#D97706}
+        .${p}-dash-seg.over{background:var(--error)}
+        .${p}-dash-counts{font-size:11px;color:var(--gray);white-space:nowrap;text-align:end}
         .${p}-dash-over{color:var(--error);font-weight:600}
         /* activity */
         .${p}-activity{margin-bottom:16px;background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:12px 14px;box-shadow:var(--shadow-sm)}
