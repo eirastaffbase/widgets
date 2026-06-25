@@ -1629,6 +1629,7 @@ const configurationSchema: JSONSchema7 = {
     tasktypes:       { type: "string",  title: "Task Types (comma-separated)", default: "Finance,Operations,Training,Compliance,Safety" },
     typecolors:      { type: "string",  title: "Type Colors (comma-separated hex)", default: "#DA2E32,#0369A1,#2E7D4A,#D97706,#7C3AED,#4A90A4,#8B4513,#0EA5E9" },
     notifyonassign:  { type: "boolean", title: "Notify on Assignment", default: false },
+    limitheight:     { type: "boolean", title: "Limit Height",          default: false },
   },
   // When "Use Theme Colors" is off, expose the manual Primary/Accent pickers.
   // When on, they're hidden (colors are pulled from the branding theme instead).
@@ -1649,6 +1650,13 @@ const configurationSchema: JSONSchema7 = {
         },
       ],
     },
+    // When "Limit Height" is on, reveal the Max Height field.
+    limitheight: {
+      oneOf: [
+        { properties: { limitheight: { const: false } } },
+        { properties: { limitheight: { const: true }, maxheight: { type: "string", title: "Max Height (px)", default: "600" } } },
+      ],
+    },
   },
 };
 
@@ -1664,6 +1672,8 @@ const uiSchema: UiSchema = {
   tasktypes:       { "ui:help": "Comma-separated list of task type options shown in the Type dropdown" },
   typecolors:      { "ui:help": "Type-badge palette. Colors are assigned to each type in order; all are used before any repeat. Clear it to use the built-in colors." },
   notifyonassign:  { "ui:help": "Notify assignees each time the scheduled runner creates an occurrence (writes a [notify: yes] marker the runner reads). Off by default; requires the updated runner script." },
+  limitheight:     { "ui:help": "Cap the widget's height — anything taller scrolls inside a styled scrollbar" },
+  maxheight:       { "ui:help": "Maximum height in pixels (e.g. 600). You can also include a CSS unit like 600px or 70vh." },
 };
 
 // ── Block registration ──────────────────────────────────────────────────────────────
@@ -1671,7 +1681,7 @@ const uiSchema: UiSchema = {
 const blockDefinition: BlockDefinition = {
   name: "recurring-tasks-widget",
   label: "Recurring Tasks Widget",
-  attributes: ["apitoken","baseurl","usethemecolors","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","tasktypes","typecolors","notifyonassign"],
+  attributes: ["apitoken","baseurl","usethemecolors","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","tasktypes","typecolors","notifyonassign","limitheight","maxheight"],
   factory, configurationSchema, uiSchema, blockLevel: "block", iconUrl: "",
 };
 

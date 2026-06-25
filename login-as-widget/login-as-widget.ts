@@ -267,6 +267,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
       const sharedPassword = this.getAttribute("sharedpassword") || "";
       const redirectUrl = this.getAttribute("redirecturl") || "";
       const locale = this.getAttribute("locale") || "en_US";
+      const showEmail = this.getAttribute("showemail") !== "false"; // default: show
       const apiOpts = (extra?: RequestInit) => makeApiOpts(token, extra);
 
       // ── Theming ────────────────────────────────────────────────────────
@@ -430,7 +431,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
           const isCurrent = !!currentUserId && u.id === currentUserId;
           const metaHtml = u.error
             ? `<div class="${p}-meta err">${ICONS.alert}${escapeHtml(u.error)}</div>`
-            : (u.meta ? `<div class="${p}-meta">${escapeHtml(u.meta)}</div>` : "");
+            : (showEmail && u.meta ? `<div class="${p}-meta">${escapeHtml(u.meta)}</div>` : "");
           const youTag = isCurrent ? `<span class="${p}-you-tag">${ICONS.user}You</span>` : "";
           const btn = isCurrent
             ? `<button class="${p}-login-btn" disabled>${ICONS.check}Current</button>`
@@ -533,7 +534,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
     }
 
     static get observedAttributes() {
-      return ["apitoken", "baseurl", "users", "sharedpassword", "redirecturl", "locale", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor"];
+      return ["apitoken", "baseurl", "users", "sharedpassword", "redirecturl", "locale", "showemail", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor"];
     }
   };
 };
@@ -556,6 +557,7 @@ const configurationSchema: any = {
     },
     sharedpassword: { type: "string", title: "Shared Password" },
     redirecturl: { type: "string", title: "Redirect After Login (optional)" },
+    showemail: { type: "boolean", title: "Show Email", default: true },
     locale: { type: "string", title: "Login Locale", default: "en_US" },
     usethemecolors: { type: "boolean", title: "Use Theme Colors", default: false },
     backgroundcolor: { type: "string", title: "Background Color", default: "" },
@@ -587,6 +589,7 @@ const uiSchema = {
   },
   sharedpassword: { "ui:widget": "password", "ui:help": "Password used for any user that doesn't specify its own (e.g. a shared demo password)." },
   redirecturl: { "ui:help": "Page to open after a successful switch. Leave blank to just reload the current page." },
+  showemail: { "ui:help": "Show each user's email under their name. Turn off for a cleaner, name-only list." },
   locale: { "ui:help": "Locale sent with the login request (default en_US)." },
   usethemecolors: { "ui:help": "Pull Primary & Accent from the app's branding theme (uses the API Token). Hides the color pickers below." },
   primarycolor: { "ui:widget": "color", "ui:help": "Primary brand color" },
@@ -597,7 +600,7 @@ const uiSchema = {
 const blockDefinition: BlockDefinition = {
   name: "login-as-widget",
   label: "Login As Widget",
-  attributes: ["apitoken", "baseurl", "users", "sharedpassword", "redirecturl", "locale", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor"],
+  attributes: ["apitoken", "baseurl", "users", "sharedpassword", "redirecturl", "locale", "showemail", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor"],
   factory,
   configurationSchema,
   uiSchema,

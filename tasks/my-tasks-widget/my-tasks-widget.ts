@@ -40,6 +40,7 @@ const configurationSchema: JSONSchema7 = {
     notifyonassign:     { type:"boolean", title:"Notify on Assignment", default: true },
     detailedlogging:    { type:"boolean", title:"Detailed Activity Logging", default: false },
     debugmode:          { type:"boolean", title:"Debug Mode (on-screen logs)", default: false },
+    limitheight:        { type:"boolean", title:"Limit Height",                default: false },
   },
   // When "Use Theme Colors" is off, expose the manual Primary/Accent pickers.
   // When on, they're hidden (colors are pulled from the branding theme instead).
@@ -58,6 +59,13 @@ const configurationSchema: JSONSchema7 = {
             usethemecolors: { const: true },
           },
         },
+      ],
+    },
+    // When "Limit Height" is on, reveal the Max Height field.
+    limitheight: {
+      oneOf: [
+        { properties: { limitheight: { const: false } } },
+        { properties: { limitheight: { const: true }, maxheight: { type:"string", title:"Max Height (px)", default:"600" } } },
       ],
     },
   },
@@ -82,6 +90,8 @@ const uiSchema: UiSchema = {
   notifyonassign:     { "ui:help":"Send a Staffbase notification (“You were assigned a new task”) to people newly assigned a task via this widget" },
   detailedlogging:    { "ui:help":"Record reassignments and completions as hidden activity entries the Manager Tasks widget surfaces in its activity feed. Off by default." },
   debugmode:          { "ui:help":"Show an on-screen log panel with a copy button — useful for debugging inside the mobile app" },
+  limitheight:        { "ui:help":"Cap the widget's height — anything taller scrolls inside a styled scrollbar" },
+  maxheight:          { "ui:help":"Maximum height in pixels (e.g. 600). You can also include a CSS unit like 600px or 70vh." },
 };
 
 // ── Color utilities ───────────────────────────────────────────────────────────
@@ -207,6 +217,21 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const accentRgb = hexToRgb(accentColor);
       const primaryText = contrastColor(primaryColor);
       const p = "mtw";
+
+      // ── Limit height / scroll ───────────────────────────────────────────
+      // When on, the root becomes a fixed-max-height scroll container with a
+      // subtly themed scrollbar. Body-appended panels (detail/create) are
+      // position:fixed outside the root, so they're never clipped by this.
+      const limitHeight = this.getAttribute("limitheight") === "true";
+      let   maxHeight   = (this.getAttribute("maxheight") || "").trim();
+      if (!maxHeight) maxHeight = "600px";
+      else if (/^\d+(\.\d+)?$/.test(maxHeight)) maxHeight += "px";
+      const limitCss = limitHeight ? `
+          .${p}.${p}-limited{max-height:${maxHeight};overflow-y:auto;box-sizing:border-box;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:rgba(${primaryRgb},.45) transparent}
+          .${p}.${p}-limited::-webkit-scrollbar{width:10px;height:10px}
+          .${p}.${p}-limited::-webkit-scrollbar-track{background:transparent;margin:6px 0}
+          .${p}.${p}-limited::-webkit-scrollbar-thumb{background:rgba(${primaryRgb},.32);border-radius:8px;border:3px solid transparent;background-clip:padding-box}
+          .${p}.${p}-limited::-webkit-scrollbar-thumb:hover{background:rgba(${primaryRgb},.55);background-clip:padding-box}` : "";
 
       // ── State ──────────────────────────────────────────────────────────
       type Task = {
@@ -611,9 +636,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         
           /* RTL: flip horizontal directional arrows */
           [dir="rtl"] .mtw-audit-arrow svg{transform:scaleX(-1)}
+          ${limitCss}
         </style>
 
-        <div class="${p}">
+        <div class="${p}${limitHeight ? ` ${p}-limited` : ""}">
           <div class="${p}-header">
             <div class="${p}-title">
               <span class="${p}-title-dot"></span>
@@ -2698,7 +2724,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
 const blockDefinition: BlockDefinition = {
   name:"my-tasks-widget", label:"My Tasks Widget",
-  attributes:["apitoken","baseurl","usethemecolors","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","typecolors","showalltasks","showdonetasks","auditmode","enablecomments","allowtaskcreation","allowtaskassignment","notifyonassign","detailedlogging","debugmode"],
+  attributes:["apitoken","baseurl","usethemecolors","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","typecolors","showalltasks","showdonetasks","auditmode","enablecomments","allowtaskcreation","allowtaskassignment","notifyonassign","detailedlogging","debugmode","limitheight","maxheight"],
   factory, configurationSchema, uiSchema, blockLevel:"block", iconUrl:"",
 };
 

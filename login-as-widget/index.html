@@ -81,6 +81,9 @@
 <body>
 <div class="preview-wrap">
   <div class="preview-label">Login As Widget — Preview</div>
+  <label style="display:flex;align-items:center;justify-content:center;gap:7px;font-size:12px;font-weight:600;color:#6b7280;margin-bottom:14px;cursor:pointer">
+    <input type="checkbox" id="lawShowEmail" checked> Show email
+  </label>
   <div class="widget-shell">
     <div class="law">
       <div class="law-current" id="lawCurrent"></div>
@@ -125,6 +128,7 @@ const PERSONAS = [
   { id: "u5", name: "Casey Morgan",  meta: "No email on file — can't log in", avatar: "https://i.pravatar.cc/80?img=23", error: "No email on file — can't log in" },
 ];
 
+let showEmail = true;
 const initials = n => (n.split(" ").map(w => w[0]).join("").toUpperCase().slice(0,2) || "?");
 const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 
@@ -185,7 +189,7 @@ function renderList(filter = "") {
     const isCurrent = u.id === CURRENT.id;
     const metaHtml = u.error
       ? `<div class="law-meta err">${ALERT}${esc(u.error)}</div>`
-      : (u.meta ? `<div class="law-meta">${esc(u.meta)}</div>` : "");
+      : (showEmail && u.meta ? `<div class="law-meta">${esc(u.meta)}</div>` : "");
     const youTag = isCurrent ? `<span class="law-you-tag">${USER}You</span>` : "";
     const btn = isCurrent
       ? `<button class="law-login-btn" disabled>${CHECK}Current</button>`
@@ -228,6 +232,11 @@ modalConfirm.addEventListener("click", () => {
   const persona = pendingPersona, btn = pendingBtn;
   closeConfirm();
   loginAs(persona, btn);
+});
+
+document.getElementById("lawShowEmail").addEventListener("change", e => {
+  showEmail = e.target.checked;
+  renderList(searchInput.value);
 });
 
 if (PERSONAS.length > 5) {
