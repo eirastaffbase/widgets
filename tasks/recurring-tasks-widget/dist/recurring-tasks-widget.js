@@ -1980,6 +1980,22 @@ const factory = (BaseBlockClass, widgetApi) => {
             TYPE_ORDER = Array.from(new Set(typeList.map(t => t.toLowerCase()))).sort();
             const p = "rtw";
             const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+            // ── Limit height / scroll ───────────────────────────────────────────
+            // When on, the root becomes a fixed-max-height scroll container with a
+            // subtly themed scrollbar. Body-appended panels (position:fixed) sit
+            // outside the root, so they're never clipped by this.
+            const limitHeight = this.getAttribute("limitheight") === "true";
+            let maxHeight = (this.getAttribute("maxheight") || "").trim();
+            if (!maxHeight)
+                maxHeight = "600px";
+            else if (/^\d+(\.\d+)?$/.test(maxHeight))
+                maxHeight += "px";
+            const limitCss = limitHeight ? `
+          .${p}.${p}-limited{max-height:${maxHeight};overflow-y:auto;box-sizing:border-box;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:rgba(${primaryRgb},.45) transparent}
+          .${p}.${p}-limited::-webkit-scrollbar{width:10px;height:10px}
+          .${p}.${p}-limited::-webkit-scrollbar-track{background:transparent;margin:6px 0}
+          .${p}.${p}-limited::-webkit-scrollbar-thumb{background:rgba(${primaryRgb},.32);border-radius:8px;border:3px solid transparent;background-clip:padding-box}
+          .${p}.${p}-limited::-webkit-scrollbar-thumb:hover{background:rgba(${primaryRgb},.55);background-clip:padding-box}` : "";
             // ── Locale / i18n ──────────────────────────────────────────────────
             // `tr` (not `t`) to avoid clashing with loop vars named `t`. Resolved
             // before the skeleton is built (see below), so first paint is localized.
@@ -2482,9 +2498,10 @@ const factory = (BaseBlockClass, widgetApi) => {
         
           /* RTL: flip horizontal directional arrows */
           [dir="rtl"] .rtw-tabs-arrow{transform:scaleX(-1)} [dir="rtl"] .rtw-cal-nav .rtw-ico-btn svg{transform:scaleX(-1)}
+          ${limitCss}
         </style>
 
-        <div class="${p}">
+        <div class="${p}${limitHeight ? ` ${p}-limited` : ""}">
           <div class="${p}-top">
             <div class="${p}-h1">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/><polyline points="12 7 12 12 15 14"/></svg>
@@ -3490,6 +3507,7 @@ const configurationSchema = {
         tasktypes: { type: "string", title: "Task Types (comma-separated)", default: "Finance,Operations,Training,Compliance,Safety" },
         typecolors: { type: "string", title: "Type Colors (comma-separated hex)", default: "#DA2E32,#0369A1,#2E7D4A,#D97706,#7C3AED,#4A90A4,#8B4513,#0EA5E9" },
         notifyonassign: { type: "boolean", title: "Notify on Assignment", default: false },
+        limitheight: { type: "boolean", title: "Limit Height", default: false },
     },
     // When "Use Theme Colors" is off, expose the manual Primary/Accent pickers.
     // When on, they're hidden (colors are pulled from the branding theme instead).
@@ -3510,6 +3528,13 @@ const configurationSchema = {
                 },
             ],
         },
+        // When "Limit Height" is on, reveal the Max Height field.
+        limitheight: {
+            oneOf: [
+                { properties: { limitheight: { const: false } } },
+                { properties: { limitheight: { const: true }, maxheight: { type: "string", title: "Max Height (px)", default: "600" } } },
+            ],
+        },
     },
 };
 const uiSchema = {
@@ -3524,12 +3549,14 @@ const uiSchema = {
     tasktypes: { "ui:help": "Comma-separated list of task type options shown in the Type dropdown" },
     typecolors: { "ui:help": "Type-badge palette. Colors are assigned to each type in order; all are used before any repeat. Clear it to use the built-in colors." },
     notifyonassign: { "ui:help": "Notify assignees each time the scheduled runner creates an occurrence (writes a [notify: yes] marker the runner reads). Off by default; requires the updated runner script." },
+    limitheight: { "ui:help": "Cap the widget's height — anything taller scrolls inside a styled scrollbar" },
+    maxheight: { "ui:help": "Maximum height in pixels (e.g. 600). You can also include a CSS unit like 600px or 70vh." },
 };
 // ── Block registration ──────────────────────────────────────────────────────────────
 const blockDefinition = {
     name: "recurring-tasks-widget",
     label: "Recurring Tasks Widget",
-    attributes: ["apitoken", "baseurl", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor", "storelabelsingular", "storelabelplural", "tasktypes", "typecolors", "notifyonassign"],
+    attributes: ["apitoken", "baseurl", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor", "storelabelsingular", "storelabelplural", "tasktypes", "typecolors", "notifyonassign", "limitheight", "maxheight"],
     factory, configurationSchema, uiSchema, blockLevel: "block", iconUrl: "",
 };
 window.defineBlock({ blockDefinition, author: "Staffbase", version: "1.0.0" });

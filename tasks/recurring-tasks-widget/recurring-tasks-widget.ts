@@ -229,6 +229,21 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const p = "rtw";
       const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
+      // ── Limit height / scroll ───────────────────────────────────────────
+      // When on, the root becomes a fixed-max-height scroll container with a
+      // subtly themed scrollbar. Body-appended panels (position:fixed) sit
+      // outside the root, so they're never clipped by this.
+      const limitHeight = this.getAttribute("limitheight") === "true";
+      let   maxHeight   = (this.getAttribute("maxheight") || "").trim();
+      if (!maxHeight) maxHeight = "600px";
+      else if (/^\d+(\.\d+)?$/.test(maxHeight)) maxHeight += "px";
+      const limitCss = limitHeight ? `
+          .${p}.${p}-limited{max-height:${maxHeight};overflow-y:auto;box-sizing:border-box;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:rgba(${primaryRgb},.45) transparent}
+          .${p}.${p}-limited::-webkit-scrollbar{width:10px;height:10px}
+          .${p}.${p}-limited::-webkit-scrollbar-track{background:transparent;margin:6px 0}
+          .${p}.${p}-limited::-webkit-scrollbar-thumb{background:rgba(${primaryRgb},.32);border-radius:8px;border:3px solid transparent;background-clip:padding-box}
+          .${p}.${p}-limited::-webkit-scrollbar-thumb:hover{background:rgba(${primaryRgb},.55);background-clip:padding-box}` : "";
+
       // ── Locale / i18n ──────────────────────────────────────────────────
       // `tr` (not `t`) to avoid clashing with loop vars named `t`. Resolved
       // before the skeleton is built (see below), so first paint is localized.
@@ -709,9 +724,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         
           /* RTL: flip horizontal directional arrows */
           [dir="rtl"] .rtw-tabs-arrow{transform:scaleX(-1)} [dir="rtl"] .rtw-cal-nav .rtw-ico-btn svg{transform:scaleX(-1)}
+          ${limitCss}
         </style>
 
-        <div class="${p}">
+        <div class="${p}${limitHeight ? ` ${p}-limited` : ""}">
           <div class="${p}-top">
             <div class="${p}-h1">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/><polyline points="12 7 12 12 15 14"/></svg>

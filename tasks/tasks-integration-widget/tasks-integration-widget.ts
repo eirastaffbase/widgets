@@ -103,6 +103,11 @@ const configurationSchema: JSONSchema7 = {
       title: "Task Types (comma-separated)",
       default: "Finance,Operations,Training,Compliance,Safety",
     },
+    limitheight: {
+      type: "boolean",
+      title: "Limit Height",
+      default: false,
+    },
   },
   // When "Use Theme Colors" is off, expose the manual Primary/Accent pickers.
   // When on, they're hidden (colors are pulled from the branding theme instead).
@@ -121,6 +126,13 @@ const configurationSchema: JSONSchema7 = {
             usethemecolors: { const: true },
           },
         },
+      ],
+    },
+    // When "Limit Height" is on, reveal the Max Height field.
+    limitheight: {
+      oneOf: [
+        { properties: { limitheight: { const: false } } },
+        { properties: { limitheight: { const: true }, maxheight: { type: "string", title: "Max Height (px)", default: "600" } } },
       ],
     },
   },
@@ -170,6 +182,12 @@ const uiSchema: UiSchema = {
   },
   tasktypes: {
     "ui:help": "Comma-separated list of task type options shown in the Type dropdown",
+  },
+  limitheight: {
+    "ui:help": "Cap the widget's height — anything taller scrolls inside a styled scrollbar",
+  },
+  maxheight: {
+    "ui:help": "Maximum height in pixels (e.g. 600). You can also include a CSS unit like 600px or 70vh.",
   },
 };
 
@@ -227,6 +245,21 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       let selectedAssignees: Array<{ id: string; name: string; avatar: string; type: "user" | "group" }> = [];
 
       const p = "tiw";
+
+      // ── Limit height / scroll ───────────────────────────────────────────
+      // When on, the root becomes a fixed-max-height scroll container with a
+      // subtly themed scrollbar. Body-appended panels (position:fixed) sit
+      // outside the root, so they're never clipped by this.
+      const limitHeight = this.getAttribute("limitheight") === "true";
+      let   maxHeight   = (this.getAttribute("maxheight") || "").trim();
+      if (!maxHeight) maxHeight = "600px";
+      else if (/^\d+(\.\d+)?$/.test(maxHeight)) maxHeight += "px";
+      const limitCss = limitHeight ? `
+          .${p}.${p}-limited{max-height:${maxHeight};overflow-y:auto;box-sizing:border-box;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:rgba(${primaryRgb},.45) transparent}
+          .${p}.${p}-limited::-webkit-scrollbar{width:10px;height:10px}
+          .${p}.${p}-limited::-webkit-scrollbar-track{background:transparent;margin:6px 0}
+          .${p}.${p}-limited::-webkit-scrollbar-thumb{background:rgba(${primaryRgb},.32);border-radius:8px;border:3px solid transparent;background-clip:padding-box}
+          .${p}.${p}-limited::-webkit-scrollbar-thumb:hover{background:rgba(${primaryRgb},.55);background-clip:padding-box}` : "";
 
       // ── Locale / i18n ──────────────────────────────────────────────────
       // Translator bound as `tx` (this widget uses `tr` as a table-row var).
@@ -701,9 +734,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p} .${p}-del-row:focus, .${p} .${p}-del-row:active { background: #fee2e2 !important; color: var(--error) !important; }
           .${p} .${p}-clip-row:focus, .${p} .${p}-clip-row:active { background: rgba(var(--primary-rgb), .08) !important; color: var(--primary) !important; }
           .${p} .${p}-add-row:active { background: var(--accent) !important; color: #fff !important; }
+          ${limitCss}
         </style>
 
-        <div class="${p}">
+        <div class="${p}${limitHeight ? ` ${p}-limited` : ""}">
 
           <!-- 1. Target stores -->
           <div class="${p}-card">
@@ -1627,6 +1661,8 @@ const blockDefinition: BlockDefinition = {
     "sheetname",
     "enabletasktypes",
     "tasktypes",
+    "limitheight",
+    "maxheight",
   ],
   factory,
   configurationSchema,
