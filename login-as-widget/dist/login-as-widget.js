@@ -12,16 +12,9 @@ var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _argume
 const DEFAULT_BASE_URL = "https://app.staffbase.com/api";
 const DEFAULT_PRIMARY_COLOR = "#DA2E32";
 const DEFAULT_ACCENT_COLOR = "#F59E0B";
-const DEFAULT_TITLE = "Log in as";
-const DEFAULT_SUB = "Switch user";
-const DEFAULT_USERS = (/* unused pure expression or super */ null && ([
-    { id: "" },
-]));
 // ── Inline SVG chrome icons ────────────────────────────────────────────────────
 const ICONS = {
-    // header: "enter / log in" door-arrow (the widget's icon)
-    login: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/></svg>`,
-    // small arrow used inside the "Log in as" button
+    // small arrow used inside the "Log in as" / confirm buttons
     enter: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`,
     search: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>`,
     user: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>`,
@@ -32,11 +25,6 @@ function buildCss(p) {
     return `
 .${p}{--dark:#1A1A1A;--gray:#6b7280;--gray-lt:#9ca3af;--border:#e5e7eb;--bg-soft:#f7f7f9;--success:#2E7D4A;--error:#C41E3A;--r-sm:6px;--r-md:10px;--r-lg:16px;--shadow-sm:0 1px 2px rgba(0,0,0,.04),0 1px 3px rgba(0,0,0,.06);--shadow-md:0 6px 22px rgba(0,0,0,.09);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--dark);padding:20px}
 .${p} *,.${p} *::before,.${p} *::after{box-sizing:border-box;margin:0;padding:0}
-.${p}-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px}
-.${p}-title{font-size:18px;font-weight:800;letter-spacing:-.01em;color:var(--dark);display:flex;align-items:center;gap:10px;min-width:0}
-.${p}-title-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.${p}-title-icon{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:var(--primary-text);background:linear-gradient(135deg,var(--primary),var(--accent));box-shadow:0 4px 12px rgba(var(--primary-rgb),.28);flex-shrink:0}
-.${p}-sub{font-size:11px;font-weight:600;letter-spacing:.3px;color:var(--gray-lt);text-transform:uppercase;white-space:nowrap;flex-shrink:0}
 /* "Signed in as" chip */
 .${p}-current{display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:var(--r-md);background:var(--bg-soft);margin-bottom:16px}
 .${p}-current-av{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--primary),var(--accent));flex-shrink:0;overflow:hidden}
@@ -84,12 +72,28 @@ function buildCss(p) {
 .${p}-toast.show{opacity:1;transform:translate(-50%,0)}
 .${p}-wrap{position:relative;min-height:90px}
 @media (prefers-reduced-motion:reduce){.${p}-list.intro>*{animation:none!important}}
+/* ── Confirm modal ─────────────────────────────────────────────────────── */
+.${p}-modal-backdrop{position:absolute;inset:0;background:rgba(20,20,22,.45);display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:30}
+.${p}-modal-backdrop.show{opacity:1;pointer-events:auto}
+.${p}-modal{width:100%;max-width:320px;background:#fff;border-radius:var(--r-lg);box-shadow:0 20px 60px rgba(0,0,0,.28);padding:22px;text-align:center;transform:translateY(8px) scale(.97);transition:transform .2s}
+.${p}-modal-backdrop.show .${p}-modal{transform:none}
+.${p}-modal-av{width:60px;height:60px;border-radius:50%;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--primary),var(--accent));overflow:hidden}
+.${p}-modal-av img{width:100%;height:100%;border-radius:50%;object-fit:cover}
+.${p}-modal-title{font-size:16px;font-weight:800;color:var(--dark);line-height:1.35}
+.${p}-modal-name{color:var(--primary)}
+.${p}-modal-msg{font-size:13px;color:var(--gray);line-height:1.5;margin-top:8px}
+.${p}-modal-actions{display:flex;gap:9px;margin-top:18px}
+.${p}-modal-actions button{flex:1}
+.${p}-modal-cancel{padding:11px;border-radius:var(--r-md);border:1.5px solid var(--border);background:#fff;color:var(--gray);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.${p}-modal-confirm{padding:11px;border-radius:var(--r-md);border:none;color:var(--primary-text);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,var(--primary),var(--accent));box-shadow:0 3px 10px rgba(var(--primary-rgb),.28);display:inline-flex;align-items:center;justify-content:center;gap:6px}
 /* ── Neutralize Staffbase global button rules (margin:auto / width:90% / blue+red
       hover/focus/active backgrounds). Their rules aren't !important, so these win. */
 .${p} button{width:auto!important;margin:0!important;box-sizing:border-box;font-family:inherit;line-height:normal!important}
 .${p} button:focus,.${p} button:focus-visible{outline:none!important;box-shadow:none}
 .${p} .${p}-login-btn,.${p} .${p}-login-btn:hover,.${p} .${p}-login-btn:focus,.${p} .${p}-login-btn:active{background:linear-gradient(135deg,var(--primary),var(--accent))!important;color:var(--primary-text)!important;border:none!important}
 .${p} .${p}-login-btn:disabled{background:var(--border)!important;color:var(--gray-lt)!important;cursor:not-allowed;box-shadow:none!important;transform:none!important;filter:none!important}
+.${p} .${p}-modal-confirm,.${p} .${p}-modal-confirm:hover,.${p} .${p}-modal-confirm:focus,.${p} .${p}-modal-confirm:active{background:linear-gradient(135deg,var(--primary),var(--accent))!important;color:var(--primary-text)!important;border:none!important}
+.${p} .${p}-modal-cancel,.${p} .${p}-modal-cancel:hover,.${p} .${p}-modal-cancel:focus,.${p} .${p}-modal-cancel:active{background:#fff!important;color:var(--gray)!important;border:1.5px solid var(--border)!important}
 `;
 }
 function makeApiOpts(token, extra) {
@@ -246,7 +250,6 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const sharedPassword = this.getAttribute("sharedpassword") || "";
                 const redirectUrl = this.getAttribute("redirecturl") || "";
                 const locale = this.getAttribute("locale") || "en_US";
-                const title = this.getAttribute("title") || DEFAULT_TITLE;
                 const apiOpts = (extra) => makeApiOpts(token, extra);
                 // ── Theming ────────────────────────────────────────────────────────
                 let primaryColor = this.getAttribute("primarycolor") || DEFAULT_PRIMARY_COLOR;
@@ -275,13 +278,6 @@ const factory = (BaseBlockClass, widgetApi) => {
                 // ── Shell ────────────────────────────────────────────────────────────
                 container.innerHTML = `<style>${buildCss(p)}</style>
 <div class="${p}" style="--primary:${primaryColor};--primary-rgb:${primaryRgb};--accent:${accentColor};--accent-rgb:${accentRgb};--primary-text:${primaryText};background:${bgColor || "transparent"}">
-  <div class="${p}-header">
-    <div class="${p}-title">
-      <span class="${p}-title-icon">${ICONS.login}</span>
-      <span class="${p}-title-text">${escapeHtml(title)}</span>
-    </div>
-    <span class="${p}-sub">${escapeHtml(DEFAULT_SUB)}</span>
-  </div>
   <div class="${p}-current" id="lawCurrent" style="display:none"></div>
   <div class="${p}-search-wrap" id="lawSearchWrap" style="display:none">
     <span class="${p}-search-ic">${ICONS.search}</span>
@@ -294,6 +290,17 @@ const factory = (BaseBlockClass, widgetApi) => {
                     : `<div class="${p}-empty">No users configured yet.<br>Add user IDs &amp; passwords in the widget settings.</div>`}
     </div>
     <div class="${p}-toast" id="lawToast"></div>
+    <div class="${p}-modal-backdrop" id="lawModal">
+      <div class="${p}-modal" role="dialog" aria-modal="true">
+        <div class="${p}-modal-av" id="lawModalAv"></div>
+        <div class="${p}-modal-title">Log in as <span class="${p}-modal-name" id="lawModalName"></span>?</div>
+        <div class="${p}-modal-msg">This ends your current session and reloads the page as this user.</div>
+        <div class="${p}-modal-actions">
+          <button type="button" class="${p}-modal-cancel" id="lawModalCancel">Cancel</button>
+          <button type="button" class="${p}-modal-confirm" id="lawModalConfirm">${ICONS.enter}Log in</button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>`;
                 const listEl = container.querySelector("#lawList");
@@ -301,6 +308,11 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const currentEl = container.querySelector("#lawCurrent");
                 const searchWrap = container.querySelector("#lawSearchWrap");
                 const searchInput = container.querySelector("#lawSearch");
+                const modal = container.querySelector("#lawModal");
+                const modalAv = container.querySelector("#lawModalAv");
+                const modalName = container.querySelector("#lawModalName");
+                const modalCancel = container.querySelector("#lawModalCancel");
+                const modalConfirm = container.querySelector("#lawModalConfirm");
                 function showToast(msg, ok = true) {
                     toast.innerHTML = (ok ? ICONS.check : ICONS.alert) + escapeHtml(msg);
                     toast.style.background = ok ? "var(--dark)" : "var(--error)";
@@ -428,10 +440,41 @@ const factory = (BaseBlockClass, widgetApi) => {
                             const id = btnEl.dataset.id;
                             const persona = personas.find(u => u.id === id);
                             if (persona)
-                                loginAs(persona, btnEl);
+                                openConfirm(persona, btnEl);
                         });
                     });
                 }
+                // ── Confirm modal ─────────────────────────────────────────────────────
+                let pendingPersona = null;
+                let pendingBtn = null;
+                function openConfirm(persona, btn) {
+                    pendingPersona = persona;
+                    pendingBtn = btn;
+                    const initials = getInitials(persona.name);
+                    modalAv.innerHTML = persona.avatar
+                        ? `<img src="${escapeHtml(persona.avatar)}" alt="" onerror="this.parentElement.textContent='${initials}'">`
+                        : initials;
+                    modalName.textContent = persona.name;
+                    modal.classList.add("show");
+                    modalConfirm.focus();
+                }
+                function closeConfirm() {
+                    modal.classList.remove("show");
+                    pendingPersona = null;
+                    pendingBtn = null;
+                }
+                modalCancel.addEventListener("click", closeConfirm);
+                modal.addEventListener("click", (e) => { if (e.target === modal)
+                    closeConfirm(); });
+                document.addEventListener("keydown", (e) => { if (e.key === "Escape" && modal.classList.contains("show"))
+                    closeConfirm(); });
+                modalConfirm.addEventListener("click", () => {
+                    if (!pendingPersona || !pendingBtn)
+                        return;
+                    const persona = pendingPersona, btn = pendingBtn;
+                    closeConfirm();
+                    loginAs(persona, btn);
+                });
                 // ── The actual "log in as" — create a fresh session, then reload ──────
                 // Same call replify injects into the Staffbase tab, but here we're already
                 // on the page so we POST it directly (same-origin, credentials:include so the
@@ -488,7 +531,7 @@ const factory = (BaseBlockClass, widgetApi) => {
             });
         }
         static get observedAttributes() {
-            return ["apitoken", "baseurl", "users", "sharedpassword", "redirecturl", "locale", "title", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor"];
+            return ["apitoken", "baseurl", "users", "sharedpassword", "redirecturl", "locale", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor"];
         }
     };
 };
@@ -497,11 +540,13 @@ const configurationSchema = {
     properties: {
         apitoken: { type: "string", title: "API Token" },
         baseurl: { type: "string", title: "Base URL", default: DEFAULT_BASE_URL },
-        title: { type: "string", title: "Widget Title", default: DEFAULT_TITLE },
         users: {
             type: "string",
             title: "Users (JSON array)",
-            default: JSON.stringify([{ id: "USER_ID_1", password: "" }, { id: "USER_ID_2", identifier: "jane@acme.com", password: "" }], null, 2),
+            default: JSON.stringify([
+                { id: "USER_ID_1", password: "PASSWORD_1" },
+                { id: "USER_ID_2", password: "PASSWORD_2" },
+            ], null, 2),
         },
         sharedpassword: { type: "string", title: "Shared Password" },
         redirecturl: { type: "string", title: "Redirect After Login (optional)" },
@@ -529,7 +574,6 @@ const configurationSchema = {
 const uiSchema = {
     apitoken: { "ui:widget": "password", "ui:help": "Base64-encoded API token, used to read each user's name, avatar & email." },
     baseurl: { "ui:help": "API base URL e.g. https://yourorg.staffbase.com/api" },
-    title: { "ui:help": "Heading shown at the top of the widget." },
     users: {
         "ui:widget": "textarea",
         "ui:help": 'JSON array of users to offer. Each: {"id": required user ID, "password": optional (else uses Shared Password), "identifier": optional login email/username override, "label": optional display-name override}.',
@@ -545,12 +589,15 @@ const uiSchema = {
 const blockDefinition = {
     name: "login-as-widget",
     label: "Login As Widget",
-    attributes: ["apitoken", "baseurl", "users", "sharedpassword", "redirecturl", "locale", "title", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor"],
+    attributes: ["apitoken", "baseurl", "users", "sharedpassword", "redirecturl", "locale", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor"],
     factory,
     configurationSchema,
     uiSchema,
     blockLevel: "block",
-    iconUrl: "",
+    // Brand-red badge with a white "log in" (door-arrow) glyph — shown in the widget
+    // picker / settings. Inline data-URI so no extra webpack SVG loader is needed.
+    // Source: resources/login-as-widget.svg
+    iconUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNzEgMTcxIj48Y2lyY2xlIGN4PSI4NS41IiBjeT0iODUuNSIgcj0iODUuNSIgZmlsbD0iI0RBMkUzMiIvPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQzLjUgNDMuNSkgc2NhbGUoMy41KSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTE1IDNoNGEyIDIgMCAwIDEgMiAydjE0YTIgMiAwIDAgMS0yIDJoLTQiLz48cGF0aCBkPSJNMTAgMTdsNS01LTUtNSIvPjxwYXRoIGQ9Ik0xNSAxMkgzIi8+PC9nPjwvc3ZnPgo=",
 };
 const externalBlockDefinition = {
     blockDefinition,

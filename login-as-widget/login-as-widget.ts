@@ -533,7 +533,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
     }
 
     static get observedAttributes() {
-      return ["apitoken", "baseurl", "users", "sharedpassword", "redirecturl", "locale", "title", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor"];
+      return ["apitoken", "baseurl", "users", "sharedpassword", "redirecturl", "locale", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor"];
     }
   };
 };
@@ -543,7 +543,6 @@ const configurationSchema: any = {
   properties: {
     apitoken: { type: "string", title: "API Token" },
     baseurl: { type: "string", title: "Base URL", default: DEFAULT_BASE_URL },
-    title: { type: "string", title: "Widget Title", default: DEFAULT_TITLE },
     users: {
       type: "string",
       title: "Users (JSON array)",
@@ -582,7 +581,6 @@ const configurationSchema: any = {
 const uiSchema = {
   apitoken: { "ui:widget": "password", "ui:help": "Base64-encoded API token, used to read each user's name, avatar & email." },
   baseurl: { "ui:help": "API base URL e.g. https://yourorg.staffbase.com/api" },
-  title: { "ui:help": "Heading shown at the top of the widget." },
   users: {
     "ui:widget": "textarea",
     "ui:help": 'JSON array of users to offer. Each: {"id": required user ID, "password": optional (else uses Shared Password), "identifier": optional login email/username override, "label": optional display-name override}.',
@@ -599,7 +597,7 @@ const uiSchema = {
 const blockDefinition: BlockDefinition = {
   name: "login-as-widget",
   label: "Login As Widget",
-  attributes: ["apitoken", "baseurl", "users", "sharedpassword", "redirecturl", "locale", "title", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor"],
+  attributes: ["apitoken", "baseurl", "users", "sharedpassword", "redirecturl", "locale", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor"],
   factory,
   configurationSchema,
   uiSchema,
