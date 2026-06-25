@@ -97,6 +97,41 @@
         dueDate: new Date(Date.now() + 2 * 86400000).toISOString(),
         installationTitle: "North Hollywood Store", listName: "Weekly Reports"
       },
+      {
+        id: "8", title: "Replace drive-thru menu speaker",
+        description: "[type: maintenance] Audio cutting out during peak. Swap unit and test.",
+        status: "DONE", priority: "Priority_2",
+        dueDate: new Date(Date.now() - 6 * 86400000).toISOString(),
+        installationTitle: "North Hollywood Store", listName: "April Maintenance"
+      },
+      {
+        id: "9", title: "Onboard new shift lead",
+        description: "[type: training] Walk through opening/closing procedures and POS access.",
+        status: "DONE", priority: "Priority_3",
+        dueDate: new Date(Date.now() - 10 * 86400000).toISOString(),
+        installationTitle: "North Hollywood Store", listName: "Q2 Training"
+      },
+      {
+        id: "10", title: "Deep-clean shake machine",
+        description: "[type: storetask] Full disassembly and sanitize per health code.",
+        status: "OPEN", priority: "Priority_1",
+        dueDate: new Date(Date.now() - 3 * 86400000).toISOString(), // overdue
+        installationTitle: "North Hollywood Store", listName: "Daily Ops"
+      },
+    ];
+
+    // ── Mock recurring templates (drive the dashed "upcoming" markers) ──
+    // Schedule lives in the description as [rrule: …], exactly like the real data.
+    const _today = new Date();
+    const _isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    const _monthStart = _isoDay(new Date(_today.getFullYear(), _today.getMonth(), 1));
+    const MOCK_RECUR = [
+      { id: "r1", title: "Lottery & Tobacco Counts",
+        description: `[type: recur-template] [rrule: f=DAILY;i=1;time=15:45;due=0;s=${_monthStart}]` },
+      { id: "r2", title: "EOW Inventory",
+        description: `[type: recur-template] [rrule: f=WEEKLY;i=1;d=FR;time=09:00;due=1;s=${_monthStart}]` },
+      { id: "r3", title: "Monthly Safety Walk",
+        description: `[type: recur-template] [rrule: f=MONTHLY;i=1;mm=nth;nth=1;nthd=FR;time=11:00;due=0;s=${_monthStart}]` },
     ];
 
     // ── Utilities (mirrors the widget logic) ───────────────────────────
@@ -134,17 +169,80 @@
       return s.replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
     }
 
+    // ── Recurrence (mirrors the widget's parseCalRule / recurFiresOn) ───
+    const RRULE_CAPTURE = /\[rrule:\s*([^\]]+)\]/i;
+    const REC_WEEKDAYS = ["SU","MO","TU","WE","TH","FR","SA"];
+    function parseCalRule(desc) {
+      const m = RRULE_CAPTURE.exec(desc || ""); if (!m) return null;
+      const t = new Date();
+      const r = { freq:"DAILY", interval:1, byday:["MO","TU","WE","TH","FR"], monthMode:"dom",
+        dom:t.getDate(), nth:1, nthWeekday:REC_WEEKDAYS[t.getDay()], time:"09:00", dueOffset:0,
+        start:`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,"0")}-${String(t.getDate()).padStart(2,"0")}`, end:"" };
+      for (const part of m[1].split(";")) {
+        const eq = part.indexOf("="); if (eq < 0) continue;
+        const k = part.slice(0,eq).trim(), v = part.slice(eq+1).trim();
+        if (k==="f" && /^(DAILY|WEEKLY|MONTHLY)$/.test(v)) r.freq = v;
+        else if (k==="i") r.interval = Math.max(1, parseInt(v,10)||1);
+        else if (k==="d") r.byday = v.split(",").map(s=>s.trim().toUpperCase()).filter(x=>REC_WEEKDAYS.includes(x));
+        else if (k==="mm") r.monthMode = v==="nth"?"nth":"dom";
+        else if (k==="dom") r.dom = Math.min(31,Math.max(1,parseInt(v,10)||1));
+        else if (k==="nth") r.nth = parseInt(v,10)||1;
+        else if (k==="nthd" && REC_WEEKDAYS.includes(v.toUpperCase())) r.nthWeekday = v.toUpperCase();
+        else if (k==="time" && /^\d{1,2}:\d{2}$/.test(v)) r.time = v;
+        else if (k==="due") r.dueOffset = parseInt(v,10)||0;
+        else if (k==="s" && /^\d{4}-\d{2}-\d{2}$/.test(v)) r.start = v;
+        else if (k==="e" && /^\d{4}-\d{2}-\d{2}$/.test(v)) r.end = v;
+      }
+      return r;
+    }
+    function recurFiresOn(r, date) {
+      const start = new Date(`${r.start}T00:00:00`);
+      const d  = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const s0 = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+      if (d < s0) return false;
+      if (r.end) { const [ey,em,ed] = r.end.split("-").map(Number); if (d > new Date(ey,em-1,ed)) return false; }
+      if (r.freq==="DAILY") return Math.round((d-s0)/86400000) % r.interval === 0;
+      if (r.freq==="WEEKLY") {
+        if (!r.byday.includes(REC_WEEKDAYS[d.getDay()])) return false;
+        const sw = new Date(start); sw.setDate(start.getDate()-start.getDay());
+        const tw = new Date(d); tw.setDate(d.getDate()-d.getDay());
+        return Math.round((tw-sw)/(7*86400000)) % r.interval === 0;
+      }
+      const months = (d.getFullYear()-start.getFullYear())*12 + (d.getMonth()-start.getMonth());
+      if (months < 0 || months % r.interval !== 0) return false;
+      if (r.monthMode==="dom") { const last = new Date(d.getFullYear(),d.getMonth()+1,0).getDate(); return d.getDate()===Math.min(r.dom,last); }
+      if (REC_WEEKDAYS[d.getDay()] !== r.nthWeekday) return false;
+      if (r.nth===-1) { const nx = new Date(d); nx.setDate(d.getDate()+7); return nx.getMonth()!==d.getMonth(); }
+      return Math.ceil(d.getDate()/7) === r.nth;
+    }
+    function fmtHour(t) { const [h,mm] = t.split(":").map(Number); const ap = h<12?"a":"p"; const h12 = h%12||12; return mm?`${h12}:${String(mm).padStart(2,"0")}${ap}`:`${h12}${ap}`; }
+
     // ── Enrich mock tasks ──────────────────────────────────────────────
-    const allTasks = MOCK_TASKS.map(t => ({
-      ...t,
-      taskType: parseTaskType(t.title) || parseTaskType(t.description),
-    }));
+    // createDate = when assigned; updateDate = completion proxy for DONE tasks.
+    const allTasks = MOCK_TASKS.map((t, i) => {
+      const due = t.dueDate ? new Date(t.dueDate) : null;
+      const created = due ? new Date(due.getTime() - (3 + i) * 86400000)
+                          : new Date(Date.now() - (5 + i) * 86400000);
+      const completed = (t.status === "DONE" && due)
+        ? new Date(due.getTime() - 86400000) : created;
+      return {
+        ...t,
+        taskType: parseTaskType(t.title) || parseTaskType(t.description),
+        createDate: created.toISOString(),
+        updateDate: completed.toISOString(),
+      };
+    });
 
     // ── State ──────────────────────────────────────────────────────────
     const PRIMARY = "#da2e32";
     const p = "mtw";
     let activeTypeFilter = "all";
     let activeStatusFilter = "open";
+    // Calendar demo state (default to Calendar so the new view is front-and-center)
+    let view = "calendar";
+    let calMode = "month";
+    let calCursor = new Date();
+    let calDays = 3;
 
     // ── Render ─────────────────────────────────────────────────────────
     const root = document.getElementById("widget-root");
@@ -152,14 +250,79 @@
     root.innerHTML = `
       <style>
         .${p} {
-          --primary: ${PRIMARY};
+          --primary: ${PRIMARY}; --primary-rgb: 218,46,50; --accent: ${PRIMARY}; --accent-rgb: 218,46,50;
           --dark: #1A1A1A; --gray: #6b7280; --gray-lt: #9ca3af;
           --border: #e5e7eb; --success: #2E7D4A; --error: #C41E3A;
           --r-sm: 6px; --r-md: 10px; --r-lg: 14px;
           --shadow-sm: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+          --shadow-md: 0 4px 16px rgba(0,0,0,.08);
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
           color: var(--dark); padding: 20px;
         }
+        /* view toggle */
+        .${p}-view-toggle { display:flex; border:1.5px solid var(--border); border-radius:20px; overflow:hidden; background:#fff; flex-shrink:0; }
+        .${p}-view-opt { padding:5px 13px; font-size:12px; font-weight:600; cursor:pointer; color:var(--gray); font-family:inherit; border:none; background:none; transition:all .15s; }
+        .${p}-view-opt.active { background:var(--primary); color:#fff; }
+        .${p}-list-filters { display:flex; gap:6px; align-items:center; flex:1; flex-wrap:wrap; }
+        /* calendar */
+        .${p}-cal { background:#fff; border:1px solid var(--border); border-radius:var(--r-lg); box-shadow:var(--shadow-sm); overflow:hidden; }
+        .${p}-cal-head { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 14px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
+        .${p}-cal-range { font-size:15px; font-weight:800; color:var(--dark); }
+        .${p}-cal-ctrls { display:flex; align-items:center; gap:8px; }
+        .${p}-cal-modeseg { display:flex; border:1.5px solid var(--border); border-radius:var(--r-md); overflow:hidden; background:#fff; }
+        .${p}-cal-modeseg button { padding:6px 11px; font-size:11px; font-weight:700; cursor:pointer; color:var(--gray); font-family:inherit; border:none; background:none; transition:all .15s; }
+        .${p}-cal-modeseg button.active { background:var(--primary); color:#fff; }
+        .${p}-cal-nav { display:flex; gap:2px; }
+        .${p}-ico-btn { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border:1.5px solid var(--border); border-radius:var(--r-sm); background:#fff; color:var(--gray); cursor:pointer; transition:all .15s; }
+        .${p}-ico-btn:hover { border-color:var(--accent); color:var(--accent); }
+        .${p}-cal-cols { display:grid; width:100%; }
+        .${p}-cal-col { border-right:1px solid #f3f4f6; min-height:280px; min-width:0; overflow:hidden; }
+        .${p}-cal-col:last-child { border-right:none; }
+        .${p}-cal-colhead { text-align:center; padding:9px 4px 7px; border-bottom:1px solid var(--border); }
+        .${p}-cal-dow2 { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--gray-lt); }
+        .${p}-cal-dnum { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:50%; font-size:16px; font-weight:800; color:var(--dark); margin-top:3px; }
+        .${p}-cal-colhead.today .${p}-cal-dnum { background:var(--accent); color:#fff; }
+        .${p}-cal-evs { padding:6px; display:flex; flex-direction:column; gap:5px; }
+        .${p}-col-empty { color:var(--gray-lt); text-align:center; font-size:13px; padding:14px 0; }
+        .${p}-ev { --ev-rgb:var(--primary-rgb); border-radius:6px; padding:5px 8px; cursor:pointer; transition:background .12s; background:rgba(var(--ev-rgb),.10); border-left:3px solid rgba(var(--ev-rgb),1); }
+        .${p}-ev:hover { background-color:rgba(var(--ev-rgb),.06); background-image:repeating-linear-gradient(45deg,rgba(var(--ev-rgb),.16) 0,rgba(var(--ev-rgb),.16) 5px,transparent 5px,transparent 10px); }
+        .${p}-ev-time { font-size:10px; font-weight:700; color:rgba(var(--ev-rgb),1); }
+        .${p}-ev-title { font-size:12px; font-weight:600; color:var(--dark); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .${p}-ev.assigned { --ev-rgb:var(--primary-rgb); }
+        .${p}-ev.due { --ev-rgb:var(--accent-rgb); }
+        .${p}-ev.overdue { --ev-rgb:196,30,58; }
+        .${p}-ev.completed { --ev-rgb:46,125,74; }
+        .${p}-ev.upcoming { --ev-rgb:156,163,175; background:transparent; border:1px dashed rgba(var(--ev-rgb),1); border-left:3px dashed rgba(var(--ev-rgb),1); }
+        /* overdue banner */
+        .${p}-cal-overdue { display:flex; align-items:center; gap:8px; width:100%; padding:9px 14px; border:none; border-bottom:1px solid var(--border); background:rgba(196,30,58,.08); color:var(--error); font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; text-align:left; transition:background .15s; }
+        .${p}-cal-overdue:hover { background:rgba(196,30,58,.14); }
+        .${p}-cal-overdue svg { flex-shrink:0; }
+        .${p}-cal-overdue-arrow { margin-left:auto; }
+        .${p}-cal-dow { display:grid; grid-template-columns:repeat(7,1fr); background:#f9fafb; border-bottom:1px solid var(--border); }
+        .${p}-cal-dow span { padding:7px 0; text-align:center; font-size:10px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; color:var(--gray-lt); }
+        .${p}-cal-grid { display:grid; grid-template-columns:repeat(7,1fr); }
+        .${p}-cal-cell { min-height:84px; border-right:1px solid #f3f4f6; border-bottom:1px solid #f3f4f6; padding:5px 6px; }
+        .${p}-cal-cell:nth-child(7n) { border-right:none; }
+        .${p}-cal-cell.muted { background:#fafafa; }
+        .${p}-cal-cell.today .${p}-cal-num { background:var(--accent); color:#fff; }
+        .${p}-cal-num { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; font-size:12px; font-weight:600; color:var(--dark); }
+        .${p}-cal-cell.muted .${p}-cal-num { color:var(--gray-lt); }
+        .${p}-cal-chip { display:flex; align-items:center; gap:4px; font-size:10px; font-weight:600; border-radius:4px; padding:1px 5px; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer; }
+        .${p}-cal-chip:hover { filter:brightness(.96); }
+        .${p}-cal-chip.assigned { color:var(--primary); background:rgba(var(--primary-rgb),.12); }
+        .${p}-cal-chip.due { color:var(--accent); background:rgba(var(--accent-rgb),.12); }
+        .${p}-cal-chip.overdue { color:var(--error); background:rgba(196,30,58,.12); }
+        .${p}-cal-chip.completed { color:var(--success); background:rgba(46,125,74,.12); }
+        .${p}-cal-chip.upcoming { color:var(--gray); background:transparent; border:1px dashed var(--gray-lt); }
+        .${p}-cal-more { font-size:10px; color:var(--gray-lt); margin-top:2px; font-weight:600; }
+        .${p}-cal-legend { display:flex; flex-wrap:wrap; gap:10px 16px; padding:10px 14px; border-top:1px solid var(--border); font-size:11px; color:var(--gray); }
+        .${p}-cal-leg { display:inline-flex; align-items:center; gap:6px; }
+        .${p}-cal-leg i { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+        .${p}-cal-leg.assigned i { background:var(--primary); }
+        .${p}-cal-leg.due i { background:var(--accent); }
+        .${p}-cal-leg.overdue i { background:var(--error); }
+        .${p}-cal-leg.completed i { background:var(--success); }
+        .${p}-cal-leg.upcoming i { background:transparent; border:1px dashed var(--gray-lt); }
         .${p} *, .${p} *::before, .${p} *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
         .${p}-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
@@ -239,11 +402,17 @@
         </div>
 
         <div class="${p}-filters">
-          <div class="${p}-filter-group" id="${p}-type-filters"></div>
-          <div class="${p}-status-toggle">
-            <button type="button" class="${p}-status-opt active" data-status="open">Open</button>
-            <button type="button" class="${p}-status-opt" data-status="done">Done</button>
-            <button type="button" class="${p}-status-opt" data-status="all">Both</button>
+          <div class="${p}-view-toggle" id="${p}-view-toggle">
+            <button type="button" class="${p}-view-opt" data-view="list">List</button>
+            <button type="button" class="${p}-view-opt active" data-view="calendar">Calendar</button>
+          </div>
+          <div class="${p}-list-filters" id="${p}-list-filters" style="display:none">
+            <div class="${p}-filter-group" id="${p}-type-filters"></div>
+            <div class="${p}-status-toggle">
+              <button type="button" class="${p}-status-opt active" data-status="open">Open</button>
+              <button type="button" class="${p}-status-opt" data-status="done">Done</button>
+              <button type="button" class="${p}-status-opt" data-status="all">Both</button>
+            </div>
           </div>
         </div>
 
@@ -329,6 +498,7 @@
     }
 
     function renderList() {
+      if (view === "calendar") { renderCalendar(); return; }
       const tasks = filteredTasks();
       countEl.textContent = tasks.length;
 
@@ -375,6 +545,140 @@
         });
       });
     }
+
+    // ── Calendar ───────────────────────────────────────────────────────
+    const isDoneStatus = (s) => s === "DONE" || s === "done" || s === "CLOSED";
+    const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+    function calDate(iso) {
+      if (!iso) return null;
+      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+      if (!m) { const d = new Date(iso); return isNaN(d) ? null : d; }
+      if (/T\d/.test(iso)) { const d = new Date(iso); return isNaN(d) ? null : d; }
+      return new Date(+m[1], +m[2]-1, +m[3]);
+    }
+    // Due dates = calendar dates (bucket by date-part, never the TZ-shifted instant).
+    function calDateOnly(iso) {
+      if (!iso) return null;
+      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+      if (!m) { const d = new Date(iso); return isNaN(d) ? null : d; }
+      return new Date(+m[1], +m[2]-1, +m[3]);
+    }
+    const dayKey = (d) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    const MARKER_ORDER = { overdue:0, due:1, upcoming:2, assigned:3, completed:4 };
+
+    function buildMarkers() {
+      const map = new Map();
+      const today = new Date(); today.setHours(0,0,0,0);
+      const add = (d, mk) => { if (!d || isNaN(d)) return; const k = dayKey(d); (map.get(k) || map.set(k, []).get(k)).push(mk); };
+      for (const t of allTasks) {
+        const done = isDoneStatus(t.status);
+        add(calDate(t.createDate), { kind:"assigned", title:t.title, taskId:t.id });
+        if (done) add(calDate(t.updateDate), { kind:"completed", title:t.title, taskId:t.id });
+        else if (t.dueDate) { const dd = calDateOnly(t.dueDate); if (dd) add(dd, { kind: dd < today ? "overdue" : "due", title:t.title, taskId:t.id }); }
+      }
+      const tmpls = MOCK_RECUR.map(t => ({ t, rule: parseCalRule(t.description) })).filter(x => x.rule);
+      const end = new Date(today); end.setDate(end.getDate() + 60);
+      for (const d = new Date(today); d <= end; d.setDate(d.getDate() + 1))
+        for (const { t, rule } of tmpls) if (recurFiresOn(rule, d)) add(new Date(d), { kind:"upcoming", title:t.title, time:rule.time });
+      for (const arr of map.values()) arr.sort((a,b) => MARKER_ORDER[a.kind] - MARKER_ORDER[b.kind]);
+      return map;
+    }
+
+    const chevL = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>`;
+    const chevR = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
+    const dotToday = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="12" x2="12" y2="8"/></svg>`;
+    const alertIco = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
+    const KIND_LABEL = { assigned:"Assigned", due:"Due", overdue:"Overdue", completed:"Completed", upcoming:"Upcoming" };
+
+    function renderCalendar() {
+      countEl.textContent = allTasks.length;
+      const markers = buildMarkers();
+      const todayK = dayKey(new Date());
+      // Overdue roll-up (sized by the oldest overdue task; click jumps to that day).
+      const todayMid = new Date(); todayMid.setHours(0,0,0,0);
+      let oldestOverdue = null, overdueCount = 0;
+      for (const t of allTasks) {
+        if (isDoneStatus(t.status) || !t.dueDate) continue;
+        const dd = calDateOnly(t.dueDate); if (!dd || dd >= todayMid) continue;
+        overdueCount++; if (!oldestOverdue || dd < oldestOverdue) oldestOverdue = dd;
+      }
+      let overdueBanner = "";
+      if (overdueCount > 0 && oldestOverdue) {
+        const daysAgo = Math.round((todayMid - oldestOverdue) / 86400000);
+        const dLabel = daysAgo === 1 ? "1 day ago" : `${daysAgo} days ago`;
+        overdueBanner = `<button type="button" class="${p}-cal-overdue" data-overdue-jump="1">${alertIco}<span>${overdueCount} overdue · oldest due ${dLabel}</span><span class="${p}-cal-overdue-arrow">${chevR}</span></button>`;
+      }
+      let rangeLabel = "", body = "";
+      if (calMode === "agenda") {
+        calDays = 3;
+        const days = Array.from({ length: calDays }, (_, i) => new Date(calCursor.getFullYear(), calCursor.getMonth(), calCursor.getDate() + i));
+        const a = days[0], b = days[days.length-1];
+        rangeLabel = `${a.toLocaleDateString("en-US",{month:"long",day:"numeric"})} – ${b.getDate()}, ${b.getFullYear()}`;
+        body = `<div class="${p}-cal-cols" style="grid-template-columns:repeat(${calDays},1fr)">` + days.map(d => {
+          const arr = markers.get(dayKey(d)) || [];
+          const evs = arr.length ? arr.map(mk => `<div class="${p}-ev ${mk.kind}"><div class="${p}-ev-time">${mk.time ? esc(fmtHour(mk.time)) : KIND_LABEL[mk.kind]}</div><div class="${p}-ev-title">${esc(mk.title)}</div></div>`).join("") : `<div class="${p}-col-empty">—</div>`;
+          return `<div class="${p}-cal-col"><div class="${p}-cal-colhead ${dayKey(d)===todayK?"today":""}"><div class="${p}-cal-dow2">${DOW[d.getDay()]}</div><div class="${p}-cal-dnum">${d.getDate()}</div></div><div class="${p}-cal-evs">${evs}</div></div>`;
+        }).join("") + `</div>`;
+      } else {
+        const y = calCursor.getFullYear(), m = calCursor.getMonth();
+        rangeLabel = calCursor.toLocaleDateString("en-US", { month:"long", year:"numeric" });
+        const startDow = new Date(y, m, 1).getDay();
+        const cells = [];
+        for (let i = 0; i < 42; i++) {
+          const d = new Date(y, m, 1 - startDow + i);
+          const muted = d.getMonth() !== m;
+          const arr = markers.get(dayKey(d)) || [];
+          const chips = arr.slice(0,3).map(mk => `<div class="${p}-cal-chip ${mk.kind}">${mk.time ? esc(fmtHour(mk.time)) + " " : ""}${esc(mk.title)}</div>`).join("");
+          const more = arr.length > 3 ? `<div class="${p}-cal-more">+${arr.length-3} more</div>` : "";
+          cells.push(`<div class="${p}-cal-cell ${muted?"muted":""} ${dayKey(d)===todayK?"today":""}"><span class="${p}-cal-num">${d.getDate()}</span>${chips}${more}</div>`);
+        }
+        body = `<div class="${p}-cal-dow">${DOW.map(x => `<span>${x}</span>`).join("")}</div><div class="${p}-cal-grid">${cells.join("")}</div>`;
+      }
+      const legend = `<div class="${p}-cal-legend">${["assigned","due","overdue","completed","upcoming"].map(k => `<span class="${p}-cal-leg ${k}"><i></i>${KIND_LABEL[k]}</span>`).join("")}</div>`;
+      listWrap.innerHTML = `<div class="${p}-cal">
+        <div class="${p}-cal-head">
+          <span class="${p}-cal-range">${esc(rangeLabel)}</span>
+          <div class="${p}-cal-ctrls">
+            <div class="${p}-cal-modeseg" id="${p}-cal-mode">
+              <button data-mode="month" class="${calMode==="month"?"active":""}">Month</button>
+              <button data-mode="agenda" class="${calMode==="agenda"?"active":""}">3 Day</button>
+            </div>
+            <div class="${p}-cal-nav">
+              <button class="${p}-ico-btn" data-nav="-1">${chevL}</button>
+              <button class="${p}-ico-btn" data-nav="0" title="Today">${dotToday}</button>
+              <button class="${p}-ico-btn" data-nav="1">${chevR}</button>
+            </div>
+          </div>
+        </div>
+        ${overdueBanner}
+        ${body}
+        ${legend}
+      </div>`;
+      if (oldestOverdue) {
+        const jump = new Date(oldestOverdue);
+        const ob = listWrap.querySelector(`[data-overdue-jump]`);
+        if (ob) ob.addEventListener("click", () => { calMode = "agenda"; calCursor = jump; renderCalendar(); });
+      }
+      listWrap.querySelectorAll(`#${p}-cal-mode button`).forEach(b => b.addEventListener("click", () => { calMode = b.dataset.mode === "agenda" ? "agenda" : "month"; renderCalendar(); }));
+      listWrap.querySelectorAll("[data-nav]").forEach(b => b.addEventListener("click", () => {
+        const nav = parseInt(b.dataset.nav, 10);
+        if (nav === 0) calCursor = new Date();
+        else if (calMode === "agenda") calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth(), calCursor.getDate() + nav * calDays);
+        else calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth() + nav, 1);
+        renderCalendar();
+      }));
+    }
+
+    // View toggle (List | Calendar)
+    const listFiltersEl = root.querySelector(`#${p}-list-filters`);
+    root.querySelectorAll(`.${p}-view-opt`).forEach(btn => {
+      btn.addEventListener("click", () => {
+        view = btn.dataset.view === "calendar" ? "calendar" : "list";
+        root.querySelectorAll(`.${p}-view-opt`).forEach(b => b.classList.toggle("active", b.dataset.view === view));
+        if (listFiltersEl) listFiltersEl.style.display = view === "calendar" ? "none" : "flex";
+        renderList();
+      });
+    });
 
     // Status toggle
     root.querySelectorAll(`.${p}-status-opt`).forEach(btn => {

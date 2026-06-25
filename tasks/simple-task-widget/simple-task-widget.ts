@@ -274,6 +274,12 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         if(!r.ok) throw new Error(`HTTP ${r.status}`);
         try{ return await r.json(); }catch(_){ return null; }
       }
+      // Hidden activity comment ([tasks:edit] prefix) — feeds the Manager Tasks
+      // activity feed and the My Tasks calendar's completion date. Best-effort;
+      // these comments are filtered out of the visible list above.
+      async function postEditComment(task:Task, action:string){
+        try{ await postComment(task, `[tasks:edit] ${action}`); }catch(_){}
+      }
       function commentText(c:any):string{
         const ctn=c.content;
         if(typeof ctn==="string") return ctn;
@@ -652,6 +658,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           const res=await fetch(`${baseUrl}/tasks/${task.installId}/task/${task.id}`,{method:"PATCH",...apiOpts(),body:JSON.stringify({status:next})});
           if(!res.ok) throw new Error(`HTTP ${res.status}`);
           task.status=next; renderDetailContent(task); render();
+          // Record the status change so it surfaces in the activity feed / calendar.
+          postEditComment(task, `${next==="CLOSED"?"completed":"reopened"} “${task.title}”`);
         }catch(e:any){ showError(tr("errorToggle")); }
         detailToggle.disabled=false;
       });
@@ -959,6 +967,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           const res=await fetch(`${baseUrl}/tasks/${t.installId}/task/${t.id}`,{method:"PATCH",...apiOpts(),body:JSON.stringify({status:next})});
           if(!res.ok) throw new Error(`HTTP ${res.status}`);
           t.status=next;
+          // Record the status change so it surfaces in the activity feed / calendar.
+          postEditComment(t, `${next==="CLOSED"?"completed":"reopened"} “${t.title}”`);
           if(detailTask===t) renderDetailContent(t);
           if(!showCompleted && next==="CLOSED") setTimeout(render,420);
         }catch(e:any){

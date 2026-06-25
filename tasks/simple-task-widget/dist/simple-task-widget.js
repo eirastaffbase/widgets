@@ -632,6 +632,15 @@ const factory = (BaseBlockClass, widgetApi) => {
                     return null;
                 }
             }
+            // Hidden activity comment ([tasks:edit] prefix) — feeds the Manager Tasks
+            // activity feed and the My Tasks calendar's completion date. Best-effort;
+            // these comments are filtered out of the visible list above.
+            async function postEditComment(task, action) {
+                try {
+                    await postComment(task, `[tasks:edit] ${action}`);
+                }
+                catch (_) { }
+            }
             function commentText(c) {
                 const ctn = c.content;
                 if (typeof ctn === "string")
@@ -1103,6 +1112,8 @@ const factory = (BaseBlockClass, widgetApi) => {
                     task.status = next;
                     renderDetailContent(task);
                     render();
+                    // Record the status change so it surfaces in the activity feed / calendar.
+                    postEditComment(task, `${next === "CLOSED" ? "completed" : "reopened"} “${task.title}”`);
                 }
                 catch (e) {
                     showError(tr("errorToggle"));
@@ -1561,6 +1572,8 @@ const factory = (BaseBlockClass, widgetApi) => {
                     if (!res.ok)
                         throw new Error(`HTTP ${res.status}`);
                     t.status = next;
+                    // Record the status change so it surfaces in the activity feed / calendar.
+                    postEditComment(t, `${next === "CLOSED" ? "completed" : "reopened"} “${t.title}”`);
                     if (detailTask === t)
                         renderDetailContent(t);
                     if (!showCompleted && next === "CLOSED")
