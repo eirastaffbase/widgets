@@ -1267,6 +1267,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 detailEl.classList.toggle("side", isWide);
                 renderDetailContent(task);
                 overlayEl.classList.add("open");
+                void detailEl.offsetWidth; // commit the closed (centered) state so the first open animates from it, not from the bottom
                 requestAnimationFrame(() => detailEl.classList.add("open"));
             }
             function closeDetail() {

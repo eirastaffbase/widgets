@@ -1565,6 +1565,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           </div>
           ${s.description ? `<div class="${p}-detail-desc-label">${tr("description")}</div><div class="${p}-detail-desc">${esc(s.description)}</div>` : ""}`;
         overlayEl.classList.add("open");
+        void detailEl.offsetWidth; // commit the closed (centered) state so the first open animates from it, not from the bottom
         requestAnimationFrame(() => detailEl.classList.add("open"));
       }
       function closeDetail() { detailEl.classList.remove("open"); overlayEl.classList.remove("open"); detailSchedule = null; }

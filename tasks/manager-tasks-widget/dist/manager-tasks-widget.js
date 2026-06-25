@@ -4109,6 +4109,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     detailEl.classList.toggle("side", isWide);
                     renderDetailContent(task);
                     overlayEl.classList.add("open");
+                    void detailEl.offsetWidth; // commit the closed (centered) state so the first open animates from it, not from the bottom
                     requestAnimationFrame(() => detailEl.classList.add("open"));
                 }
                 function closeDetail() {
@@ -5182,6 +5183,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                         // Side panel on desktop, bottom sheet on mobile (matches detail panel).
                         createEl.classList.toggle("side", window.innerWidth >= 720);
                         overlayEl.classList.add("open");
+                        void createEl.offsetWidth; // commit the closed (centered) state so the first open animates from it, not from the bottom
                         requestAnimationFrame(() => createEl.classList.add("open"));
                         (_a = $("c-title")) === null || _a === void 0 ? void 0 : _a.focus();
                     };
