@@ -1215,7 +1215,7 @@ const blockDefinition = {
     configurationSchema,
     uiSchema,
     blockLevel: "block",
-    iconUrl: "",
+    iconUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNzEgMTcxIj48Y2lyY2xlIGN4PSI4NS41IiBjeT0iODUuNSIgcj0iODUuNSIgZmlsbD0iI0RBMkUzMiIvPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQzLjUgNDMuNSkgc2NhbGUoMy41KSIgZmlsbD0iI2ZmZiIgc3Ryb2tlPSJub25lIj48cGF0aCBkPSJNMTkuNSAxMi41NzIgMTIgMjBsLTcuNS03LjQyOEE1IDUgMCAxIDEgMTIgNi4wMDZhNSA1IDAgMSAxIDcuNSA2LjU2NloiLz48L2c+PC9zdmc+",
 };
 const externalBlockDefinition = {
     blockDefinition,

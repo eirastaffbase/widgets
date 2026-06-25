@@ -3557,7 +3557,7 @@ const blockDefinition = {
     name: "recurring-tasks-widget",
     label: "Recurring Tasks Widget",
     attributes: ["apitoken", "baseurl", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor", "storelabelsingular", "storelabelplural", "tasktypes", "typecolors", "notifyonassign", "limitheight", "maxheight"],
-    factory, configurationSchema, uiSchema, blockLevel: "block", iconUrl: "",
+    factory, configurationSchema, uiSchema, blockLevel: "block", iconUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNzEgMTcxIj48Y2lyY2xlIGN4PSI4NS41IiBjeT0iODUuNSIgcj0iODUuNSIgZmlsbD0iIzdDM0FFRCIvPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQzLjUgNDMuNSkgc2NhbGUoMy41KSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0ibTE3IDIgNCA0LTQgNCIvPjxwYXRoIGQ9Ik0zIDExdi0xYTQgNCAwIDAgMSA0LTRoMTQiLz48cGF0aCBkPSJtNyAyMi00LTQgNC00Ii8+PHBhdGggZD0iTTIxIDEzdjFhNCA0IDAgMCAxLTQgNEgzIi8+PC9nPjwvc3ZnPg==",
 };
 window.defineBlock({ blockDefinition, author: "Staffbase", version: "1.0.0" });
 

@@ -3673,7 +3673,7 @@ const factory = (BaseBlockClass, widgetApi) => {
 const blockDefinition = {
     name: "audit-widget", label: "Audit Widget",
     attributes: ["appsscripturl", "apitoken", "baseurl", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor", "storelabelsingular", "storelabelplural", "passthreshold", "notifyonassign", "limitheight", "maxheight"],
-    factory, configurationSchema, uiSchema, blockLevel: "block", iconUrl: "",
+    factory, configurationSchema, uiSchema, blockLevel: "block", iconUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNzEgMTcxIj48Y2lyY2xlIGN4PSI4NS41IiBjeT0iODUuNSIgcj0iODUuNSIgZmlsbD0iIzQ3NTU2OSIvPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQzLjUgNDMuNSkgc2NhbGUoMy41KSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0ibTggMTEgMiAyIDQtNCIvPjxjaXJjbGUgY3g9IjExIiBjeT0iMTEiIHI9IjgiLz48cGF0aCBkPSJtMjEgMjEtNC4zLTQuMyIvPjwvZz48L3N2Zz4=",
 };
 window.defineBlock({ blockDefinition, author: "Staffbase", version: "1.0.0" });
 
