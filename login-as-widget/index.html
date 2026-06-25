@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login As Widget — Preview</title>
+  <style>
+    body {
+      margin: 0; background: #eef0f4;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      display: flex; justify-content: center; align-items: flex-start;
+      min-height: 100vh; padding: 32px 16px; box-sizing: border-box;
+    }
+    .preview-wrap { width: 100%; max-width: 460px; }
+    .preview-label {
+      font-size: 11px; font-weight: 700; letter-spacing: .6px;
+      text-transform: uppercase; color: #9ca3af; text-align: center; margin-bottom: 12px;
+    }
+    .widget-shell { background: white; border-radius: 16px; box-shadow: 0 8px 30px rgba(0,0,0,.10); overflow: hidden; }
+
+    /* ── Widget styles (mirrors buildCss in login-as-widget.ts) ── */
+    .law{--primary:#DA2E32;--primary-rgb:218,46,50;--accent:#F59E0B;--accent-rgb:245,158,11;--primary-text:#fff;--dark:#1A1A1A;--gray:#6b7280;--gray-lt:#9ca3af;--border:#e5e7eb;--bg-soft:#f7f7f9;--success:#2E7D4A;--error:#C41E3A;--r-sm:6px;--r-md:10px;--r-lg:16px;--shadow-sm:0 1px 2px rgba(0,0,0,.04),0 1px 3px rgba(0,0,0,.06);--shadow-md:0 6px 22px rgba(0,0,0,.09);color:var(--dark);padding:20px}
+    .law *,.law *::before,.law *::after{box-sizing:border-box;margin:0;padding:0}
+    .law-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px}
+    .law-title{font-size:18px;font-weight:800;letter-spacing:-.01em;color:var(--dark);display:flex;align-items:center;gap:10px;min-width:0}
+    .law-title-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .law-title-icon{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:var(--primary-text);background:linear-gradient(135deg,var(--primary),var(--accent));box-shadow:0 4px 12px rgba(var(--primary-rgb),.28);flex-shrink:0}
+    .law-sub{font-size:11px;font-weight:600;letter-spacing:.3px;color:var(--gray-lt);text-transform:uppercase;white-space:nowrap;flex-shrink:0}
+    .law-current{display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:var(--r-md);background:var(--bg-soft);margin-bottom:16px}
+    .law-current-av{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--primary),var(--accent));flex-shrink:0;overflow:hidden}
+    .law-current-av img{width:100%;height:100%;border-radius:50%;object-fit:cover}
+    .law-current-txt{min-width:0;line-height:1.3}
+    .law-current-eyebrow{font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--gray-lt)}
+    .law-current-name{font-size:13.5px;font-weight:700;color:var(--dark);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .law-search-wrap{position:relative;margin-bottom:14px}
+    .law-search-ic{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--gray-lt);pointer-events:none;display:flex}
+    .law-in{width:100%;font-family:inherit;font-size:14px;color:var(--dark);background:#fafafa;border:1.5px solid var(--border);border-radius:var(--r-md);padding:11px 14px 11px 40px;transition:border-color .15s,box-shadow .15s,background .15s}
+    .law-in::placeholder{color:var(--gray-lt)}
+    .law-in:focus{outline:none;border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(var(--primary-rgb),.12)}
+    .law-list{display:flex;flex-direction:column;gap:10px}
+    .law-list.intro>*{animation:law-rise .42s cubic-bezier(.22,.9,.3,1) backwards}
+    .law-list.intro>*:nth-child(1){animation-delay:.02s}
+    .law-list.intro>*:nth-child(2){animation-delay:.07s}
+    .law-list.intro>*:nth-child(3){animation-delay:.12s}
+    .law-list.intro>*:nth-child(4){animation-delay:.17s}
+    .law-list.intro>*:nth-child(n+5){animation-delay:.22s}
+    @keyframes law-rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+    .law-card{position:relative;display:flex;align-items:center;gap:13px;background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:13px 15px;transition:transform .16s,box-shadow .16s,border-color .16s;overflow:hidden}
+    .law-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-md);border-color:transparent}
+    .law-card::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:3px;border-radius:3px;background:linear-gradient(var(--primary),var(--accent));opacity:0;transition:opacity .16s}
+    .law-card:hover::before{opacity:1}
+    .law-card.is-current{border-color:rgba(var(--primary-rgb),.45);box-shadow:0 0 0 1.5px rgba(var(--primary-rgb),.18) inset}
+    .law-av{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;flex-shrink:0;color:#fff;background:linear-gradient(135deg,var(--primary),var(--accent))}
+    .law-av img{width:100%;height:100%;border-radius:50%;object-fit:cover}
+    .law-who{flex:1;min-width:0}
+    .law-name{font-size:14.5px;font-weight:700;color:var(--dark);line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .law-meta{font-size:12px;color:var(--gray-lt);line-height:1.35;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .law-meta.err{color:var(--error);display:flex;align-items:center;gap:4px}
+    .law-you-tag{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:var(--primary);background:rgba(var(--primary-rgb),.1);padding:2px 7px;border-radius:20px;margin-left:6px;vertical-align:middle}
+    .law-login-btn{flex-shrink:0;padding:9px 15px;border-radius:var(--r-md);border:none;color:var(--primary-text);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,var(--primary),var(--accent));box-shadow:0 3px 10px rgba(var(--primary-rgb),.28);transition:transform .15s,box-shadow .15s,filter .15s;white-space:nowrap}
+    .law-login-btn:hover:not(:disabled){transform:translateY(-1px);filter:brightness(1.05)}
+    .law-login-btn:active:not(:disabled){transform:translateY(0)}
+    .law-login-btn:disabled{background:var(--border);color:var(--gray-lt);cursor:not-allowed;box-shadow:none;transform:none;filter:none}
+    .law-login-btn svg{flex-shrink:0}
+    .law-empty{text-align:center;padding:30px 16px;color:var(--gray-lt);font-size:13px;font-weight:500;line-height:1.6}
+    .law-spin{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;animation:law-spin .7s linear infinite;display:inline-block}
+    @keyframes law-spin{to{transform:rotate(360deg)}}
+    .law-toast{position:absolute;bottom:18px;left:50%;transform:translate(-50%,8px);background:var(--dark);color:#fff;padding:11px 18px;border-radius:var(--r-md);font-size:13px;font-weight:700;opacity:0;transition:opacity .3s,transform .3s;pointer-events:none;white-space:nowrap;z-index:10;box-shadow:var(--shadow-md);display:flex;align-items:center;gap:8px}
+    .law-toast.show{opacity:1;transform:translate(-50%,0)}
+    .law-wrap{position:relative;min-height:90px}
+  </style>
+</head>
+<body>
+<div class="preview-wrap">
+  <div class="preview-label">Login As Widget — Preview</div>
+  <div class="widget-shell">
+    <div class="law">
+      <div class="law-header">
+        <div class="law-title">
+          <span class="law-title-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/></svg></span>
+          <span class="law-title-text">Log in as</span>
+        </div>
+        <span class="law-sub">Switch user</span>
+      </div>
+      <div class="law-current" id="lawCurrent"></div>
+      <div class="law-search-wrap" id="lawSearchWrap" style="display:none">
+        <span class="law-search-ic"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span>
+        <input class="law-in" id="lawSearch" type="text" placeholder="Search users…" autocomplete="off">
+      </div>
+      <div class="law-wrap">
+        <div class="law-list intro" id="lawList"></div>
+        <div class="law-toast" id="lawToast"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const ENTER = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`;
+const CHECK = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`;
+const ALERT = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>`;
+const USER  = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>`;
+
+const CURRENT = { id: "me", name: "Eira Tope", avatar: "https://i.pravatar.cc/80?img=47" };
+
+// Mock personas (the real widget resolves these from /api/users/{id}).
+const PERSONAS = [
+  { id: "me", name: "Eira Tope",     meta: "eira.tope@acme.com",      avatar: "https://i.pravatar.cc/80?img=47", error: "" },
+  { id: "u1", name: "Alex Kim",      meta: "alex.kim@acme.com",       avatar: "https://i.pravatar.cc/80?img=12", error: "" },
+  { id: "u2", name: "Jordan Lee",    meta: "jordan.lee@acme.com",     avatar: "https://i.pravatar.cc/80?img=33", error: "" },
+  { id: "u3", name: "Maya Patel",    meta: "maya.patel@acme.com",     avatar: "https://i.pravatar.cc/80?img=45", error: "" },
+  { id: "u4", name: "Sam Rivera",    meta: "sam.rivera@acme.com",     avatar: "",                                error: "" },
+  { id: "u5", name: "Casey Morgan",  meta: "No email on file — can't log in", avatar: "https://i.pravatar.cc/80?img=23", error: "No email on file — can't log in" },
+];
+
+const initials = n => (n.split(" ").map(w => w[0]).join("").toUpperCase().slice(0,2) || "?");
+const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+
+const listEl = document.getElementById("lawList");
+const toast = document.getElementById("lawToast");
+const currentEl = document.getElementById("lawCurrent");
+const searchWrap = document.getElementById("lawSearchWrap");
+const searchInput = document.getElementById("lawSearch");
+
+function showToast(msg, ok = true) {
+  toast.innerHTML = (ok ? CHECK : ALERT) + esc(msg);
+  toast.style.background = ok ? "var(--dark)" : "var(--error)";
+  toast.classList.add("show");
+  setTimeout(() => toast.classList.remove("show"), 3200);
+}
+
+// current-user chip
+currentEl.innerHTML = `
+  <span class="law-current-av"><img src="${CURRENT.avatar}" alt="" onerror="this.parentElement.textContent='${initials(CURRENT.name)}'"></span>
+  <span class="law-current-txt">
+    <span class="law-current-eyebrow">Signed in as</span>
+    <span class="law-current-name">${esc(CURRENT.name)}</span>
+  </span>`;
+currentEl.style.display = "flex";
+
+function loginAs(persona, btn) {
+  if (persona.error) return;
+  const original = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = `<span class="law-spin"></span>Signing in…`;
+  setTimeout(() => {
+    showToast(`Logged in as ${persona.name} — reloading…`, true);
+    // In the real widget the page reloads here; the preview just restores the button.
+    setTimeout(() => { btn.disabled = false; btn.innerHTML = original; }, 1600);
+  }, 800);
+}
+
+let introUsed = false;
+function renderList(filter = "") {
+  const q = filter.trim().toLowerCase();
+  const shown = q ? PERSONAS.filter(u => u.name.toLowerCase().includes(q) || u.meta.toLowerCase().includes(q)) : PERSONAS;
+  if (!shown.length) {
+    listEl.classList.remove("intro");
+    listEl.innerHTML = `<div class="law-empty">No users match “${esc(filter.trim())}”.</div>`;
+    return;
+  }
+  if (!introUsed) { listEl.classList.add("intro"); introUsed = true; }
+  else listEl.classList.remove("intro");
+  listEl.innerHTML = shown.map(u => {
+    const av = u.avatar
+      ? `<span class="law-av"><img src="${esc(u.avatar)}" alt="" onerror="this.parentElement.textContent='${initials(u.name)}'"></span>`
+      : `<span class="law-av">${initials(u.name)}</span>`;
+    const isCurrent = u.id === CURRENT.id;
+    const metaHtml = u.error
+      ? `<div class="law-meta err">${ALERT}${esc(u.error)}</div>`
+      : (u.meta ? `<div class="law-meta">${esc(u.meta)}</div>` : "");
+    const youTag = isCurrent ? `<span class="law-you-tag">${USER}You</span>` : "";
+    const btn = isCurrent
+      ? `<button class="law-login-btn" disabled>${CHECK}Current</button>`
+      : `<button class="law-login-btn" data-id="${esc(u.id)}"${u.error ? " disabled" : ""}>${ENTER}Log in as</button>`;
+    return `<div class="law-card${isCurrent ? " is-current" : ""}">
+  ${av}
+  <div class="law-who">
+    <div class="law-name">${esc(u.name)}${youTag}</div>
+    ${metaHtml}
+  </div>
+  ${btn}
+</div>`;
+  }).join("");
+
+  listEl.querySelectorAll(".law-login-btn[data-id]").forEach(btnEl => {
+    btnEl.addEventListener("click", () => {
+      const persona = PERSONAS.find(u => u.id === btnEl.dataset.id);
+      if (persona) loginAs(persona, btnEl);
+    });
+  });
+}
+
+if (PERSONAS.length > 5) {
+  searchWrap.style.display = "block";
+  let t = null;
+  searchInput.addEventListener("input", () => {
+    if (t) clearTimeout(t);
+    t = setTimeout(() => renderList(searchInput.value), 120);
+  });
+}
+
+renderList();
+</script>
+</body>
+</html>
