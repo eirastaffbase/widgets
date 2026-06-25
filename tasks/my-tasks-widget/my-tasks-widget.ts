@@ -312,8 +312,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           /* ── Create task sheet ── */
           .${p}-create{--primary:${primaryColor};--primary-rgb:${primaryRgb};--primary-text:${primaryText};--dark:#1A1A1A;--gray:#6b7280;--gray-lt:#9ca3af;--border:#e5e7eb;--error:#C41E3A;--r-sm:6px;--r-md:10px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;position:fixed;left:0;right:0;bottom:0;z-index:100001;background:#fff;border-radius:20px 20px 0 0;max-height:90vh;display:flex;flex-direction:column;transform:translateY(102%);transition:transform .32s cubic-bezier(.32,.72,0,1);overflow:hidden;box-shadow:0 -8px 40px rgba(0,0,0,.18)}
           .${p}-create.open{transform:translateY(0)}
-          .${p}-create.side{left:auto;top:0;right:0;bottom:0;width:min(460px,94vw);max-height:none;border-radius:20px 0 0 20px;transform:translateX(102%)}
-          .${p}-create.side.open{transform:translateX(0)}
+          .${p}-create.side{left:50%;top:50%;right:auto;bottom:auto;width:min(480px,94vw);max-height:min(88vh,820px);border-radius:20px;transform:translate(-50%,-48%) scale(.97);opacity:0;pointer-events:none;box-shadow:0 24px 64px rgba(0,0,0,.28);transition:opacity .2s ease,transform .26s cubic-bezier(.32,.72,0,1)}
+          .${p}-create.side.open{transform:translate(-50%,-50%) scale(1);opacity:1;pointer-events:auto}
           .${p}-create-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 12px;border-bottom:1px solid var(--border)}
           .${p}-create-head h3{margin:0;font-size:16px;font-weight:800;color:var(--dark)}
           .${p}-create-close{width:30px;height:30px;border:none;background:#f3f4f6;border-radius:50%;cursor:pointer;color:var(--gray);display:flex;align-items:center;justify-content:center}
@@ -337,8 +337,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-overlay.open{opacity:1;pointer-events:auto}
           .${p}-detail{--primary:${primaryColor};--primary-rgb:${primaryRgb};--primary-text:${primaryText};--accent:${accentColor};--dark:#1A1A1A;--gray:#6b7280;--gray-lt:#9ca3af;--border:#e5e7eb;--success:#2E7D4A;--error:#C41E3A;--r-sm:6px;--r-md:10px;--r-lg:14px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#fff;border-radius:20px 20px 0 0;max-height:88vh;display:flex;flex-direction:column;transform:translateY(102%);transition:transform .32s cubic-bezier(.32,.72,0,1);overflow:hidden}
           .${p}-detail.open{transform:translateY(0)}
-          .${p}-detail.side{left:auto;top:0;right:0;bottom:0;width:min(420px,92vw);max-height:none;border-radius:20px 0 0 20px;transform:translateX(102%)}
-          .${p}-detail.side.open{transform:translateX(0)}
+          .${p}-detail.side{left:50%;top:50%;right:auto;bottom:auto;width:min(460px,92vw);max-height:min(86vh,760px);border-radius:20px;transform:translate(-50%,-48%) scale(.97);opacity:0;pointer-events:none;box-shadow:0 24px 64px rgba(0,0,0,.28);transition:opacity .2s ease,transform .26s cubic-bezier(.32,.72,0,1)}
+          .${p}-detail.side.open{transform:translate(-50%,-50%) scale(1);opacity:1;pointer-events:auto}
           .${p}-detail-handle{width:40px;height:5px;border-radius:3px;background:var(--border);margin:9px auto 2px;flex-shrink:0;cursor:grab;touch-action:none}
           .${p}-detail-head{touch-action:none}
           .${p}-detail.side .${p}-detail-handle{display:none}
@@ -1378,16 +1378,13 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
       // ── Distinct types for visible install ────────────────────────────
       function getTypes():{key:string;label:string}[]{
-        const types=new Set<string>(); let hasUntyped=false;
+        const types=new Set<string>();
         for(const t of allTasks){
           if(t.taskType==="audit-result") continue;
           if(activeInstallFilter!=="all"&&t.installationId!==activeInstallFilter) continue;
           if(t.taskType) types.add(t.taskType);
-          else hasUntyped=true;
         }
-        const sorted=[...types].sort().map(k=>({key:k,label:k}));
-        if(hasUntyped) sorted.push({key:"__none__",label:tr("noTypeLabel")});
-        return sorted;
+        return [...types].sort().map(k=>({key:k,label:k}));
       }
 
       // ── Filtered tasks (normal mode) ──────────────────────────────────
@@ -1506,6 +1503,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       function renderTypeFilters(){
         if(!typeBtn||!typeLabelEl||!typeMenu) return;
         const types=getTypes();
+        // No tasks carry a [type:] tag → hide the whole type filter.
+        const typeWrap=container.querySelector(`#${p}-type-wrap`) as HTMLElement|null;
+        if(typeWrap) typeWrap.style.display=types.length?"":"none";
         typeLabelEl.textContent=typeDropdownLabel();
         typeBtn.classList.toggle("open",dropdownOpen);
         typeMenu.classList.toggle("open",dropdownOpen);
@@ -1567,8 +1567,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         introUsed=true;
         for(const key of orderedKeys){
           const group=grouped.get(key)!;
-          const label=key==="__none__"?tr("noTypeLabel"):ct(key);
-          html+=`<div class="${p}-section-label">${esc(label)} <span style="font-weight:400">(${group.length})</span></div>`;
+          // Untyped tasks just appear in the list — no "No Type" section header.
+          if(key!=="__none__")
+            html+=`<div class="${p}-section-label">${esc(ct(key))} <span style="font-weight:400">(${group.length})</span></div>`;
           for(const task of group) html+=renderTaskCard(task);
         }
         html+=`</div>`;

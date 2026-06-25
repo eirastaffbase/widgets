@@ -2461,9 +2461,10 @@ const factory = (BaseBlockClass, widgetApi) => {
             overflow:hidden; box-shadow:0 -8px 40px rgba(0,0,0,.18);
           }
           .${p}-detail.open { transform:translateY(0); }
-          .${p}-detail.side { left:auto; top:0; right:0; bottom:0; width:min(420px,92vw); max-height:none;
-            border-radius:20px 0 0 20px; transform:translateX(102%); box-shadow:-8px 0 40px rgba(0,0,0,.18); }
-          .${p}-detail.side.open { transform:translateX(0); }
+          .${p}-detail.side { left:50%; top:50%; right:auto; bottom:auto; width:min(460px,92vw); max-height:min(86vh,760px);
+            border-radius:20px; transform:translate(-50%,-48%) scale(.97); opacity:0; pointer-events:none;
+            box-shadow:0 24px 64px rgba(0,0,0,.28); transition:opacity .2s ease, transform .26s cubic-bezier(.32,.72,0,1); }
+          .${p}-detail.side.open { transform:translate(-50%,-50%) scale(1); opacity:1; pointer-events:auto; }
           .${p}-detail-handle { width:40px; height:5px; border-radius:3px; background:var(--border); margin:9px auto 2px; flex-shrink:0; cursor:grab; touch-action:none; }
           .${p}-detail.side .${p}-detail-handle { display:none; }
           .${p}-detail-head { display:flex; align-items:flex-start; gap:10px; padding:14px 20px 12px; flex-shrink:0; border-bottom:1px solid var(--border); touch-action:none; }
