@@ -3557,8 +3557,8 @@ const factory = (BaseBlockClass, widgetApi) => {
                         grouped.get(key).push(t);
                     }
                     const orderedKeys = [...grouped.keys()].sort((a, b) => { if (a === "__none__")
-                        return 1; if (b === "__none__")
-                        return -1; return a.localeCompare(b); });
+                        return -1; if (b === "__none__")
+                        return 1; return a.localeCompare(b); });
                     let html = `<div class="${p}-list${introUsed ? "" : " intro"}">`;
                     introUsed = true;
                     for (const key of orderedKeys) {

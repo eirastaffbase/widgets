@@ -1562,7 +1562,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         }
         const grouped=new Map<string,Task[]>();
         for(const t of tasks){const key=t.taskType||"__none__";if(!grouped.has(key))grouped.set(key,[]);grouped.get(key)!.push(t);}
-        const orderedKeys=[...grouped.keys()].sort((a,b)=>{if(a==="__none__")return 1;if(b==="__none__")return -1;return a.localeCompare(b);});
+        const orderedKeys=[...grouped.keys()].sort((a,b)=>{if(a==="__none__")return -1;if(b==="__none__")return 1;return a.localeCompare(b);});
         let html=`<div class="${p}-list${introUsed?"":" intro"}">`;
         introUsed=true;
         for(const key of orderedKeys){
