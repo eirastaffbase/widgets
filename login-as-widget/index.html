@@ -68,6 +68,19 @@
     .law-toast{position:absolute;bottom:18px;left:50%;transform:translate(-50%,8px);background:var(--dark);color:#fff;padding:11px 18px;border-radius:var(--r-md);font-size:13px;font-weight:700;opacity:0;transition:opacity .3s,transform .3s;pointer-events:none;white-space:nowrap;z-index:10;box-shadow:var(--shadow-md);display:flex;align-items:center;gap:8px}
     .law-toast.show{opacity:1;transform:translate(-50%,0)}
     .law-wrap{position:relative;min-height:90px}
+    .law-modal-backdrop{position:absolute;inset:0;background:rgba(20,20,22,.45);display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:30}
+    .law-modal-backdrop.show{opacity:1;pointer-events:auto}
+    .law-modal{width:100%;max-width:320px;background:#fff;border-radius:var(--r-lg);box-shadow:0 20px 60px rgba(0,0,0,.28);padding:22px;text-align:center;transform:translateY(8px) scale(.97);transition:transform .2s}
+    .law-modal-backdrop.show .law-modal{transform:none}
+    .law-modal-av{width:60px;height:60px;border-radius:50%;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--primary),var(--accent));overflow:hidden}
+    .law-modal-av img{width:100%;height:100%;border-radius:50%;object-fit:cover}
+    .law-modal-title{font-size:16px;font-weight:800;color:var(--dark);line-height:1.35}
+    .law-modal-name{color:var(--primary)}
+    .law-modal-msg{font-size:13px;color:var(--gray);line-height:1.5;margin-top:8px}
+    .law-modal-actions{display:flex;gap:9px;margin-top:18px}
+    .law-modal-actions button{flex:1}
+    .law-modal-cancel{padding:11px;border-radius:var(--r-md);border:1.5px solid var(--border);background:#fff;color:var(--gray);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer}
+    .law-modal-confirm{padding:11px;border-radius:var(--r-md);border:none;color:var(--primary-text);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,var(--primary),var(--accent));box-shadow:0 3px 10px rgba(var(--primary-rgb),.28);display:inline-flex;align-items:center;justify-content:center;gap:6px}
   </style>
 </head>
 <body>
@@ -90,6 +103,17 @@
       <div class="law-wrap">
         <div class="law-list intro" id="lawList"></div>
         <div class="law-toast" id="lawToast"></div>
+        <div class="law-modal-backdrop" id="lawModal">
+          <div class="law-modal" role="dialog" aria-modal="true">
+            <div class="law-modal-av" id="lawModalAv"></div>
+            <div class="law-modal-title">Log in as <span class="law-modal-name" id="lawModalName"></span>?</div>
+            <div class="law-modal-msg">This ends your current session and reloads the page as this user.</div>
+            <div class="law-modal-actions">
+              <button type="button" class="law-modal-cancel" id="lawModalCancel">Cancel</button>
+              <button type="button" class="law-modal-confirm" id="lawModalConfirm"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>Log in</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -121,6 +145,11 @@ const toast = document.getElementById("lawToast");
 const currentEl = document.getElementById("lawCurrent");
 const searchWrap = document.getElementById("lawSearchWrap");
 const searchInput = document.getElementById("lawSearch");
+const modal = document.getElementById("lawModal");
+const modalAv = document.getElementById("lawModalAv");
+const modalName = document.getElementById("lawModalName");
+const modalCancel = document.getElementById("lawModalCancel");
+const modalConfirm = document.getElementById("lawModalConfirm");
 
 function showToast(msg, ok = true) {
   toast.innerHTML = (ok ? CHECK : ALERT) + esc(msg);
@@ -186,10 +215,32 @@ function renderList(filter = "") {
   listEl.querySelectorAll(".law-login-btn[data-id]").forEach(btnEl => {
     btnEl.addEventListener("click", () => {
       const persona = PERSONAS.find(u => u.id === btnEl.dataset.id);
-      if (persona) loginAs(persona, btnEl);
+      if (persona) openConfirm(persona, btnEl);
     });
   });
 }
+
+// confirm modal
+let pendingPersona = null, pendingBtn = null;
+function openConfirm(persona, btn) {
+  pendingPersona = persona; pendingBtn = btn;
+  modalAv.innerHTML = persona.avatar
+    ? `<img src="${esc(persona.avatar)}" alt="" onerror="this.parentElement.textContent='${initials(persona.name)}'">`
+    : initials(persona.name);
+  modalName.textContent = persona.name;
+  modal.classList.add("show");
+  modalConfirm.focus();
+}
+function closeConfirm() { modal.classList.remove("show"); pendingPersona = null; pendingBtn = null; }
+modalCancel.addEventListener("click", closeConfirm);
+modal.addEventListener("click", e => { if (e.target === modal) closeConfirm(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && modal.classList.contains("show")) closeConfirm(); });
+modalConfirm.addEventListener("click", () => {
+  if (!pendingPersona || !pendingBtn) return;
+  const persona = pendingPersona, btn = pendingBtn;
+  closeConfirm();
+  loginAs(persona, btn);
+});
 
 if (PERSONAS.length > 5) {
   searchWrap.style.display = "block";
