@@ -2889,7 +2889,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 const blockDefinition: BlockDefinition = {
   name:"manager-tasks-widget", label:"Manager Tasks Widget",
   attributes:["apitoken","baseurl","usethemecolors","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","typecolors","teamsource","teamuserids","showcharts","notifyonassign","showdonetasks","enablecomments","allowtaskcreation","allowtaskassignment","debugmode","limitheight","maxheight"],
-  factory, configurationSchema, uiSchema, blockLevel:"block", iconUrl:"",
+  factory, configurationSchema, uiSchema, blockLevel:"block", iconUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNzEgMTcxIj48Y2lyY2xlIGN4PSI4NS41IiBjeT0iODUuNSIgcj0iODUuNSIgZmlsbD0iIzRGNDZFNSIvPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQzLjUgNDMuNSkgc2NhbGUoMy41KSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHJlY3Qgd2lkdGg9IjgiIGhlaWdodD0iNCIgeD0iOCIgeT0iMiIgcng9IjEiIHJ5PSIxIi8+PHBhdGggZD0iTTE2IDRoMmEyIDIgMCAwIDEgMiAydjE0YTIgMiAwIDAgMS0yIDJINmEyIDIgMCAwIDEtMi0yVjZhMiAyIDAgMCAxIDItMmgyIi8+PHBhdGggZD0ibTkgMTQgMiAyIDQtNCIvPjwvZz48L3N2Zz4=",
 };
 
 window.defineBlock({ blockDefinition, author:"Staffbase", version:"1.0.0" } as ExternalBlockDefinition);
