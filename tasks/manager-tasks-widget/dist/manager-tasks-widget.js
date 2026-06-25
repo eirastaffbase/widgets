@@ -1915,6 +1915,7 @@ function stripTypeTag(text) {
         .replace(RRULE_REGEX, "")
         .replace(RECUR_REGEX, "")
         .replace(LVL_REGEX, "")
+        .replace(/\[by:\s*[^\]]+\]/i, "") // hidden creator stamp
         .replace(/\s{2,}/g, " ")
         .trim();
 }
@@ -2230,7 +2231,7 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-mini-select{appearance:none;-webkit-appearance:none;flex:0 0 auto;padding:7px 26px 7px 11px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 8px center;font-size:12px;font-weight:600;color:var(--dark);cursor:pointer;font-family:inherit;transition:border-color .15s}
           .${p}-mini-select:hover{border-color:var(--primary)}
           .${p}-mini-select:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(var(--primary-rgb),.12)}
-          .${p}-chip{display:inline-flex;align-items:center;gap:5px;flex:0 0 auto;padding:7px 12px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fff;font-size:12px;font-weight:600;color:var(--gray);cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap}
+          .${p}-chip{display:inline-flex;width:auto!important;align-items:center;gap:5px;flex:0 0 auto;padding:7px 12px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fff;font-size:12px;font-weight:600;color:var(--gray);cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap}
           .${p}-chip:hover{border-color:var(--error);color:var(--error)}
           .${p}-chip.active{background:var(--error);border-color:var(--error);color:#fff}
           @media (max-width:480px){
@@ -2305,7 +2306,7 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-type-opt.active{font-weight:700;color:var(--dark);background:rgba(var(--primary-rgb),.06)}
           .${p}-type-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
           .${p}-status-toggle{display:flex;border:1.5px solid var(--border);border-radius:var(--r-md);overflow:hidden;background:#fff;flex-shrink:0}
-          .${p}-status-opt{padding:7px 13px;font-size:12px;font-weight:600;cursor:pointer;color:var(--gray);font-family:inherit;border:none;background:none;transition:all .15s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;outline:none;user-select:none}
+          .${p}-status-opt{width:auto!important;padding:7px 13px;font-size:12px;font-weight:600;cursor:pointer;color:var(--gray);font-family:inherit;border:none;background:none;transition:all .15s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;outline:none;user-select:none}
           .${p}-status-opt.active{background:var(--primary);color:var(--primary-text)}
           /* ── Task cards ── */
           .${p}-list{display:flex;flex-direction:column;gap:8px}
@@ -3758,15 +3759,19 @@ const factory = (BaseBlockClass, widgetApi) => {
                     const evs = [];
                     for (const t of chartBase()) {
                         const created = t.createDate ? Date.parse(t.createDate) : 0;
+                        // Tasks created via the widget carry [by:<id>] (the token is the real
+                        // creatorId); prefer it, fall back to creatorId, else stays "someone".
+                        const byM = (t.description || "").match(/\[by:\s*([^\]]+)\]/i);
+                        const creator = (byM && byM[1].trim()) || t.creatorId || "";
                         if (t.isRecurring) {
                             evs.push({ taskId: t.id, body: `${tr("actRecurringInstanceFor").replace("{who}", esc(assigneeNames(t) || tr("unassignedLabel")))} ${q(t.title)}`, when: created, iso: t.createDate || "" });
                         }
-                        else if (t.creatorId) {
-                            const self = t.assigneeIds.length === 1 && t.groupIds.length === 0 && t.assigneeIds[0] === t.creatorId;
+                        else if (creator) {
+                            const self = t.assigneeIds.length === 1 && t.groupIds.length === 0 && t.assigneeIds[0] === creator;
                             const phrase = self ? tr("actCreatedSelf")
                                 : assigneeNames(t) ? tr("actCreatedFor").replace("{who}", esc(assigneeNames(t)))
                                     : tr("actCreatedPlain");
-                            evs.push({ taskId: t.id, whoName: nameOf(t.creatorId), avatar: avOf(t.creatorId), body: `${phrase} ${q(t.title)}`, when: created, iso: t.createDate || "" });
+                            evs.push({ taskId: t.id, whoName: nameOf(creator), avatar: avOf(creator), body: `${phrase} ${q(t.title)}`, when: created, iso: t.createDate || "" });
                         }
                     }
                     for (const t of recurTemplates) {
@@ -5115,6 +5120,11 @@ const factory = (BaseBlockClass, widgetApi) => {
                             const prio = isCritical ? "Priority_1" : prioVal;
                             if (isCritical)
                                 finalDesc = finalDesc ? `${finalDesc} [lvl: critical]` : `[lvl: critical]`;
+                            // Tasks are created with the Basic token, so the server records the
+                            // token (not the viewer) as creator. Stamp the real author as [by:<id>]
+                            // so the activity feed shows who created it (falls back to "someone").
+                            if (currentUserId)
+                                finalDesc = finalDesc ? `${finalDesc} [by: ${currentUserId}]` : `[by: ${currentUserId}]`;
                             const saveBtn = $("c-save");
                             saveBtn.disabled = true;
                             saveBtn.textContent = tr("creating");
