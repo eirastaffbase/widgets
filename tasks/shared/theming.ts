@@ -1,8 +1,10 @@
 // Shared theming helper — pulls brand colors from the Staffbase theming API.
 //
 // Used by the "Use Theme Colors" config option across the task widgets. We fetch
-// with the same Basic-auth API token the widgets already use (the session cookie
-// is unreliable inside the native mobile apps, so token auth is preferred here).
+// with the same Basic-auth API token the widgets already use, and explicitly omit
+// the session cookie (credentials:"omit") so the request always resolves as the
+// token's service identity — never the viewing user, who may be a different,
+// theme-less account when impersonating via the login-as widget.
 //
 // GET {baseUrl}/theming/themes/{themeId}  ->
 //   { globalTheme: { customColors: [ {id, color}, ... ], interfaceColor },
@@ -30,6 +32,12 @@ export async function fetchThemeColors(
 ): Promise<ThemeColors> {
   try {
     const res = await fetch(`${baseUrl}/theming/themes/${themeId}`, {
+      // Omit the session cookie so the request is authenticated purely by the
+      // Basic API token (the service identity). Otherwise, when the viewer is
+      // logged in as another user (e.g. via the login-as widget), the cookie is
+      // sent and the theming endpoint is evaluated as that user — who may lack
+      // theme access — so it returns nothing and brand colors silently fail.
+      credentials: "omit",
       headers: { Authorization: `Basic ${apiToken}`, Accept: "application/json" },
     });
     if (!res.ok) return {};
