@@ -2576,7 +2576,7 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-card-title>span::after{content:"";position:absolute;left:0;top:50%;height:1.5px;background:var(--gray);width:0;transform:translateY(-50%);transition:width .35s ease;display:block}
           .${p}-card.done .${p}-card-title>span::after{width:100%}
           .${p}-card-desc{font-size:12px;color:var(--gray);margin-top:3px;line-height:1.45;word-break:break-word;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-          .${p}-card-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:7px;align-items:center}
+          .${p}-card-meta{display:flex;flex-wrap:wrap;gap:3px 10px;margin-top:7px;align-items:center;line-height:12px}
           .${p}-meta-item{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--gray-lt)}
           .${p}-meta-item svg{flex-shrink:0}
           .${p}-meta-item.overdue{color:var(--error);font-weight:600}
@@ -2684,6 +2684,17 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-reassign-opt:hover{background:rgba(var(--primary-rgb),.06)!important}
           .${p}-dbg-btn,.${p}-dbg-btn:hover,.${p}-dbg-btn:focus{background:#21262d!important}
           .${p}-dbg-btn:active{background:var(--primary)!important}
+          /* Calendar chrome buttons — same Staffbase-blue neutralization */
+          .${p}-view-opt,.${p}-view-opt:hover,.${p}-view-opt:focus{background:none!important}
+          .${p}-view-opt.active,.${p}-view-opt.active:hover,.${p}-view-opt.active:focus{background:var(--primary)!important;color:var(--primary-text)!important}
+          .${p}-view-opt:not(.active),.${p}-view-opt:not(.active):hover,.${p}-view-opt:not(.active):focus,.${p}-view-opt:not(.active):active{color:var(--gray)!important}
+          .${p}-cal-modeseg button,.${p}-cal-modeseg button:hover,.${p}-cal-modeseg button:focus{background:none!important}
+          .${p}-cal-modeseg button.active,.${p}-cal-modeseg button.active:hover,.${p}-cal-modeseg button.active:focus{background:var(--primary)!important;color:var(--primary-text)!important}
+          .${p}-cal-modeseg button:not(.active),.${p}-cal-modeseg button:not(.active):hover,.${p}-cal-modeseg button:not(.active):focus,.${p}-cal-modeseg button:not(.active):active{color:var(--gray)!important}
+          .${p}-ico-btn,.${p}-ico-btn:focus,.${p}-ico-btn:active{background:#fff!important;color:var(--gray)!important}
+          .${p}-ico-btn:hover{background:#fff!important;color:var(--accent)!important}
+          .${p}-cal-overdue,.${p}-cal-overdue:focus,.${p}-cal-overdue:active{background:rgba(196,30,58,.08)!important;color:var(--error)!important}
+          .${p}-cal-overdue:hover{background:rgba(196,30,58,.14)!important;color:var(--error)!important}
           /* ── States ── */
           .${p}-state{padding:40px 20px;text-align:center;color:var(--gray-lt);font-size:13px;line-height:1.6}
           .${p}-state-icon{font-size:32px;margin-bottom:8px;display:block}
