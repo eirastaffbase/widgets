@@ -511,6 +511,9 @@ function contrastColor(hex) {
 }
 const TYPE_REGEX = /\[type:\s*([^\]]+)\]/i;
 const RECUR_REGEX = /\[recur:\s*[^\]]+\]/i;
+// Recurring Tasks widget stamps unfired templates with [type: recur-template] — treat
+// that as the "Recurring" badge rather than a literal type badge.
+const RECUR_TEMPLATE_TYPE = "recur-template";
 function parseTaskType(text) { const m = TYPE_REGEX.exec(text); return m ? m[1].trim().toLowerCase() : null; }
 // Strip the hidden bracket markers other task widgets stamp into titles/descriptions.
 function stripTags(text) {
@@ -1634,6 +1637,8 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const meta = [];
                 if (t.taskType)
                     meta.push(`<span class="${p}-row-badge" style="background:${typeCol};color:${typeText}" dir="auto">${esc(ct(t.taskType))}</span>`);
+                if (t.isRecurring)
+                    meta.push(`<span class="${p}-recur-badge">${iconRecur}${tr("recurring")}</span>`);
                 if (dueInfo.text)
                     meta.push(`<span class="${p}-row-due${dueInfo.overdue && !done ? " overdue" : ""}">${iCal}${dueInfo.overdue && !done ? `${tr("overdueLabel")} · ${esc(dueInfo.text)}` : esc(dueInfo.text)}</span>`);
                 return `<div class="${p}-row${done ? " done" : ""}" data-id="${esc(t.id)}" data-inst="${esc(t.installId)}">
@@ -1781,10 +1786,12 @@ const factory = (BaseBlockClass, widgetApi) => {
                             return base;
                         const d = await res.json();
                         const desc = d.description || "";
+                        const rawType = parseTaskType(d.title || "") || parseTaskType(desc);
+                        const isTemplate = rawType === RECUR_TEMPLATE_TYPE;
                         return { id: d.id || r.taskId, installId: r.installId,
                             title: stripTags(d.title || "") || "(untitled)", description: desc, status: d.status || "OPEN",
                             dueDate: d.dueDate || null, priority: d.priority || "Priority_3",
-                            taskType: parseTaskType(d.title || "") || parseTaskType(desc), isRecurring: RECUR_REGEX.test(desc),
+                            taskType: isTemplate ? null : rawType, isRecurring: isTemplate || RECUR_REGEX.test(desc),
                             groupIds: d.groupIds || [], assigneeIds: d.assigneeIds || [], attachmentIds: d.attachmentIds || [], ok: true };
                     }
                     catch (_) {
