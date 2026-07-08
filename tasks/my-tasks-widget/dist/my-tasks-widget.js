@@ -1910,7 +1910,7 @@ const configurationSchema = {
         auditmode: { type: "boolean", title: "Audit Mode", default: false },
         enablecomments: { type: "boolean", title: "Enable Comments (experimental)", default: false },
         allowtaskcreation: { type: "boolean", title: "Allow Task Creation", default: false },
-        allowtaskassignment: { type: "boolean", title: "Allow Task Assignment (audit mode)", default: false },
+        allowtaskassignment: { type: "boolean", title: "Allow Task Assignment", default: false },
         notifyonassign: { type: "boolean", title: "Notify on Assignment", default: true },
         detailedlogging: { type: "boolean", title: "Detailed Activity Logging", default: false },
         debugmode: { type: "boolean", title: "Debug Mode (on-screen logs)", default: false },
@@ -1967,7 +1967,7 @@ const uiSchema = {
     auditmode: { "ui:help": "When enabled, shows audit results and history instead of regular tasks" },
     enablecomments: { "ui:help": "Experimental: show a comments section in the task detail panel (uses the logged-in user's session)" },
     allowtaskcreation: { "ui:help": "Show a “New Task” button so users can create tasks from this widget" },
-    allowtaskassignment: { "ui:help": "In audit mode, allow reassigning a task (to a group or person) from its detail panel" },
+    allowtaskassignment: { "ui:help": "Allow reassigning a task (to a group or person) from its detail panel — works in both normal and audit mode" },
     notifyonassign: { "ui:help": "Send a Staffbase notification (“You were assigned a new task”) to people newly assigned a task via this widget" },
     detailedlogging: { "ui:help": "Record reassignments and completions as hidden activity entries the Manager Tasks widget surfaces in its activity feed. Off by default." },
     debugmode: { "ui:help": "Show an on-screen log panel with a copy button — useful for debugging inside the mobile app" },
@@ -4586,7 +4586,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     // Assignee section: group vs person tabs (only shown when there are groups or assignees)
                     const hasGroup = task.groupIds.length > 0;
                     const hasAssignee = task.assigneeIds.length > 0;
-                    const showAssignTabs = (hasGroup || hasAssignee) && auditMode;
+                    const showAssignTabs = (hasGroup || hasAssignee) && (auditMode || allowAssign);
                     let assigneeHtml = "";
                     if (hasGroup || hasAssignee) {
                         if (showAssignTabs) {
@@ -4614,7 +4614,7 @@ const factory = (BaseBlockClass, widgetApi) => {
             ${task.installationTitle ? `<div class="${p}-detail-meta-row">${iStore} ${esc(task.installationTitle)}</div>` : ""}
             ${task.listName ? `<div class="${p}-detail-meta-row">${iList} ${esc(task.listName)}</div>` : ""}
             ${assigneeHtml}
-            ${auditMode && allowAssign ? `<div class="${p}-reassign" id="${p}-reassign-${instId}">
+            ${allowAssign ? `<div class="${p}-reassign" id="${p}-reassign-${instId}">
               <button type="button" class="${p}-reassign-btn" data-act="open"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> ${(task.groupIds.length || task.assigneeIds.length) ? tr("reassign") : tr("assign")}</button>
               <div class="${p}-reassign-pop" style="display:none">
                 <input type="text" class="${p}-reassign-search" placeholder="${tr("searchPeopleGroups")}">
@@ -4679,8 +4679,8 @@ const factory = (BaseBlockClass, widgetApi) => {
                         fetchUser(uid).then(u => { const s = row.querySelector("span"); if (s && u.name)
                             s.textContent = u.name; });
                     });
-                    // Reassign control (audit mode + allowtaskassignment)
-                    if (auditMode && allowAssign)
+                    // Reassign control (allowtaskassignment) — available in both normal and audit mode
+                    if (allowAssign)
                         wireReassign(task);
                     if (enableComments) {
                         renderComments(task);
