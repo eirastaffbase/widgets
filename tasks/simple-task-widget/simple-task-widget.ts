@@ -29,6 +29,7 @@ const configurationSchema: JSONSchema7 = {
     showcompleted:   { type:"boolean", title:"Show Completed Tasks", default: true },
     allowtoggle:     { type:"boolean", title:"Allow Check Off",      default: true },
     enablecomments:  { type:"boolean", title:"Enable Comments",      default: true },
+    onlyassignedtome:{ type:"boolean", title:"Only Show Tasks Assigned To Me", default: false },
     usethemecolors:  { type:"boolean", title:"Use Theme Colors",     default: false },
     backgroundcolor: { type:"string",  title:"Background Color",     default: "" },
     limitheight:     { type:"boolean", title:"Limit Height",         default: false },
@@ -60,6 +61,7 @@ const uiSchema: UiSchema = {
   showcompleted:   { "ui:help":"When off, tasks already marked done are hidden from the checklist" },
   allowtoggle:     { "ui:help":"Let viewers check tasks off (marks them done via the API). Turn off for a read-only checklist." },
   enablecomments:  { "ui:help":"Show a comments section in the task detail panel (uses the logged-in user's session)" },
+  onlyassignedtome:{ "ui:help":"Filter this list down to tasks assigned directly to the viewer, or to a group the viewer belongs to — same matching the My Tasks widget uses" },
   usethemecolors:  { "ui:help":"Pull Primary & Accent from the app's branding theme (uses the API Token). Hides the color pickers below." },
   primarycolor:    { "ui:widget":"color", "ui:help":"Primary brand color" },
   accentcolor:     { "ui:widget":"color", "ui:help":"Accent / secondary color" },
@@ -124,6 +126,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const showCompleted = this.getAttribute("showcompleted") !== "false";
       const allowToggle   = this.getAttribute("allowtoggle")   !== "false";
       const enableComments= this.getAttribute("enablecomments")!== "false";
+      const onlyMine       = this.getAttribute("onlyassignedtome") === "true";
 
       // ── Limit height / scroll (same pattern as the other task widgets) ──
       const limitHeight = this.getAttribute("limitheight") === "true";
@@ -153,6 +156,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       let locale = DEFAULT_LOCALE;
       let tr = makeT(STRINGS, locale);
       let currentUserId = "";
+      let userGroupIds: string[] = [];
 
       // ── Content translation (titles + description) ──────────────────────
       let contentTranslated = false, translateBusy = false;
@@ -944,8 +948,15 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           </div>
         </div>`;
       }
+      // Same "mine" match as the My Tasks widget: direct assignment or via a group I'm in.
+      function isMyTask(t:Task):boolean{
+        if(!currentUserId) return true;
+        const direct=t.assigneeIds.indexOf(currentUserId)!==-1;
+        const grp=t.groupIds.some(gid=>userGroupIds.indexOf(gid)!==-1);
+        return direct||grp;
+      }
       function render(){
-        const visible=tasks.filter(t=>t.ok && (showCompleted || !isDone(t.status)));
+        const visible=tasks.filter(t=>t.ok && (showCompleted || !isDone(t.status)) && (!onlyMine || isMyTask(t)));
         if(!visible.length){ listEl.innerHTML=`<div class="${p}-state">${refs.length?tr("empty"):tr("noneConfigured")}</div>`; return; }
         listEl.innerHTML=visible.map(rowHtml).join("");
         listEl.querySelectorAll(`.${p}-row`).forEach(row=>{
@@ -986,6 +997,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         try{
           const prof:any=await widgetApi.getUserInformation();
           currentUserId=prof?.id||"";
+          userGroupIds=prof?.groupIDs||[];
           if(currentUserId){ const r=await fetch(`${baseUrl}/users/${currentUserId}`,apiOpts()); if(r.ok){ const u=await r.json(); configLocale=(u?.config?.locale)||""; } }
         }catch(_){}
         locale=detectLocale({ configLocale, available }); tr=makeT(STRINGS, locale);
@@ -1030,7 +1042,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 const blockDefinition: BlockDefinition = {
   name: "simple-task-widget",
   label: "Simple Tasks Widget",
-  attributes: ["apitoken","baseurl","tasklist","showcompleted","allowtoggle","enablecomments","usethemecolors","primarycolor","accentcolor","backgroundcolor","limitheight","maxheight"],
+  attributes: ["apitoken","baseurl","tasklist","showcompleted","allowtoggle","enablecomments","onlyassignedtome","usethemecolors","primarycolor","accentcolor","backgroundcolor","limitheight","maxheight"],
   factory, configurationSchema, uiSchema, blockLevel: "block",
   iconUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNzEgMTcxIj48Y2lyY2xlIGN4PSI4NS41IiBjeT0iODUuNSIgcj0iODUuNSIgZmlsbD0iIzE2QTM0QSIvPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQzLjUgNDMuNSkgc2NhbGUoMy41KSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTIxIDEwLjVWMTlhMiAyIDAgMCAxLTIgMkg1YTIgMiAwIDAgMS0yLTJWNWEyIDIgMCAwIDEgMi0yaDEyLjUiLz48cGF0aCBkPSJtOSAxMSAzIDNMMjIgNCIvPjwvZz48L3N2Zz4=",
 };

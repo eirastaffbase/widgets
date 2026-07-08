@@ -170,8 +170,10 @@ function makeT(bundles, locale) {
 // Shared theming helper — pulls brand colors from the Staffbase theming API.
 //
 // Used by the "Use Theme Colors" config option across the task widgets. We fetch
-// with the same Basic-auth API token the widgets already use (the session cookie
-// is unreliable inside the native mobile apps, so token auth is preferred here).
+// with the same Basic-auth API token the widgets already use, and explicitly omit
+// the session cookie (credentials:"omit") so the request always resolves as the
+// token's service identity — never the viewing user, who may be a different,
+// theme-less account when impersonating via the login-as widget.
 //
 // GET {baseUrl}/theming/themes/{themeId}  ->
 //   { globalTheme: { customColors: [ {id, color}, ... ], interfaceColor },
@@ -180,6 +182,13 @@ function makeT(bundles, locale) {
 // Note: a color field (e.g. navigation.accentColor) may hold either a literal
 // hex ("#FF6720") OR an *id* that references one of globalTheme.customColors
 // ("legacy-text-color"), so we resolve references against the customColors map.
+//
+// Color choice: a configured brand color can be too light to read on the white
+// widget background (widgets use primary for text/icons/borders), so we gather the
+// whole palette and choose intelligently:
+//   - primary = darkest still-saturated color, darkened further if needed to clear
+//               a ~4.5:1 contrast ratio on white
+//   - accent  = most vivid color (only used in gradients, on colored backgrounds)
 const isHex = (s) => /^#[0-9a-fA-F]{3,8}$/.test(s);
 // Pure white/black are useless as an accent (invisible on light UIs / harsh),
 // so we treat them as "no usable accent" and fall through to the next candidate.
@@ -187,10 +196,102 @@ const isNeutralExtreme = (s) => {
     const x = s.replace("#", "").toLowerCase();
     return x === "ffffff" || x === "fff" || x === "000000" || x === "000";
 };
+// ── Color math (used to pick readable colors off the theme palette) ────────────
+function relLuminance(hex) {
+    const h = (hex.replace("#", "") + "000000").slice(0, 6);
+    const r = parseInt(h.slice(0, 2), 16) / 255, g = parseInt(h.slice(2, 4), 16) / 255, b = parseInt(h.slice(4, 6), 16) / 255;
+    const lin = (c) => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+}
+// Contrast ratio of a color against white (the widget's background).
+function contrastOnWhite(hex) {
+    return 1.05 / (relLuminance(hex) + 0.05);
+}
+function hexToHsl(hex) {
+    const x = (hex.replace("#", "") + "000000").slice(0, 6);
+    const r = parseInt(x.slice(0, 2), 16) / 255, g = parseInt(x.slice(2, 4), 16) / 255, b = parseInt(x.slice(4, 6), 16) / 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+    const l = (mx + mn) / 2;
+    let s = 0, h = 0;
+    if (d) {
+        s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+        if (mx === r)
+            h = ((g - b) / d) % 6;
+        else if (mx === g)
+            h = (b - r) / d + 2;
+        else
+            h = (r - g) / d + 4;
+        h *= 60;
+        if (h < 0)
+            h += 360;
+    }
+    return { h, s, l };
+}
+function hslToHex(h, s, l) {
+    const c = (1 - Math.abs(2 * l - 1)) * s;
+    const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+    const m = l - c / 2;
+    let r = 0, g = 0, b = 0;
+    if (h < 60)
+        [r, g, b] = [c, x, 0];
+    else if (h < 120)
+        [r, g, b] = [x, c, 0];
+    else if (h < 180)
+        [r, g, b] = [0, c, x];
+    else if (h < 240)
+        [r, g, b] = [0, x, c];
+    else if (h < 300)
+        [r, g, b] = [x, 0, c];
+    else
+        [r, g, b] = [c, 0, x];
+    const to = (v) => Math.round((v + m) * 255).toString(16).padStart(2, "0");
+    return `#${to(r)}${to(g)}${to(b)}`;
+}
+// Darken a color (keep hue/saturation) until it reads on a white background.
+function darkenToContrast(hex, target = 4.5) {
+    let { h, s, l } = hexToHsl(hex);
+    let out = hex;
+    for (let i = 0; i < 50 && contrastOnWhite(out) < target && l > 0.04; i++) {
+        l = Math.max(0, l - 0.02);
+        out = hslToHex(h, s, l);
+    }
+    return out;
+}
+// From a palette, pick the color to use ON WHITE (names, active states, borders):
+// the darkest one that's still clearly saturated, then darken further if it's
+// still too light to read. Returns "" if nothing usable (caller falls back).
+function pickOnWhite(cands) {
+    const scored = cands.filter(isHex).map(hex => (Object.assign(Object.assign({ hex }, hexToHsl(hex)), { contrast: contrastOnWhite(hex) })));
+    // Saturated, not near-white / near-black / gray.
+    let pool = scored.filter(c => c.s >= 0.35 && c.l >= 0.12 && c.l <= 0.85);
+    if (!pool.length)
+        pool = scored.filter(c => c.s >= 0.2 && c.l <= 0.9);
+    if (!pool.length)
+        return "";
+    // Darkest first (highest contrast on white); tie-break toward more saturated.
+    pool.sort((a, b) => (b.contrast - a.contrast) || (b.s - a.s));
+    return darkenToContrast(pool[0].hex, 4.5);
+}
+// Most vivid color in the palette (used for gradient accents, where it sits on a
+// colored background so light/bright is fine). Avoids matching `exclude`.
+function pickVivid(cands, exclude = "") {
+    const pool = cands.filter(isHex).map(hex => (Object.assign({ hex }, hexToHsl(hex))))
+        .filter(c => c.s >= 0.3 && c.l >= 0.15 && c.l <= 0.92)
+        .sort((a, b) => b.s - a.s);
+    if (!pool.length)
+        return "";
+    return (pool.find(c => c.hex.toLowerCase() !== exclude.toLowerCase()) || pool[0]).hex;
+}
 async function fetchThemeColors(baseUrl, apiToken, themeId = "primary") {
-    var _a, _b, _c, _d, _e;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j;
     try {
         const res = await fetch(`${baseUrl}/theming/themes/${themeId}`, {
+            // Omit the session cookie so the request is authenticated purely by the
+            // Basic API token (the service identity). Otherwise, when the viewer is
+            // logged in as another user (e.g. via the login-as widget), the cookie is
+            // sent and the theming endpoint is evaluated as that user — who may lack
+            // theme access — so it returns nothing and brand colors silently fail.
+            credentials: "omit",
             headers: { Authorization: `Basic ${apiToken}`, Accept: "application/json" },
         });
         if (!res.ok)
@@ -210,24 +311,37 @@ async function fetchThemeColors(baseUrl, apiToken, themeId = "primary") {
                 return v;
             return customs[v] || "";
         };
-        // Primary: the brand color, falling back to legacy bg / interface color.
-        let primary = resolve("primary-brand-color") ||
-            customs["legacy-background-color"] ||
-            (typeof ((_b = data === null || data === void 0 ? void 0 : data.globalTheme) === null || _b === void 0 ? void 0 : _b.interfaceColor) === "string" ? data.globalTheme.interfaceColor : "");
-        // Accent: nav accent, then secondary brand, then primary — skipping any
-        // unresolved / pure-white-or-black value (which wouldn't read as an accent).
-        let accent = resolve((_e = (_d = (_c = data === null || data === void 0 ? void 0 : data.desktopTheme) === null || _c === void 0 ? void 0 : _c.components) === null || _d === void 0 ? void 0 : _d.navigation) === null || _e === void 0 ? void 0 : _e.accentColor);
-        if (!isHex(accent) || isNeutralExtreme(accent) || accent.toLowerCase() === String(primary).toLowerCase()) {
-            accent = resolve("secondary-brand-color");
+        // Gather every color the theme exposes (skip pure white/black), then choose:
+        //  - primary = darkest still-saturated color (it sits on the white widget bg)
+        //  - accent  = most vivid color (only used in gradients, on colored bg)
+        // A configured brand color can be too light (e.g. #F7DDED) to read on white,
+        // so we never just trust primary-brand-color for on-white text.
+        const palette = [
+            ...Object.values(customs),
+            typeof ((_b = data === null || data === void 0 ? void 0 : data.globalTheme) === null || _b === void 0 ? void 0 : _b.interfaceColor) === "string" ? data.globalTheme.interfaceColor : "",
+            resolve((_e = (_d = (_c = data === null || data === void 0 ? void 0 : data.desktopTheme) === null || _c === void 0 ? void 0 : _c.components) === null || _d === void 0 ? void 0 : _d.navigation) === null || _e === void 0 ? void 0 : _e.accentColor),
+        ].filter(c => isHex(c) && !isNeutralExtreme(c));
+        // Primary: best on-white color from the palette; fall back to the older
+        // brand-color resolution (darkened for contrast) if nothing was saturated.
+        let primary = pickOnWhite(palette);
+        if (!primary) {
+            primary =
+                resolve("primary-brand-color") ||
+                    customs["legacy-background-color"] ||
+                    (typeof ((_f = data === null || data === void 0 ? void 0 : data.globalTheme) === null || _f === void 0 ? void 0 : _f.interfaceColor) === "string" ? data.globalTheme.interfaceColor : "");
+            if (isHex(primary))
+                primary = darkenToContrast(primary, 4.5);
         }
-        if (!isHex(accent) || isNeutralExtreme(accent))
-            accent = String(primary);
+        // Accent: most vivid palette color, else nav accent, else fall back to primary.
+        let accent = pickVivid(palette, primary) ||
+            resolve((_j = (_h = (_g = data === null || data === void 0 ? void 0 : data.desktopTheme) === null || _g === void 0 ? void 0 : _g.components) === null || _h === void 0 ? void 0 : _h.navigation) === null || _j === void 0 ? void 0 : _j.accentColor) ||
+            String(primary);
         return {
             primary: isHex(String(primary)) ? String(primary) : undefined,
             accent: isHex(String(accent)) ? String(accent) : undefined,
         };
     }
-    catch (_f) {
+    catch (_k) {
         return {};
     }
 }
@@ -344,6 +458,7 @@ const configurationSchema = {
         showcompleted: { type: "boolean", title: "Show Completed Tasks", default: true },
         allowtoggle: { type: "boolean", title: "Allow Check Off", default: true },
         enablecomments: { type: "boolean", title: "Enable Comments", default: true },
+        onlyassignedtome: { type: "boolean", title: "Only Show Tasks Assigned To Me", default: false },
         usethemecolors: { type: "boolean", title: "Use Theme Colors", default: false },
         backgroundcolor: { type: "string", title: "Background Color", default: "" },
         limitheight: { type: "boolean", title: "Limit Height", default: false },
@@ -374,6 +489,7 @@ const uiSchema = {
     showcompleted: { "ui:help": "When off, tasks already marked done are hidden from the checklist" },
     allowtoggle: { "ui:help": "Let viewers check tasks off (marks them done via the API). Turn off for a read-only checklist." },
     enablecomments: { "ui:help": "Show a comments section in the task detail panel (uses the logged-in user's session)" },
+    onlyassignedtome: { "ui:help": "Filter this list down to tasks assigned directly to the viewer, or to a group the viewer belongs to — same matching the My Tasks widget uses" },
     usethemecolors: { "ui:help": "Pull Primary & Accent from the app's branding theme (uses the API Token). Hides the color pickers below." },
     primarycolor: { "ui:widget": "color", "ui:help": "Primary brand color" },
     accentcolor: { "ui:widget": "color", "ui:help": "Accent / secondary color" },
@@ -436,6 +552,7 @@ const factory = (BaseBlockClass, widgetApi) => {
             const showCompleted = this.getAttribute("showcompleted") !== "false";
             const allowToggle = this.getAttribute("allowtoggle") !== "false";
             const enableComments = this.getAttribute("enablecomments") !== "false";
+            const onlyMine = this.getAttribute("onlyassignedtome") === "true";
             // ── Limit height / scroll (same pattern as the other task widgets) ──
             const limitHeight = this.getAttribute("limitheight") === "true";
             let maxHeight = (this.getAttribute("maxheight") || "").trim();
@@ -455,6 +572,7 @@ const factory = (BaseBlockClass, widgetApi) => {
             let locale = (/* inlined export .DEFAULT_LOCALE */"en_US");
             let tr = makeT(STRINGS, locale);
             let currentUserId = "";
+            let userGroupIds = [];
             // ── Content translation (titles + description) ──────────────────────
             let contentTranslated = false, translateBusy = false;
             const ctCache = {};
@@ -1530,8 +1648,16 @@ const factory = (BaseBlockClass, widgetApi) => {
           </div>
         </div>`;
             }
+            // Same "mine" match as the My Tasks widget: direct assignment or via a group I'm in.
+            function isMyTask(t) {
+                if (!currentUserId)
+                    return true;
+                const direct = t.assigneeIds.indexOf(currentUserId) !== -1;
+                const grp = t.groupIds.some(gid => userGroupIds.indexOf(gid) !== -1);
+                return direct || grp;
+            }
             function render() {
-                const visible = tasks.filter(t => t.ok && (showCompleted || !isDone(t.status)));
+                const visible = tasks.filter(t => t.ok && (showCompleted || !isDone(t.status)) && (!onlyMine || isMyTask(t)));
                 if (!visible.length) {
                     listEl.innerHTML = `<div class="${p}-state">${refs.length ? tr("empty") : tr("noneConfigured")}</div>`;
                     return;
@@ -1602,6 +1728,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 try {
                     const prof = await widgetApi.getUserInformation();
                     currentUserId = (prof === null || prof === void 0 ? void 0 : prof.id) || "";
+                    userGroupIds = (prof === null || prof === void 0 ? void 0 : prof.groupIDs) || [];
                     if (currentUserId) {
                         const r = await fetch(`${baseUrl}/users/${currentUserId}`, apiOpts());
                         if (r.ok) {
@@ -1674,7 +1801,7 @@ const factory = (BaseBlockClass, widgetApi) => {
 const blockDefinition = {
     name: "simple-task-widget",
     label: "Simple Tasks Widget",
-    attributes: ["apitoken", "baseurl", "tasklist", "showcompleted", "allowtoggle", "enablecomments", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor", "limitheight", "maxheight"],
+    attributes: ["apitoken", "baseurl", "tasklist", "showcompleted", "allowtoggle", "enablecomments", "onlyassignedtome", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor", "limitheight", "maxheight"],
     factory, configurationSchema, uiSchema, blockLevel: "block",
     iconUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNzEgMTcxIj48Y2lyY2xlIGN4PSI4NS41IiBjeT0iODUuNSIgcj0iODUuNSIgZmlsbD0iIzE2QTM0QSIvPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQzLjUgNDMuNSkgc2NhbGUoMy41KSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTIxIDEwLjVWMTlhMiAyIDAgMCAxLTIgMkg1YTIgMiAwIDAgMS0yLTJWNWEyIDIgMCAwIDEgMi0yaDEyLjUiLz48cGF0aCBkPSJtOSAxMSAzIDNMMjIgNCIvPjwvZz48L3N2Zz4=",
 };
