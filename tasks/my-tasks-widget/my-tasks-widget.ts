@@ -610,7 +610,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-store-tab:hover{border-color:var(--accent);color:var(--accent);background:rgba(var(--accent-rgb),.06)}
           .${p}-store-tab.active{background:var(--primary);border-color:var(--primary);color:var(--primary-text)}
           /* ── Filter bar ── */
-          .${p}-filters{display:flex;gap:8px;margin-bottom:16px;align-items:center}
+          .${p}-filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;align-items:center}
           .${p}-type-wrap{position:relative;flex:1;min-width:0}
           .${p}-type-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:6px;padding:7px 11px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fff;font-size:12px;font-weight:600;color:var(--gray);cursor:pointer;font-family:inherit;transition:all .15s;text-align:start}
           .${p}-type-btn:hover,.${p}-type-btn.open{border-color:var(--accent);color:var(--accent)}
@@ -625,7 +625,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-status-toggle{display:flex;border:1.5px solid var(--border);border-radius:var(--r-md);overflow:hidden;background:#fff;flex-shrink:0}
           .${p}-status-opt{padding:7px 13px;font-size:12px;font-weight:600;cursor:pointer;color:var(--gray);font-family:inherit;border:none;background:none;transition:all .15s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;outline:none;user-select:none}
           .${p}-status-opt.active{background:var(--primary);color:var(--primary-text)}
-          .${p}-list-filters{display:flex;gap:8px;align-items:center;flex:1;min-width:0}
+          .${p}-list-filters{display:flex;gap:8px;align-items:center;flex:1 1 220px;min-width:0}
           .${p}-view-toggle{display:flex;border:1.5px solid var(--border);border-radius:var(--r-md);overflow:hidden;background:#fff;flex-shrink:0}
           .${p}-view-opt{padding:7px 13px;font-size:12px;font-weight:600;cursor:pointer;color:var(--gray);font-family:inherit;border:none;background:none;transition:all .15s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;outline:none;user-select:none}
           .${p}-view-opt.active{background:var(--primary);color:var(--primary-text)}
@@ -2160,7 +2160,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       let lastCalCompact=false;
       function renderCalendar(){
         ensureCompletionDates(); // fire-and-forget; refines completed markers when ready
-        countEl.textContent=String(allTasks.filter(t=>t.taskType!=="audit-result").length);
+        countEl.textContent=String(allTasks.filter(t=>t.taskType!=="audit-result" && !isDoneStatus(t.status)).length);
         const markers=buildMarkers();
         const todayK=dayKey(new Date());
         const vw=window.innerWidth||document.documentElement.clientWidth||0;
