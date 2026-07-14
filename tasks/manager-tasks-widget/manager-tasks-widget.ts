@@ -775,6 +775,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-vtab:not(.active),.${p}-vtab:not(.active):focus,.${p}-vtab:not(.active):active{color:var(--gray)!important}
           .${p}-vtab:not(.active):hover{color:var(--dark)!important}
           .${p}-vtab.active,.${p}-vtab.active:hover,.${p}-vtab.active:focus,.${p}-vtab.active:active{color:var(--primary)!important}
+          /* Activity-log back button — same defense against the host green button bg */
+          .${p}-act-back,.${p}-act-back:focus,.${p}-act-back:active{background:#fff!important}
+          .${p}-act-back:hover{background:rgba(var(--primary-rgb),.04)!important}
           /* ── States ── */
           .${p}-state{padding:40px 20px;text-align:center;color:var(--gray-lt);font-size:13px;line-height:1.6}
           .${p}-state-icon{font-size:32px;margin-bottom:8px;display:block}
