@@ -3431,6 +3431,10 @@ const factory = (BaseBlockClass, widgetApi) => {
                     return teamMemberSet.size ? t.assigneeIds.some(a => teamMemberSet.has(a)) : false;
                 }
                 function inTeam(t) { return inTeamWith(t, selectedMembers); }
+                // Base team scope, ignoring any per-member selection (used by the proof
+                // gallery, which filters people at the photo level by uploader OR assignee).
+                const NO_MEMBERS = new Set();
+                function inTeamScope(t) { return inTeamWith(t, NO_MEMBERS); }
                 // Resolve a user id → display name (teamMembers → /users → id). Sync.
                 function displayNameSync(id) {
                     const m = teamMembers.find(x => x.id === id);
@@ -3954,7 +3958,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                         if (`${t.title || ""} ${t.description || ""}`.toLowerCase().indexOf(q) < 0)
                             return false;
                     }
-                    return inTeam(t)
+                    return inTeamScope(t)
                         && (activeInstallFilter === "all" || t.installationId === activeInstallFilter);
                 }
                 function proofWithinCompleted(iso) {
@@ -3971,11 +3975,18 @@ const factory = (BaseBlockClass, widgetApi) => {
                 }
                 function flattenProof(groups) {
                     const out = [];
+                    const sel = selectedMembers;
                     for (const g of groups) {
                         if (!proofTaskMatches(g.task))
                             continue;
+                        // Person filter (photo level): show a photo when nobody is selected, when
+                        // the task is assigned to a selected person, or when a selected person is
+                        // the one who uploaded that photo.
+                        const taskAssigned = !sel.size || g.task.assigneeIds.some(a => sel.has(a));
                         for (const it of g.items) {
                             if (!proofWithinCompleted(it.createdAt))
+                                continue;
+                            if (sel.size && !taskAssigned && !sel.has(it.authorId))
                                 continue;
                             out.push({ task: g.task, item: it });
                         }
@@ -4024,6 +4035,11 @@ const factory = (BaseBlockClass, widgetApi) => {
                     (proofCache || []).forEach(g => {
                         if (!instMap.has(g.task.installationId))
                             instMap.set(g.task.installationId, g.task.installationTitle || g.task.installationId);
+                        // Offer the people who actually submitted proof (comment authors) as well
+                        // as the assignees of proofed tasks, so a reviewer can filter by whoever
+                        // uploaded a photo, even if that person isn't on the manager's roster.
+                        g.items.forEach(it => { if (it.authorId)
+                            proofPeople.add(it.authorId); });
                         g.task.assigneeIds.forEach(a => { if (teamMemberSet.has(a))
                             proofPeople.add(a); });
                     });
@@ -4031,7 +4047,8 @@ const factory = (BaseBlockClass, widgetApi) => {
                         const at = allTasks.find(x => x.installationId === activeInstallFilter);
                         instMap.set(activeInstallFilter, (at === null || at === void 0 ? void 0 : at.installationTitle) || activeInstallFilter);
                     }
-                    const personOpts = teamMembers.filter(m => proofPeople.has(m.id) || selectedMembers.has(m.id));
+                    selectedMembers.forEach(id => proofPeople.add(id)); // keep active selections visible
+                    const personOpts = [...proofPeople].map(id => ({ id, name: displayNameSync(id) })).sort((a, b) => a.name.localeCompare(b.name));
                     const showStore = instMap.size > 1;
                     const showPerson = personOpts.length > 1;
                     proofViewEl.innerHTML = `
