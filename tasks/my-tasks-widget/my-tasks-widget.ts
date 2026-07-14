@@ -505,12 +505,13 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-amodal-body iframe,.${p}-amodal-body object,.${p}-amodal-pdf{width:100%;height:84vh;border:none;background:#fff}
           .${p}-amodal-none{display:flex;flex-direction:column;align-items:center;gap:12px;padding:48px 24px;color:var(--gray-lt);font-size:13px}
           /* ── Photo proof modal ── */
-          .${p}-proof{--primary:${primaryColor};--primary-rgb:${primaryRgb};--primary-text:${primaryText};--accent:${accentColor};--dark:#1A1A1A;--gray:#6b7280;--gray-lt:#9ca3af;--border:#e5e7eb;--error:#C41E3A;--r-sm:6px;--r-md:10px;--r-lg:14px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;position:fixed;inset:0;z-index:100003;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:16px}
+          .${p}-proof{--primary:${primaryColor};--primary-rgb:${primaryRgb};--primary-text:${primaryText};--accent:${accentColor};--accent-rgb:${accentRgb};--dark:#1A1A1A;--gray:#6b7280;--gray-lt:#9ca3af;--border:#e5e7eb;--error:#C41E3A;--r-sm:6px;--r-md:10px;--r-lg:14px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;position:fixed;inset:0;z-index:100003;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:16px}
           .${p}-proof.open{display:flex}
           .${p}-proof-card{background:#fff;border-radius:var(--r-lg);width:100%;max-width:min(420px,96vw);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 12px 48px rgba(0,0,0,.4)}
           .${p}-proof-head{display:flex;align-items:center;gap:8px;padding:13px 14px;border-bottom:1px solid var(--border);flex-shrink:0}
           .${p}-proof-title{flex:1;min-width:0;font-size:14px;font-weight:800;color:var(--dark)}
-          .${p}-proof-x{width:30px;height:30px;flex-shrink:0;border:none;border-radius:50%;background:#f3f4f6;color:var(--gray);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+          .${p}-proof-x{width:30px;height:30px;flex-shrink:0;border:none;border-radius:50%;background:#f3f4f6!important;color:var(--gray)!important;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+          .${p}-proof-x:hover,.${p}-proof-x:focus,.${p}-proof-x:active{background:#e5e7eb!important;color:var(--dark)!important}
           .${p}-proof-x:disabled{opacity:.4;cursor:default}
           .${p}-proof-body{padding:14px}
           .${p}-proof-desc{margin:0 0 12px;font-size:13px;color:var(--gray);line-height:1.5}
@@ -526,9 +527,11 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-proof-err:empty{display:none}
           .${p}-proof-foot{display:flex;gap:8px;padding:12px 14px;border-top:1px solid var(--border);flex-shrink:0}
           .${p}-proof-btn{flex:1;padding:10px;border-radius:var(--r-md);border:none;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:7px;transition:all .15s}
-          .${p}-proof-cancel{background:#f3f4f6;color:var(--gray)}
+          .${p}-proof-cancel,.${p}-proof-cancel:hover,.${p}-proof-cancel:focus,.${p}-proof-cancel:active{background:#f3f4f6!important;color:var(--gray)!important}
+          .${p}-proof-cancel:hover{background:#e5e7eb!important}
           .${p}-proof-cancel:disabled{opacity:.5;cursor:default}
-          .${p}-proof-confirm{background:var(--primary);color:var(--primary-text,#fff)}
+          .${p}-proof-confirm,.${p}-proof-confirm:hover,.${p}-proof-confirm:focus,.${p}-proof-confirm:active{background:var(--primary)!important;color:var(--primary-text,#fff)!important}
+          .${p}-proof-confirm:active{background:rgba(var(--accent-rgb),.85)!important}
           .${p}-proof-confirm:disabled{opacity:.5;cursor:default}
           .${p}-proof-spin{width:13px;height:13px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;display:inline-block;animation:${p}-spin .7s linear infinite}
           .${p}-att-x{width:auto!important;margin:0 0 0 2px!important;border:none!important;background:none!important;color:var(--gray-lt);cursor:pointer;padding:3px!important;display:flex!important;border-radius:50%;flex-shrink:0;transition:color .15s,background .15s}

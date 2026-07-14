@@ -2602,6 +2602,12 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-chip,.${p}-chip:hover,.${p}-chip:focus{background:#fff!important}
           .${p}-chip.active,.${p}-chip.active:hover,.${p}-chip.active:focus{background:var(--error)!important;color:#fff!important}
           .${p}-dash-toggle,.${p}-dash-toggle:hover,.${p}-dash-toggle:focus,.${p}-dash-toggle:active{background:none!important}
+          /* Proof Review view tabs — defend against the host green button hover/active bg */
+          .${p}-vtab,.${p}-vtab:hover,.${p}-vtab:focus,.${p}-vtab:active{background:transparent!important}
+          .${p}-vtab.active,.${p}-vtab.active:hover,.${p}-vtab.active:focus,.${p}-vtab.active:active{background:#fff!important}
+          .${p}-vtab:not(.active),.${p}-vtab:not(.active):focus,.${p}-vtab:not(.active):active{color:var(--gray)!important}
+          .${p}-vtab:not(.active):hover{color:var(--dark)!important}
+          .${p}-vtab.active,.${p}-vtab.active:hover,.${p}-vtab.active:focus,.${p}-vtab.active:active{color:var(--primary)!important}
           /* ── States ── */
           .${p}-state{padding:40px 20px;text-align:center;color:var(--gray-lt);font-size:13px;line-height:1.6}
           .${p}-state-icon{font-size:32px;margin-bottom:8px;display:block}

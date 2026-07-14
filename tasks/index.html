@@ -248,9 +248,40 @@ const DUMMY_COMMENTS = { data:[
   { id:"c1", authorId:"u-maria", content:"<p>Started the dry-storage count — about halfway done.</p>", createdAt:new Date(Date.now()-936e5).toISOString() },
   { id:"c2", authorId:"u-james", content:"<p>Thanks Maria! I'll take the walk-in cooler this afternoon.</p>", createdAt:new Date(Date.now()-108e5).toISOString() },
 ], total:2 };
+// ── Photo proof (dummy) ────────────────────────────────────────────────────
+// Inline SVG "photos" so proof review works fully offline (airtight — no network).
+// Base64-encoded so the widget's originalUrl() regex leaves the data URI intact.
+function proofPhoto(label, c1, c2){
+  const svg =
+    "<svg xmlns='http://www.w3.org/2000/svg' width='600' height='450'>"
+    + "<defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>"
+    + "<stop offset='0' stop-color='" + c1 + "'/><stop offset='1' stop-color='" + c2 + "'/></linearGradient></defs>"
+    + "<rect width='600' height='450' fill='url(#g)'/>"
+    + "<g fill='none' stroke='rgba(255,255,255,.92)' stroke-width='9' stroke-linecap='round' stroke-linejoin='round'>"
+    + "<rect x='228' y='168' width='144' height='108' rx='16'/><circle cx='300' cy='222' r='31'/>"
+    + "<path d='M262 168l13-21h50l13 21'/></g>"
+    + "<text x='300' y='352' fill='rgba(255,255,255,.96)' font-family='Segoe UI,Arial,sans-serif' font-size='29' font-weight='700' text-anchor='middle'>" + label + "</text>"
+    + "</svg>";
+  return "data:image/svg+xml;base64," + btoa(svg);
+}
+function mediaImg(id, fileName, label, c1, c2){
+  return { id:id, fileName:fileName, mimeType:"image/jpeg", size:420000 + (id.length*9137 % 480000), thumbnail:{ url: proofPhoto(label, c1, c2) } };
+}
+// Media metadata by id — served from the mocked /media/<transform>/<id>/metadata endpoint.
+const DUMMY_MEDIA = {
+  "mediaTraining": mediaImg("mediaTraining", "training-complete.jpg", "Training completed", "#1e3a5f", "#3b6ea5"),
+  "mediaFryer":    mediaImg("mediaFryer",    "fryer-cleaned.jpg",     "Fryer station cleaned", "#243b2e", "#2e7d4a"),
+  "mediaRestock1": mediaImg("mediaRestock1", "restock-front.jpg",     "Drive-thru restocked",  "#4a2f1e", "#b5651d"),
+  "mediaRestock2": mediaImg("mediaRestock2", "restock-sauces.jpg",    "Sauces topped up",      "#3a2a4a", "#7c4dff"),
+  "mediaMenu":     mediaImg("mediaMenu",     "menu-board.jpg",        "June LTO menu board",   "#4a1e2e", "#c2185b"),
+};
+
 // Per-task comments for the activity feed. t1 also carries a hidden [tasks:edit]
 // audit comment — it appears as an edit in Manager Tasks' activity feed but is
-// suppressed from the visible comment list everywhere.
+// suppressed from the visible comment list everywhere. Comments whose text carries
+// a [proof] marker plus an [attachment:<id>] token are photo proof — they power the
+// Manager "Proof Review" tab + detail Proof section, and render inline as images in
+// the user widgets' comment lists (the [proof] marker itself is stripped from view).
 const DUMMY_COMMENTS_BY_TASK = {
   t1: { data:[
     { id:"c1", authorId:"u-maria", content:"<p>Started the dry-storage count — about halfway done.</p>", createdAt:new Date(Date.now()-936e5).toISOString() },
@@ -263,9 +294,18 @@ const DUMMY_COMMENTS_BY_TASK = {
   // actual person). t4 = own task; m2 = completing someone else's task.
   t4: { data:[
     { id:"e2", authorId:MOCK_USER_ID, content:"<p>[tasks:edit] completed “Guest Love Training Module”</p>", createdAt:new Date(Date.now()-30e5).toISOString() },
-  ], total:1 },
+    { id:"p-t4", authorId:MOCK_USER_ID, content:"<p>[proof] [attachment:mediaTraining]</p>", createdAt:new Date(Date.now()-30e5).toISOString() },
+  ], total:2 },
   m2: { data:[
     { id:"e3", authorId:MOCK_USER_ID, content:"<p>[tasks:edit] completed James Chen's task “Deep clean fryer station”</p>", createdAt:new Date(Date.now()-18e5).toISOString() },
+    { id:"p-m2", authorId:"u-james", content:"<p>[proof] [attachment:mediaFryer]</p>", createdAt:new Date(Date.now()-18e5).toISOString() },
+  ], total:2 },
+  m5: { data:[
+    { id:"p-m5a", authorId:"u-maria", content:"<p>Restocked everything before the lunch rush. [proof] [attachment:mediaRestock1]</p>", createdAt:new Date(Date.now()-26e5).toISOString() },
+    { id:"p-m5b", authorId:"u-maria", content:"<p>[proof] [attachment:mediaRestock2]</p>", createdAt:new Date(Date.now()-25e5).toISOString() },
+  ], total:2 },
+  m7: { data:[
+    { id:"p-m7", authorId:"u-maria", content:"<p>[proof] [attachment:mediaMenu]</p>", createdAt:new Date(Date.now()-40e5).toISOString() },
   ], total:1 },
 };
 const DUMMY_SHEET_TASKS = {
@@ -332,6 +372,17 @@ window.fetch = async (url, opts) => {
 
   // Staffbase API — all dummy; writes are faked locally, never sent
   if (u.includes("app.staffbase.com") || u.includes("/api/")) {
+    // TUS media upload: POST init → 201 + Location; PATCH chunk → a media record.
+    // Registers the uploaded image in DUMMY_MEDIA so it resolves on later metadata reads.
+    if (u.includes("/media/tus")) {
+      if (method==="POST") {
+        const loc = u.split("?")[0].replace(/\/$/,"") + "/preview-upload-" + Math.random().toString(36).slice(2);
+        return { ok:true, status:201, json:async()=>({}), text:async()=>"", headers:{ get:(h)=> String(h).toLowerCase()==="location" ? loc : null } };
+      }
+      const mid = "mediaup" + ((u.match(/preview-upload-([a-z0-9]+)/)||[])[1] || Math.random().toString(36).slice(2));
+      DUMMY_MEDIA[mid] = mediaImg(mid, "proof-upload.jpg", "Photo proof uploaded", "#1e3a5f", "#2e7d4a");
+      return mockJson(DUMMY_MEDIA[mid]);
+    }
     if (method!=="GET") return mockJson({ id:"preview-"+Math.random().toString(36).slice(2), status:"OPEN" }); // fake write
     if (u.includes("/installations")) return mockJson(DUMMY_INSTALLS);
     if (u.includes("/branch")) return mockJson({ id:"preview", config:{ defaultLocale:"en_US", availableLocales:["en_US","es_ES","de_DE","fr_FR","zh_CN","ar_SA"] } });
@@ -352,6 +403,10 @@ window.fetch = async (url, opts) => {
       const lid = lm ? decodeURIComponent(lm[1]) : "";
       if (DUMMY_AUDIT[lid]) return mockJson(DUMMY_AUDIT[lid].tasks);
       return mockJson(DUMMY_TASKS.concat(DUMMY_RECUR)); // list1 / default (recur templates hidden in My Tasks)
+    }
+    if (/\/media\/[^/]+\/[^/]+\/metadata/.test(u)) {
+      const mid = (u.match(/\/media\/[^/]+\/([^/]+)\/metadata/) || [])[1] || "";
+      return DUMMY_MEDIA[mid] ? mockJson(DUMMY_MEDIA[mid]) : mockJson({ id:mid, fileName:"file", thumbnail:null });
     }
     if (u.includes("/comments")) {
       const tid = (u.match(/\/task\/([^/]+)\/comments/) || [])[1] || "";
@@ -390,6 +445,7 @@ const WIDGETS = [
       ["showupcomingrecurring","On the calendar, show upcoming recurring tasks (dashed) for the next 60 days (true/false)."],
       ["auditmode","Show audit findings instead of the task list (true/false)."],
       ["enablecomments","Enable per-task comments (true/false)."],
+      ["requirephotoproof","Require a photo when marking a task done — posted as a [proof] comment (true/false)."],
       ["allowtaskcreation","Show the New-task button (true/false)."],
       ["allowtaskassignment","Allow reassigning in audit mode (true/false)."],
       ["debugmode","On-screen debug log (true/false)."],
@@ -405,12 +461,13 @@ const WIDGETS = [
       ["teamsource","Who fills the dropdown: reports (direct reports) / userids / everyone."],
       ["teamuserids","Comma-separated user IDs (when teamsource=userids)."],
       ["showcharts","Show the dashboard charts + activity feed (true/false)."],
+      ["enableproofreview","Add a Proof Review tab + a Proof section on tasks that have photo proof (true/false)."],
       ["typecolors","Comma-separated hex palette for type badges."],
       ["showdonetasks","Include completed tasks (true/false)."],
       ["allowtaskassignment","Allow reassigning tasks — multiple people + groups (true/false)."],
       ["debugmode","On-screen debug log (true/false)."],
     ],
-    attrs:{ teamsource:"everyone", showcharts:"true", allowtaskassignment:"true", showdonetasks:"true" },
+    attrs:{ teamsource:"everyone", showcharts:"true", allowtaskassignment:"true", showdonetasks:"true", enableproofreview:"true" },
   },
   {
     key:"audit-widget", name:"Audit Form", tag:"Guided store audit",
@@ -463,6 +520,7 @@ const WIDGETS = [
       ["showcompleted","Include completed tasks, struck through (true/false)."],
       ["allowtoggle","Let viewers check tasks off (true/false). Off = read-only."],
       ["enablecomments","Show a comments section in the detail panel (true/false, default true)."],
+      ["requirephotoproof","Require a photo when marking a task done — posted as a [proof] comment (true/false)."],
       ["primarycolor","Brand primary color (default #da2e32)."],
       ["accentcolor","Secondary accent color."],
       ["backgroundcolor","Widget background (blank = transparent)."],
