@@ -417,6 +417,10 @@ const STRINGS = {
         recentActivity: "Recent activity",
         activityLog: "Activity log",
         viewAllActivity: "View full log ({n})",
+        viewMoreActivity: "View more",
+        backLabel: "Back",
+        loadingMore: "Loading more",
+        scrollForMore: "Scroll for more",
         actCompleted: "completed",
         actCommented: "commented on",
         withProof: "with proof",
@@ -2188,14 +2192,23 @@ const factory = (BaseBlockClass, widgetApi) => {
                 let activeStatusFilter = "open";
                 let activeInstallFilter = "all";
                 // ── Manager filters / sort ─────────────────────────────────────────
-                let priorityFilter = "all"; // all | Priority_1 | Priority_2 | Priority_3
+                const prioritySet = new Set(); // empty = all priorities
                 let overdueOnly = false;
                 let sortBy = "due"; // due | priority | assignee | created
                 let searchQuery = ""; // free-text filter (task title/description)
-                let assignedFrom = ""; // YYYY-MM-DD — filter by assigned (createDate) range
+                let assignedFrom = (() => { const d = new Date(Date.now() - 30 * 864e5); const m = String(d.getMonth() + 1).padStart(2, "0"); const day = String(d.getDate()).padStart(2, "0"); return `${d.getFullYear()}-${m}-${day}`; })(); // default: last 30 days
                 let assignedTo = ""; // YYYY-MM-DD
                 let membersExpanded = false; // "By team member" show-all toggle
-                let activityExpanded = false; // activity feed: recent (7) ↔ full log
+                // ── Activity feed paging ───────────────────────────────────────────
+                // Dashboard shows ACT_RECENT; "View more" opens a full-page log that loads
+                // ACT_FULL, then grows by ACT_STEP on infinite scroll.
+                const ACT_RECENT = 20;
+                const ACT_FULL = 200;
+                const ACT_STEP = 100;
+                let activityFull = false; // full-page activity log open?
+                let activityLimit = ACT_RECENT; // events currently shown
+                let activityLoadingMore = false; // infinite-scroll fetch in flight
+                const actHiddenSiblings = []; // restore on exit
                 let introUsed = false; // staggered entrance only on first list render
                 let currentUserId = "";
                 // ── Locale / i18n ──────────────────────────────────────────────────
@@ -2225,10 +2238,10 @@ const factory = (BaseBlockClass, widgetApi) => {
                 let userGroupIds = [];
                 const groupMap = new Map(); // groupId → name
                 // ── Manager-view state ─────────────────────────────────────────────
-                // teamMembers drives the filter dropdown; selectedMember = "" means "all".
+                // teamMembers drives the filter dropdown; selectedMembers empty = "all".
                 let teamMembers = [];
                 const teamMemberSet = new Set();
-                let selectedMember = ""; // "" = all team members
+                const selectedMembers = new Set(); // empty = all team members
                 let teamNote = ""; // e.g. "no direct reports found"
                 let allUsersRaw = null; // full /users objects (profile, avatar)
                 // ── Render skeleton ────────────────────────────────────────────────
@@ -2529,6 +2542,12 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-act-proof{display:inline-flex;align-items:center;gap:4px;margin-inline-start:6px;padding:1px 7px 1px 5px;border-radius:10px;font-size:10px;font-weight:700;color:var(--primary);background:rgba(var(--primary-rgb),.1);vertical-align:middle;white-space:nowrap}
           .${p}-act-proof svg{flex-shrink:0}
           .${p}-act-time{font-size:11px;color:var(--gray-lt);white-space:nowrap;flex-shrink:0}
+          .${p}-act-fh{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+          .${p}-act-back{display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--border);background:#fff;border-radius:var(--r-md);padding:6px 12px;font-family:inherit;font-size:12px;font-weight:700;color:var(--dark);cursor:pointer;transition:all .15s}
+          .${p}-act-back:hover{border-color:var(--primary);color:var(--primary);background:rgba(var(--primary-rgb),.04)}
+          .${p}-act-back svg{flex-shrink:0}
+          .${p}-act-loading{display:flex;align-items:center;justify-content:center;gap:8px;padding:16px;font-size:12px;font-weight:600;color:var(--gray)}
+          .${p}-act-more-hint{text-align:center;padding:12px;font-size:11px;color:var(--gray-lt)}
           .${p}-type-wrap{position:relative;flex:1 1 130px;min-width:120px}
           .${p}-type-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:6px;padding:7px 11px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fff;font-size:12px;font-weight:600;color:var(--gray);cursor:pointer;font-family:inherit;transition:all .15s;text-align:start}
           .${p}-type-btn span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -2720,9 +2739,8 @@ const factory = (BaseBlockClass, widgetApi) => {
           <div class="${p}-activity" id="${p}-activity" style="display:none"></div>
 
           <div class="${p}-team-wrap" id="${p}-team-wrap" style="display:none">
-            <span class="${p}-team-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
-            <select class="${p}-team-select" id="${p}-team-select" aria-label="${tr("teamMember")}"></select>
-            <svg class="${p}-team-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            <span class="${p}-team-ico" style="position:static;margin-inline-end:8px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+            <div id="${p}-team-dd" style="flex:1"></div>
           </div>
           <div class="${p}-filters">
             <div class="${p}-type-wrap" id="${p}-type-wrap">
@@ -2737,18 +2755,8 @@ const factory = (BaseBlockClass, widgetApi) => {
               <button type="button" class="${p}-status-opt" data-status="done">${tr("done")}</button>
               ${showDone ? `<button type="button" class="${p}-status-opt" data-status="all">${tr("both")}</button>` : ""}
             </div>
-            <select class="${p}-mini-select" id="${p}-prio-select" aria-label="${tr("byPriority")}">
-              <option value="all">${tr("allPriorities")}</option>
-              <option value="Priority_1">${tr("priHigh")}</option>
-              <option value="Priority_2">${tr("priMed")}</option>
-              <option value="Priority_3">${tr("priLow")}</option>
-            </select>
-            <select class="${p}-mini-select" id="${p}-sort-select" aria-label="Sort">
-              <option value="due">${tr("sortDue")}</option>
-              <option value="priority">${tr("sortPriority")}</option>
-              <option value="assignee">${tr("sortAssignee")}</option>
-              <option value="created">${tr("sortNewest")}</option>
-            </select>
+            <div id="${p}-prio-dd"></div>
+            <div id="${p}-sort-dd"></div>
             <button type="button" class="${p}-chip" id="${p}-overdue-chip" aria-pressed="false">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
               ${tr("overdueOnly")}
@@ -2790,9 +2798,9 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const chartsEl = container.querySelector(`#${p}-charts`);
                 const activityEl = container.querySelector(`#${p}-activity`);
                 const teamWrap = container.querySelector(`#${p}-team-wrap`);
-                const teamSelect = container.querySelector(`#${p}-team-select`);
-                const prioSelect = container.querySelector(`#${p}-prio-select`);
-                const sortSelect = container.querySelector(`#${p}-sort-select`);
+                const teamDdEl = container.querySelector(`#${p}-team-dd`);
+                const prioDdEl = container.querySelector(`#${p}-prio-dd`);
+                const sortDdEl = container.querySelector(`#${p}-sort-dd`);
                 const overdueChip = container.querySelector(`#${p}-overdue-chip`);
                 const searchInput = container.querySelector(`#${p}-search`);
                 const dateFromEl = container.querySelector(`#${p}-date-from`);
@@ -2830,9 +2838,17 @@ const factory = (BaseBlockClass, widgetApi) => {
                     document.removeEventListener("click", self._mgrDocClick);
                     self._mgrDocClick = undefined;
                 }
+                if (self._mgrDocClickDD) {
+                    document.removeEventListener("click", self._mgrDocClickDD);
+                    self._mgrDocClickDD = undefined;
+                }
                 if (self._mgrDocKey) {
                     document.removeEventListener("keydown", self._mgrDocKey);
                     self._mgrDocKey = undefined;
+                }
+                if (self._mgrActScroll) {
+                    window.removeEventListener("scroll", self._mgrActScroll);
+                    self._mgrActScroll = undefined;
                 }
                 const instId = Math.random().toString(36).slice(2);
                 container.dataset.mgrInst = instId;
@@ -3365,18 +3381,19 @@ const factory = (BaseBlockClass, widgetApi) => {
                             teamNote = teamMembers.length ? "" : tr("noReports");
                         }
                         teamMembers.sort((a, b) => a.name.localeCompare(b.name));
-                        // Keep a current selection valid across reloads.
-                        if (selectedMember && !teamMembers.some(m => m.id === selectedMember))
-                            selectedMember = "";
+                        // Drop any selected members that no longer exist across reloads.
+                        for (const id of [...selectedMembers])
+                            if (!teamMembers.some(m => m.id === id))
+                                selectedMembers.delete(id);
                         for (const m of teamMembers)
                             teamMemberSet.add(m.id);
                         dlog("team", teamSource, "members:", teamMembers.length, teamNote || "");
                     });
                 }
-                // Whether a task falls within the current team scope / selected member.
+                // Whether a task falls within the current team scope / selected member(s).
                 function inTeam(t) {
-                    if (selectedMember)
-                        return t.assigneeIds.indexOf(selectedMember) !== -1;
+                    if (selectedMembers.size)
+                        return t.assigneeIds.some(a => selectedMembers.has(a));
                     if (teamSource === "everyone")
                         return true; // whole accessible system (mode, not a fallback)
                     // Scoped modes (reports / userids): only the team's tasks. No team → nothing.
@@ -3936,6 +3953,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 function buildProofBar() {
                     if (!proofViewEl)
                         return;
+                    pruneDropdowns(); // drop stale entries from a previous proof-bar build
                     const instMap = new Map();
                     for (const t of allTasks) {
                         if (t.taskType === "audit-result")
@@ -3944,18 +3962,14 @@ const factory = (BaseBlockClass, widgetApi) => {
                             instMap.set(t.installationId, t.installationTitle || t.installationId);
                     }
                     const showStore = instMap.size > 1;
-                    const storeOpts = [`<option value="all">${esc(tr("allStores"))}</option>`]
-                        .concat([...instMap.entries()].map(([id, title]) => `<option value="${esc(id)}"${activeInstallFilter === id ? " selected" : ""}>${esc(title)}</option>`)).join("");
                     const showPerson = teamMembers.length > 0;
-                    const personOpts = [`<option value="">${esc(tr("allPeople"))}</option>`]
-                        .concat(teamMembers.map(mm => `<option value="${esc(mm.id)}"${selectedMember === mm.id ? " selected" : ""}>${esc(mm.name)}</option>`)).join("");
                     proofViewEl.innerHTML = `
           <div class="${p}-pg-bar">
             <div class="${p}-search ${p}-pg-search">${pgSearchIco}
               <input type="search" class="${p}-search-input" id="${p}-pg-search" placeholder="${tr("searchProof")}" aria-label="${tr("searchProof")}">
             </div>
-            ${showStore ? `<select class="${p}-mini-select" id="${p}-pg-store" aria-label="${tr("allStores")}">${storeOpts}</select>` : ""}
-            ${showPerson ? `<select class="${p}-mini-select" id="${p}-pg-person" aria-label="${tr("allPeople")}">${personOpts}</select>` : ""}
+            ${showStore ? `<div id="${p}-pg-store-dd" style="flex:0 1 160px"></div>` : ""}
+            ${showPerson ? `<div id="${p}-pg-person-dd" style="flex:0 1 160px"></div>` : ""}
             <div class="${p}-daterange" id="${p}-pg-daterange">${pgCalIco}
               <span class="${p}-date-lbl">${tr("assignedLabel")}</span>
               <input type="date" class="${p}-date-in" id="${p}-pg-date-from" aria-label="${tr("assignedFrom")}">
@@ -3978,11 +3992,24 @@ const factory = (BaseBlockClass, widgetApi) => {
                     let pst;
                     s === null || s === void 0 ? void 0 : s.addEventListener("input", () => { clearTimeout(pst); pst = setTimeout(() => { searchQuery = s.value.trim(); if (searchInput)
                         searchInput.value = searchQuery; repaintProofGrid(); }, 180); });
-                    const storeSel = proofViewEl.querySelector(`#${p}-pg-store`);
-                    storeSel === null || storeSel === void 0 ? void 0 : storeSel.addEventListener("change", () => { activeInstallFilter = storeSel.value || "all"; renderStoreTabs(); repaintProofGrid(); });
-                    const personSel = proofViewEl.querySelector(`#${p}-pg-person`);
-                    personSel === null || personSel === void 0 ? void 0 : personSel.addEventListener("change", () => { selectedMember = personSel.value || ""; if (teamSelect)
-                        teamSelect.value = selectedMember; repaintProofGrid(); });
+                    // Store filter → single custom dropdown (shared activeInstallFilter, so it
+                    // mirrors the store tabs). Person → multiselect (shared selectedMembers).
+                    const storeDd = proofViewEl.querySelector(`#${p}-pg-store-dd`);
+                    if (storeDd)
+                        makeDropdown({
+                            wrap: storeDd, multi: false, allLabel: tr("allStores"),
+                            options: () => [{ value: "all", label: tr("allStores") }].concat([...instMap.entries()].map(([id, title]) => ({ value: id, label: title }))),
+                            selected: () => new Set([activeInstallFilter]),
+                            onChange: (next) => { activeInstallFilter = [...next][0] || "all"; renderStoreTabs(); repaintProofGrid(); },
+                        });
+                    const personDd = proofViewEl.querySelector(`#${p}-pg-person-dd`);
+                    if (personDd)
+                        makeDropdown({
+                            wrap: personDd, multi: true, allLabel: tr("allPeople"),
+                            options: () => teamMembers.map(mm => ({ value: mm.id, label: mm.name })),
+                            selected: () => selectedMembers,
+                            onChange: (next) => { selectedMembers.clear(); next.forEach(v => selectedMembers.add(v)); renderTeamSelect(); repaintProofGrid(); },
+                        });
                     df === null || df === void 0 ? void 0 : df.addEventListener("change", () => { assignedFrom = df.value || ""; if (dateFromEl)
                         dateFromEl.value = assignedFrom; syncMainClear(); repaintProofGrid(); });
                     dt === null || dt === void 0 ? void 0 : dt.addEventListener("change", () => { assignedTo = dt.value || ""; if (dateToEl)
@@ -4080,7 +4107,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                             if (!activeTypeFilters.has(key))
                                 return false;
                         }
-                        if (priorityFilter !== "all" && t.priority !== priorityFilter)
+                        if (prioritySet.size > 0 && !prioritySet.has(t.priority))
                             return false;
                         if (overdueOnly && !isOverdue(t))
                             return false;
@@ -4116,19 +4143,26 @@ const factory = (BaseBlockClass, widgetApi) => {
                         return true;
                     });
                 }
-                // Populate the team-member <select> and toggle its visibility.
+                // Build/refresh the team-member custom multiselect dropdown + visibility.
+                let teamDropdown = null;
                 function renderTeamSelect() {
-                    if (!teamSelect || !teamWrap)
+                    if (!teamDdEl || !teamWrap)
                         return;
                     if (!teamMembers.length) {
                         teamWrap.style.display = "none";
                         return;
                     }
                     teamWrap.style.display = "";
-                    const opts = [`<option value="">${esc(tr("allTeamMembers"))} (${teamMembers.length})</option>`]
-                        .concat(teamMembers.map(m => `<option value="${esc(m.id)}"${m.id === selectedMember ? " selected" : ""}>${esc(m.name)}</option>`));
-                    teamSelect.innerHTML = opts.join("");
-                    teamSelect.value = selectedMember;
+                    if (!teamDropdown) {
+                        teamDropdown = makeDropdown({
+                            wrap: teamDdEl, multi: true, allLabel: tr("allTeamMembers"),
+                            options: () => teamMembers.map(m => ({ value: m.id, label: m.name })),
+                            selected: () => selectedMembers,
+                            onChange: (next) => { selectedMembers.clear(); next.forEach(v => selectedMembers.add(v)); renderList(); },
+                        });
+                    }
+                    else
+                        teamDropdown.refresh();
                 }
                 // Donut ring (completion %). Pure inline SVG, no deps.
                 function donut(pct, color) {
@@ -4170,7 +4204,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     }
                     chartsEl.style.display = "";
                     // Per-member breakdown (open / done / overdue), busiest first, capped.
-                    const scope = selectedMember ? teamMembers.filter(m => m.id === selectedMember) : teamMembers;
+                    const scope = selectedMembers.size ? teamMembers.filter(m => selectedMembers.has(m.id)) : teamMembers;
                     const memberRows = scope.map(m => {
                         const mine = base.filter(t => t.assigneeIds.indexOf(m.id) !== -1);
                         const mDone = mine.filter(isDoneStatus).length;
@@ -4181,8 +4215,8 @@ const factory = (BaseBlockClass, widgetApi) => {
                     }).filter(r => teamSource !== "everyone" || r.total > 0).sort((a, b) => b.total - a.total);
                     const CAP = 4;
                     // Cap to 4 unless expanded (a single selected member always shows).
-                    const canExpand = !selectedMember && memberRows.length > CAP;
-                    const shown = (membersExpanded || selectedMember) ? memberRows : memberRows.slice(0, CAP);
+                    const canExpand = !selectedMembers.size && memberRows.length > CAP;
+                    const shown = (membersExpanded || selectedMembers.size) ? memberRows : memberRows.slice(0, CAP);
                     const maxTotal = Math.max(1, ...shown.map(r => r.total));
                     const memberHtml = shown.length ? shown.map(r => {
                         // Bar: done (green) · on-track open (amber) · overdue (red).
@@ -4193,7 +4227,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                         const av = r.avatar
                             ? `<img class="${p}-dash-av" src="${esc(r.avatar)}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span class="${p}-dash-av ${p}-dash-av-fb" style="display:none">${esc(initials(r.name))}</span>`
                             : `<span class="${p}-dash-av ${p}-dash-av-fb">${esc(initials(r.name))}</span>`;
-                        return `<div class="${p}-dash-row${r.id === selectedMember ? " active" : ""}" data-mid="${esc(r.id)}" role="button" tabindex="0" title="${tr("teamMember")}: ${esc(r.name)}">
+                        return `<div class="${p}-dash-row${selectedMembers.has(r.id) ? " active" : ""}" data-mid="${esc(r.id)}" role="button" tabindex="0" title="${tr("teamMember")}: ${esc(r.name)}">
             <div class="${p}-dash-name">${av}<span>${esc(r.name)}</span></div>
             <div class="${p}-dash-bar">
               <div class="${p}-dash-seg done" style="width:${dw}%" title="${tr("done")}: ${r.done}"></div>
@@ -4231,13 +4265,15 @@ const factory = (BaseBlockClass, widgetApi) => {
             </div>
             ${memberHtml ? `<div class="${p}-dash-members"><div class="${p}-dash-h">${tr("byMember")}</div>${memberHtml}</div>` : ""}
           </div>`;
-                    // Clicking a member row filters the whole view to them (toggles off if active).
+                    // Clicking a member row toggles them in the multiselect team filter.
                     chartsEl.querySelectorAll(`.${p}-dash-row[data-mid]`).forEach(row => {
                         row.addEventListener("click", () => {
                             const mid = row.dataset.mid || "";
-                            selectedMember = selectedMember === mid ? "" : mid;
-                            if (teamSelect)
-                                teamSelect.value = selectedMember;
+                            if (selectedMembers.has(mid))
+                                selectedMembers.delete(mid);
+                            else
+                                selectedMembers.add(mid);
+                            renderTeamSelect();
                             renderList();
                         });
                     });
@@ -4285,8 +4321,10 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const isEditComment = (txt) => txt.trim().indexOf(EDIT_MARK) === 0;
                 const editAction = (txt) => txt.trim().slice(EDIT_MARK.length).trim();
                 // Honours the active store + team scope (same as chartBase) so the feed
-                // matches the view. Completion isn't inferred from status (we can't know who
-                // did it) — it surfaces via the [tasks:edit] comment written on completion.
+                // matches the view. Completion is inferred from task status (every closed
+                // task yields a "completed" event) so it shows regardless of the comment
+                // window; a fetched [tasks:edit] comment then enriches it with the real
+                // actor, timestamp, and a "with proof" badge.
                 function buildActivityEvents() {
                     const byId = new Map((allUsersRaw || []).map(u => [u.id, u]));
                     const nameOf = (id) => { const u = byId.get(id); if (u)
@@ -4296,39 +4334,8 @@ const factory = (BaseBlockClass, widgetApi) => {
                     const inScope = (t) => t.taskType !== "audit-result" && inTeam(t)
                         && (activeInstallFilter === "all" || t.installationId === activeInstallFilter);
                     const evs = [];
-                    for (const t of chartBase()) {
-                        const created = t.createDate ? Date.parse(t.createDate) : 0;
-                        // Tasks created via the widget carry [by:<id>] (the token is the real
-                        // creatorId); prefer it, fall back to creatorId, else stays "someone".
-                        const byM = (t.description || "").match(/\[by:\s*([^\]]+)\]/i);
-                        const creator = (byM && byM[1].trim()) || t.creatorId || "";
-                        if (t.isRecurring) {
-                            evs.push({ taskId: t.id, body: `${tr("actRecurringInstanceFor").replace("{who}", esc(assigneeNames(t) || tr("unassignedLabel")))} ${q(t.title)}`, when: created, iso: t.createDate || "" });
-                        }
-                        else if (creator) {
-                            const self = t.assigneeIds.length === 1 && t.groupIds.length === 0 && t.assigneeIds[0] === creator;
-                            const phrase = self ? tr("actCreatedSelf")
-                                : assigneeNames(t) ? tr("actCreatedFor").replace("{who}", esc(assigneeNames(t)))
-                                    : tr("actCreatedPlain");
-                            evs.push({ taskId: t.id, whoName: nameOf(creator), avatar: avOf(creator), body: `${phrase} ${q(t.title)}`, when: created, iso: t.createDate || "" });
-                        }
-                    }
-                    for (const t of recurTemplates) {
-                        if (!inScope(t))
-                            continue; // recurring schedules respect the store/team filter too
-                        const iso = t.createDate || "";
-                        // Templates are created via the API token, so the real author is stamped
-                        // as [by:<userId>] by the recurring widget — prefer it over creatorId.
-                        const by = (t.description || "").match(/\[by:\s*([^\]]+)\]/i);
-                        const author = (by && by[1].trim()) || t.creatorId || "";
-                        const phrase = tr("actAddedRecurringFor").replace("{who}", esc(assigneeNames(t) || tr("unassignedLabel")));
-                        evs.push({ whoName: author ? nameOf(author) : undefined, avatar: author ? avOf(author) : "",
-                            body: `${phrase} · ${esc(describeRrule(t.description || ""))} ${q(t.title)}`, when: iso ? Date.parse(iso) : 0, iso });
-                    }
-                    // Comments + hidden [tasks:edit] markers (fetched by loadActivityComments)
-                    // Photo-proof comments ([proof] + image) pair with a completion. Rather
-                    // than surface a separate "commented on" row, fold "with proof" into the
-                    // matching completion event (same task + author, within a short window).
+                    // ── Photo-proof map (built first so status-based completions can carry a
+                    // "with proof" badge even before their completion comment is fetched). ──
                     const proofByTask = new Map();
                     activityComments.forEach((comments, taskId) => {
                         for (const c of comments) {
@@ -4349,6 +4356,55 @@ const factory = (BaseBlockClass, widgetApi) => {
                     };
                     const camIco = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
                     const proofBadge = `<span class="${p}-act-proof">${camIco}${esc(tr("withProof"))}</span>`;
+                    // Status-based completion events, keyed by task so a fetched completion
+                    // comment can enrich them in place (real author + accurate timestamp).
+                    const completionEv = new Map();
+                    for (const t of chartBase()) {
+                        const created = t.createDate ? Date.parse(t.createDate) : 0;
+                        // Tasks created via the widget carry [by:<id>] (the token is the real
+                        // creatorId); prefer it, fall back to creatorId, else stays "someone".
+                        const byM = (t.description || "").match(/\[by:\s*([^\]]+)\]/i);
+                        const creator = (byM && byM[1].trim()) || t.creatorId || "";
+                        if (t.isRecurring) {
+                            evs.push({ taskId: t.id, body: `${tr("actRecurringInstanceFor").replace("{who}", esc(assigneeNames(t) || tr("unassignedLabel")))} ${q(t.title)}`, when: created, iso: t.createDate || "" });
+                        }
+                        else if (creator) {
+                            const self = t.assigneeIds.length === 1 && t.groupIds.length === 0 && t.assigneeIds[0] === creator;
+                            const phrase = self ? tr("actCreatedSelf")
+                                : assigneeNames(t) ? tr("actCreatedFor").replace("{who}", esc(assigneeNames(t)))
+                                    : tr("actCreatedPlain");
+                            evs.push({ taskId: t.id, whoName: nameOf(creator), avatar: avOf(creator), body: `${phrase} ${q(t.title)}`, when: created, iso: t.createDate || "" });
+                        }
+                        // Every closed task yields a completion event, inferred purely from
+                        // status so it shows regardless of whether a completion comment was
+                        // fetched (fixes completions vanishing behind the comment window). It
+                        // reads "Someone completed …" until a comment supplies the real actor.
+                        if (isDoneStatus(t)) {
+                            const updT = t.updateDate ? Date.parse(t.updateDate) : created;
+                            let body = `${esc(tr("someone"))} ${esc(tr("actCompleted"))} ${q(t.title)}`;
+                            if (hasProofFor(t.id, "", 0))
+                                body += proofBadge;
+                            const ev = { taskId: t.id, body, when: updT, iso: t.updateDate || t.createDate || "" };
+                            evs.push(ev);
+                            completionEv.set(t.id, ev);
+                        }
+                    }
+                    for (const t of recurTemplates) {
+                        if (!inScope(t))
+                            continue; // recurring schedules respect the store/team filter too
+                        const iso = t.createDate || "";
+                        // Templates are created via the API token, so the real author is stamped
+                        // as [by:<userId>] by the recurring widget — prefer it over creatorId.
+                        const by = (t.description || "").match(/\[by:\s*([^\]]+)\]/i);
+                        const author = (by && by[1].trim()) || t.creatorId || "";
+                        const phrase = tr("actAddedRecurringFor").replace("{who}", esc(assigneeNames(t) || tr("unassignedLabel")));
+                        evs.push({ whoName: author ? nameOf(author) : undefined, avatar: author ? avOf(author) : "",
+                            body: `${phrase} · ${esc(describeRrule(t.description || ""))} ${q(t.title)}`, when: iso ? Date.parse(iso) : 0, iso });
+                    }
+                    // Comments + hidden [tasks:edit] markers (fetched by loadActivityComments).
+                    // A "[tasks:edit] completed" comment enriches the status-based completion
+                    // event in place (real author + timestamp + proof badge) rather than
+                    // adding a second row; other comments/edits surface as their own events.
                     activityComments.forEach((comments, taskId) => {
                         const t = allTasks.find(x => x.id === taskId);
                         if (!t || !inScope(t))
@@ -4365,53 +4421,112 @@ const factory = (BaseBlockClass, widgetApi) => {
                             const isEdit = isEditComment(txt);
                             const action = isEdit ? editAction(txt) : "";
                             const isCompletion = isEdit && /^completed\b/i.test(action);
+                            if (isCompletion) {
+                                // Completions that carried photo proof (stamped inline as "… with
+                                // proof" or with a nearby [proof] comment) show a "with proof" badge.
+                                const withProof = /\bwith proof\b/i.test(action) || hasProofFor(t.id, author, when);
+                                const body = (withProof ? esc(action.replace(/\s*with proof\s*$/i, "")) + proofBadge : esc(action));
+                                const ev = completionEv.get(t.id);
+                                if (ev) { // enrich the status-inferred event with the real actor
+                                    ev.whoName = author ? nameOf(author) : ev.whoName;
+                                    ev.avatar = author ? avOf(author) : ev.avatar;
+                                    ev.body = body;
+                                    if (when) {
+                                        ev.when = when;
+                                        ev.iso = iso;
+                                    }
+                                }
+                                else {
+                                    evs.push({ taskId: t.id, whoName: author ? nameOf(author) : undefined, avatar: author ? avOf(author) : "", body, when, iso });
+                                }
+                                continue;
+                            }
                             // Edit markers carry a self-contained action (incl. the task name);
                             // real comments read "commented on '<task>'".
-                            let body;
-                            if (isEdit) {
-                                body = esc(action);
-                                // Completions that carried photo proof (either stamped inline as
-                                // "… with proof" by the user widget, or with a nearby [proof]
-                                // comment) collapse to one line with a "with proof" badge.
-                                if (isCompletion && (/\bwith proof\b/i.test(action) || hasProofFor(t.id, author, when)))
-                                    body = esc(action.replace(/\s*with proof\s*$/i, "")) + proofBadge;
-                            }
-                            else {
-                                body = `${tr("actCommented")} ${q(t.title)}`;
-                            }
+                            const body = isEdit ? esc(action) : `${tr("actCommented")} ${q(t.title)}`;
                             evs.push({ taskId: t.id, whoName: author ? nameOf(author) : undefined, avatar: author ? avOf(author) : "", body, when, iso });
                         }
                     });
                     return evs.sort((a, b) => b.when - a.when);
                 }
-                // Best-effort: pull comments for the most-recently-updated in-scope tasks
-                // (bounded) so the feed can show comments + widget edits. Runs once per load.
-                function loadActivityComments() {
+                // Fetch comments for the tasks referenced by the most-recent `maxTasks`
+                // activity events (creations/completions), in batches, so completions get
+                // their real author + proof badge and comment rows appear. Replaces the old
+                // "top-25 by updateDate" window that hid completions behind bulk updates.
+                function loadActivityComments(maxTasks) {
                     return manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
-                        if (activityCommentsLoaded)
-                            return;
-                        activityCommentsLoaded = true;
-                        const scope = allTasks.filter(t => t.taskType !== "audit-result" && inTeam(t))
-                            .sort((a, b) => (b.updateDate ? Date.parse(b.updateDate) : 0) - (a.updateDate ? Date.parse(a.updateDate) : 0))
-                            .slice(0, 25);
-                        if (!scope.length)
-                            return;
-                        yield Promise.all(scope.map((t) => manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
-                            if (activityComments.has(t.id))
-                                return;
-                            try {
-                                const r = yield fetch(`${baseUrl}/tasks/${t.installationId}/task/${t.id}/comments`, apiOpts({ headers: { Accept: CMT_HTML_ACCEPT } }));
-                                const d = r.ok ? yield r.json() : null;
-                                activityComments.set(t.id, Array.isArray(d) ? d : ((d === null || d === void 0 ? void 0 : d.data) || []));
-                            }
-                            catch (_) {
-                                activityComments.set(t.id, []);
-                            }
-                        })));
-                        renderActivity(); // re-render with comment/edit events (guard prevents re-fetch)
+                        const evs = buildActivityEvents(); // task-based backbone is recency-ordered
+                        const need = [];
+                        const seen = new Set();
+                        for (const e of evs) {
+                            if (!e.taskId || seen.has(e.taskId) || activityComments.has(e.taskId))
+                                continue;
+                            const t = allTasks.find(x => x.id === e.taskId);
+                            if (!t)
+                                continue;
+                            seen.add(e.taskId);
+                            need.push({ id: e.taskId, inst: t.installationId });
+                            if (need.length >= maxTasks)
+                                break;
+                        }
+                        if (!need.length)
+                            return false;
+                        for (let i = 0; i < need.length; i += 8) {
+                            const batch = need.slice(i, i + 8);
+                            yield Promise.all(batch.map((n) => manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                                if (activityComments.has(n.id))
+                                    return;
+                                try {
+                                    const r = yield fetch(`${baseUrl}/tasks/${n.inst}/task/${n.id}/comments`, apiOpts());
+                                    const d = r.ok ? yield r.json() : null;
+                                    activityComments.set(n.id, Array.isArray(d) ? d : ((d === null || d === void 0 ? void 0 : d.data) || []));
+                                }
+                                catch (_) {
+                                    activityComments.set(n.id, []);
+                                }
+                            })));
+                        }
+                        return true; // caller re-renders
                     });
                 }
+                // Hide/show the rest of the tasks view so the activity log can go full-page.
+                function setActivityFull(on) {
+                    if (!tasksViewEl)
+                        return;
+                    if (on) {
+                        if (activityFull)
+                            return;
+                        activityFull = true;
+                        activityLimit = ACT_FULL;
+                        actHiddenSiblings.length = 0;
+                        Array.from(tasksViewEl.children).forEach(ch => {
+                            const el = ch;
+                            if (el === activityEl)
+                                return;
+                            actHiddenSiblings.push([el, el.style.display]);
+                            el.style.display = "none";
+                        });
+                        if (vtabsEl) {
+                            actHiddenSiblings.push([vtabsEl, vtabsEl.style.display]);
+                            vtabsEl.style.display = "none";
+                        }
+                    }
+                    else {
+                        if (!activityFull)
+                            return;
+                        activityFull = false;
+                        activityLimit = ACT_RECENT;
+                        activityLoadingMore = false;
+                        if (self._mgrActScroll) {
+                            window.removeEventListener("scroll", self._mgrActScroll);
+                            self._mgrActScroll = null;
+                        }
+                        actHiddenSiblings.forEach(([el, d]) => { el.style.display = d; });
+                        actHiddenSiblings.length = 0;
+                    }
+                }
                 function renderActivity() {
+                    var _a, _b;
                     if (!activityEl)
                         return;
                     if (!showCharts) {
@@ -4421,12 +4536,22 @@ const factory = (BaseBlockClass, widgetApi) => {
                     const all = buildActivityEvents();
                     if (!all.length) {
                         activityEl.style.display = "none";
-                        if (!activityCommentsLoaded)
-                            loadActivityComments();
+                        if (!activityCommentsLoaded) {
+                            activityCommentsLoaded = true;
+                            loadActivityComments(ACT_RECENT).then(ok => { if (ok)
+                                renderActivity(); });
+                        }
                         return;
                     }
                     activityEl.style.display = "";
-                    const shown = activityExpanded ? all.slice(0, 80) : all.slice(0, 7);
+                    // One-time: enrich the initial window with comments (author + proof badge
+                    // + comment rows). Task-based events already render without this.
+                    if (!activityCommentsLoaded) {
+                        activityCommentsLoaded = true;
+                        loadActivityComments(activityFull ? ACT_FULL : ACT_RECENT).then(ok => { if (ok)
+                            renderActivity(); });
+                    }
+                    const shown = all.slice(0, activityLimit);
                     const sysIco = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/><polyline points="12 7 12 12 15 14"/></svg>`;
                     const rows = shown.map(e => {
                         const av = e.whoName
@@ -4439,9 +4564,19 @@ const factory = (BaseBlockClass, widgetApi) => {
                         const open = e.taskId ? ` data-task-id="${esc(e.taskId)}" role="button" tabindex="0"` : "";
                         return `<div class="${p}-act-item${e.taskId ? " clickable" : ""}"${open}>${av}<div class="${p}-act-body">${lead}${e.body}</div>${time ? `<span class="${p}-act-time">${esc(time)}</span>` : ""}</div>`;
                     }).join("");
-                    activityEl.innerHTML = `<div class="${p}-act-h">${activityExpanded ? tr("activityLog") : tr("recentActivity")}</div>
-          <div class="${p}-act-list${activityExpanded ? " expanded" : ""}">${rows}</div>
-          ${all.length > 7 ? `<button type="button" class="${p}-dash-toggle" id="${p}-act-toggle">${activityExpanded ? tr("showFewer") : tr("viewAllActivity").replace("{n}", String(all.length))}</button>` : ""}`;
+                    const backIco = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>`;
+                    const header = activityFull
+                        ? `<div class="${p}-act-fh"><button type="button" class="${p}-act-back" id="${p}-act-back">${backIco}${esc(tr("backLabel"))}</button><span class="${p}-act-h" style="margin:0">${tr("activityLog")}</span></div>`
+                        : `<div class="${p}-act-h">${tr("recentActivity")}</div>`;
+                    const hasMore = all.length > activityLimit;
+                    const footer = activityFull
+                        ? (activityLoadingMore
+                            ? `<div class="${p}-act-loading"><span class="${p}-spin"></span>${esc(tr("loadingMore"))}</div>`
+                            : (hasMore ? `<div class="${p}-act-more-hint">${esc(tr("scrollForMore"))}</div>` : ""))
+                        : (all.length > activityLimit ? `<button type="button" class="${p}-dash-toggle" id="${p}-act-toggle">${tr("viewMoreActivity")}</button>` : "");
+                    activityEl.innerHTML = `${header}
+          <div class="${p}-act-list${activityFull ? " full" : ""}" id="${p}-act-list">${rows}</div>
+          ${footer}`;
                     // Clicking an activity row opens the related task.
                     activityEl.querySelectorAll(`.${p}-act-item[data-task-id]`).forEach(it => {
                         it.addEventListener("click", () => {
@@ -4451,9 +4586,38 @@ const factory = (BaseBlockClass, widgetApi) => {
                                 openDetail(t);
                         });
                     });
-                    const at = activityEl.querySelector(`#${p}-act-toggle`);
-                    at === null || at === void 0 ? void 0 : at.addEventListener("click", () => { activityExpanded = !activityExpanded; renderActivity(); });
-                    loadActivityComments();
+                    if (activityFull) {
+                        (_a = activityEl.querySelector(`#${p}-act-back`)) === null || _a === void 0 ? void 0 : _a.addEventListener("click", () => { setActivityFull(false); renderActivity(); window.scrollTo({ top: 0 }); });
+                        // Infinite scroll: when near the bottom, grow the window and fetch more.
+                        if (self._mgrActScroll) {
+                            window.removeEventListener("scroll", self._mgrActScroll);
+                            self._mgrActScroll = null;
+                        }
+                        if (hasMore && !activityLoadingMore) {
+                            const onScroll = () => {
+                                if (activityLoadingMore || !activityFull)
+                                    return;
+                                if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 400) {
+                                    window.removeEventListener("scroll", onScroll);
+                                    self._mgrActScroll = null;
+                                    activityLoadingMore = true;
+                                    renderActivity();
+                                    loadActivityComments(activityLimit + ACT_STEP).then(() => { activityLimit += ACT_STEP; activityLoadingMore = false; renderActivity(); });
+                                }
+                            };
+                            self._mgrActScroll = onScroll;
+                            window.addEventListener("scroll", onScroll, { passive: true });
+                        }
+                    }
+                    else {
+                        (_b = activityEl.querySelector(`#${p}-act-toggle`)) === null || _b === void 0 ? void 0 : _b.addEventListener("click", () => {
+                            setActivityFull(true);
+                            activityLoadingMore = true;
+                            renderActivity();
+                            loadActivityComments(ACT_FULL).then(() => { activityLoadingMore = false; renderActivity(); });
+                            window.scrollTo({ top: 0 });
+                        });
+                    }
                 }
                 // ── Store tabs ────────────────────────────────────────────────────
                 function renderStoreTabs() {
@@ -4545,13 +4709,122 @@ const factory = (BaseBlockClass, widgetApi) => {
                     });
                 }
                 if (typeBtn)
-                    typeBtn.addEventListener("click", e => { e.stopPropagation(); dropdownOpen = !dropdownOpen; renderTypeFilters(); });
+                    typeBtn.addEventListener("click", e => { e.stopPropagation(); closeAllDD(); dropdownOpen = !dropdownOpen; renderTypeFilters(); });
                 const onDocClick = () => { if (dropdownOpen) {
                     dropdownOpen = false;
                     renderTypeFilters();
                 } };
                 document.addEventListener("click", onDocClick);
                 self._mgrDocClick = onDocClick;
+                const dropdowns = [];
+                let openDD = null;
+                const ddCaret = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
+                const ddCheck = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+                const refreshDropdowns = () => dropdowns.forEach(d => d.refresh());
+                const closeAllDD = () => { if (openDD) {
+                    openDD = null;
+                    refreshDropdowns();
+                } };
+                function makeDropdown(cfg) {
+                    const wrap = cfg.wrap;
+                    wrap.classList.add(`${p}-type-wrap`);
+                    wrap.innerHTML = `<button type="button" class="${p}-type-btn"><span></span>${ddCaret}</button><div class="${p}-type-menu"></div>`;
+                    const btn = wrap.querySelector(`.${p}-type-btn`);
+                    const labelSpan = btn.querySelector("span");
+                    const menu = wrap.querySelector(`.${p}-type-menu`);
+                    const defaultLabel = (sel, opts) => {
+                        if (sel.size === 0)
+                            return cfg.allLabel;
+                        const chosen = opts.filter(o => sel.has(o.value));
+                        if (chosen.length === 1)
+                            return chosen[0].label;
+                        if (chosen.length === 0)
+                            return cfg.allLabel;
+                        return tr("nSelected").replace("{n}", String(chosen.length));
+                    };
+                    function refresh() {
+                        const open = openDD === wrap;
+                        const sel = cfg.selected();
+                        const opts = cfg.options();
+                        labelSpan.textContent = (cfg.label || defaultLabel)(sel, opts);
+                        btn.classList.toggle("open", open);
+                        menu.classList.toggle("open", open);
+                        const rows = [];
+                        if (cfg.multi) {
+                            const allOn = sel.size === 0;
+                            rows.push(`<button type="button" class="${p}-type-opt ${allOn ? "active" : ""}" data-v="__all__"><span style="width:12px;display:flex;align-items:center;justify-content:center">${allOn ? ddCheck : ""}</span>${esc(cfg.allLabel)}</button><div style="height:1px;background:var(--border);margin:2px 0"></div>`);
+                        }
+                        for (const o of opts) {
+                            const on = sel.has(o.value);
+                            const dot = o.color ? `<span class="${p}-type-dot" style="background:${o.color}"></span>` : "";
+                            rows.push(`<button type="button" class="${p}-type-opt ${on ? "active" : ""}" data-v="${esc(o.value)}"><span style="width:12px;display:flex;align-items:center;justify-content:center">${on ? ddCheck : ""}</span>${dot}${esc(o.label)}</button>`);
+                        }
+                        menu.innerHTML = rows.join("");
+                        menu.querySelectorAll(`.${p}-type-opt`).forEach(b => {
+                            b.addEventListener("click", e => {
+                                e.stopPropagation();
+                                const v = b.dataset.v;
+                                const next = new Set(cfg.selected());
+                                if (cfg.multi) {
+                                    if (v === "__all__")
+                                        next.clear();
+                                    else if (next.has(v))
+                                        next.delete(v);
+                                    else
+                                        next.add(v);
+                                }
+                                else {
+                                    next.clear();
+                                    next.add(v);
+                                    openDD = null; // single: pick + close
+                                }
+                                cfg.onChange(next);
+                                refreshDropdowns();
+                            });
+                        });
+                    }
+                    btn.addEventListener("click", e => { e.stopPropagation(); if (dropdownOpen) {
+                        dropdownOpen = false;
+                        renderTypeFilters();
+                    } openDD = openDD === wrap ? null : wrap; refreshDropdowns(); });
+                    const entry = { refresh, wrap };
+                    dropdowns.push(entry);
+                    refresh();
+                    return entry;
+                }
+                // Drop dropdown entries whose DOM was replaced (e.g. proof-bar rebuilds),
+                // so refreshDropdowns() doesn't operate on detached nodes indefinitely.
+                function pruneDropdowns() { for (let i = dropdowns.length - 1; i >= 0; i--) {
+                    if (!dropdowns[i].wrap.isConnected)
+                        dropdowns.splice(i, 1);
+                } }
+                const onDocClickDD = () => closeAllDD();
+                document.addEventListener("click", onDocClickDD);
+                self._mgrDocClickDD = onDocClickDD;
+                // Priority filter (multiselect) + Sort (single) custom dropdowns.
+                if (prioDdEl)
+                    makeDropdown({
+                        wrap: prioDdEl, multi: true, allLabel: tr("allPriorities"),
+                        options: () => [
+                            { value: "Priority_1", label: tr("priHigh"), color: "#C41E3A" },
+                            { value: "Priority_2", label: tr("priMed"), color: "#D97706" },
+                            { value: "Priority_3", label: tr("priLow"), color: "#6b7280" },
+                        ],
+                        selected: () => prioritySet,
+                        onChange: (next) => { prioritySet.clear(); next.forEach(v => prioritySet.add(v)); renderList(); },
+                    });
+                if (sortDdEl)
+                    makeDropdown({
+                        wrap: sortDdEl, multi: false, allLabel: tr("sortDue"),
+                        options: () => [
+                            { value: "due", label: tr("sortDue") },
+                            { value: "priority", label: tr("sortPriority") },
+                            { value: "assignee", label: tr("sortAssignee") },
+                            { value: "created", label: tr("sortNewest") },
+                        ],
+                        selected: () => new Set([sortBy]),
+                        onChange: (next) => { sortBy = [...next][0] || "due"; renderList(); },
+                    });
                 // ── Render task list ──────────────────────────────────────────────
                 function renderList() {
                     renderCharts();
@@ -5163,9 +5436,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                         renderList();
                     });
                 });
-                // Priority / sort / overdue-only controls → re-render list + dashboard.
-                prioSelect === null || prioSelect === void 0 ? void 0 : prioSelect.addEventListener("change", () => { priorityFilter = prioSelect.value || "all"; renderList(); });
-                sortSelect === null || sortSelect === void 0 ? void 0 : sortSelect.addEventListener("change", () => { sortBy = sortSelect.value || "due"; renderList(); });
+                // Priority + Sort are custom dropdowns (wired in makeDropdown above).
                 overdueChip === null || overdueChip === void 0 ? void 0 : overdueChip.addEventListener("click", () => { overdueOnly = !overdueOnly; overdueChip.classList.toggle("active", overdueOnly); overdueChip.setAttribute("aria-pressed", String(overdueOnly)); renderList(); });
                 // Free-text search + assigned-date-range — apply to the list and, when it's
                 // showing, the Proof Review gallery (both honour the shared filter state).
@@ -5182,6 +5453,12 @@ const factory = (BaseBlockClass, widgetApi) => {
                 dateClearBtn === null || dateClearBtn === void 0 ? void 0 : dateClearBtn.addEventListener("click", () => { assignedFrom = ""; assignedTo = ""; if (dateFromEl)
                     dateFromEl.value = ""; if (dateToEl)
                     dateToEl.value = ""; syncDateClear(); refreshViews(); });
+                // Reflect the default assigned-date range (last 30 days) in the inputs.
+                if (dateFromEl)
+                    dateFromEl.value = assignedFrom;
+                if (dateToEl)
+                    dateToEl.value = assignedTo;
+                syncDateClear();
                 // ── Locale resolution ─────────────────────────────────────────────
                 // Resolve the viewer's locale (once), rebind `t`, set text direction,
                 // and refresh the static header/filter labels that were painted in the
@@ -5250,6 +5527,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                         st("open", tr("open"));
                         st("done", tr("done"));
                         st("all", tr("both"));
+                        refreshDropdowns(); // re-localize custom dropdown labels/options
                         // Translate button: only meaningful when the viewer isn't on en_US.
                         const trBtn = container.querySelector(`#${p}-translate`);
                         if (trBtn) {
@@ -5400,6 +5678,8 @@ const factory = (BaseBlockClass, widgetApi) => {
                         recurTemplates = [];
                         activityComments.clear();
                         activityCommentsLoaded = false;
+                        setActivityFull(false);
+                        activityLimit = ACT_RECENT;
                         proofCache = null; // gallery reloads its proof set on next open/refresh
                         activeInstallFilter = "all";
                         activeTypeFilters.clear();
@@ -5609,11 +5889,8 @@ const factory = (BaseBlockClass, widgetApi) => {
                             openDetail(task);
                     }
                 });
-                // Team-member dropdown → filter list + dashboard (no refetch).
-                teamSelect === null || teamSelect === void 0 ? void 0 : teamSelect.addEventListener("change", () => {
-                    selectedMember = teamSelect.value || "";
-                    renderList();
-                });
+                // Team-member filter is a custom multiselect dropdown (built in
+                // renderTeamSelect); no native <select> listener needed.
                 // ── Create task sheet ─────────────────────────────────────────────────
                 if (allowCreate) {
                     const newBtn = container.querySelector(`#${p}-new`);
@@ -5831,9 +6108,17 @@ const factory = (BaseBlockClass, widgetApi) => {
                 document.removeEventListener("click", self._mgrDocClick);
                 self._mgrDocClick = undefined;
             }
+            if (self._mgrDocClickDD) {
+                document.removeEventListener("click", self._mgrDocClickDD);
+                self._mgrDocClickDD = undefined;
+            }
             if (self._mgrDocKey) {
                 document.removeEventListener("keydown", self._mgrDocKey);
                 self._mgrDocKey = undefined;
+            }
+            if (self._mgrActScroll) {
+                window.removeEventListener("scroll", self._mgrActScroll);
+                self._mgrActScroll = undefined;
             }
             if (self._mgrVV && window.visualViewport) {
                 window.visualViewport.removeEventListener("resize", self._mgrVV);
