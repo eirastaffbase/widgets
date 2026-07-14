@@ -1738,10 +1738,22 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       function buildProofBar(){
         if(!proofViewEl) return;
         pruneDropdowns(); // drop stale entries from a previous proof-bar build
+        // Only offer stores/people that actually have proof (derived from the
+        // loaded proof set). A currently-active selection is kept in the list even
+        // if it has no proof, so the filter stays visible and removable.
         const instMap=new Map<string,string>();
-        for(const t of allTasks){ if(t.taskType==="audit-result") continue; if(!instMap.has(t.installationId)) instMap.set(t.installationId,t.installationTitle||t.installationId); }
+        const proofPeople=new Set<string>();
+        (proofCache||[]).forEach(g=>{
+          if(!instMap.has(g.task.installationId)) instMap.set(g.task.installationId,g.task.installationTitle||g.task.installationId);
+          g.task.assigneeIds.forEach(a=>{ if(teamMemberSet.has(a)) proofPeople.add(a); });
+        });
+        if(activeInstallFilter!=="all" && !instMap.has(activeInstallFilter)){
+          const at=allTasks.find(x=>x.installationId===activeInstallFilter);
+          instMap.set(activeInstallFilter, at?.installationTitle||activeInstallFilter);
+        }
+        const personOpts=teamMembers.filter(m=>proofPeople.has(m.id)||selectedMembers.has(m.id));
         const showStore=instMap.size>1;
-        const showPerson=teamMembers.length>0;
+        const showPerson=personOpts.length>1;
         proofViewEl.innerHTML=`
           <div class="${p}-pg-bar">
             <div class="${p}-search ${p}-pg-search">${pgSearchIco}
@@ -1778,7 +1790,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         const personDd=proofViewEl.querySelector(`#${p}-pg-person-dd`) as HTMLElement|null;
         if(personDd) makeDropdown({
           wrap:personDd, multi:true, allLabel:tr("allPeople"),
-          options:()=>teamMembers.map(mm=>({value:mm.id,label:mm.name})),
+          options:()=>personOpts.map(mm=>({value:mm.id,label:mm.name})),
           selected:()=>selectedMembers,
           onChange:(next)=>{ selectedMembers.clear(); next.forEach(v=>selectedMembers.add(v)); renderTeamSelect(); repaintProofGrid(); },
         });
@@ -1810,6 +1822,13 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       }
       async function renderProofView(){
         if(!proofViewEl) return;
+        // Load the proof set first (with a loader) so the filter bar can list only
+        // the stores/people that actually have proof. Cached after the first open,
+        // so filter changes rebuild the bar instantly without re-fetching.
+        if(!proofCache){
+          proofViewEl.innerHTML=`<div class="${p}-state"><span class="${p}-spin" style="width:24px;height:24px;border-width:3px;margin:0 auto 12px;display:block"></span>${tr("loading")}</div>`;
+          try{ await loadProofItems(); }catch(_){}
+        }
         buildProofBar();
         await repaintProofGrid();
       }
