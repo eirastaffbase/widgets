@@ -295,6 +295,14 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       async function postEditComment(task:Task, action:string){
         try{ await postComment(task, `[tasks:edit] ${action}`); }catch(_){}
       }
+      // Human-readable status-change action (mirrors the My Tasks / Manager
+      // widgets so the manager activity feed reads uniformly). Proof-required
+      // completions carry a "with proof" suffix so the feed shows one line.
+      function statusAction(task:Task, newStatus:string, withProof:boolean=false):string{
+        const verb=newStatus==="CLOSED"?"completed":"reopened";
+        const suffix=(withProof && newStatus==="CLOSED")?" with proof":"";
+        return `${verb} “${task.title}”${suffix}`;
+      }
       function commentText(c:any):string{
         const ctn=c.content;
         if(typeof ctn==="string") return ctn;
@@ -797,8 +805,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           // Record the status change so it surfaces in the activity feed / calendar.
           // When proof was required on completion, stamp it so the manager feed can
           // show a single "completed … with proof" line.
-          const proofSuffix = (!wasDone && requireProof) ? " with proof" : "";
-          postEditComment(task, `${next==="CLOSED"?"completed":"reopened"} “${task.title}”${proofSuffix}`);
+          postEditComment(task, statusAction(task,next,!wasDone&&requireProof));
         }catch(e:any){ showError(tr("errorToggle")); }
         detailToggle.disabled=false;
       });
@@ -1125,8 +1132,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           // Record the status change so it surfaces in the activity feed / calendar.
           // When proof was required on completion, stamp it so the manager feed can
           // show a single "completed … with proof" line.
-          const proofSuffix = (!done && requireProof) ? " with proof" : "";
-          postEditComment(t, `${next==="CLOSED"?"completed":"reopened"} “${t.title}”${proofSuffix}`);
+          postEditComment(t, statusAction(t,next,!done&&requireProof));
           if(detailTask===t) renderDetailContent(t);
           if(!showCompleted && next==="CLOSED") setTimeout(render,420);
         }catch(e:any){

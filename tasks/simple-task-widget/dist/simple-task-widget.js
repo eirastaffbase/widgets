@@ -794,6 +794,14 @@ const factory = (BaseBlockClass, widgetApi) => {
                 }
                 catch (_) { }
             }
+            // Human-readable status-change action (mirrors the My Tasks / Manager
+            // widgets so the manager activity feed reads uniformly). Proof-required
+            // completions carry a "with proof" suffix so the feed shows one line.
+            function statusAction(task, newStatus, withProof = false) {
+                const verb = newStatus === "CLOSED" ? "completed" : "reopened";
+                const suffix = (withProof && newStatus === "CLOSED") ? " with proof" : "";
+                return `${verb} “${task.title}”${suffix}`;
+            }
             function commentText(c) {
                 const ctn = c.content;
                 if (typeof ctn === "string")
@@ -1439,8 +1447,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     // Record the status change so it surfaces in the activity feed / calendar.
                     // When proof was required on completion, stamp it so the manager feed can
                     // show a single "completed … with proof" line.
-                    const proofSuffix = (!wasDone && requireProof) ? " with proof" : "";
-                    postEditComment(task, `${next === "CLOSED" ? "completed" : "reopened"} “${task.title}”${proofSuffix}`);
+                    postEditComment(task, statusAction(task, next, !wasDone && requireProof));
                 }
                 catch (e) {
                     showError(tr("errorToggle"));
@@ -1921,8 +1928,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     // Record the status change so it surfaces in the activity feed / calendar.
                     // When proof was required on completion, stamp it so the manager feed can
                     // show a single "completed … with proof" line.
-                    const proofSuffix = (!done && requireProof) ? " with proof" : "";
-                    postEditComment(t, `${next === "CLOSED" ? "completed" : "reopened"} “${t.title}”${proofSuffix}`);
+                    postEditComment(t, statusAction(t, next, !done && requireProof));
                     if (detailTask === t)
                         renderDetailContent(t);
                     if (!showCompleted && next === "CLOSED")

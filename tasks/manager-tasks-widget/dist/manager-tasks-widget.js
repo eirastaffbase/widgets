@@ -2741,9 +2741,6 @@ const factory = (BaseBlockClass, widgetApi) => {
           <div class="${p}-store-tabs" id="${p}-store-tabs" style="display:none"></div>
           <div class="${p}-banner" id="${p}-banner"></div>
 
-          <div class="${p}-charts" id="${p}-charts"></div>
-          <div class="${p}-activity" id="${p}-activity" style="display:none"></div>
-
           <div class="${p}-team-wrap" id="${p}-team-wrap" style="display:none">
             <span class="${p}-team-ico" style="position:static;margin-inline-end:8px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
             <div id="${p}-team-dd" style="flex:1"></div>
@@ -2783,6 +2780,9 @@ const factory = (BaseBlockClass, widgetApi) => {
               <button type="button" class="${p}-date-clear" id="${p}-date-clear" aria-label="${tr("clearDates")}" hidden><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
             </div>
           </div>
+
+          <div class="${p}-charts" id="${p}-charts"></div>
+          <div class="${p}-activity" id="${p}-activity" style="display:none"></div>
 
           <div id="${p}-list-wrap">
             <div class="${p}-state">
@@ -4132,8 +4132,10 @@ const factory = (BaseBlockClass, widgetApi) => {
                 // ── Manager dashboard ──────────────────────────────────────────────
                 const isDoneStatus = (t) => t.status === "DONE" || t.status === "done" || t.status === "CLOSED";
                 const isOverdue = (t) => !isDoneStatus(t) && !!t.dueDate && new Date(t.dueDate).getTime() < Date.now();
-                // Charts span all statuses (they describe the split), but honour the team,
-                // store and type filters so the dashboard matches the list you're viewing.
+                // Charts span all statuses (they describe the split), but honour the scoping
+                // filters (team, store, type, priority, search, assigned-date) so the summary
+                // reflects the same filters as the list. Status toggle + overdue chip are
+                // intentionally excluded — the stats visualise that split.
                 function chartBase() {
                     return allTasks.filter(t => {
                         if (t.taskType === "audit-result")
@@ -4147,6 +4149,10 @@ const factory = (BaseBlockClass, widgetApi) => {
                             if (!activeTypeFilters.has(key))
                                 return false;
                         }
+                        if (prioritySet.size > 0 && !prioritySet.has(t.priority))
+                            return false;
+                        if (!matchesSearchDate(t))
+                            return false;
                         return true;
                     });
                 }
@@ -4332,18 +4338,22 @@ const factory = (BaseBlockClass, widgetApi) => {
                 // task yields a "completed" event) so it shows regardless of the comment
                 // window; a fetched [tasks:edit] comment then enriches it with the real
                 // actor, timestamp, and a "with proof" badge.
+                // Effective activity-feed scope: the full-page log uses its own store/person
+                // filters; the dashboard follows the store tabs + team filter (globals).
+                function activityScope() {
+                    const instF = activityFull ? activityInstallFilter : activeInstallFilter;
+                    const memF = activityFull ? activityMembers : selectedMembers;
+                    const inScope = (t) => t.taskType !== "audit-result" && inTeamWith(t, memF)
+                        && (instF === "all" || t.installationId === instF);
+                    return { instF, memF, inScope };
+                }
                 function buildActivityEvents() {
                     const byId = new Map((allUsersRaw || []).map(u => [u.id, u]));
                     const nameOf = (id) => { const u = byId.get(id); if (u)
                         return userDisplayName(u); const m = teamMembers.find(x => x.id === id); return m ? m.name : tr("someone"); };
                     const avOf = (id) => { const u = byId.get(id); return u ? userAvatarUrl(u) : ""; };
                     const q = (s) => `<span class="${p}-act-task">“${esc(ct(s))}”</span>`;
-                    // In the full-page log, honour its own store/person filters; on the
-                    // dashboard, follow the store tabs + team filter (via the globals).
-                    const instF = activityFull ? activityInstallFilter : activeInstallFilter;
-                    const memF = activityFull ? activityMembers : selectedMembers;
-                    const inScope = (t) => t.taskType !== "audit-result" && inTeamWith(t, memF)
-                        && (instF === "all" || t.installationId === instF);
+                    const { instF, memF, inScope } = activityScope();
                     const evs = [];
                     // ── Photo-proof map (built first so status-based completions can carry a
                     // "with proof" badge even before their completion comment is fetched). ──
@@ -4476,26 +4486,20 @@ const factory = (BaseBlockClass, widgetApi) => {
                     });
                     return evs.sort((a, b) => b.when - a.when);
                 }
-                // Fetch comments for the tasks referenced by the most-recent `maxTasks`
-                // activity events (creations/completions), in batches, so completions get
-                // their real author + proof badge and comment rows appear. Replaces the old
-                // "top-25 by updateDate" window that hid completions behind bulk updates.
+                // Fetch comments for the most-recently-touched tasks in scope (ordered by
+                // max(createDate, updateDate)), in batches, so completions get their real
+                // author + proof badge AND reassignments/reopens/comments surface even on
+                // older tasks (any change bumps updateDate). `maxTasks` scales with the
+                // view: ACT_RECENT on the dashboard, ACT_FULL+ in the full log.
                 function loadActivityComments(maxTasks) {
                     return manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
-                        const evs = buildActivityEvents(); // task-based backbone is recency-ordered
-                        const need = [];
-                        const seen = new Set();
-                        for (const e of evs) {
-                            if (!e.taskId || seen.has(e.taskId) || activityComments.has(e.taskId))
-                                continue;
-                            const t = allTasks.find(x => x.id === e.taskId);
-                            if (!t)
-                                continue;
-                            seen.add(e.taskId);
-                            need.push({ id: e.taskId, inst: t.installationId });
-                            if (need.length >= maxTasks)
-                                break;
-                        }
+                        const { inScope } = activityScope();
+                        const touched = (t) => Math.max(t.createDate ? Date.parse(t.createDate) : 0, t.updateDate ? Date.parse(t.updateDate) : 0);
+                        const need = allTasks
+                            .filter(t => inScope(t) && !activityComments.has(t.id))
+                            .sort((a, b) => touched(b) - touched(a))
+                            .slice(0, maxTasks)
+                            .map(t => ({ id: t.id, inst: t.installationId }));
                         if (!need.length)
                             return false;
                         for (let i = 0; i < need.length; i += 8) {
