@@ -2110,7 +2110,11 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         const groups=t.groupIds.map(g=>groupMap.get(g)||"").filter(Boolean);
         return [...names,...groups].join(", ");
       }
-      const stripTags=(h:string)=>h.replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim();
+      // Decode HTML entities so extracted plain text is real text (e.g. "&amp;"
+      // → "&"). Comments are stored as HTML, so a title's "&" arrives escaped;
+      // without this it would be re-escaped by esc() and render as "&amp;".
+      const decodeEntities=(s:string)=>{ if(s.indexOf("&")<0) return s; const el=document.createElement("textarea"); el.innerHTML=s; return el.value; };
+      const stripTags=(h:string)=>decodeEntities(h.replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim());
       const commentPlain=(c:any)=>stripTags(commentText(c));
       const isEditComment=(txt:string)=>txt.trim().indexOf(EDIT_MARK)===0;
       const editAction=(txt:string)=>txt.trim().slice(EDIT_MARK.length).trim();
