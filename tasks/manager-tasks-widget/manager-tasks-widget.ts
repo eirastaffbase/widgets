@@ -828,7 +828,6 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           </div>`:""}
 
           <div id="${p}-tasks-view">
-          <div class="${p}-store-tabs" id="${p}-store-tabs" style="display:none"></div>
           <div class="${p}-banner" id="${p}-banner"></div>
 
           <div class="${p}-team-wrap" id="${p}-team-wrap" style="display:none">
@@ -870,6 +869,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               <button type="button" class="${p}-date-clear" id="${p}-date-clear" aria-label="${tr("clearDates")}" hidden><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
             </div>
           </div>
+
+          <div class="${p}-store-tabs" id="${p}-store-tabs" style="display:none"></div>
 
           <div class="${p}-charts" id="${p}-charts"></div>
           <div class="${p}-activity" id="${p}-activity" style="display:none"></div>
@@ -1915,21 +1916,24 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         }
         return true;
       }
+      // Shared task-filter predicate. `ignoreStore` skips the store-tab filter so
+      // the store pills can count matches per store under all the OTHER filters,
+      // keeping each pill's number in sync with what the task list shows.
+      function taskMatches(t:Task, ignoreStore=false):boolean{
+        if(t.taskType==="audit-result") return false; // always hide system tasks
+        if(!inTeam(t)) return false; // manager view: team-member dropdown filter
+        if(!ignoreStore && activeInstallFilter!=="all" && t.installationId!==activeInstallFilter) return false;
+        if(activeTypeFilters.size>0){const key=t.taskType||"__none__";if(!activeTypeFilters.has(key)) return false;}
+        if(prioritySet.size>0&&!prioritySet.has(t.priority)) return false;
+        if(overdueOnly&&!isOverdue(t)) return false;
+        if(!matchesSearchDate(t)) return false;
+        const isDone=t.status==="DONE"||t.status==="done"||t.status==="CLOSED";
+        if(activeStatusFilter==="open"&&isDone) return false;
+        if(activeStatusFilter==="done"&&!isDone) return false;
+        return true;
+      }
       function filteredTasks():Task[]{
-        const out=allTasks.filter(t=>{
-          if(t.taskType==="audit-result") return false; // always hide system tasks
-          if(!inTeam(t)) return false; // manager view: team-member dropdown filter
-          if(activeInstallFilter!=="all"&&t.installationId!==activeInstallFilter) return false;
-          if(activeTypeFilters.size>0){const key=t.taskType||"__none__";if(!activeTypeFilters.has(key)) return false;}
-          if(prioritySet.size>0&&!prioritySet.has(t.priority)) return false;
-          if(overdueOnly&&!isOverdue(t)) return false;
-          if(!matchesSearchDate(t)) return false;
-          const isDone=t.status==="DONE"||t.status==="done"||t.status==="CLOSED";
-          if(activeStatusFilter==="open"&&isDone) return false;
-          if(activeStatusFilter==="done"&&!isDone) return false;
-          return true;
-        });
-        return sortTasks(out);
+        return sortTasks(allTasks.filter(t=>taskMatches(t)));
       }
 
       // ── Manager dashboard ──────────────────────────────────────────────
@@ -2439,28 +2443,35 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
       // ── Store tabs ────────────────────────────────────────────────────
       function renderStoreTabs(){
-        const instMap=new Map<string,{title:string;count:number}>();
-        for(const t of allTasks){
-          if(t.taskType==="audit-result") continue;
-          if(!instMap.has(t.installationId)) instMap.set(t.installationId,{title:t.installationTitle,count:0});
-          instMap.get(t.installationId)!.count++;
-        }
-        if(instMap.size<=1){storeTabs.style.display="none";return;}
+        // The tab bar only exists for multi-store widgets; base that on the full
+        // task set so it doesn't appear/disappear as filters narrow the results.
+        const titleOf=new Map<string,string>();
+        for(const t of allTasks){ if(t.taskType==="audit-result") continue; if(!titleOf.has(t.installationId)) titleOf.set(t.installationId,t.installationTitle||t.installationId); }
+        if(titleOf.size<=1){storeTabs.style.display="none";return;}
+
+        // Per-store counts under the current filters (everything except the store
+        // filter itself, so each pill reflects what selecting it would show). A
+        // store with no matches is hidden — unless it's the active one, so you can
+        // always navigate back out of an empty filtered store.
+        const count=new Map<string,number>();
+        let total=0;
+        for(const t of allTasks){ if(taskMatches(t,true)){ count.set(t.installationId,(count.get(t.installationId)||0)+1); total++; } }
+
         storeTabs.style.display="flex";
-        const total=allTasks.filter(t=>t.taskType!=="audit-result").length;
+        const entries=[...titleOf.entries()].filter(([id])=>(count.get(id)||0)>0||id===activeInstallFilter);
         storeTabs.innerHTML=`
           <div role="button" tabindex="0" class="${p}-store-tab ${activeInstallFilter==="all"?"active":""}" data-inst="all">
             All <span style="opacity:.6;font-weight:400">(${total})</span>
           </div>
-          ${[...instMap.entries()].map(([id,info])=>`
+          ${entries.map(([id,title])=>`
             <div role="button" tabindex="0" class="${p}-store-tab ${activeInstallFilter===id?"active":""}" data-inst="${esc(id)}">
-              ${esc(info.title||id)} <span style="opacity:.6;font-weight:400">(${info.count})</span>
+              ${esc(title||id)} <span style="opacity:.6;font-weight:400">(${count.get(id)||0})</span>
             </div>`).join("")}`;
         storeTabs.querySelectorAll(`.${p}-store-tab`).forEach(btn=>{
           btn.addEventListener("click",()=>{
             activeInstallFilter=(btn as HTMLElement).dataset.inst||"all";
             activeTypeFilters.clear(); dropdownOpen=false;
-            renderStoreTabs(); renderTypeFilters(); renderList();
+            renderTypeFilters(); renderList();
           });
         });
       }
@@ -2616,6 +2627,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
       // ── Render task list ──────────────────────────────────────────────
       function renderList(){
+        renderStoreTabs(); // keep the store pills' counts + visibility in sync with the filters
         renderCharts();
         renderActivity();
         const tasks=filteredTasks();
