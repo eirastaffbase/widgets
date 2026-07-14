@@ -296,6 +296,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       // the globals each time the log opens.
       let activityInstallFilter      = "all";
       const activityMembers          = new Set<string>();
+      const activityTypeFilters      = new Set<string>(); // event type filter (full log)
+      const activityPriorities       = new Set<string>(); // priority filter (full log)
+      let activityFrom               = "";                // event-date range (full log)
+      let activityTo                 = "";
       const actHiddenSiblings: Array<[HTMLElement,string]> = []; // restore on exit
       let introUsed                  = false; // staggered entrance only on first list render
       let currentUserId              = "";
@@ -2110,21 +2114,29 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       // task yields a "completed" event) so it shows regardless of the comment
       // window; a fetched [tasks:edit] comment then enriches it with the real
       // actor, timestamp, and a "with proof" badge.
-      // Effective activity-feed scope: the full-page log uses its own store/person
-      // filters; the dashboard follows the store tabs + team filter (globals).
+      // Effective activity-feed scope: the full-page log uses its own store/person/
+      // type/priority/date filters; the dashboard follows the store tabs + team +
+      // type filter (globals) and applies no priority/date narrowing.
       function activityScope(){
         const instF = activityFull ? activityInstallFilter : activeInstallFilter;
         const memF  = activityFull ? activityMembers : selectedMembers;
+        const typeF = activityFull ? activityTypeFilters : activeTypeFilters;
+        const priF  = activityFull ? activityPriorities : new Set<string>();
+        const fromMs= activityFull && activityFrom ? Date.parse(`${activityFrom}T00:00:00`) : 0;
+        const toMs  = activityFull && activityTo   ? Date.parse(`${activityTo}T23:59:59.999`) : 0;
         const inScope=(t:Task)=> t.taskType!=="audit-result" && inTeamWith(t,memF)
-          && (instF==="all" || t.installationId===instF);
-        return {instF, memF, inScope};
+          && (instF==="all" || t.installationId===instF)
+          && (typeF.size===0 || typeF.has(t.taskType||"__none__"))
+          && (priF.size===0 || priF.has(t.priority));
+        const withinDate=(when:number)=> (!fromMs||when>=fromMs) && (!toMs||when<=toMs);
+        return {instF, memF, typeF, priF, fromMs, toMs, inScope, withinDate};
       }
       function buildActivityEvents():ActEv[]{
         const byId=new Map<string,any>((allUsersRaw||[]).map(u=>[u.id,u]));
         const nameOf=(id:string):string=>{ const u=byId.get(id); if(u) return userDisplayName(u); const m=teamMembers.find(x=>x.id===id); return m?m.name:tr("someone"); };
         const avOf=(id:string):string=>{ const u=byId.get(id); return u?userAvatarUrl(u):""; };
         const q=(s:string)=>`<span class="${p}-act-task">“${esc(ct(s))}”</span>`;
-        const {instF, memF, inScope}=activityScope();
+        const {inScope, withinDate}=activityScope();
         const evs:ActEv[]=[];
         // ── Photo-proof map (built first so status-based completions can carry a
         // "with proof" badge even before their completion comment is fetched). ──
@@ -2148,15 +2160,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         // Status-based completion events, keyed by task so a fetched completion
         // comment can enrich them in place (real author + accurate timestamp).
         const completionEv=new Map<string,ActEv>();
-        // Same shape as chartBase() but honours the effective (activity-scoped in
-        // full mode) store/team filters plus the global type filter.
-        const activityBase=allTasks.filter(t=>{
-          if(t.taskType==="audit-result") return false;
-          if(!inTeamWith(t,memF)) return false;
-          if(instF!=="all"&&t.installationId!==instF) return false;
-          if(activeTypeFilters.size>0){const key=t.taskType||"__none__";if(!activeTypeFilters.has(key)) return false;}
-          return true;
-        });
+        // Now honours the effective (activity-scoped in full mode) store/team/type/
+        // priority filters — inScope encapsulates them all.
+        const activityBase=allTasks.filter(inScope);
         for(const t of activityBase){
           const created=t.createDate?Date.parse(t.createDate):0;
           // Tasks created via the widget carry [by:<id>] (the token is the real
@@ -2232,7 +2238,12 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             evs.push({ taskId:t.id, whoName:author?nameOf(author):undefined, avatar:author?avOf(author):"", body, when, iso });
           }
         });
-        return evs.sort((a,b)=>b.when-a.when);
+        // Event-date range (full log only): filter by when the event happened.
+        // Deliberately separate from the assigned-date filter, and only applies
+        // when the manager sets it, so completions on older tasks stay visible by
+        // default.
+        const dated=evs.filter(e=>withinDate(e.when));
+        return dated.sort((a,b)=>b.when-a.when);
       }
       // Fetch comments for the most-recently-touched tasks in scope (ordered by
       // max(createDate, updateDate)), in batches, so completions get their real
@@ -2272,6 +2283,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           // Seed the log's own filters from the dashboard's current scope.
           activityInstallFilter=activeInstallFilter;
           activityMembers.clear(); selectedMembers.forEach(v=>activityMembers.add(v));
+          activityTypeFilters.clear(); activeTypeFilters.forEach(v=>activityTypeFilters.add(v));
+          activityPriorities.clear(); prioritySet.forEach(v=>activityPriorities.add(v));
+          activityFrom=""; activityTo=""; // event-date range starts unset
           actHiddenSiblings.length=0;
           Array.from(tasksViewEl.children).forEach(ch=>{
             const el=ch as HTMLElement; if(el===activityEl) return;
@@ -2316,13 +2330,23 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           return `<div class="${p}-act-item${e.taskId?" clickable":""}"${open}>${av}<div class="${p}-act-body">${lead}${e.body}</div>${time?`<span class="${p}-act-time">${esc(time)}</span>`:""}</div>`;
         }).join("");
         const backIco=`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>`;
-        // Store list for the full-log filter bar (id → title).
+        const actCalIco=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+        // Store + type option lists for the full-log filter bar, scoped to the
+        // log's current store selection.
         const actInstMap=new Map<string,string>();
-        for(const t of allTasks){ if(t.taskType==="audit-result") continue; if(!actInstMap.has(t.installationId)) actInstMap.set(t.installationId,t.installationTitle||t.installationId); }
+        const actTypeSet=new Set<string>();
+        for(const t of allTasks){
+          if(t.taskType==="audit-result") continue;
+          if(!actInstMap.has(t.installationId)) actInstMap.set(t.installationId,t.installationTitle||t.installationId);
+          if((activityInstallFilter==="all"||t.installationId===activityInstallFilter) && t.taskType) actTypeSet.add(t.taskType);
+        }
+        const actTypeOpts=[...actTypeSet].sort();
         const showActStore=actInstMap.size>1;
         const showActPerson=teamMembers.length>0;
-        const filterBar = (activityFull && (showActStore||showActPerson))
-          ? `<div class="${p}-act-filters">${showActStore?`<div class="${p}-act-dd" id="${p}-act-store-dd"></div>`:""}${showActPerson?`<div class="${p}-act-dd" id="${p}-act-person-dd"></div>`:""}</div>`
+        const showActType=actTypeOpts.length>1;
+        const dateBar=`<div class="${p}-daterange" id="${p}-act-daterange">${actCalIco}<span class="${p}-date-lbl">${tr("activityDateLabel")}</span><input type="date" class="${p}-date-in" id="${p}-act-date-from" aria-label="${tr("activityDateFrom")}" value="${esc(activityFrom)}"><span class="${p}-date-sep">${tr("dateToLabel")}</span><input type="date" class="${p}-date-in" id="${p}-act-date-to" aria-label="${tr("activityDateTo")}" value="${esc(activityTo)}"></div>`;
+        const filterBar = activityFull
+          ? `<div class="${p}-act-filters">${showActStore?`<div class="${p}-act-dd" id="${p}-act-store-dd"></div>`:""}${showActPerson?`<div class="${p}-act-dd" id="${p}-act-person-dd"></div>`:""}${showActType?`<div class="${p}-act-dd" id="${p}-act-type-dd"></div>`:""}<div class="${p}-act-dd" id="${p}-act-prio-dd"></div>${dateBar}</div>`
           : "";
         const header = activityFull
           ? `<div class="${p}-act-fh"><button type="button" class="${p}-act-back" id="${p}-act-back">${backIco}${esc(tr("backLabel"))}</button><span class="${p}-act-h" style="margin:0">${tr("activityLog")}</span></div>${filterBar}`
@@ -2363,6 +2387,30 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             selected:()=>activityMembers,
             onChange:(next)=>{ activityMembers.clear(); next.forEach(v=>activityMembers.add(v)); refetch(); },
           });
+          const typeDd=activityEl.querySelector(`#${p}-act-type-dd`) as HTMLElement|null;
+          if(typeDd) makeDropdown({
+            wrap:typeDd, multi:true, allLabel:tr("allTypes"),
+            options:()=>actTypeOpts.map(k=>({value:k,label:k})),
+            selected:()=>activityTypeFilters,
+            onChange:(next)=>{ activityTypeFilters.clear(); next.forEach(v=>activityTypeFilters.add(v)); refetch(); },
+          });
+          const prioDd=activityEl.querySelector(`#${p}-act-prio-dd`) as HTMLElement|null;
+          if(prioDd) makeDropdown({
+            wrap:prioDd, multi:true, allLabel:tr("allPriorities"),
+            options:()=>[
+              {value:"Priority_1",label:tr("priHigh"),color:"#C41E3A"},
+              {value:"Priority_2",label:tr("priMed"),color:"#D97706"},
+              {value:"Priority_3",label:tr("priLow"),color:"#6b7280"},
+            ],
+            selected:()=>activityPriorities,
+            onChange:(next)=>{ activityPriorities.clear(); next.forEach(v=>activityPriorities.add(v)); refetch(); },
+          });
+          // Event-date range: filters visible events by their timestamp only, so it
+          // doesn't change which tasks' comments we fetch — a plain re-render is enough.
+          const actFrom=activityEl.querySelector(`#${p}-act-date-from`) as HTMLInputElement|null;
+          const actTo=activityEl.querySelector(`#${p}-act-date-to`) as HTMLInputElement|null;
+          actFrom?.addEventListener("change",()=>{ activityFrom=actFrom.value||""; renderActivity(); });
+          actTo?.addEventListener("change",()=>{ activityTo=actTo.value||""; renderActivity(); });
           // Infinite scroll: when near the bottom, grow the window and fetch more.
           if(self._mgrActScroll){ window.removeEventListener("scroll",self._mgrActScroll); self._mgrActScroll=null; }
           if(hasMore && !activityLoadingMore){
@@ -3250,6 +3298,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         activityComments.clear(); activityCommentsLoaded=false;
         setActivityFull(false); activityLimit=ACT_RECENT;
         activityInstallFilter="all"; activityMembers.clear();
+        activityTypeFilters.clear(); activityPriorities.clear(); activityFrom=""; activityTo="";
         proofCache=null; // gallery reloads its proof set on next open/refresh
         activeInstallFilter="all"; activeTypeFilters.clear(); dropdownOpen=false;
         listWrap.innerHTML=`<div class="${p}-state"><span class="${p}-spin" style="width:24px;height:24px;border-width:3px;margin:0 auto 12px;display:block"></span>${tr("loading")}</div>`;

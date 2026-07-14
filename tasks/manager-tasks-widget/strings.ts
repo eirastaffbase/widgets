@@ -55,6 +55,9 @@ export const STRINGS: Bundles = {
     // Activity feed
     recentActivity: "Recent activity",
     activityLog: "Activity log",
+    activityDateLabel: "Date",
+    activityDateFrom: "Events from",
+    activityDateTo: "Events to",
     viewAllActivity: "View full log ({n})",
     viewMoreActivity: "View more",
     backLabel: "Back",
