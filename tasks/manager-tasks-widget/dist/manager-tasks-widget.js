@@ -2202,12 +2202,17 @@ const factory = (BaseBlockClass, widgetApi) => {
                 // ── Activity feed paging ───────────────────────────────────────────
                 // Dashboard shows ACT_RECENT; "View more" opens a full-page log that loads
                 // ACT_FULL, then grows by ACT_STEP on infinite scroll.
-                const ACT_RECENT = 20;
+                const ACT_RECENT = 10;
                 const ACT_FULL = 200;
                 const ACT_STEP = 100;
                 let activityFull = false; // full-page activity log open?
                 let activityLimit = ACT_RECENT; // events currently shown
                 let activityLoadingMore = false; // infinite-scroll fetch in flight
+                // Full-log-only filters (independent of the dashboard store tabs / team
+                // filter, so filtering the log doesn't disturb the dashboard). Seeded from
+                // the globals each time the log opens.
+                let activityInstallFilter = "all";
+                const activityMembers = new Set();
                 const actHiddenSiblings = []; // restore on exit
                 let introUsed = false; // staggered entrance only on first list render
                 let currentUserId = "";
@@ -2548,6 +2553,7 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-act-back svg{flex-shrink:0}
           .${p}-act-loading{display:flex;align-items:center;justify-content:center;gap:8px;padding:16px;font-size:12px;font-weight:600;color:var(--gray)}
           .${p}-act-more-hint{text-align:center;padding:12px;font-size:11px;color:var(--gray-lt)}
+          .${p}-act-filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
           .${p}-type-wrap{position:relative;flex:1 1 130px;min-width:120px}
           .${p}-type-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:6px;padding:7px 11px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fff;font-size:12px;font-weight:600;color:var(--gray);cursor:pointer;font-family:inherit;transition:all .15s;text-align:start}
           .${p}-type-btn span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -3391,14 +3397,15 @@ const factory = (BaseBlockClass, widgetApi) => {
                     });
                 }
                 // Whether a task falls within the current team scope / selected member(s).
-                function inTeam(t) {
-                    if (selectedMembers.size)
-                        return t.assigneeIds.some(a => selectedMembers.has(a));
+                function inTeamWith(t, members) {
+                    if (members.size)
+                        return t.assigneeIds.some(a => members.has(a));
                     if (teamSource === "everyone")
                         return true; // whole accessible system (mode, not a fallback)
                     // Scoped modes (reports / userids): only the team's tasks. No team → nothing.
                     return teamMemberSet.size ? t.assigneeIds.some(a => teamMemberSet.has(a)) : false;
                 }
+                function inTeam(t) { return inTeamWith(t, selectedMembers); }
                 // Resolve a user id → display name (teamMembers → /users → id). Sync.
                 function displayNameSync(id) {
                     const m = teamMembers.find(x => x.id === id);
@@ -4331,8 +4338,12 @@ const factory = (BaseBlockClass, widgetApi) => {
                         return userDisplayName(u); const m = teamMembers.find(x => x.id === id); return m ? m.name : tr("someone"); };
                     const avOf = (id) => { const u = byId.get(id); return u ? userAvatarUrl(u) : ""; };
                     const q = (s) => `<span class="${p}-act-task">“${esc(ct(s))}”</span>`;
-                    const inScope = (t) => t.taskType !== "audit-result" && inTeam(t)
-                        && (activeInstallFilter === "all" || t.installationId === activeInstallFilter);
+                    // In the full-page log, honour its own store/person filters; on the
+                    // dashboard, follow the store tabs + team filter (via the globals).
+                    const instF = activityFull ? activityInstallFilter : activeInstallFilter;
+                    const memF = activityFull ? activityMembers : selectedMembers;
+                    const inScope = (t) => t.taskType !== "audit-result" && inTeamWith(t, memF)
+                        && (instF === "all" || t.installationId === instF);
                     const evs = [];
                     // ── Photo-proof map (built first so status-based completions can carry a
                     // "with proof" badge even before their completion comment is fetched). ──
@@ -4359,7 +4370,23 @@ const factory = (BaseBlockClass, widgetApi) => {
                     // Status-based completion events, keyed by task so a fetched completion
                     // comment can enrich them in place (real author + accurate timestamp).
                     const completionEv = new Map();
-                    for (const t of chartBase()) {
+                    // Same shape as chartBase() but honours the effective (activity-scoped in
+                    // full mode) store/team filters plus the global type filter.
+                    const activityBase = allTasks.filter(t => {
+                        if (t.taskType === "audit-result")
+                            return false;
+                        if (!inTeamWith(t, memF))
+                            return false;
+                        if (instF !== "all" && t.installationId !== instF)
+                            return false;
+                        if (activeTypeFilters.size > 0) {
+                            const key = t.taskType || "__none__";
+                            if (!activeTypeFilters.has(key))
+                                return false;
+                        }
+                        return true;
+                    });
+                    for (const t of activityBase) {
                         const created = t.createDate ? Date.parse(t.createDate) : 0;
                         // Tasks created via the widget carry [by:<id>] (the token is the real
                         // creatorId); prefer it, fall back to creatorId, else stays "someone".
@@ -4498,6 +4525,10 @@ const factory = (BaseBlockClass, widgetApi) => {
                             return;
                         activityFull = true;
                         activityLimit = ACT_FULL;
+                        // Seed the log's own filters from the dashboard's current scope.
+                        activityInstallFilter = activeInstallFilter;
+                        activityMembers.clear();
+                        selectedMembers.forEach(v => activityMembers.add(v));
                         actHiddenSiblings.length = 0;
                         Array.from(tasksViewEl.children).forEach(ch => {
                             const el = ch;
@@ -4565,8 +4596,21 @@ const factory = (BaseBlockClass, widgetApi) => {
                         return `<div class="${p}-act-item${e.taskId ? " clickable" : ""}"${open}>${av}<div class="${p}-act-body">${lead}${e.body}</div>${time ? `<span class="${p}-act-time">${esc(time)}</span>` : ""}</div>`;
                     }).join("");
                     const backIco = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>`;
+                    // Store list for the full-log filter bar (id → title).
+                    const actInstMap = new Map();
+                    for (const t of allTasks) {
+                        if (t.taskType === "audit-result")
+                            continue;
+                        if (!actInstMap.has(t.installationId))
+                            actInstMap.set(t.installationId, t.installationTitle || t.installationId);
+                    }
+                    const showActStore = actInstMap.size > 1;
+                    const showActPerson = teamMembers.length > 0;
+                    const filterBar = (activityFull && (showActStore || showActPerson))
+                        ? `<div class="${p}-act-filters">${showActStore ? `<div class="${p}-act-dd" id="${p}-act-store-dd"></div>` : ""}${showActPerson ? `<div class="${p}-act-dd" id="${p}-act-person-dd"></div>` : ""}</div>`
+                        : "";
                     const header = activityFull
-                        ? `<div class="${p}-act-fh"><button type="button" class="${p}-act-back" id="${p}-act-back">${backIco}${esc(tr("backLabel"))}</button><span class="${p}-act-h" style="margin:0">${tr("activityLog")}</span></div>`
+                        ? `<div class="${p}-act-fh"><button type="button" class="${p}-act-back" id="${p}-act-back">${backIco}${esc(tr("backLabel"))}</button><span class="${p}-act-h" style="margin:0">${tr("activityLog")}</span></div>${filterBar}`
                         : `<div class="${p}-act-h">${tr("recentActivity")}</div>`;
                     const hasMore = all.length > activityLimit;
                     const footer = activityFull
@@ -4587,7 +4631,28 @@ const factory = (BaseBlockClass, widgetApi) => {
                         });
                     });
                     if (activityFull) {
+                        pruneDropdowns(); // drop detached dropdown entries from prior renders
                         (_a = activityEl.querySelector(`#${p}-act-back`)) === null || _a === void 0 ? void 0 : _a.addEventListener("click", () => { setActivityFull(false); renderActivity(); window.scrollTo({ top: 0 }); });
+                        // Re-fetch comments for the newly-visible tasks after a filter change,
+                        // then repaint (activityCommentsLoaded is already true by now).
+                        const refetch = () => { renderActivity(); loadActivityComments(activityLimit).then(ok => { if (ok)
+                            renderActivity(); }); };
+                        const storeDd = activityEl.querySelector(`#${p}-act-store-dd`);
+                        if (storeDd)
+                            makeDropdown({
+                                wrap: storeDd, multi: false, allLabel: tr("allStores"),
+                                options: () => [{ value: "all", label: tr("allStores") }].concat([...actInstMap.entries()].map(([id, title]) => ({ value: id, label: title }))),
+                                selected: () => new Set([activityInstallFilter]),
+                                onChange: (next) => { activityInstallFilter = [...next][0] || "all"; refetch(); },
+                            });
+                        const personDd = activityEl.querySelector(`#${p}-act-person-dd`);
+                        if (personDd)
+                            makeDropdown({
+                                wrap: personDd, multi: true, allLabel: tr("allPeople"),
+                                options: () => teamMembers.map(mm => ({ value: mm.id, label: mm.name })),
+                                selected: () => activityMembers,
+                                onChange: (next) => { activityMembers.clear(); next.forEach(v => activityMembers.add(v)); refetch(); },
+                            });
                         // Infinite scroll: when near the bottom, grow the window and fetch more.
                         if (self._mgrActScroll) {
                             window.removeEventListener("scroll", self._mgrActScroll);
@@ -5680,6 +5745,8 @@ const factory = (BaseBlockClass, widgetApi) => {
                         activityCommentsLoaded = false;
                         setActivityFull(false);
                         activityLimit = ACT_RECENT;
+                        activityInstallFilter = "all";
+                        activityMembers.clear();
                         proofCache = null; // gallery reloads its proof set on next open/refresh
                         activeInstallFilter = "all";
                         activeTypeFilters.clear();
