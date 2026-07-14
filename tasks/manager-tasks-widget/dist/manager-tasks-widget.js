@@ -399,12 +399,27 @@ const STRINGS = {
         sortPriority: "Priority",
         sortAssignee: "Assignee",
         sortNewest: "Newest",
+        // Search + assigned-date-range filters
+        searchTasks: "Search tasks",
+        assignedLabel: "Assigned",
+        assignedFrom: "Assigned from",
+        assignedTo: "Assigned to",
+        dateToLabel: "to",
+        clearDates: "Clear dates",
+        // Proof review gallery
+        allStores: "All stores",
+        allPeople: "All people",
+        searchProof: "Search proof",
+        noProofMatches: "No proof matches these filters.",
+        nPhotos: "{n} photos",
+        clearFilters: "Clear filters",
         // Activity feed
         recentActivity: "Recent activity",
         activityLog: "Activity log",
         viewAllActivity: "View full log ({n})",
         actCompleted: "completed",
         actCommented: "commented on",
+        withProof: "with proof",
         actCreatedSelf: "created a task for themselves",
         actCreatedFor: "created a task for {who}",
         actCreatedPlain: "created a task",
@@ -505,6 +520,7 @@ const STRINGS = {
         createNewType: "+ Create new type…",
         dueDate: "Due date",
         dueLabel: "Due",
+        createdLabel: "Created",
         overdueLabel: "Overdue",
         priority: "Priority",
         normal: "Normal",
@@ -2175,6 +2191,9 @@ const factory = (BaseBlockClass, widgetApi) => {
                 let priorityFilter = "all"; // all | Priority_1 | Priority_2 | Priority_3
                 let overdueOnly = false;
                 let sortBy = "due"; // due | priority | assignee | created
+                let searchQuery = ""; // free-text filter (task title/description)
+                let assignedFrom = ""; // YYYY-MM-DD — filter by assigned (createDate) range
+                let assignedTo = ""; // YYYY-MM-DD
                 let membersExpanded = false; // "By team member" show-all toggle
                 let activityExpanded = false; // activity feed: recent (7) ↔ full log
                 let introUsed = false; // staggered entrance only on first list render
@@ -2328,6 +2347,21 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-vtab.active{background:#fff;color:var(--primary);box-shadow:0 1px 3px rgba(0,0,0,.08)}
           .${p}-vtab.active:hover{color:var(--primary)}
           .${p}-proof-view{padding-top:2px}
+          /* ── Proof Review photo gallery ── */
+          .${p}-pg-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+          .${p}-pg-search{flex:1 1 200px;min-width:160px}
+          .${p}-pg-count{font-size:12px;font-weight:600;color:var(--gray-lt);margin-bottom:10px}
+          .${p}-pg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+          .${p}-pg-cell{margin:0;display:flex;flex-direction:column;border:1px solid var(--border);border-radius:var(--r-md);background:#fff;overflow:hidden;transition:box-shadow .15s,transform .15s}
+          .${p}-pg-cell:hover{box-shadow:0 6px 18px rgba(0,0,0,.12);transform:translateY(-1px)}
+          .${p}-pg-media{position:relative;aspect-ratio:1;background:#f1f3f5;cursor:pointer;display:block}
+          .${p}-pg-img{width:100%;height:100%;object-fit:cover;display:block}
+          .${p}-pg-fallback{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--gray-lt)}
+          .${p}-pg-cap{padding:8px 10px;display:flex;flex-direction:column;gap:2px;min-width:0}
+          .${p}-pg-title{font-size:12px;font-weight:700;color:var(--dark);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+          .${p}-pg-title:hover{color:var(--primary)}
+          .${p}-pg-sub{font-size:11px;color:var(--gray-lt);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+          @media (max-width:480px){ .${p}-pg-grid{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))} }
           .${p}-proof-list{display:flex;flex-direction:column;gap:12px}
           .${p}-proof-card{border:1px solid var(--border);border-radius:var(--r-md);background:#fff;overflow:hidden}
           .${p}-proof-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--border)}
@@ -2415,6 +2449,25 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-chip{display:inline-flex;width:auto!important;align-items:center;gap:5px;flex:0 0 auto;padding:7px 12px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fff;font-size:12px;font-weight:600;color:var(--gray);cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap}
           .${p}-chip:hover{border-color:var(--error);color:var(--error)}
           .${p}-chip.active{background:var(--error);border-color:var(--error);color:#fff}
+          /* Search + assigned-date-range toolbar */
+          .${p}-toolbar2{display:flex;flex-wrap:wrap;gap:8px;margin:-6px 0 16px;align-items:center}
+          .${p}-search{position:relative;flex:1 1 220px;min-width:180px;display:flex;align-items:center}
+          .${p}-search-ico{position:absolute;inset-inline-start:11px;color:var(--gray-lt);pointer-events:none}
+          .${p}-search-input{width:100%;box-sizing:border-box;padding:8px 12px 8px 34px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fff;font-size:13px;color:var(--dark);font-family:inherit;transition:border-color .15s,box-shadow .15s;-webkit-appearance:none;appearance:none}
+          .${p}-search-input::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none}
+          .${p}-search-input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(var(--primary-rgb),.12)}
+          .${p}-daterange{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;padding:5px 8px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fff;color:var(--gray)}
+          .${p}-daterange:focus-within{border-color:var(--primary);box-shadow:0 0 0 3px rgba(var(--primary-rgb),.12)}
+          .${p}-date-lbl{font-size:12px;font-weight:600;color:var(--gray);white-space:nowrap}
+          .${p}-date-sep{font-size:12px;color:var(--gray-lt)}
+          .${p}-date-in{border:none;background:none;font-family:inherit;font-size:12px;font-weight:600;color:var(--dark);padding:2px;min-width:112px;cursor:pointer}
+          .${p}-date-in:focus{outline:none}
+          .${p}-date-clear{display:inline-flex!important;width:auto!important;margin:0!important;align-items:center;justify-content:center;padding:3px!important;border:none!important;background:none!important;color:var(--gray-lt);cursor:pointer;border-radius:50%;line-height:normal!important}
+          .${p}-date-clear:hover,.${p}-date-clear:focus,.${p}-date-clear:active{color:var(--error)!important;background:rgba(196,30,58,.08)!important}
+          @media (max-width:480px){
+            .${p}-daterange{flex:1 1 100%}
+            .${p}-date-in{flex:1}
+          }
           @media (max-width:480px){
             .${p}-type-wrap{flex:1 1 100%}
             .${p}-mini-select,.${p}-chip{flex:1 1 auto}
@@ -2473,6 +2526,8 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-act-body{flex:1;min-width:0;font-size:12px;line-height:1.45;color:var(--gray)}
           .${p}-act-body b{color:var(--dark);font-weight:700}
           .${p}-act-task{color:var(--dark)}
+          .${p}-act-proof{display:inline-flex;align-items:center;gap:4px;margin-inline-start:6px;padding:1px 7px 1px 5px;border-radius:10px;font-size:10px;font-weight:700;color:var(--primary);background:rgba(var(--primary-rgb),.1);vertical-align:middle;white-space:nowrap}
+          .${p}-act-proof svg{flex-shrink:0}
           .${p}-act-time{font-size:11px;color:var(--gray-lt);white-space:nowrap;flex-shrink:0}
           .${p}-type-wrap{position:relative;flex:1 1 130px;min-width:120px}
           .${p}-type-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:6px;padding:7px 11px;border:1.5px solid var(--border);border-radius:var(--r-md);background:#fff;font-size:12px;font-weight:600;color:var(--gray);cursor:pointer;font-family:inherit;transition:all .15s;text-align:start}
@@ -2700,6 +2755,21 @@ const factory = (BaseBlockClass, widgetApi) => {
             </button>
           </div>
 
+          <div class="${p}-toolbar2">
+            <div class="${p}-search">
+              <svg class="${p}-search-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="search" class="${p}-search-input" id="${p}-search" placeholder="${tr("searchTasks")}" aria-label="${tr("searchTasks")}">
+            </div>
+            <div class="${p}-daterange" id="${p}-daterange">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <span class="${p}-date-lbl">${tr("assignedLabel")}</span>
+              <input type="date" class="${p}-date-in" id="${p}-date-from" aria-label="${tr("assignedFrom")}">
+              <span class="${p}-date-sep">${tr("dateToLabel")}</span>
+              <input type="date" class="${p}-date-in" id="${p}-date-to" aria-label="${tr("assignedTo")}">
+              <button type="button" class="${p}-date-clear" id="${p}-date-clear" aria-label="${tr("clearDates")}" hidden><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+            </div>
+          </div>
+
           <div id="${p}-list-wrap">
             <div class="${p}-state">
               <span class="${p}-spin" style="width:24px;height:24px;border-width:3px;margin:0 auto 12px;display:block"></span>
@@ -2724,6 +2794,10 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const prioSelect = container.querySelector(`#${p}-prio-select`);
                 const sortSelect = container.querySelector(`#${p}-sort-select`);
                 const overdueChip = container.querySelector(`#${p}-overdue-chip`);
+                const searchInput = container.querySelector(`#${p}-search`);
+                const dateFromEl = container.querySelector(`#${p}-date-from`);
+                const dateToEl = container.querySelector(`#${p}-date-to`);
+                const dateClearBtn = container.querySelector(`#${p}-date-clear`);
                 const typeBtn = container.querySelector(`#${p}-type-btn`);
                 const typeLabelEl = container.querySelector(`#${p}-type-label`);
                 const typeMenu = container.querySelector(`#${p}-type-menu`);
@@ -3794,9 +3868,14 @@ const factory = (BaseBlockClass, widgetApi) => {
                         box.style.display = "";
                     });
                 }
+                let proofCache = null;
                 function loadProofItems() {
                     return manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
-                        const tasks = allTasks.filter(t => t.taskType !== "audit-result" && inTeam(t));
+                        if (proofCache)
+                            return proofCache;
+                        const inScopeBroad = (t) => t.taskType !== "audit-result" &&
+                            (teamSource === "everyone" ? true : (teamMemberSet.size ? t.assigneeIds.some(a => teamMemberSet.has(a)) : false));
+                        const tasks = allTasks.filter(inScopeBroad);
                         const results = yield Promise.all(tasks.map((t) => manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
                             let comments = [];
                             try {
@@ -3808,54 +3887,150 @@ const factory = (BaseBlockClass, widgetApi) => {
                             const items = collectProofItems(comments);
                             return items.length ? { task: t, items } : null;
                         })));
-                        return results.filter((x) => !!x);
+                        proofCache = results.filter((x) => !!x);
+                        return proofCache;
                     });
                 }
-                const proofLatest = (g) => g.items.reduce((mx, it) => { const t = Date.parse(it.createdAt); return isNaN(t) ? mx : Math.max(mx, t); }, 0);
-                function paintProofView(groups) {
-                    if (!proofViewEl)
-                        return;
-                    groups.sort((a, b) => proofLatest(b) - proofLatest(a));
-                    proofViewEl.innerHTML = `<div class="${p}-proof-list">${groups.map(g => {
-                        const n = g.items.length;
-                        const meta = n === 1 ? tr("onePhoto") : tr("manyPhotos").replace("{n}", String(n));
-                        return `<div class="${p}-proof-card">
-            <div class="${p}-proof-card-head" data-proof-task="${esc(g.task.id)}" role="button" tabindex="0">
-              <span class="${p}-proof-card-title" dir="auto">${esc(ct(g.task.title))}</span>
-              <span class="${p}-proof-card-meta">${meta}</span>
-            </div>
-            <div class="${p}-proof-grid">${g.items.map(proofThumb).join("")}</div>
-          </div>`;
-                    }).join("")}</div>`;
+                // Apply the live filters (person, store, search, assigned-date) then flatten
+                // to a newest-first list of individual photos for the grid.
+                function proofTaskMatches(t) {
+                    return inTeam(t)
+                        && (activeInstallFilter === "all" || t.installationId === activeInstallFilter)
+                        && matchesSearchDate(t);
+                }
+                function flattenProof(groups) {
+                    const out = [];
+                    for (const g of groups) {
+                        if (!proofTaskMatches(g.task))
+                            continue;
+                        for (const it of g.items)
+                            out.push({ task: g.task, item: it });
+                    }
+                    out.sort((a, b) => (Date.parse(b.item.createdAt) || 0) - (Date.parse(a.item.createdAt) || 0));
+                    return out;
+                }
+                function proofCell(ph) {
+                    var _a;
+                    const it = ph.item, m = mediaCache.get(it.id);
+                    const turl = ((_a = m === null || m === void 0 ? void 0 : m.thumbnail) === null || _a === void 0 ? void 0 : _a.url) || "";
+                    const full = originalUrl(m) || turl;
+                    const fn = (m === null || m === void 0 ? void 0 : m.fileName) || "proof";
+                    const kind = attKind(m);
+                    const who = displayNameSync(it.authorId) || (ph.task.assigneeIds[0] ? displayNameSync(ph.task.assigneeIds[0]) : "");
+                    const sub = [who, commentTime(it.createdAt), ph.task.installationTitle || ""].filter(Boolean).join(" · ");
+                    return `<figure class="${p}-pg-cell">
+          <div class="${p}-pg-media" data-att-url="${esc(full)}" data-att-preview="${esc(turl)}" data-att-name="${esc(fn)}" data-att-kind="${kind}" role="button" tabindex="0">
+            ${turl ? `<img class="${p}-pg-img" src="${esc(turl)}" alt="${esc(fn)}" loading="lazy">` : `<div class="${p}-pg-fallback">${iFileGeneric}</div>`}
+          </div>
+          <figcaption class="${p}-pg-cap">
+            <span class="${p}-pg-title" data-proof-task="${esc(ph.task.id)}" role="button" tabindex="0" dir="auto">${esc(ct(ph.task.title))}</span>
+            ${sub ? `<span class="${p}-pg-sub">${esc(sub)}</span>` : ""}
+          </figcaption>
+        </figure>`;
                 }
                 let proofViewSeq = 0;
-                function renderProofView() {
+                const pgSearchIco = `<svg class="${p}-search-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
+                const pgCalIco = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+                // Build the gallery's own filter bar once (store + person + search + date),
+                // bound to the shared filter state so the Tasks view stays consistent.
+                function buildProofBar() {
+                    if (!proofViewEl)
+                        return;
+                    const instMap = new Map();
+                    for (const t of allTasks) {
+                        if (t.taskType === "audit-result")
+                            continue;
+                        if (!instMap.has(t.installationId))
+                            instMap.set(t.installationId, t.installationTitle || t.installationId);
+                    }
+                    const showStore = instMap.size > 1;
+                    const storeOpts = [`<option value="all">${esc(tr("allStores"))}</option>`]
+                        .concat([...instMap.entries()].map(([id, title]) => `<option value="${esc(id)}"${activeInstallFilter === id ? " selected" : ""}>${esc(title)}</option>`)).join("");
+                    const showPerson = teamMembers.length > 0;
+                    const personOpts = [`<option value="">${esc(tr("allPeople"))}</option>`]
+                        .concat(teamMembers.map(mm => `<option value="${esc(mm.id)}"${selectedMember === mm.id ? " selected" : ""}>${esc(mm.name)}</option>`)).join("");
+                    proofViewEl.innerHTML = `
+          <div class="${p}-pg-bar">
+            <div class="${p}-search ${p}-pg-search">${pgSearchIco}
+              <input type="search" class="${p}-search-input" id="${p}-pg-search" placeholder="${tr("searchProof")}" aria-label="${tr("searchProof")}">
+            </div>
+            ${showStore ? `<select class="${p}-mini-select" id="${p}-pg-store" aria-label="${tr("allStores")}">${storeOpts}</select>` : ""}
+            ${showPerson ? `<select class="${p}-mini-select" id="${p}-pg-person" aria-label="${tr("allPeople")}">${personOpts}</select>` : ""}
+            <div class="${p}-daterange" id="${p}-pg-daterange">${pgCalIco}
+              <span class="${p}-date-lbl">${tr("assignedLabel")}</span>
+              <input type="date" class="${p}-date-in" id="${p}-pg-date-from" aria-label="${tr("assignedFrom")}">
+              <span class="${p}-date-sep">${tr("dateToLabel")}</span>
+              <input type="date" class="${p}-date-in" id="${p}-pg-date-to" aria-label="${tr("assignedTo")}">
+            </div>
+          </div>
+          <div class="${p}-pg-wrap" id="${p}-pg-wrap"></div>`;
+                    const s = proofViewEl.querySelector(`#${p}-pg-search`);
+                    const df = proofViewEl.querySelector(`#${p}-pg-date-from`);
+                    const dt = proofViewEl.querySelector(`#${p}-pg-date-to`);
+                    if (s)
+                        s.value = searchQuery;
+                    if (df)
+                        df.value = assignedFrom;
+                    if (dt)
+                        dt.value = assignedTo;
+                    const syncMainClear = () => { if (dateClearBtn)
+                        dateClearBtn.hidden = !(assignedFrom || assignedTo); };
+                    let pst;
+                    s === null || s === void 0 ? void 0 : s.addEventListener("input", () => { clearTimeout(pst); pst = setTimeout(() => { searchQuery = s.value.trim(); if (searchInput)
+                        searchInput.value = searchQuery; repaintProofGrid(); }, 180); });
+                    const storeSel = proofViewEl.querySelector(`#${p}-pg-store`);
+                    storeSel === null || storeSel === void 0 ? void 0 : storeSel.addEventListener("change", () => { activeInstallFilter = storeSel.value || "all"; renderStoreTabs(); repaintProofGrid(); });
+                    const personSel = proofViewEl.querySelector(`#${p}-pg-person`);
+                    personSel === null || personSel === void 0 ? void 0 : personSel.addEventListener("change", () => { selectedMember = personSel.value || ""; if (teamSelect)
+                        teamSelect.value = selectedMember; repaintProofGrid(); });
+                    df === null || df === void 0 ? void 0 : df.addEventListener("change", () => { assignedFrom = df.value || ""; if (dateFromEl)
+                        dateFromEl.value = assignedFrom; syncMainClear(); repaintProofGrid(); });
+                    dt === null || dt === void 0 ? void 0 : dt.addEventListener("change", () => { assignedTo = dt.value || ""; if (dateToEl)
+                        dateToEl.value = assignedTo; syncMainClear(); repaintProofGrid(); });
+                }
+                function repaintProofGrid() {
                     return manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
                         if (!proofViewEl)
                             return;
+                        const wrap = proofViewEl.querySelector(`#${p}-pg-wrap`);
+                        if (!wrap)
+                            return;
                         const seq = ++proofViewSeq;
-                        proofViewEl.innerHTML = `<div class="${p}-state"><span class="${p}-spin" style="width:24px;height:24px;border-width:3px;margin:0 auto 12px;display:block"></span>${tr("loading")}</div>`;
+                        wrap.innerHTML = `<div class="${p}-state"><span class="${p}-spin" style="width:24px;height:24px;border-width:3px;margin:0 auto 12px;display:block"></span>${tr("loading")}</div>`;
                         let groups = [];
                         try {
                             groups = yield loadProofItems();
                         }
                         catch (e) {
                             if (seq === proofViewSeq)
-                                proofViewEl.innerHTML = `<div class="${p}-state"><strong>${tr("failedToLoad")}</strong>${esc(e.message)}</div>`;
+                                wrap.innerHTML = `<div class="${p}-state"><strong>${tr("failedToLoad")}</strong>${esc(e.message)}</div>`;
                             return;
                         }
                         if (seq !== proofViewSeq)
                             return;
-                        if (!groups.length) {
-                            proofViewEl.innerHTML = `<div class="${p}-amodal-none"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg><span>${tr("noProofYet")}</span></div>`;
+                        const photos = flattenProof(groups);
+                        const noneSvg = `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
+                        if (!photos.length) {
+                            const msg = groups.length ? tr("noProofMatches") : tr("noProofYet");
+                            wrap.innerHTML = `<div class="${p}-amodal-none">${noneSvg}<span>${esc(msg)}</span></div>`;
                             return;
                         }
                         const ids = new Set();
-                        groups.forEach(g => g.items.forEach(it => ids.add(it.id)));
+                        photos.forEach(ph => ids.add(ph.item.id));
                         yield Promise.all([...ids].map(metaCached));
                         if (seq !== proofViewSeq)
                             return;
-                        paintProofView(groups);
+                        const n = photos.length;
+                        const count = n === 1 ? tr("onePhoto") : tr("nPhotos").replace("{n}", String(n));
+                        wrap.innerHTML = `<div class="${p}-pg-count">${esc(count)}</div><div class="${p}-pg-grid">${photos.map(proofCell).join("")}</div>`;
+                    });
+                }
+                function renderProofView() {
+                    return manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                        if (!proofViewEl)
+                            return;
+                        buildProofBar();
+                        yield repaintProofGrid();
                     });
                 }
                 // ── Distinct types for visible install ────────────────────────────
@@ -3872,6 +4047,26 @@ const factory = (BaseBlockClass, widgetApi) => {
                     return [...types].sort().map(k => ({ key: k, label: k }));
                 }
                 // ── Filtered tasks (normal mode) ──────────────────────────────────
+                // Shared free-text + assigned-date-range predicate. "Assigned" date comes
+                // from the task's createDate metadata (when it was created/assigned).
+                function matchesSearchDate(t) {
+                    if (searchQuery) {
+                        const q = searchQuery.toLowerCase();
+                        const hay = `${t.title || ""} ${t.description || ""}`.toLowerCase();
+                        if (hay.indexOf(q) < 0)
+                            return false;
+                    }
+                    if (assignedFrom || assignedTo) {
+                        const c = t.createDate ? Date.parse(t.createDate) : NaN;
+                        if (isNaN(c))
+                            return false;
+                        if (assignedFrom && c < Date.parse(`${assignedFrom}T00:00:00`))
+                            return false;
+                        if (assignedTo && c > Date.parse(`${assignedTo}T23:59:59.999`))
+                            return false;
+                    }
+                    return true;
+                }
                 function filteredTasks() {
                     const out = allTasks.filter(t => {
                         if (t.taskType === "audit-result")
@@ -3888,6 +4083,8 @@ const factory = (BaseBlockClass, widgetApi) => {
                         if (priorityFilter !== "all" && t.priority !== priorityFilter)
                             return false;
                         if (overdueOnly && !isOverdue(t))
+                            return false;
+                        if (!matchesSearchDate(t))
                             return false;
                         const isDone = t.status === "DONE" || t.status === "done" || t.status === "CLOSED";
                         if (activeStatusFilter === "open" && isDone)
@@ -4129,20 +4326,60 @@ const factory = (BaseBlockClass, widgetApi) => {
                             body: `${phrase} · ${esc(describeRrule(t.description || ""))} ${q(t.title)}`, when: iso ? Date.parse(iso) : 0, iso });
                     }
                     // Comments + hidden [tasks:edit] markers (fetched by loadActivityComments)
+                    // Photo-proof comments ([proof] + image) pair with a completion. Rather
+                    // than surface a separate "commented on" row, fold "with proof" into the
+                    // matching completion event (same task + author, within a short window).
+                    const proofByTask = new Map();
+                    activityComments.forEach((comments, taskId) => {
+                        for (const c of comments) {
+                            if (!isProofComment(c))
+                                continue;
+                            const iso = c.createdAt || c.created || c.createDate || c.updateDate || "";
+                            const arr = proofByTask.get(taskId) || [];
+                            arr.push({ author: commentAuthorId(c), when: iso ? Date.parse(iso) : 0 });
+                            proofByTask.set(taskId, arr);
+                        }
+                    });
+                    const PROOF_WINDOW = 15 * 60 * 1000;
+                    const hasProofFor = (taskId, author, when) => {
+                        const arr = proofByTask.get(taskId);
+                        if (!arr || !arr.length)
+                            return false;
+                        return arr.some(pr => (!author || !pr.author || pr.author === author) && (!when || !pr.when || Math.abs(pr.when - when) <= PROOF_WINDOW));
+                    };
+                    const camIco = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
+                    const proofBadge = `<span class="${p}-act-proof">${camIco}${esc(tr("withProof"))}</span>`;
                     activityComments.forEach((comments, taskId) => {
                         const t = allTasks.find(x => x.id === taskId);
                         if (!t || !inScope(t))
                             return;
                         for (const c of comments) {
+                            if (isProofComment(c))
+                                continue; // folded into the completion event
                             const txt = commentPlain(c);
                             if (!txt)
                                 continue;
                             const author = commentAuthorId(c);
                             const iso = c.createdAt || c.created || c.createDate || c.updateDate || "";
+                            const when = iso ? Date.parse(iso) : 0;
+                            const isEdit = isEditComment(txt);
+                            const action = isEdit ? editAction(txt) : "";
+                            const isCompletion = isEdit && /^completed\b/i.test(action);
                             // Edit markers carry a self-contained action (incl. the task name);
                             // real comments read "commented on '<task>'".
-                            const body = isEditComment(txt) ? esc(editAction(txt)) : `${tr("actCommented")} ${q(t.title)}`;
-                            evs.push({ taskId: t.id, whoName: author ? nameOf(author) : undefined, avatar: author ? avOf(author) : "", body, when: iso ? Date.parse(iso) : 0, iso });
+                            let body;
+                            if (isEdit) {
+                                body = esc(action);
+                                // Completions that carried photo proof (either stamped inline as
+                                // "… with proof" by the user widget, or with a nearby [proof]
+                                // comment) collapse to one line with a "with proof" badge.
+                                if (isCompletion && (/\bwith proof\b/i.test(action) || hasProofFor(t.id, author, when)))
+                                    body = esc(action.replace(/\s*with proof\s*$/i, "")) + proofBadge;
+                            }
+                            else {
+                                body = `${tr("actCommented")} ${q(t.title)}`;
+                            }
+                            evs.push({ taskId: t.id, whoName: author ? nameOf(author) : undefined, avatar: author ? avOf(author) : "", body, when, iso });
                         }
                     });
                     return evs.sort((a, b) => b.when - a.when);
@@ -4506,6 +4743,7 @@ const factory = (BaseBlockClass, widgetApi) => {
           ${task.isRecurring ? `<span class="${p}-recur-badge">${iconRecurD}Recurring</span>` : ""}
           ${(isCrit || (task.priority && task.priority !== "Priority_3")) ? `<span class="${p}-prio-badge${isCrit ? " crit" : ""}" style="color:${prioCol};border-color:${prioCol}">${prioLbl}</span>` : ""}`;
                     const iCal = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+                    const iClock = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
                     const iStore = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`;
                     const iList = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`;
                     const iGroup = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
@@ -4541,6 +4779,7 @@ const factory = (BaseBlockClass, widgetApi) => {
           <div class="${p}-detail-title ${isDone ? "done" : ""}" dir="auto">${esc(ct(task.title))}</div>
           <div class="${p}-detail-meta">
             ${dueInfo.text ? `<div class="${p}-detail-meta-row ${dueInfo.overdue && !isDone ? "overdue" : ""}">${iCal}${dueInfo.overdue && !isDone ? tr("overdueLabel") + " · " : tr("dueLabel") + " "}<span dir="auto">${dueInfo.text}</span></div>` : ""}
+            ${(() => { const c = formatDate(task.createDate || null).text; return c ? `<div class="${p}-detail-meta-row">${iClock} ${tr("createdLabel") + " "}<span dir="auto">${c}</span></div>` : ""; })()}
             ${task.installationTitle ? `<div class="${p}-detail-meta-row">${iStore} ${esc(task.installationTitle)}</div>` : ""}
             ${task.listName ? `<div class="${p}-detail-meta-row">${iList} ${esc(task.listName)}</div>` : ""}
             ${assigneeHtml}
@@ -4928,6 +5167,21 @@ const factory = (BaseBlockClass, widgetApi) => {
                 prioSelect === null || prioSelect === void 0 ? void 0 : prioSelect.addEventListener("change", () => { priorityFilter = prioSelect.value || "all"; renderList(); });
                 sortSelect === null || sortSelect === void 0 ? void 0 : sortSelect.addEventListener("change", () => { sortBy = sortSelect.value || "due"; renderList(); });
                 overdueChip === null || overdueChip === void 0 ? void 0 : overdueChip.addEventListener("click", () => { overdueOnly = !overdueOnly; overdueChip.classList.toggle("active", overdueOnly); overdueChip.setAttribute("aria-pressed", String(overdueOnly)); renderList(); });
+                // Free-text search + assigned-date-range — apply to the list and, when it's
+                // showing, the Proof Review gallery (both honour the shared filter state).
+                const refreshViews = () => { renderList(); if (proofViewEl && proofViewEl.style.display !== "none")
+                    renderProofView(); };
+                if (searchInput) {
+                    let st;
+                    searchInput.addEventListener("input", () => { clearTimeout(st); st = setTimeout(() => { searchQuery = searchInput.value.trim(); refreshViews(); }, 180); });
+                }
+                const syncDateClear = () => { if (dateClearBtn)
+                    dateClearBtn.hidden = !(assignedFrom || assignedTo); };
+                dateFromEl === null || dateFromEl === void 0 ? void 0 : dateFromEl.addEventListener("change", () => { assignedFrom = dateFromEl.value || ""; syncDateClear(); refreshViews(); });
+                dateToEl === null || dateToEl === void 0 ? void 0 : dateToEl.addEventListener("change", () => { assignedTo = dateToEl.value || ""; syncDateClear(); refreshViews(); });
+                dateClearBtn === null || dateClearBtn === void 0 ? void 0 : dateClearBtn.addEventListener("click", () => { assignedFrom = ""; assignedTo = ""; if (dateFromEl)
+                    dateFromEl.value = ""; if (dateToEl)
+                    dateToEl.value = ""; syncDateClear(); refreshViews(); });
                 // ── Locale resolution ─────────────────────────────────────────────
                 // Resolve the viewer's locale (once), rebind `t`, set text direction,
                 // and refresh the static header/filter labels that were painted in the
@@ -5146,6 +5400,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                         recurTemplates = [];
                         activityComments.clear();
                         activityCommentsLoaded = false;
+                        proofCache = null; // gallery reloads its proof set on next open/refresh
                         activeInstallFilter = "all";
                         activeTypeFilters.clear();
                         dropdownOpen = false;
@@ -5320,7 +5575,6 @@ const factory = (BaseBlockClass, widgetApi) => {
                 }
                 refreshBtn.addEventListener("click", load);
                 // ── Proof Review view switching ────────────────────────────────────
-                let proofLoaded = false;
                 const switchView = (view) => {
                     const proof = view === "proof";
                     if (tasksViewEl)
@@ -5330,10 +5584,10 @@ const factory = (BaseBlockClass, widgetApi) => {
                     vtabsEl === null || vtabsEl === void 0 ? void 0 : vtabsEl.querySelectorAll(`.${p}-vtab`).forEach(b => {
                         b.classList.toggle("active", b.dataset.view === view);
                     });
-                    if (proof && !proofLoaded) {
-                        proofLoaded = true;
+                    // Rebuild the gallery each time it's shown so its filter bar reflects the
+                    // current shared filter state (store / person / search / assigned date).
+                    if (proof)
                         renderProofView();
-                    }
                 };
                 vtabsEl === null || vtabsEl === void 0 ? void 0 : vtabsEl.querySelectorAll(`.${p}-vtab`).forEach(btn => {
                     btn.addEventListener("click", () => switchView(btn.dataset.view || "tasks"));

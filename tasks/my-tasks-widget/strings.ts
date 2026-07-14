@@ -107,6 +107,7 @@ export const STRINGS: Bundles = {
     createNewType: "+ Create new type…",
     dueDate: "Due date",
     dueLabel: "Due",
+    createdLabel: "Created",
     overdueLabel: "Overdue",
     priority: "Priority",
     normal: "Normal",

@@ -472,6 +472,7 @@ const STRINGS = {
         createNewType: "+ Create new type…",
         dueDate: "Due date",
         dueLabel: "Due",
+        createdLabel: "Created",
         overdueLabel: "Overdue",
         priority: "Priority",
         normal: "Normal",
@@ -2033,6 +2034,8 @@ function stripTypeTag(text) {
         .replace(RRULE_REGEX, "")
         .replace(RECUR_REGEX, "")
         .replace(LVL_REGEX, "")
+        .replace(/\[by:\s*[^\]]+\]/i, "") // hidden creator stamp
+        .replace(/\[notify:\s*[^\]]+\]/i, "")
         .replace(/\s{2,}/g, " ")
         .trim();
 }
@@ -3624,11 +3627,12 @@ const factory = (BaseBlockClass, widgetApi) => {
                 }
                 // Status-change action text → activity feed. Credits the actor with completing
                 // someone else's task when they aren't an assignee, e.g. "completed Chriscelle's task".
-                function statusAction(task, newStatus) {
+                function statusAction(task, newStatus, withProof = false) {
                     const verb = newStatus === "CLOSED" ? "completed" : "reopened";
                     const mine = !!currentUserId && task.assigneeIds.indexOf(currentUserId) !== -1;
                     const owner = ownerLabel(task);
-                    return (!mine && owner) ? `${verb} ${owner}'s task “${task.title}”` : `${verb} “${task.title}”`;
+                    const suffix = (withProof && newStatus === "CLOSED") ? " with proof" : "";
+                    return ((!mine && owner) ? `${verb} ${owner}'s task “${task.title}”` : `${verb} “${task.title}”`) + suffix;
                 }
                 // Hidden audit comment → feeds the Manager Tasks activity feed; suppressed
                 // from the visible comment list here. Best-effort (needs the user session).
@@ -4770,6 +4774,7 @@ const factory = (BaseBlockClass, widgetApi) => {
           ${task.isRecurring ? `<span class="${p}-recur-badge">${iconRecurD}Recurring</span>` : ""}
           ${(isCrit || (task.priority && task.priority !== "Priority_3")) ? `<span class="${p}-prio-badge${isCrit ? " crit" : ""}" style="color:${prioCol};border-color:${prioCol}">${prioLbl}</span>` : ""}`;
                     const iCal = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+                    const iClock = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
                     const iStore = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`;
                     const iList = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`;
                     const iGroup = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
@@ -4802,6 +4807,7 @@ const factory = (BaseBlockClass, widgetApi) => {
           <div class="${p}-detail-title ${isDone ? "done" : ""}" dir="auto">${esc(ct(task.title))}</div>
           <div class="${p}-detail-meta">
             ${dueInfo.text ? `<div class="${p}-detail-meta-row ${dueInfo.overdue && !isDone ? "overdue" : ""}">${iCal}${dueInfo.overdue && !isDone ? tr("overdueLabel") + " · " : tr("dueLabel") + " "}<span dir="auto">${dueInfo.text}</span></div>` : ""}
+            ${(() => { const c = formatDate(task.createDate || null).text; return c ? `<div class="${p}-detail-meta-row">${iClock} ${tr("createdLabel") + " "}<span dir="auto">${c}</span></div>` : ""; })()}
             ${task.installationTitle ? `<div class="${p}-detail-meta-row">${iStore} ${esc(task.installationTitle)}</div>` : ""}
             ${task.listName ? `<div class="${p}-detail-meta-row">${iList} ${esc(task.listName)}</div>` : ""}
             ${assigneeHtml}
@@ -5104,7 +5110,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                         // Manager activity feed read it for the completion timestamp. (Reassignment
                         // logging stays gated behind Detailed Activity Logging.)
                         yield fetchUsers();
-                        postEditComment(task, statusAction(task, newStatus));
+                        postEditComment(task, statusAction(task, newStatus, !isDone && requireProof));
                         renderDetailContent(task);
                         const cardEl = listWrap.querySelector(`[data-task-id="${task.id}"]`);
                         if (cardEl) {
@@ -5182,7 +5188,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                                 task.status = newStatus;
                                 task.updateDate = new Date().toISOString();
                                 yield fetchUsers();
-                                postEditComment(task, statusAction(task, newStatus));
+                                postEditComment(task, statusAction(task, newStatus, !isDone && requireProof));
                             }
                             setTimeout(() => { if (!auditMode) {
                                 renderTypeFilters();

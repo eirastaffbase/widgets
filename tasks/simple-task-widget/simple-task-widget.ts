@@ -155,6 +155,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       type Task = {
         id:string; installId:string; title:string; description:string; status:string;
         dueDate:string|null; priority:string; taskType:string|null; isRecurring:boolean;
+        createDate:string|null;
         groupIds:string[]; assigneeIds:string[]; attachmentIds:string[]; ok:boolean;
       };
       let tasks: Task[] = [];
@@ -361,6 +362,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const iSend=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>`;
       const iGlobe=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8l6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6"/></svg>`;
       const iCal=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+      const iClock=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
       const iUser=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
       const iGroup=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
       const iconRecur=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`;
@@ -793,7 +795,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           if(!res.ok) throw new Error(`HTTP ${res.status}`);
           task.status=next; renderDetailContent(task); render();
           // Record the status change so it surfaces in the activity feed / calendar.
-          postEditComment(task, `${next==="CLOSED"?"completed":"reopened"} “${task.title}”`);
+          // When proof was required on completion, stamp it so the manager feed can
+          // show a single "completed … with proof" line.
+          const proofSuffix = (!wasDone && requireProof) ? " with proof" : "";
+          postEditComment(task, `${next==="CLOSED"?"completed":"reopened"} “${task.title}”${proofSuffix}`);
         }catch(e:any){ showError(tr("errorToggle")); }
         detailToggle.disabled=false;
       });
@@ -933,6 +938,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           <div class="${p}-detail-title ${done?"done":""}" dir="auto">${esc(ct(task.title))}</div>
           <div class="${p}-detail-meta">
             ${dueInfo.text?`<div class="${p}-detail-meta-row ${dueInfo.overdue&&!done?"overdue":""}">${iCal}${dueInfo.overdue&&!done?tr("overdueLabel")+" · ":tr("dueLabel")+" "}<span dir="auto">${dueInfo.text}</span></div>`:""}
+            ${(()=>{const c=formatDate(task.createDate).text;return c?`<div class="${p}-detail-meta-row">${iClock} ${tr("createdLabel")+" "}<span dir="auto">${c}</span></div>`:"";})()}
             ${groupRows}${personRows}
           </div>
           ${cleanDesc
@@ -1117,7 +1123,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           if(!res.ok) throw new Error(`HTTP ${res.status}`);
           t.status=next;
           // Record the status change so it surfaces in the activity feed / calendar.
-          postEditComment(t, `${next==="CLOSED"?"completed":"reopened"} “${t.title}”`);
+          // When proof was required on completion, stamp it so the manager feed can
+          // show a single "completed … with proof" line.
+          const proofSuffix = (!done && requireProof) ? " with proof" : "";
+          postEditComment(t, `${next==="CLOSED"?"completed":"reopened"} “${t.title}”${proofSuffix}`);
           if(detailTask===t) renderDetailContent(t);
           if(!showCompleted && next==="CLOSED") setTimeout(render,420);
         }catch(e:any){
@@ -1153,7 +1162,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         const needGroups=true; // groups resolved lazily; fetch once up front (cheap)
         if(needGroups) fetchGroups();
         tasks=await Promise.all(refs.map(async (r):Promise<Task>=>{
-          const base:Task={ id:r.taskId, installId:r.installId, title:"", description:"", status:"", dueDate:null, priority:"Priority_3", taskType:null, isRecurring:false, groupIds:[], assigneeIds:[], attachmentIds:[], ok:false };
+          const base:Task={ id:r.taskId, installId:r.installId, title:"", description:"", status:"", dueDate:null, priority:"Priority_3", taskType:null, isRecurring:false, createDate:null, groupIds:[], assigneeIds:[], attachmentIds:[], ok:false };
           try{
             const res=await fetch(`${baseUrl}/tasks/${r.installId}/task/${r.taskId}`,apiOpts());
             if(!res.ok) return base;
@@ -1165,6 +1174,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               title:stripTags(d.title||"")||"(untitled)", description:desc, status:d.status||"OPEN",
               dueDate:d.dueDate||null, priority:d.priority||"Priority_3",
               taskType:isTemplate?null:rawType, isRecurring:isTemplate||RECUR_REGEX.test(desc),
+              createDate:d.createDate||null,
               groupIds:d.groupIds||[], assigneeIds:d.assigneeIds||[], attachmentIds:d.attachmentIds||[], ok:true };
           }catch(_){ return base; }
         }));

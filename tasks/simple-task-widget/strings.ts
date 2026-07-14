@@ -15,6 +15,7 @@ export const STRINGS: Bundles = {
     description: "Description",
     noDescription: "No description provided.",
     dueLabel: "Due",
+    createdLabel: "Created",
     overdueLabel: "Overdue",
     high: "High",
     medium: "Med",

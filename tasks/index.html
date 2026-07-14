@@ -94,6 +94,8 @@
   .cf{display:flex;flex-direction:column;gap:5px}
   .cf>span{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;font-weight:700;color:var(--ink)}
   .cf input[type=text],.cf input[type=password]{font-family:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;color:var(--ink);background:#fff;width:100%}
+  .cf textarea{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;line-height:1.5;padding:8px 10px;border:1px solid var(--line);border-radius:9px;color:var(--ink);background:#fff;width:100%;resize:vertical}
+  .cf textarea:focus{outline:none;border-color:var(--red)}
   .cf input:focus{outline:none;border-color:var(--red)}
   .cf-bool{flex-direction:row;align-items:center;gap:9px}
   .cf-bool input{width:17px;height:17px;accent-color:var(--red);cursor:pointer}
@@ -666,6 +668,11 @@ function fieldHtml(key,type,val,title){
     return `<label class="cf"${t}><span>apitoken</span><input type="password" data-k="apitoken" value="${escAttr(val)}" placeholder="Blank = dummy data" autocomplete="off"></label>`;
   if(type==="boolean"||val==="true"||val==="false")
     return `<label class="cf cf-bool"${t}><input type="checkbox" data-k="${key}" ${val==="true"?"checked":""}><span>${key}</span></label>`;
+  // Multiline values (e.g. the newline-separated tasklist) must use a textarea:
+  // a single-line <input type=text> silently strips newlines on read, which would
+  // mash every ref into one bogus entry and blank the list on "Apply & reload".
+  if(String(val).indexOf("\n")!==-1)
+    return `<label class="cf"${t}><span>${key}</span><textarea data-k="${key}" rows="4" spellcheck="false">${escAttr(val)}</textarea></label>`;
   return `<label class="cf"${t}><span>${key}</span><input type="text" data-k="${key}" value="${escAttr(val)}"></label>`;
 }
 function buildConfig(w){
