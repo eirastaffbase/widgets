@@ -29,6 +29,7 @@ const configurationSchema: JSONSchema7 = {
     showcompleted:   { type:"boolean", title:"Show Completed Tasks", default: true },
     allowtoggle:     { type:"boolean", title:"Allow Check Off",      default: true },
     enablecomments:  { type:"boolean", title:"Enable Comments",      default: true },
+    requirephotoproof:{ type:"boolean", title:"Require Photo Proof",  default: false },
     onlyassignedtome:{ type:"boolean", title:"Only Show Tasks Assigned To Me", default: false },
     usethemecolors:  { type:"boolean", title:"Use Theme Colors",     default: false },
     backgroundcolor: { type:"string",  title:"Background Color",     default: "" },
@@ -61,6 +62,7 @@ const uiSchema: UiSchema = {
   showcompleted:   { "ui:help":"When off, tasks already marked done are hidden from the checklist" },
   allowtoggle:     { "ui:help":"Let viewers check tasks off (marks them done via the API). Turn off for a read-only checklist." },
   enablecomments:  { "ui:help":"Show a comments section in the task detail panel (uses the logged-in user's session)" },
+  requirephotoproof:{ "ui:help":"When on, checking a task off requires the viewer to submit a photo. The photo is posted as a proof comment on the task, and the task is only marked done once the photo is uploaded." },
   onlyassignedtome:{ "ui:help":"Filter this list down to tasks assigned directly to the viewer, or to a group the viewer belongs to — same matching the My Tasks widget uses" },
   usethemecolors:  { "ui:help":"Pull Primary & Accent from the app's branding theme (uses the API Token). Hides the color pickers below." },
   primarycolor:    { "ui:widget":"color", "ui:help":"Primary brand color" },
@@ -129,6 +131,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const showCompleted = this.getAttribute("showcompleted") !== "false";
       const allowToggle   = this.getAttribute("allowtoggle")   !== "false";
       const enableComments= this.getAttribute("enablecomments")!== "false";
+      const requireProof  = this.getAttribute("requirephotoproof") === "true";
       const onlyMine       = this.getAttribute("onlyassignedtome") === "true";
 
       // ── Limit height / scroll (same pattern as the other task widgets) ──
@@ -265,6 +268,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       // ── Comments ────────────────────────────────────────────────────────
       const CMT_CREATE_CT="application/vnd.staffbase.tasks.comment-create.v1+json";
       const CMT_HTML_ACCEPT="application/vnd.staffbase.tasks.comment.html-content.v1+json";
+      // Photo-proof comments are stamped with this marker; the token is stripped
+      // from the visible comment body but the attached image still renders.
+      const PROOF_MARK="[proof]";
+      const stripProof=(html:string):string=>html.replace(/\[proof\]/gi,"").trim();
       function commentDoc(text:string):any{ const html=`<p>${esc(text)}</p>`; return { blocks:{ b1:{ type:"text", children:[], config:{ html, text } } }, content:["b1"] }; }
       async function loadComments(task:Task):Promise<any[]>{
         const url=`${baseUrl}/tasks/${task.installId}/task/${task.id}/comments${currentUserId?`?viewedBy=${currentUserId}`:""}`;
@@ -370,6 +377,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       if (self._stwOverlay) { self._stwOverlay.remove(); self._stwOverlay = undefined; }
       if (self._stwDetail)  { self._stwDetail.remove();  self._stwDetail  = undefined; }
       if (self._stwAModal)  { self._stwAModal.remove();  self._stwAModal  = undefined; }
+      if (self._stwProof)   { self._stwProof.remove();   self._stwProof   = undefined; }
       if (self._stwDocKey)  { document.removeEventListener("keydown", self._stwDocKey); self._stwDocKey = undefined; }
       if (self._stwVV && (window as any).visualViewport) {
         (window as any).visualViewport.removeEventListener("resize", self._stwVV);
@@ -489,6 +497,33 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-amodal-body img{max-width:100%;max-height:88vh;object-fit:contain;display:block}
           .${p}-amodal-body iframe,.${p}-amodal-body object,.${p}-amodal-pdf{width:100%;height:84vh;border:none;background:#fff}
           .${p}-amodal-none{display:flex;flex-direction:column;align-items:center;gap:12px;padding:48px 24px;color:var(--gray-lt);font-size:13px}
+          /* ── Photo proof modal ── */
+          .${p}-proof{--primary:${primaryColor};--primary-rgb:${primaryRgb};--primary-text:${primaryText};--accent:${accentColor};--dark:#1A1A1A;--gray:#6b7280;--gray-lt:#9ca3af;--border:#e5e7eb;--error:#C41E3A;--r-sm:6px;--r-md:10px;--r-lg:14px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;position:fixed;inset:0;z-index:100003;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:16px}
+          .${p}-proof.open{display:flex}
+          .${p}-proof-card{background:#fff;border-radius:var(--r-lg);width:100%;max-width:min(420px,96vw);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 12px 48px rgba(0,0,0,.4)}
+          .${p}-proof-head{display:flex;align-items:center;gap:8px;padding:13px 14px;border-bottom:1px solid var(--border);flex-shrink:0}
+          .${p}-proof-title{flex:1;min-width:0;font-size:14px;font-weight:800;color:var(--dark)}
+          .${p}-proof-x{width:30px;height:30px;flex-shrink:0;border:none;border-radius:50%;background:#f3f4f6;color:var(--gray);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+          .${p}-proof-x:disabled{opacity:.4;cursor:default}
+          .${p}-proof-body{padding:14px}
+          .${p}-proof-desc{margin:0 0 12px;font-size:13px;color:var(--gray);line-height:1.5}
+          .${p}-proof-drop{display:block;position:relative;border:1.5px dashed rgba(var(--primary-rgb),.4);border-radius:var(--r-md);background:rgba(var(--primary-rgb),.04);cursor:pointer;overflow:hidden;transition:border-color .15s,background .15s}
+          .${p}-proof-drop:hover{border-color:var(--primary);background:rgba(var(--primary-rgb),.08)}
+          .${p}-proof-drop.has{border-style:solid;border-color:var(--primary)}
+          .${p}-proof-drop-inner{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:150px;padding:20px;color:var(--primary);font-size:13px;font-weight:700;text-align:center}
+          .${p}-proof-drop.has .${p}-proof-drop-inner{padding:0;gap:0}
+          .${p}-proof-preview{width:100%;max-height:260px;object-fit:contain;display:block;background:#f1f3f5}
+          .${p}-proof-fname{padding:8px 10px;font-size:12px;color:var(--gray);font-weight:600;width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
+          .${p}-proof-file{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+          .${p}-proof-err{margin-top:10px;font-size:12px;color:var(--error);font-weight:600}
+          .${p}-proof-err:empty{display:none}
+          .${p}-proof-foot{display:flex;gap:8px;padding:12px 14px;border-top:1px solid var(--border);flex-shrink:0}
+          .${p}-proof-btn{flex:1;padding:10px;border-radius:var(--r-md);border:none;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:7px;transition:all .15s}
+          .${p}-proof-cancel{background:#f3f4f6;color:var(--gray)}
+          .${p}-proof-cancel:disabled{opacity:.5;cursor:default}
+          .${p}-proof-confirm{background:var(--primary);color:var(--primary-text,#fff)}
+          .${p}-proof-confirm:disabled{opacity:.5;cursor:default}
+          .${p}-proof-spin{width:13px;height:13px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;display:inline-block;animation:${p}-spin .7s linear infinite}
           /* ── Comments ── */
           .${p}-cmt{margin-top:18px;border-top:1px solid var(--border);padding-top:14px}
           .${p}-cmt-list{display:flex;flex-direction:column;gap:14px;margin-bottom:14px}
@@ -626,6 +661,91 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         openAttModal(a.dataset.attPreview||a.dataset.attUrl||"", a.dataset.attUrl||"", a.dataset.attName||"file", a.dataset.attKind||"other");
       });
 
+      // ── Photo-proof modal (gates "mark done" when Require Photo Proof is on) ──
+      const iCamera=`<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
+      const proofModal = document.createElement("div");
+      proofModal.className = `${p}-proof`; proofModal.dataset.sbPortal = instId;
+      proofModal.innerHTML = `
+        <div class="${p}-proof-card">
+          <div class="${p}-proof-head">
+            <span class="${p}-proof-title">${tr("proofTitle")}</span>
+            <button type="button" class="${p}-proof-x" id="${p}-proof-x-${instId}" aria-label="${tr("cancel")}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+          </div>
+          <div class="${p}-proof-body">
+            <p class="${p}-proof-desc">${tr("proofDesc")}</p>
+            <label class="${p}-proof-drop" id="${p}-proof-drop-${instId}" for="${p}-proof-file-${instId}">
+              <div class="${p}-proof-drop-inner" id="${p}-proof-inner-${instId}">${iCamera}<span>${tr("proofPick")}</span></div>
+            </label>
+            <input type="file" accept="image/*" class="${p}-proof-file" id="${p}-proof-file-${instId}">
+            <div class="${p}-proof-err" id="${p}-proof-err-${instId}"></div>
+          </div>
+          <div class="${p}-proof-foot">
+            <button type="button" class="${p}-proof-btn ${p}-proof-cancel" id="${p}-proof-cancel-${instId}">${tr("cancel")}</button>
+            <button type="button" class="${p}-proof-btn ${p}-proof-confirm" id="${p}-proof-confirm-${instId}" disabled>${tr("proofConfirm")}</button>
+          </div>
+        </div>`;
+      document.body.appendChild(proofModal); self._stwProof = proofModal;
+      const pFile    = proofModal.querySelector(`#${p}-proof-file-${instId}`)    as HTMLInputElement;
+      const pDrop    = proofModal.querySelector(`#${p}-proof-drop-${instId}`)    as HTMLElement;
+      const pInner   = proofModal.querySelector(`#${p}-proof-inner-${instId}`)   as HTMLElement;
+      const pErr     = proofModal.querySelector(`#${p}-proof-err-${instId}`)     as HTMLElement;
+      const pCancel  = proofModal.querySelector(`#${p}-proof-cancel-${instId}`)  as HTMLButtonElement;
+      const pConfirm = proofModal.querySelector(`#${p}-proof-confirm-${instId}`) as HTMLButtonElement;
+      const pX       = proofModal.querySelector(`#${p}-proof-x-${instId}`)       as HTMLButtonElement;
+      let proofResolve:((v:boolean)=>void)|null = null;
+      let proofFile:File|null = null;
+      let proofTask:Task|null = null;
+      let proofBusy = false;
+      let proofPreviewUrl = "";
+      function resetProof(){
+        proofFile=null; pErr.textContent=""; pConfirm.disabled=true; pConfirm.innerHTML=tr("proofConfirm");
+        pDrop.classList.remove("has"); pInner.innerHTML=`${iCamera}<span>${tr("proofPick")}</span>`;
+        pFile.value=""; if(proofPreviewUrl){ URL.revokeObjectURL(proofPreviewUrl); proofPreviewUrl=""; }
+      }
+      function closeProof(result:boolean){
+        if(proofBusy) return;
+        proofModal.classList.remove("open");
+        const r=proofResolve; proofResolve=null; proofTask=null; resetProof();
+        if(r) r(result);
+      }
+      // Opens the proof modal and resolves true only after the photo is uploaded
+      // and posted as a [proof] comment; false if the viewer cancels.
+      function openProof(task:Task):Promise<boolean>{
+        proofTask=task; resetProof(); proofModal.classList.add("open");
+        return new Promise<boolean>(res=>{ proofResolve=res; });
+      }
+      pFile.addEventListener("change",()=>{
+        const f=(pFile.files||[])[0]; if(!f) return;
+        if(!/^image\//.test(f.type)){ pErr.textContent=tr("proofOnlyImages"); return; }
+        if(f.size>MEDIA_MAX){ pErr.textContent=`"${f.name}" exceeds ${humanSize(MEDIA_MAX)}.`; return; }
+        proofFile=f; pErr.textContent="";
+        if(proofPreviewUrl) URL.revokeObjectURL(proofPreviewUrl);
+        proofPreviewUrl=URL.createObjectURL(f);
+        pInner.innerHTML=`<img class="${p}-proof-preview" src="${proofPreviewUrl}" alt=""><span class="${p}-proof-fname">${esc(f.name)}</span>`;
+        pDrop.classList.add("has"); pConfirm.disabled=false;
+      });
+      pCancel.addEventListener("click",()=>closeProof(false));
+      pX.addEventListener("click",()=>closeProof(false));
+      proofModal.addEventListener("click",e=>{ if(e.target===proofModal) closeProof(false); });
+      pConfirm.addEventListener("click",async()=>{
+        if(!proofFile||!proofTask||proofBusy) return;
+        const task=proofTask, file=proofFile;
+        proofBusy=true; pConfirm.disabled=true; pCancel.disabled=true; pX.disabled=true; pErr.textContent="";
+        pConfirm.innerHTML=`<span class="${p}-proof-spin"></span> ${tr("proofUploading")}`;
+        try{
+          const m=await uploadMedia(file);
+          await postComment(task, `${PROOF_MARK} [attachment:${m.id}]`);
+          // Keep the media referenced on the task so it persists and can surface later.
+          const nextIds=[...(task.attachmentIds||[]), m.id];
+          try{ await fetch(`${baseUrl}/tasks/${task.installId}/task/${task.id}`,{method:"PATCH",...apiOpts(),body:JSON.stringify({attachmentIds:nextIds})}); task.attachmentIds=nextIds; }catch(_){}
+          proofBusy=false; pCancel.disabled=false; pX.disabled=false;
+          closeProof(true);
+        }catch(e:any){
+          proofBusy=false; pCancel.disabled=false; pX.disabled=false; pConfirm.disabled=false;
+          pConfirm.innerHTML=tr("proofConfirm"); pErr.textContent=`${tr("proofFailed")}: ${e.message}`;
+        }
+      });
+
       // ── Drag-to-dismiss the bottom sheet (mobile only) ──────────────────
       (function setupSheetDrag(){
         let startY=0, dy=0, dragging=false;
@@ -661,6 +781,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         const task=detailTask; const wasDone=isDone(task.status);
         const next=wasDone?"OPEN":"CLOSED";
         detailToggle.disabled=true;
+        if(!wasDone && requireProof){
+          const ok=await openProof(task);
+          if(!ok){ detailToggle.disabled=false; return; }
+        }
         try{
           const res=await fetch(`${baseUrl}/tasks/${task.installId}/task/${task.id}`,{method:"PATCH",...apiOpts(),body:JSON.stringify({status:next})});
           if(!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -717,7 +841,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             ${avatarHtml(a)}
             <div class="${p}-cmt-main">
               <div class="${p}-cmt-head"><span class="${p}-cmt-author">${esc(a.name)}</span><span class="${p}-cmt-time">${esc(commentTime(c.createdAt||c.created||""))}</span></div>
-              <div class="${p}-cmt-body" dir="auto">${resolveAttachments(body)||"<em>(empty)</em>"}</div>
+              <div class="${p}-cmt-body" dir="auto">${resolveAttachments(stripProof(body))||"<em>(empty)</em>"}</div>
             </div>
           </div>`;
         }).join("");
@@ -976,6 +1100,12 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         const t=tasks.find(x=>x.id===row.dataset.id&&x.installId===row.dataset.inst); if(!t) return;
         const done=isDone(t.status); const next=done?"OPEN":"CLOSED";
         const wrap=btn.closest(`.${p}-check-wrap`) as HTMLElement;
+        if(!done && requireProof){
+          btn.disabled=true;
+          const ok=await openProof(t);
+          btn.disabled=false;
+          if(!ok) return;
+        }
         btn.classList.remove("pop-done","pop-undone"); void btn.offsetWidth; btn.classList.add(done?"pop-undone":"pop-done");
         if(!done){ btn.classList.add("checked"); row.classList.add("done"); spawnSparks(wrap,primaryColor); } else { btn.classList.remove("checked"); row.classList.remove("done"); }
         btn.disabled=true;
@@ -1048,7 +1178,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 const blockDefinition: BlockDefinition = {
   name: "simple-task-widget",
   label: "Simple Tasks Widget",
-  attributes: ["apitoken","baseurl","tasklist","showcompleted","allowtoggle","enablecomments","onlyassignedtome","usethemecolors","primarycolor","accentcolor","backgroundcolor","limitheight","maxheight"],
+  attributes: ["apitoken","baseurl","tasklist","showcompleted","allowtoggle","enablecomments","requirephotoproof","onlyassignedtome","usethemecolors","primarycolor","accentcolor","backgroundcolor","limitheight","maxheight"],
   factory, configurationSchema, uiSchema, blockLevel: "block",
   iconUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNzEgMTcxIj48Y2lyY2xlIGN4PSI4NS41IiBjeT0iODUuNSIgcj0iODUuNSIgZmlsbD0iIzE2QTM0QSIvPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQzLjUgNDMuNSkgc2NhbGUoMy41KSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTIxIDEwLjVWMTlhMiAyIDAgMCAxLTIgMkg1YTIgMiAwIDAgMS0yLTJWNWEyIDIgMCAwIDEgMi0yaDEyLjUiLz48cGF0aCBkPSJtOSAxMSAzIDNMMjIgNCIvPjwvZz48L3N2Zz4=",
 };

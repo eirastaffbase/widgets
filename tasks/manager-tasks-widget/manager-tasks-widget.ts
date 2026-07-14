@@ -42,6 +42,7 @@ const configurationSchema: JSONSchema7 = {
     notifyonassign:     { type:"boolean", title:"Notify on Assignment",     default: true },
     showdonetasks:      { type:"boolean", title:"Include Completed Tasks",  default: true },
     enablecomments:     { type:"boolean", title:"Enable Comments (experimental)", default: false },
+    enableproofreview:  { type:"boolean", title:"Enable Photo Proof Review", default: false },
     allowtaskcreation:  { type:"boolean", title:"Allow Task Creation", default: true },
     allowtaskassignment:{ type:"boolean", title:"Allow Task Reassignment", default: false },
     debugmode:          { type:"boolean", title:"Debug Mode (on-screen logs)", default: false },
@@ -92,6 +93,7 @@ const uiSchema: UiSchema = {
   notifyonassign:     { "ui:help":"Send a Staffbase notification (“You were assigned a new task”) to people newly assigned a task via this widget" },
   showdonetasks:      { "ui:help":"When enabled, completed tasks are included in the view" },
   enablecomments:     { "ui:help":"Experimental: show a comments section in the task detail panel (uses the logged-in user's session)" },
+  enableproofreview:  { "ui:help":"Adds a Proof Review tab for browsing photo proof submitted on tasks. Even when off, any task that has photo proof shows a Proof section in its detail panel." },
   allowtaskcreation:  { "ui:help":"Show a “New Task” button so managers can create and assign tasks from this widget" },
   allowtaskassignment:{ "ui:help":"Allow reassigning a task (to people and/or groups) from its detail panel" },
   debugmode:          { "ui:help":"Show an on-screen log panel with a copy button — useful for debugging inside the mobile app" },
@@ -215,6 +217,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const showCharts   = this.getAttribute("showcharts")         !== "false";
       const notifyOnAssign = this.getAttribute("notifyonassign")   !== "false";
       const enableComments = this.getAttribute("enablecomments")   === "true";
+      const enableProofReview = this.getAttribute("enableproofreview") === "true";
       const allowCreate    = this.getAttribute("allowtaskcreation") === "true";
       const allowAssign    = this.getAttribute("allowtaskassignment") === "true";
       const storeSingular  = this.getAttribute("storelabelsingular") || "Store";
@@ -412,6 +415,26 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-amodal-body img{max-width:100%;max-height:88vh;object-fit:contain;display:block}
           .${p}-amodal-body iframe,.${p}-amodal-body object,.${p}-amodal-pdf{width:100%;height:84vh;border:none;background:#fff}
           .${p}-amodal-none{display:flex;flex-direction:column;align-items:center;gap:12px;padding:48px 24px;color:var(--gray-lt);font-size:13px}
+          /* ── Photo proof review ── */
+          .${p}-vtabs{display:flex;gap:4px;margin-bottom:14px;background:#f3f4f6;border-radius:var(--r-md);padding:3px}
+          .${p}-vtab{flex:1;padding:8px 12px;border:none;border-radius:calc(var(--r-md) - 3px);background:transparent;font-family:inherit;font-size:13px;font-weight:700;color:var(--gray);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;transition:all .15s}
+          .${p}-vtab:hover{color:var(--dark)}
+          .${p}-vtab.active{background:#fff;color:var(--primary);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+          .${p}-vtab.active:hover{color:var(--primary)}
+          .${p}-proof-view{padding-top:2px}
+          .${p}-proof-list{display:flex;flex-direction:column;gap:12px}
+          .${p}-proof-card{border:1px solid var(--border);border-radius:var(--r-md);background:#fff;overflow:hidden}
+          .${p}-proof-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--border)}
+          .${p}-proof-card-head:hover{background:rgba(var(--primary-rgb),.05)}
+          .${p}-proof-card-title{font-size:13px;font-weight:700;color:var(--dark);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+          .${p}-proof-card-meta{font-size:11px;font-weight:600;color:var(--gray-lt);flex-shrink:0;white-space:nowrap}
+          .${p}-proof-grid,.${p}-proof-detail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;padding:12px}
+          .${p}-proof-detail-grid{padding:0}
+          .${p}-proof-thumb{display:block;aspect-ratio:1;border-radius:var(--r-sm);overflow:hidden;background:#f1f3f5;border:1px solid var(--border);cursor:pointer}
+          .${p}-proof-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+          .${p}-proof-sec{margin-top:18px;border-top:1px solid var(--border);padding-top:14px}
+          .${p}-proof-item{margin:0;display:flex;flex-direction:column;gap:4px}
+          .${p}-proof-cap{font-size:11px;color:var(--gray);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
           .${p}-att-x{width:auto!important;margin:0 0 0 2px!important;border:none!important;background:none!important;color:var(--gray-lt);cursor:pointer;padding:3px!important;display:flex!important;border-radius:50%;flex-shrink:0;transition:color .15s,background .15s}
           .${p}-att-x:hover{color:var(--error);background:rgba(196,30,58,.08)}
           .${p}-att-empty{font-size:12px;color:var(--gray-lt)}
@@ -711,6 +734,18 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             </div>
           </div>
 
+          ${enableProofReview?`<div class="${p}-vtabs" id="${p}-vtabs" role="tablist">
+            <button type="button" class="${p}-vtab active" id="${p}-vtab-tasks" data-view="tasks">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+              ${tr("tasksTab")}
+            </button>
+            <button type="button" class="${p}-vtab" id="${p}-vtab-proof" data-view="proof">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              ${tr("proofTab")}
+            </button>
+          </div>`:""}
+
+          <div id="${p}-tasks-view">
           <div class="${p}-store-tabs" id="${p}-store-tabs" style="display:none"></div>
           <div class="${p}-banner" id="${p}-banner"></div>
 
@@ -759,6 +794,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               Loading…
             </div>
           </div>
+          </div><!-- /tasks-view -->
+
+          ${enableProofReview?`<div class="${p}-proof-view" id="${p}-proof-view" style="display:none"></div>`:""}
         </div>
       `;
 
@@ -779,6 +817,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const typeBtn       = container.querySelector(`#${p}-type-btn`) as HTMLButtonElement;
       const typeLabelEl   = container.querySelector(`#${p}-type-label`) as HTMLElement;
       const typeMenu      = container.querySelector(`#${p}-type-menu`) as HTMLElement;
+      const vtabsEl       = container.querySelector(`#${p}-vtabs`) as HTMLElement | null;
+      const tasksViewEl   = container.querySelector(`#${p}-tasks-view`) as HTMLElement | null;
+      const proofViewEl   = container.querySelector(`#${p}-proof-view`) as HTMLElement | null;
 
       // Detail panel — appended to body so position:fixed works in Staffbase.
       // Body-appended elements + document listeners don't get cleaned up on
@@ -1105,6 +1146,11 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       }
       const CMT_CREATE_CT="application/vnd.staffbase.tasks.comment-create.v1+json";
       const CMT_HTML_ACCEPT="application/vnd.staffbase.tasks.comment.html-content.v1+json";
+      // Photo-proof comments carry this marker. It flags a comment (with an image
+      // attachment) as proof; the token is stripped from the visible comment body.
+      const PROOF_MARK="[proof]";
+      const stripProof=(html:string):string=>html.replace(/\[proof\]/gi,"").trim();
+      const isProofComment=(c:any):boolean=>commentPlain(c).toLowerCase().indexOf(PROOF_MARK)>=0;
       // Build the Designer content document the create endpoint expects.
       function commentDoc(text:string):any{
         const html=`<p>${esc(text)}</p>`;
@@ -1445,7 +1491,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             ${avatarHtml(a)}
             <div class="${p}-cmt-main">
               <div class="${p}-cmt-head"><span class="${p}-cmt-author">${esc(a.name)}</span><span class="${p}-cmt-time">${esc(commentTime(c.createdAt||c.created||""))}</span></div>
-              <div class="${p}-cmt-body" dir="auto">${resolveAttachments(body)||"<em>(empty)</em>"}</div>
+              <div class="${p}-cmt-body" dir="auto">${resolveAttachments(stripProof(body))||"<em>(empty)</em>"}</div>
             </div>
           </div>`;
         }).join("");
@@ -1502,6 +1548,104 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             }catch(e:any){ showBanner("error",`Could not remove: ${e.message}`); (btn as HTMLButtonElement).disabled=false; }
           });
         });
+      }
+
+      // ── Photo proof ───────────────────────────────────────────────────
+      // Extract every [attachment:<id>] token carried by a proof comment.
+      function proofAttIds(c:any):string[]{
+        const txt=commentText(c); const ids:string[]=[]; let m; ATT_TOKEN.lastIndex=0;
+        while((m=ATT_TOKEN.exec(txt))) ids.push(m[1]);
+        return ids;
+      }
+      type ProofItem={ id:string; authorId:string; createdAt:string };
+      function collectProofItems(comments:any[]):ProofItem[]{
+        const items:ProofItem[]=[];
+        comments.filter(isProofComment).forEach(c=>{
+          const at=c.createdAt||c.created||"";
+          proofAttIds(c).forEach(id=>items.push({ id, authorId:commentAuthorId(c), createdAt:at }));
+        });
+        return items;
+      }
+      function proofThumb(it:ProofItem):string{
+        const m=mediaCache.get(it.id);
+        const turl=m?.thumbnail?.url||"";
+        const full=originalUrl(m)||turl;
+        const fn=m?.fileName||"proof";
+        const kind=attKind(m);
+        return `<a class="${p}-proof-thumb" href="${esc(full)||"#"}" target="_blank" rel="noopener" data-att-url="${esc(full)}" data-att-preview="${esc(turl)}" data-att-name="${esc(fn)}" data-att-kind="${kind}">${turl?`<img src="${esc(turl)}" alt="${esc(fn)}">`:iFileGeneric}</a>`;
+      }
+      // Detail-panel "Proof" section — always shown when a task has photo proof,
+      // independent of the Proof Review tab toggle.
+      async function renderProofSection(task:Task){
+        const box=detailBody.querySelector(`#${p}-proof-sec-${instId}`) as HTMLElement|null;
+        if(!box) return;
+        let comments:any[]=[];
+        try{ comments=await loadComments(task); }catch(_){ box.style.display="none"; box.innerHTML=""; return; }
+        if(detailTask!==task) return;
+        const items=collectProofItems(comments);
+        if(!items.length){ box.style.display="none"; box.innerHTML=""; return; }
+        await Promise.all(items.map(it=>metaCached(it.id)));
+        if(detailTask!==task) return;
+        const authors=await Promise.all(items.map(it=>fetchUser(it.authorId)));
+        if(detailTask!==task) return;
+        box.innerHTML=`
+          <div class="${p}-att-head"><span class="${p}-att-label">${tr("proofLabel")}</span></div>
+          <div class="${p}-proof-detail-grid">
+            ${items.map((it,i)=>{
+              const cap=[authors[i]?.name,commentTime(it.createdAt)].filter(Boolean).join(" · ");
+              return `<figure class="${p}-proof-item">
+                ${proofThumb(it)}
+                ${cap?`<figcaption class="${p}-proof-cap">${esc(cap)}</figcaption>`:""}
+              </figure>`;
+            }).join("")}
+          </div>`;
+        box.style.display="";
+      }
+      // Load proof across the manager's whole team for the review gallery.
+      type ProofGroup={ task:Task; items:ProofItem[] };
+      async function loadProofItems():Promise<ProofGroup[]>{
+        const tasks=allTasks.filter(t=>t.taskType!=="audit-result"&&inTeam(t));
+        const results=await Promise.all(tasks.map(async t=>{
+          let comments:any[]=[];
+          try{ comments=await loadComments(t); }catch(_){ return null; }
+          const items=collectProofItems(comments);
+          return items.length?{ task:t, items }:null;
+        }));
+        return results.filter((x): x is ProofGroup => !!x);
+      }
+      const proofLatest=(g:ProofGroup):number=>g.items.reduce((mx,it)=>{ const t=Date.parse(it.createdAt); return isNaN(t)?mx:Math.max(mx,t); },0);
+      function paintProofView(groups:ProofGroup[]){
+        if(!proofViewEl) return;
+        groups.sort((a,b)=>proofLatest(b)-proofLatest(a));
+        proofViewEl.innerHTML=`<div class="${p}-proof-list">${groups.map(g=>{
+          const n=g.items.length;
+          const meta=n===1?tr("onePhoto"):tr("manyPhotos").replace("{n}",String(n));
+          return `<div class="${p}-proof-card">
+            <div class="${p}-proof-card-head" data-proof-task="${esc(g.task.id)}" role="button" tabindex="0">
+              <span class="${p}-proof-card-title" dir="auto">${esc(ct(g.task.title))}</span>
+              <span class="${p}-proof-card-meta">${meta}</span>
+            </div>
+            <div class="${p}-proof-grid">${g.items.map(proofThumb).join("")}</div>
+          </div>`;
+        }).join("")}</div>`;
+      }
+      let proofViewSeq=0;
+      async function renderProofView(){
+        if(!proofViewEl) return;
+        const seq=++proofViewSeq;
+        proofViewEl.innerHTML=`<div class="${p}-state"><span class="${p}-spin" style="width:24px;height:24px;border-width:3px;margin:0 auto 12px;display:block"></span>${tr("loading")}</div>`;
+        let groups:ProofGroup[]=[];
+        try{ groups=await loadProofItems(); }
+        catch(e:any){ if(seq===proofViewSeq) proofViewEl.innerHTML=`<div class="${p}-state"><strong>${tr("failedToLoad")}</strong>${esc(e.message)}</div>`; return; }
+        if(seq!==proofViewSeq) return;
+        if(!groups.length){
+          proofViewEl.innerHTML=`<div class="${p}-amodal-none"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg><span>${tr("noProofYet")}</span></div>`;
+          return;
+        }
+        const ids=new Set<string>(); groups.forEach(g=>g.items.forEach(it=>ids.add(it.id)));
+        await Promise.all([...ids].map(metaCached));
+        if(seq!==proofViewSeq) return;
+        paintProofView(groups);
       }
 
       // ── Distinct types for visible install ────────────────────────────
@@ -2136,6 +2280,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               ? `<div class="${p}-detail-desc-label">${tr("description")}</div><div class="${p}-detail-desc" dir="auto">${esc(ct(cleanDesc))}</div>`
               : `<div class="${p}-detail-desc empty">${tr("noDescription")}</div>`;
           })()}
+          <div class="${p}-proof-sec" id="${p}-proof-sec-${instId}" style="display:none"></div>
           <div class="${p}-att">
             <div class="${p}-att-head">
               <span class="${p}-att-label">${tr("attachments")}</span>
@@ -2164,6 +2309,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         `;
 
         renderAttachments(task);
+        renderProofSection(task);
 
         // Resolve assignee IDs → names (shown in the Person tab).
         detailBody.querySelectorAll(`.${p}-detail-meta-row[data-uid]`).forEach(row=>{
@@ -2707,9 +2853,33 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
         refreshBtn.disabled=false;
         refreshBtn.innerHTML=`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`;
+        // Keep the proof gallery fresh if the manager is viewing it on refresh.
+        if(proofViewEl && proofViewEl.style.display!=="none") renderProofView();
       }
 
       refreshBtn.addEventListener("click",load);
+
+      // ── Proof Review view switching ────────────────────────────────────
+      let proofLoaded = false;
+      const switchView = (view:string)=>{
+        const proof = view==="proof";
+        if(tasksViewEl) tasksViewEl.style.display = proof?"none":"";
+        if(proofViewEl) proofViewEl.style.display = proof?"":"none";
+        vtabsEl?.querySelectorAll(`.${p}-vtab`).forEach(b=>{
+          b.classList.toggle("active",(b as HTMLElement).dataset.view===view);
+        });
+        if(proof && !proofLoaded){ proofLoaded=true; renderProofView(); }
+      };
+      vtabsEl?.querySelectorAll(`.${p}-vtab`).forEach(btn=>{
+        btn.addEventListener("click",()=>switchView((btn as HTMLElement).dataset.view||"tasks"));
+      });
+      // Delegated lightbox open for proof thumbnails in the review gallery.
+      proofViewEl?.addEventListener("click",(ev)=>{
+        const a=(ev.target as HTMLElement)?.closest?.("[data-att-url]") as HTMLElement|null;
+        if(a){ ev.preventDefault(); openAttModal(a.dataset.attPreview||a.dataset.attUrl||"", a.dataset.attUrl||"", a.dataset.attName||"file", a.dataset.attKind||"img"); return; }
+        const head=(ev.target as HTMLElement)?.closest?.("[data-proof-task]") as HTMLElement|null;
+        if(head){ const id=head.getAttribute("data-proof-task")||""; const task=allTasks.find(x=>x.id===id); if(task) openDetail(task); }
+      });
 
       // Team-member dropdown → filter list + dashboard (no refetch).
       teamSelect?.addEventListener("change",()=>{
@@ -2891,7 +3061,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
 const blockDefinition: BlockDefinition = {
   name:"manager-tasks-widget", label:"Manager Tasks Widget",
-  attributes:["apitoken","baseurl","usethemecolors","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","typecolors","teamsource","teamuserids","showcharts","notifyonassign","showdonetasks","enablecomments","allowtaskcreation","allowtaskassignment","debugmode","limitheight","maxheight"],
+  attributes:["apitoken","baseurl","usethemecolors","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","typecolors","teamsource","teamuserids","showcharts","notifyonassign","showdonetasks","enablecomments","enableproofreview","allowtaskcreation","allowtaskassignment","debugmode","limitheight","maxheight"],
   factory, configurationSchema, uiSchema, blockLevel:"block", iconUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNzEgMTcxIj48Y2lyY2xlIGN4PSI4NS41IiBjeT0iODUuNSIgcj0iODUuNSIgZmlsbD0iIzRGNDZFNSIvPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQzLjUgNDMuNSkgc2NhbGUoMy41KSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHJlY3Qgd2lkdGg9IjgiIGhlaWdodD0iNCIgeD0iOCIgeT0iMiIgcng9IjEiIHJ5PSIxIi8+PHBhdGggZD0iTTE2IDRoMmEyIDIgMCAwIDEgMiAydjE0YTIgMiAwIDAgMS0yIDJINmEyIDIgMCAwIDEtMi0yVjZhMiAyIDAgMCAxIDItMmgyIi8+PHBhdGggZD0ibTkgMTQgMiAyIDQtNCIvPjwvZz48L3N2Zz4=",
 };
 

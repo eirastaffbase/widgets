@@ -403,6 +403,13 @@ const STRINGS = {
         both: "Both",
         close: "Close",
         noPreview: "No preview available — use Download",
+        proofTitle: "Photo proof",
+        proofDesc: "Add a photo to complete this task.",
+        proofPick: "Tap to add a photo",
+        proofConfirm: "Submit & complete",
+        proofUploading: "Uploading…",
+        proofOnlyImages: "Please choose an image file.",
+        proofFailed: "Couldn't submit proof",
         groups: "Groups",
         people: "People",
         loading: "Loading…",
@@ -508,6 +515,13 @@ const STRINGS = {
         both: "Beide",
         close: "Schließen",
         noPreview: "Keine Vorschau verfügbar – Download verwenden",
+        proofTitle: "Fotonachweis",
+        proofDesc: "Füge ein Foto hinzu, um diese Aufgabe abzuschließen.",
+        proofPick: "Tippen, um ein Foto hinzuzufügen",
+        proofConfirm: "Senden & abschließen",
+        proofUploading: "Wird hochgeladen…",
+        proofOnlyImages: "Bitte wähle eine Bilddatei.",
+        proofFailed: "Nachweis konnte nicht gesendet werden",
         groups: "Gruppen",
         people: "Personen",
         loading: "Wird geladen…",
@@ -607,6 +621,13 @@ const STRINGS = {
         both: "كلاهما",
         close: "إغلاق",
         noPreview: "لا تتوفر معاينة — استخدم التنزيل",
+        proofTitle: "إثبات بالصورة",
+        proofDesc: "أضف صورة لإكمال هذه المهمة.",
+        proofPick: "اضغط لإضافة صورة",
+        proofConfirm: "إرسال وإكمال",
+        proofUploading: "جارٍ الرفع…",
+        proofOnlyImages: "يرجى اختيار ملف صورة.",
+        proofFailed: "تعذّر إرسال الإثبات",
         groups: "المجموعات",
         people: "الأشخاص",
         loading: "جارٍ التحميل…",
@@ -1909,6 +1930,7 @@ const configurationSchema = {
         showdonetasks: { type: "boolean", title: "Include Completed Tasks", default: true },
         auditmode: { type: "boolean", title: "Audit Mode", default: false },
         enablecomments: { type: "boolean", title: "Enable Comments (experimental)", default: false },
+        requirephotoproof: { type: "boolean", title: "Require Photo Proof", default: false },
         allowtaskcreation: { type: "boolean", title: "Allow Task Creation", default: false },
         allowtaskassignment: { type: "boolean", title: "Allow Task Assignment", default: false },
         notifyonassign: { type: "boolean", title: "Notify on Assignment", default: true },
@@ -1966,6 +1988,7 @@ const uiSchema = {
     showdonetasks: { "ui:help": "When enabled, completed tasks are included in the view" },
     auditmode: { "ui:help": "When enabled, shows audit results and history instead of regular tasks" },
     enablecomments: { "ui:help": "Experimental: show a comments section in the task detail panel (uses the logged-in user's session)" },
+    requirephotoproof: { "ui:help": "When on, marking a task done requires the viewer to submit a photo. The photo is posted as a proof comment on the task, and the task is only marked done once the photo is uploaded." },
     allowtaskcreation: { "ui:help": "Show a “New Task” button so users can create tasks from this widget" },
     allowtaskassignment: { "ui:help": "Allow reassigning a task (to a group or person) from its detail panel — works in both normal and audit mode" },
     notifyonassign: { "ui:help": "Send a Staffbase notification (“You were assigned a new task”) to people newly assigned a task via this widget" },
@@ -2195,6 +2218,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const showDone = this.getAttribute("showdonetasks") !== "false";
                 const auditMode = this.getAttribute("auditmode") === "true";
                 const enableComments = this.getAttribute("enablecomments") === "true";
+                const requireProof = this.getAttribute("requirephotoproof") === "true";
                 const allowCreate = this.getAttribute("allowtaskcreation") === "true";
                 const allowAssign = this.getAttribute("allowtaskassignment") === "true";
                 const notifyOnAssign = this.getAttribute("notifyonassign") !== "false";
@@ -2378,6 +2402,33 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-amodal-body img{max-width:100%;max-height:88vh;object-fit:contain;display:block}
           .${p}-amodal-body iframe,.${p}-amodal-body object,.${p}-amodal-pdf{width:100%;height:84vh;border:none;background:#fff}
           .${p}-amodal-none{display:flex;flex-direction:column;align-items:center;gap:12px;padding:48px 24px;color:var(--gray-lt);font-size:13px}
+          /* ── Photo proof modal ── */
+          .${p}-proof{--primary:${primaryColor};--primary-rgb:${primaryRgb};--primary-text:${primaryText};--accent:${accentColor};--dark:#1A1A1A;--gray:#6b7280;--gray-lt:#9ca3af;--border:#e5e7eb;--error:#C41E3A;--r-sm:6px;--r-md:10px;--r-lg:14px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;position:fixed;inset:0;z-index:100003;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:16px}
+          .${p}-proof.open{display:flex}
+          .${p}-proof-card{background:#fff;border-radius:var(--r-lg);width:100%;max-width:min(420px,96vw);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 12px 48px rgba(0,0,0,.4)}
+          .${p}-proof-head{display:flex;align-items:center;gap:8px;padding:13px 14px;border-bottom:1px solid var(--border);flex-shrink:0}
+          .${p}-proof-title{flex:1;min-width:0;font-size:14px;font-weight:800;color:var(--dark)}
+          .${p}-proof-x{width:30px;height:30px;flex-shrink:0;border:none;border-radius:50%;background:#f3f4f6;color:var(--gray);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+          .${p}-proof-x:disabled{opacity:.4;cursor:default}
+          .${p}-proof-body{padding:14px}
+          .${p}-proof-desc{margin:0 0 12px;font-size:13px;color:var(--gray);line-height:1.5}
+          .${p}-proof-drop{display:block;position:relative;border:1.5px dashed rgba(var(--primary-rgb),.4);border-radius:var(--r-md);background:rgba(var(--primary-rgb),.04);cursor:pointer;overflow:hidden;transition:border-color .15s,background .15s}
+          .${p}-proof-drop:hover{border-color:var(--primary);background:rgba(var(--primary-rgb),.08)}
+          .${p}-proof-drop.has{border-style:solid;border-color:var(--primary)}
+          .${p}-proof-drop-inner{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:150px;padding:20px;color:var(--primary);font-size:13px;font-weight:700;text-align:center}
+          .${p}-proof-drop.has .${p}-proof-drop-inner{padding:0;gap:0}
+          .${p}-proof-preview{width:100%;max-height:260px;object-fit:contain;display:block;background:#f1f3f5}
+          .${p}-proof-fname{padding:8px 10px;font-size:12px;color:var(--gray);font-weight:600;width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
+          .${p}-proof-file{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+          .${p}-proof-err{margin-top:10px;font-size:12px;color:var(--error);font-weight:600}
+          .${p}-proof-err:empty{display:none}
+          .${p}-proof-foot{display:flex;gap:8px;padding:12px 14px;border-top:1px solid var(--border);flex-shrink:0}
+          .${p}-proof-btn{flex:1;padding:10px;border-radius:var(--r-md);border:none;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:7px;transition:all .15s}
+          .${p}-proof-cancel{background:#f3f4f6;color:var(--gray)}
+          .${p}-proof-cancel:disabled{opacity:.5;cursor:default}
+          .${p}-proof-confirm{background:var(--primary);color:var(--primary-text,#fff)}
+          .${p}-proof-confirm:disabled{opacity:.5;cursor:default}
+          .${p}-proof-spin{width:13px;height:13px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;display:inline-block;animation:${p}-spin .7s linear infinite}
           .${p}-att-x{width:auto!important;margin:0 0 0 2px!important;border:none!important;background:none!important;color:var(--gray-lt);cursor:pointer;padding:3px!important;display:flex!important;border-radius:50%;flex-shrink:0;transition:color .15s,background .15s}
           .${p}-att-x:hover{color:var(--error);background:rgba(196,30,58,.08)}
           .${p}-att-empty{font-size:12px;color:var(--gray-lt)}
@@ -2821,6 +2872,10 @@ const factory = (BaseBlockClass, widgetApi) => {
                     self._mtwAModal.remove();
                     self._mtwAModal = undefined;
                 }
+                if (self._mtwProof) {
+                    self._mtwProof.remove();
+                    self._mtwProof = undefined;
+                }
                 if (self._mtwCreate) {
                     self._mtwCreate.remove();
                     self._mtwCreate = undefined;
@@ -2958,6 +3013,135 @@ const factory = (BaseBlockClass, widgetApi) => {
                     e.preventDefault();
                     openAttModal(a.dataset.attPreview || a.dataset.attUrl || "", a.dataset.attUrl || "", a.dataset.attName || "file", a.dataset.attKind || "other");
                 });
+                // ── Photo-proof modal (gates "mark done" when Require Photo Proof is on) ──
+                const iCamera = `<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
+                const proofModal = document.createElement("div");
+                proofModal.className = `${p}-proof`;
+                proofModal.dataset.sbPortal = instId;
+                proofModal.innerHTML = `
+        <div class="${p}-proof-card">
+          <div class="${p}-proof-head">
+            <span class="${p}-proof-title">${tr("proofTitle")}</span>
+            <button type="button" class="${p}-proof-x" id="${p}-proof-x-${instId}" aria-label="${tr("cancel")}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+          </div>
+          <div class="${p}-proof-body">
+            <p class="${p}-proof-desc">${tr("proofDesc")}</p>
+            <label class="${p}-proof-drop" id="${p}-proof-drop-${instId}" for="${p}-proof-file-${instId}">
+              <div class="${p}-proof-drop-inner" id="${p}-proof-inner-${instId}">${iCamera}<span>${tr("proofPick")}</span></div>
+            </label>
+            <input type="file" accept="image/*" class="${p}-proof-file" id="${p}-proof-file-${instId}">
+            <div class="${p}-proof-err" id="${p}-proof-err-${instId}"></div>
+          </div>
+          <div class="${p}-proof-foot">
+            <button type="button" class="${p}-proof-btn ${p}-proof-cancel" id="${p}-proof-cancel-${instId}">${tr("cancel")}</button>
+            <button type="button" class="${p}-proof-btn ${p}-proof-confirm" id="${p}-proof-confirm-${instId}" disabled>${tr("proofConfirm")}</button>
+          </div>
+        </div>`;
+                document.body.appendChild(proofModal);
+                self._mtwProof = proofModal;
+                const pFile = proofModal.querySelector(`#${p}-proof-file-${instId}`);
+                const pDrop = proofModal.querySelector(`#${p}-proof-drop-${instId}`);
+                const pInner = proofModal.querySelector(`#${p}-proof-inner-${instId}`);
+                const pErr = proofModal.querySelector(`#${p}-proof-err-${instId}`);
+                const pCancel = proofModal.querySelector(`#${p}-proof-cancel-${instId}`);
+                const pConfirm = proofModal.querySelector(`#${p}-proof-confirm-${instId}`);
+                const pX = proofModal.querySelector(`#${p}-proof-x-${instId}`);
+                let proofResolve = null;
+                let proofFile = null;
+                let proofTask = null;
+                let proofBusy = false;
+                let proofPreviewUrl = "";
+                function resetProof() {
+                    proofFile = null;
+                    pErr.textContent = "";
+                    pConfirm.disabled = true;
+                    pConfirm.innerHTML = tr("proofConfirm");
+                    pDrop.classList.remove("has");
+                    pInner.innerHTML = `${iCamera}<span>${tr("proofPick")}</span>`;
+                    pFile.value = "";
+                    if (proofPreviewUrl) {
+                        URL.revokeObjectURL(proofPreviewUrl);
+                        proofPreviewUrl = "";
+                    }
+                }
+                function closeProof(result) {
+                    if (proofBusy)
+                        return;
+                    proofModal.classList.remove("open");
+                    const r = proofResolve;
+                    proofResolve = null;
+                    proofTask = null;
+                    resetProof();
+                    if (r)
+                        r(result);
+                }
+                // Opens the proof modal and resolves true only after the photo is uploaded
+                // and posted as a [proof] comment; false if the viewer cancels.
+                function openProof(task) {
+                    proofTask = task;
+                    resetProof();
+                    proofModal.classList.add("open");
+                    return new Promise(res => { proofResolve = res; });
+                }
+                pFile.addEventListener("change", () => {
+                    const f = (pFile.files || [])[0];
+                    if (!f)
+                        return;
+                    if (!/^image\//.test(f.type)) {
+                        pErr.textContent = tr("proofOnlyImages");
+                        return;
+                    }
+                    if (f.size > MEDIA_MAX) {
+                        pErr.textContent = `"${f.name}" exceeds ${humanSize(MEDIA_MAX)}.`;
+                        return;
+                    }
+                    proofFile = f;
+                    pErr.textContent = "";
+                    if (proofPreviewUrl)
+                        URL.revokeObjectURL(proofPreviewUrl);
+                    proofPreviewUrl = URL.createObjectURL(f);
+                    pInner.innerHTML = `<img class="${p}-proof-preview" src="${proofPreviewUrl}" alt=""><span class="${p}-proof-fname">${esc(f.name)}</span>`;
+                    pDrop.classList.add("has");
+                    pConfirm.disabled = false;
+                });
+                pCancel.addEventListener("click", () => closeProof(false));
+                pX.addEventListener("click", () => closeProof(false));
+                proofModal.addEventListener("click", e => { if (e.target === proofModal)
+                    closeProof(false); });
+                pConfirm.addEventListener("click", () => my_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                    if (!proofFile || !proofTask || proofBusy)
+                        return;
+                    const task = proofTask, file = proofFile;
+                    proofBusy = true;
+                    pConfirm.disabled = true;
+                    pCancel.disabled = true;
+                    pX.disabled = true;
+                    pErr.textContent = "";
+                    pConfirm.innerHTML = `<span class="${p}-proof-spin"></span> ${tr("proofUploading")}`;
+                    try {
+                        const m = yield uploadMedia(file);
+                        yield postComment(task, `${PROOF_MARK} [attachment:${m.id}]`);
+                        // Keep the media referenced on the task so it persists and can surface later.
+                        const nextIds = [...(task.attachmentIds || []), m.id];
+                        try {
+                            yield fetch(`${baseUrl}/tasks/${task.installationId}/task/${task.id}`, Object.assign(Object.assign({ method: "PATCH" }, apiOpts()), { body: JSON.stringify({ attachmentIds: nextIds }) }));
+                            task.attachmentIds = nextIds;
+                        }
+                        catch (_) { }
+                        proofBusy = false;
+                        pCancel.disabled = false;
+                        pX.disabled = false;
+                        closeProof(true);
+                    }
+                    catch (e) {
+                        proofBusy = false;
+                        pCancel.disabled = false;
+                        pX.disabled = false;
+                        pConfirm.disabled = false;
+                        pConfirm.innerHTML = tr("proofConfirm");
+                        pErr.textContent = `${tr("proofFailed")}: ${e.message}`;
+                    }
+                }));
                 // ── Drag-to-dismiss the bottom sheet (mobile) ──────────────────────
                 (function setupSheetDrag() {
                     let startY = 0, dy = 0, dragging = false;
@@ -3220,6 +3404,10 @@ const factory = (BaseBlockClass, widgetApi) => {
                 }
                 const CMT_CREATE_CT = "application/vnd.staffbase.tasks.comment-create.v1+json";
                 const CMT_HTML_ACCEPT = "application/vnd.staffbase.tasks.comment.html-content.v1+json";
+                // Photo-proof comments are stamped with this marker; the token is stripped
+                // from the visible comment body but the attached image still renders.
+                const PROOF_MARK = "[proof]";
+                const stripProof = (html) => html.replace(/\[proof\]/gi, "").trim();
                 // Build the Designer content document the create endpoint expects.
                 function commentDoc(text) {
                     const html = `<p>${esc(text)}</p>`;
@@ -3602,7 +3790,7 @@ const factory = (BaseBlockClass, widgetApi) => {
             ${avatarHtml(a)}
             <div class="${p}-cmt-main">
               <div class="${p}-cmt-head"><span class="${p}-cmt-author">${esc(a.name)}</span><span class="${p}-cmt-time">${esc(commentTime(c.createdAt || c.created || ""))}</span></div>
-              <div class="${p}-cmt-body" dir="auto">${resolveAttachments(body) || "<em>(empty)</em>"}</div>
+              <div class="${p}-cmt-body" dir="auto">${resolveAttachments(stripProof(body)) || "<em>(empty)</em>"}</div>
             </div>
           </div>`;
                     }).join("");
@@ -4896,6 +5084,13 @@ const factory = (BaseBlockClass, widgetApi) => {
                     const isDone = task.status === "DONE" || task.status === "done" || task.status === "CLOSED";
                     const newStatus = isDone ? "OPEN" : "CLOSED";
                     detailToggle.disabled = true;
+                    if (!isDone && requireProof) {
+                        const ok = yield openProof(task);
+                        if (!ok) {
+                            detailToggle.disabled = false;
+                            return;
+                        }
+                    }
                     try {
                         const res = yield fetch(`${baseUrl}/tasks/${task.installationId}/task/${task.id}`, Object.assign(Object.assign({ method: "PATCH" }, apiOpts()), { body: JSON.stringify({ status: newStatus }) }));
                         if (!res.ok)
@@ -4949,6 +5144,16 @@ const factory = (BaseBlockClass, widgetApi) => {
                         const newStatus = isDone ? "OPEN" : "CLOSED";
                         const cardEl = checkEl.closest(`.${p}-card`);
                         const wrap = checkEl.closest(`.${p}-check-wrap`);
+                        if (!isDone && requireProof) {
+                            const t = allTasks.find(x => x.id === taskId);
+                            if (t) {
+                                checkEl.style.pointerEvents = "none";
+                                const ok = yield openProof(t);
+                                checkEl.style.pointerEvents = "";
+                                if (!ok)
+                                    return;
+                            }
+                        }
                         checkEl.style.pointerEvents = "none";
                         checkEl.classList.remove("pop-done", "pop-undone");
                         void checkEl.offsetWidth;
@@ -5612,6 +5817,10 @@ const factory = (BaseBlockClass, widgetApi) => {
                 self._mtwAModal.remove();
                 self._mtwAModal = undefined;
             }
+            if (self._mtwProof) {
+                self._mtwProof.remove();
+                self._mtwProof = undefined;
+            }
             if (self._mtwCreate) {
                 self._mtwCreate.remove();
                 self._mtwCreate = undefined;
@@ -5642,7 +5851,7 @@ const factory = (BaseBlockClass, widgetApi) => {
 // ── Block registration ────────────────────────────────────────────────────────
 const blockDefinition = {
     name: "my-tasks-widget", label: "My Tasks Widget",
-    attributes: ["apitoken", "baseurl", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor", "storelabelsingular", "storelabelplural", "typecolors", "showalltasks", "showdonetasks", "auditmode", "enablecomments", "allowtaskcreation", "allowtaskassignment", "notifyonassign", "detailedlogging", "debugmode", "limitheight", "maxheight", "showcalendar", "showupcomingrecurring"],
+    attributes: ["apitoken", "baseurl", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor", "storelabelsingular", "storelabelplural", "typecolors", "showalltasks", "showdonetasks", "auditmode", "enablecomments", "requirephotoproof", "allowtaskcreation", "allowtaskassignment", "notifyonassign", "detailedlogging", "debugmode", "limitheight", "maxheight", "showcalendar", "showupcomingrecurring"],
     factory, configurationSchema, uiSchema, blockLevel: "block", iconUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNzEgMTcxIj48Y2lyY2xlIGN4PSI4NS41IiBjeT0iODUuNSIgcj0iODUuNSIgZmlsbD0iIzBFQTVFOSIvPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQzLjUgNDMuNSkgc2NhbGUoMy41KSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0ibTMgMTcgMiAyIDQtNCIvPjxwYXRoIGQ9Im0zIDcgMiAyIDQtNCIvPjxwYXRoIGQ9Ik0xMyA2aDgiLz48cGF0aCBkPSJNMTMgMTJoOCIvPjxwYXRoIGQ9Ik0xMyAxOGg4Ii8+PC9nPjwvc3ZnPg==",
 };
 window.defineBlock({ blockDefinition, author: "Staffbase", version: "1.0.0" });
