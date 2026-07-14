@@ -1060,8 +1060,8 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-proof-x:disabled{opacity:.4;cursor:default}
           .${p}-proof-body{padding:14px}
           .${p}-proof-desc{margin:0 0 12px;font-size:13px;color:var(--gray);line-height:1.5}
-          .${p}-proof-drop{display:block;position:relative;border:1.5px dashed rgba(var(--primary-rgb),.4);border-radius:var(--r-md);background:rgba(var(--primary-rgb),.04);cursor:pointer;overflow:hidden;transition:border-color .15s,background .15s}
-          .${p}-proof-drop:hover{border-color:var(--primary);background:rgba(var(--primary-rgb),.08)}
+          .${p}-proof-drop{display:block;position:relative;border:1.5px dashed rgba(var(--primary-rgb),.4);border-radius:var(--r-md);background:rgba(var(--primary-rgb),.04);cursor:pointer;overflow:hidden;transition:border-color .15s,background .15s;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+          @media (hover:hover){.${p}-proof-drop:hover{border-color:var(--primary);background:rgba(var(--primary-rgb),.08)}}
           .${p}-proof-drop.has{border-style:solid;border-color:var(--primary)}
           .${p}-proof-drop-inner{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:150px;padding:20px;color:var(--primary);font-size:13px;font-weight:700;text-align:center}
           .${p}-proof-drop.has .${p}-proof-drop-inner{padding:0;gap:0}
