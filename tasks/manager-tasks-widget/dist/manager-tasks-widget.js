@@ -409,9 +409,13 @@ const STRINGS = {
         // Proof review gallery
         allStores: "All stores",
         allPeople: "All people",
+        completedLabel: "Completed",
+        completedFrom: "Completed from",
+        completedTo: "Completed to",
         searchProof: "Search proof",
         noProofMatches: "No proof matches these filters.",
         nPhotos: "{n} photos",
+        viewMoreProof: "View more",
         clearFilters: "Clear filters",
         // Activity feed
         recentActivity: "Recent activity",
@@ -2184,6 +2188,16 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}.${p}-limited::-webkit-scrollbar-thumb{background:rgba(${primaryRgb},.32);border-radius:8px;border:3px solid transparent;background-clip:padding-box}
           .${p}.${p}-limited::-webkit-scrollbar-thumb:hover{background:rgba(${primaryRgb},.55);background-clip:padding-box}` : "";
                 let allTasks = [];
+                // True once an initial/refresh load has finished populating allTasks. The
+                // proof gallery waits on this so opening the tab mid-load shows a loader and
+                // then builds correctly, instead of caching an empty proof set forever.
+                let tasksLoaded = false;
+                let loadWaiters = [];
+                function whenTasksLoaded() {
+                    if (tasksLoaded)
+                        return Promise.resolve();
+                    return new Promise(res => loadWaiters.push(res));
+                }
                 let recurTemplates = []; // hidden [recur-template] tasks → activity feed only
                 const activityComments = new Map(); // taskId → comments (activity feed)
                 let activityCommentsLoaded = false;
@@ -3911,24 +3925,49 @@ const factory = (BaseBlockClass, widgetApi) => {
                             const items = collectProofItems(comments);
                             return items.length ? { task: t, items } : null;
                         })));
-                        proofCache = results.filter((x) => !!x);
-                        return proofCache;
+                        const groups = results.filter((x) => !!x);
+                        // Only cache once the task load has finished. Otherwise an early call
+                        // (tab opened mid-load) would cache an empty set that sticks until refresh.
+                        if (tasksLoaded)
+                            proofCache = groups;
+                        return groups;
                     });
                 }
-                // Apply the live filters (person, store, search, assigned-date) then flatten
-                // to a newest-first list of individual photos for the grid.
+                // Apply the live filters (person, store, search, completed-date) then flatten
+                // to a newest-first list of individual photos for the grid. The date range
+                // filters by the proof's own timestamp (when it was submitted on completion),
+                // not the task's assigned/created date.
                 function proofTaskMatches(t) {
+                    if (searchQuery) {
+                        const q = searchQuery.toLowerCase();
+                        if (`${t.title || ""} ${t.description || ""}`.toLowerCase().indexOf(q) < 0)
+                            return false;
+                    }
                     return inTeam(t)
-                        && (activeInstallFilter === "all" || t.installationId === activeInstallFilter)
-                        && matchesSearchDate(t);
+                        && (activeInstallFilter === "all" || t.installationId === activeInstallFilter);
+                }
+                function proofWithinCompleted(iso) {
+                    if (!assignedFrom && !assignedTo)
+                        return true;
+                    const c = iso ? Date.parse(iso) : NaN;
+                    if (isNaN(c))
+                        return false;
+                    if (assignedFrom && c < Date.parse(`${assignedFrom}T00:00:00`))
+                        return false;
+                    if (assignedTo && c > Date.parse(`${assignedTo}T23:59:59.999`))
+                        return false;
+                    return true;
                 }
                 function flattenProof(groups) {
                     const out = [];
                     for (const g of groups) {
                         if (!proofTaskMatches(g.task))
                             continue;
-                        for (const it of g.items)
+                        for (const it of g.items) {
+                            if (!proofWithinCompleted(it.createdAt))
+                                continue;
                             out.push({ task: g.task, item: it });
+                        }
                     }
                     out.sort((a, b) => (Date.parse(b.item.createdAt) || 0) - (Date.parse(a.item.createdAt) || 0));
                     return out;
@@ -3953,6 +3992,11 @@ const factory = (BaseBlockClass, widgetApi) => {
         </figure>`;
                 }
                 let proofViewSeq = 0;
+                // Proof gallery pagination: show PROOF_PAGE photos initially, grow by
+                // PROOF_STEP on "View more". Reset to the first page on any filter change.
+                const PROOF_PAGE = 24;
+                const PROOF_STEP = 24;
+                let proofLimit = PROOF_PAGE;
                 const pgSearchIco = `<svg class="${p}-search-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
                 const pgCalIco = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
                 // Build the gallery's own filter bar once (store + person + search + date),
@@ -3987,10 +4031,10 @@ const factory = (BaseBlockClass, widgetApi) => {
             ${showStore ? `<div id="${p}-pg-store-dd" style="flex:0 1 160px"></div>` : ""}
             ${showPerson ? `<div id="${p}-pg-person-dd" style="flex:0 1 160px"></div>` : ""}
             <div class="${p}-daterange" id="${p}-pg-daterange">${pgCalIco}
-              <span class="${p}-date-lbl">${tr("assignedLabel")}</span>
-              <input type="date" class="${p}-date-in" id="${p}-pg-date-from" aria-label="${tr("assignedFrom")}">
+              <span class="${p}-date-lbl">${tr("completedLabel")}</span>
+              <input type="date" class="${p}-date-in" id="${p}-pg-date-from" aria-label="${tr("completedFrom")}">
               <span class="${p}-date-sep">${tr("dateToLabel")}</span>
-              <input type="date" class="${p}-date-in" id="${p}-pg-date-to" aria-label="${tr("assignedTo")}">
+              <input type="date" class="${p}-date-in" id="${p}-pg-date-to" aria-label="${tr("completedTo")}">
             </div>
           </div>
           <div class="${p}-pg-wrap" id="${p}-pg-wrap"></div>`;
@@ -4032,9 +4076,12 @@ const factory = (BaseBlockClass, widgetApi) => {
                         dateToEl.value = assignedTo; syncMainClear(); repaintProofGrid(); });
                 }
                 function repaintProofGrid() {
-                    return manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
+                    return manager_tasks_widget_awaiter(this, arguments, void 0, function* (reset = true) {
+                        var _a;
                         if (!proofViewEl)
                             return;
+                        if (reset)
+                            proofLimit = PROOF_PAGE;
                         const wrap = proofViewEl.querySelector(`#${p}-pg-wrap`);
                         if (!wrap)
                             return;
@@ -4058,29 +4105,47 @@ const factory = (BaseBlockClass, widgetApi) => {
                             wrap.innerHTML = `<div class="${p}-amodal-none">${noneSvg}<span>${esc(msg)}</span></div>`;
                             return;
                         }
+                        const shown = photos.slice(0, proofLimit);
                         const ids = new Set();
-                        photos.forEach(ph => ids.add(ph.item.id));
+                        shown.forEach(ph => ids.add(ph.item.id));
                         yield Promise.all([...ids].map(metaCached));
                         if (seq !== proofViewSeq)
                             return;
                         const n = photos.length;
                         const count = n === 1 ? tr("onePhoto") : tr("nPhotos").replace("{n}", String(n));
-                        wrap.innerHTML = `<div class="${p}-pg-count">${esc(count)}</div><div class="${p}-pg-grid">${photos.map(proofCell).join("")}</div>`;
+                        const more = photos.length > proofLimit
+                            ? `<button type="button" class="${p}-dash-toggle" id="${p}-pg-more">${tr("viewMoreProof")}</button>`
+                            : "";
+                        wrap.innerHTML = `<div class="${p}-pg-count">${esc(count)}</div><div class="${p}-pg-grid">${shown.map(proofCell).join("")}</div>${more}`;
+                        (_a = wrap.querySelector(`#${p}-pg-more`)) === null || _a === void 0 ? void 0 : _a.addEventListener("click", () => { proofLimit += PROOF_STEP; repaintProofGrid(false); });
                     });
                 }
                 function renderProofView() {
                     return manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
                         if (!proofViewEl)
                             return;
+                        const loader = `<div class="${p}-state"><span class="${p}-spin" style="width:24px;height:24px;border-width:3px;margin:0 auto 12px;display:block"></span>${tr("loading")}</div>`;
+                        const seq = ++proofViewSeq;
+                        // Tasks may still be loading (e.g. the manager clicked Proof Review right
+                        // away). Show a loader and wait, rather than building against an empty
+                        // task set. A newer render or leaving the tab aborts this one.
+                        if (!tasksLoaded) {
+                            proofViewEl.innerHTML = loader;
+                            yield whenTasksLoaded();
+                            if (seq !== proofViewSeq || proofViewEl.style.display === "none")
+                                return;
+                        }
                         // Load the proof set first (with a loader) so the filter bar can list only
                         // the stores/people that actually have proof. Cached after the first open,
                         // so filter changes rebuild the bar instantly without re-fetching.
                         if (!proofCache) {
-                            proofViewEl.innerHTML = `<div class="${p}-state"><span class="${p}-spin" style="width:24px;height:24px;border-width:3px;margin:0 auto 12px;display:block"></span>${tr("loading")}</div>`;
+                            proofViewEl.innerHTML = loader;
                             try {
                                 yield loadProofItems();
                             }
                             catch (_) { }
+                            if (seq !== proofViewSeq)
+                                return;
                         }
                         buildProofBar();
                         yield repaintProofGrid();
@@ -5764,6 +5829,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                         hideBanner();
                         allTasks = [];
                         recurTemplates = [];
+                        tasksLoaded = false;
                         activityComments.clear();
                         activityCommentsLoaded = false;
                         setActivityFull(false);
@@ -5921,6 +5987,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                             });
                             // Register distinct types (sorted) so each gets a stable palette color, no repeats until exhausted.
                             TYPE_ORDER = Array.from(new Set(allTasks.map(t => t.taskType).filter((x) => !!x))).sort();
+                            tasksLoaded = true; // proof gallery can now build safely
                             // Resolve the manager's team, then paint the dropdown + dashboard.
                             yield resolveTeam();
                             renderTeamSelect();
@@ -5936,6 +6003,9 @@ const factory = (BaseBlockClass, widgetApi) => {
                         catch (e) {
                             listWrap.innerHTML = `<div class="${p}-state"><strong>${tr("failedToLoad")}</strong>${esc(e.message)}</div>`;
                         }
+                        // Release anything waiting on the load (e.g. the proof gallery). On failure
+                        // tasksLoaded stays false, so loadProofItems won't cache an empty set.
+                        loadWaiters.splice(0).forEach(r => r());
                         refreshBtn.disabled = false;
                         refreshBtn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`;
                         // Keep the proof gallery fresh if the manager is viewing it on refresh.

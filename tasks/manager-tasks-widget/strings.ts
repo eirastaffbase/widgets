@@ -44,9 +44,13 @@ export const STRINGS: Bundles = {
     // Proof review gallery
     allStores: "All stores",
     allPeople: "All people",
+    completedLabel: "Completed",
+    completedFrom: "Completed from",
+    completedTo: "Completed to",
     searchProof: "Search proof",
     noProofMatches: "No proof matches these filters.",
     nPhotos: "{n} photos",
+    viewMoreProof: "View more",
     clearFilters: "Clear filters",
     // Activity feed
     recentActivity: "Recent activity",
