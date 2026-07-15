@@ -668,16 +668,16 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-cal-overdue .${p}-cal-overdue-arrow{margin-inline-start:auto}
           [dir="rtl"] .${p}-cal-overdue .${p}-cal-overdue-arrow{transform:scaleX(-1)}
           /* month grid */
-          .${p}-cal-dow{display:grid;grid-template-columns:repeat(7,1fr);background:#f9fafb;border-bottom:1px solid var(--border)}
+          .${p}-cal-dow{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));background:#f9fafb;border-bottom:1px solid var(--border)}
           .${p}-cal-dow span{padding:7px 0;text-align:center;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--gray-lt)}
-          .${p}-cal-grid{display:grid;grid-template-columns:repeat(7,1fr)}
-          .${p}-cal-cell{min-height:84px;border-inline-end:1px solid #f3f4f6;border-bottom:1px solid #f3f4f6;padding:5px 6px}
+          .${p}-cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+          .${p}-cal-cell{min-height:84px;min-width:0;overflow:hidden;border-inline-end:1px solid #f3f4f6;border-bottom:1px solid #f3f4f6;padding:5px 6px}
           .${p}-cal-cell:nth-child(7n){border-inline-end:none}
           .${p}-cal-cell.muted{background:#fafafa}
           .${p}-cal-cell.today .${p}-cal-num{background:var(--accent);color:#fff}
           .${p}-cal-num{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:12px;font-weight:600;color:var(--dark)}
           .${p}-cal-cell.muted .${p}-cal-num{color:var(--gray-lt)}
-          .${p}-cal-chip{display:flex;align-items:center;gap:4px;font-size:10px;font-weight:600;border-radius:4px;padding:1px 5px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+          .${p}-cal-chip{display:block;font-size:10px;font-weight:600;border-radius:4px;padding:1px 5px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
           .${p}-cal-chip:hover{filter:brightness(.96)}
           .${p}-cal-chip.assigned{color:var(--primary);background:rgba(var(--primary-rgb),.12)}
           .${p}-cal-chip.due{color:var(--accent);background:rgba(var(--accent-rgb),.12)}
@@ -2196,7 +2196,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           rangeLabel=a.getMonth()===b.getMonth()
             ?`${a.toLocaleDateString("en-US",{month:"long",day:"numeric"})} – ${b.getDate()}, ${b.getFullYear()}`
             :`${a.toLocaleDateString("en-US",{month:"short",day:"numeric"})} – ${b.toLocaleDateString("en-US",{month:"short",day:"numeric"})}, ${b.getFullYear()}`;
-          bodyHtml=`<div class="${p}-cal-cols" style="grid-template-columns:repeat(${calDays},1fr)">`+days.map(d=>{
+          bodyHtml=`<div class="${p}-cal-cols" style="grid-template-columns:repeat(${calDays},minmax(0,1fr))">`+days.map(d=>{
             const k=dayKey(d); const arr=markers.get(k)||[];
             const evs=arr.length?arr.map(mk=>`<div class="${p}-ev ${mk.kind}"${mk.taskId?` data-id="${esc(mk.taskId)}"`:""}><div class="${p}-ev-time">${mk.time?esc(fmtHour(mk.time)):tr("cal_"+mk.kind)}</div><div class="${p}-ev-title">${esc(ct(mk.title))}</div></div>`).join(""):`<div class="${p}-col-empty">—</div>`;
             return `<div class="${p}-cal-col"><div class="${p}-cal-colhead ${k===todayK?"today":""}"><div class="${p}-cal-dow2">${DOW[d.getDay()]}</div><div class="${p}-cal-dnum">${d.getDate()}</div></div><div class="${p}-cal-evs">${evs}</div></div>`;
