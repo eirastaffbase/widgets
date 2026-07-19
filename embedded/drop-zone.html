@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estée Lauder — Store Launch Calendar</title>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* =========================================
+           ESTÉE LAUDER — STORE LAUNCH CALENDAR
+           Navy + white (matches the ELC demo brand)
+           ========================================= */
+        @font-face { font-family:"Optima"; font-weight:400; font-display:swap;
+          src:url("https://media.elcompanies.com/files/e/estee-lauder-companies/global/fonts-latest/optima-roman-woff2.woff2") format("woff2"); }
+        @font-face { font-family:"Optima"; font-weight:600; font-display:swap;
+          src:url("https://media.elcompanies.com/files/e/estee-lauder-companies/global/fonts-latest/optima-semi-bold-woff2.woff2") format("woff2"); }
+        @font-face { font-family:"Optima"; font-weight:700; font-display:swap;
+          src:url("https://media.elcompanies.com/files/e/estee-lauder-companies/global/fonts-latest/optima-bold-woff2.woff2") format("woff2"); }
+        /* Noto Sans (labels/meta) — same as the demo */
+        @font-face { font-family:"Noto Sans"; font-weight:400; font-display:swap;
+          src:url("https://fonts.gstatic.com/s/notosans/v9/o-0IIpQlx3QUlC5A4PNr5TRA.woff2") format("woff2");
+          unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+2000-206F,U+2074,U+20AC,U+2122,U+2212,U+FEFF,U+FFFD; }
+        @font-face { font-family:"Noto Sans"; font-weight:400; font-display:swap;
+          src:url("https://fonts.gstatic.com/s/notosans/v9/o-0IIpQlx3QUlC5A4PNr6zRAW_0.woff2") format("woff2");
+          unicode-range:U+0100-024F,U+0259,U+1E00-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF; }
+        /* Akzidenz-Grotesk Black — local file, for all-caps bold tracked labels */
+        @font-face { font-family:"Akzidenz Grotesk Black"; font-display:swap;
+          src:url("Akzidenz-grotesk-black.ttf") format("truetype"); }
+
+        :root {
+            --elc-navy: #040a2b;
+            --elc-white: #ffffff;
+            --navy-tint: rgba(4, 10, 43, 0.07);
+            --bg-color: #ffffff;
+            --card-bg: #ffffff;
+            --text-main: #040a2b;
+            --text-sub: #8b8b8b;
+            --border-color: #e7e4dd;
+            --overlay-bg: rgba(4, 10, 43, 0.85);
+            --serif: "Optima", "Optima Nova", "Palatino Linotype", Georgia, serif;
+            --sans: "AkzidenzGrotesk W1G", "Helvetica Neue", Helvetica, Arial, sans-serif;
+            --meta: "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+            --caps: "Akzidenz Grotesk Black", "Helvetica Neue", Arial, sans-serif;
+        }
+
+        /* Every all-caps, bold, tracked label -> Akzidenz-Grotesk Black, 1px tracking */
+        .header-meta, .tab, .product-category, .tier-badge, .date-badge,
+        .detail-title, .modal-title .brandline, .hero-tile .h-brand, .btn-full {
+            font-family: var(--caps) !important;
+            letter-spacing: 1px !important;
+        }
+
+        * { box-sizing: border-box; }
+        body { font-family: var(--sans); background-color: var(--bg-color); margin: 0; padding: 0; display: flex; justify-content: center; min-height: 100vh; -webkit-font-smoothing: antialiased; }
+        .plugin-wrapper { width: 100%; max-width: none; position: relative; }
+        .dashboard-card { background-color: var(--card-bg); box-shadow: none; overflow: hidden; position: relative; padding-bottom: 20px; border-top: 4px solid var(--elc-navy); min-height: 100vh; display: flex; flex-direction: column; }
+
+        .header { padding: 26px 24px 20px; display: flex; justify-content: space-between; align-items: flex-start; background: var(--elc-white); }
+        .header h2 { margin: 0; font-family: var(--serif); font-size: 28px; color: var(--elc-navy); font-weight: 600; letter-spacing: 0.2px; line-height: 1; }
+        .header-meta { font-size: 10.5px; color: var(--text-sub); font-weight: 700; text-transform: uppercase; margin-top: 7px; letter-spacing: 1.2px; }
+        .header-mark { font-family: var(--serif); font-size: 15px; font-weight: 700; letter-spacing: 3px; color: var(--elc-navy); text-align: right; line-height: 1.3; }
+        .header-mark span { display:block; font-size: 9px; letter-spacing: 3px; color: var(--text-sub); font-family: var(--sans); }
+
+        .filter-tabs { display: flex; gap: 8px; padding: 4px 24px 16px 24px; overflow-x: auto; border-bottom: 1px solid var(--border-color); scrollbar-width: none; }
+        .filter-tabs::-webkit-scrollbar { display: none; }
+        .tab { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 9px 14px; background: #f2efe9; color: var(--text-sub); border: none; cursor: pointer; white-space: nowrap; letter-spacing: 1.2px; transition: all .2s; }
+        .tab:hover { color: var(--elc-navy); }
+        .tab.active { background: var(--elc-navy); color: var(--elc-white); }
+
+        .product-grid { padding: 20px 24px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; flex-grow: 1; align-content: start; }
+        @media (min-width: 600px) { .product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+        .product-card { display: flex; gap: 15px; padding: 14px; background: var(--elc-white); border: 1px solid var(--border-color); cursor: pointer; transition: all 0.2s; position: relative; width: 100%; max-width: 100%; min-height: 125px; }
+        .product-card:hover { border-color: var(--elc-navy); box-shadow: 0 8px 22px rgba(4,10,43,0.10); transform: translateY(-2px); }
+
+        .product-image-container { width: 84px; height: 84px; flex-shrink: 0; position: relative; overflow: hidden; background:#f7f5f1; }
+        .brand-tile { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-family: var(--serif); font-weight: 600; color: #fff; letter-spacing: 1px; position: absolute; inset: 0; z-index: 1; background: var(--elc-navy); font-size: 19px; }
+        .product-photo { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; background:#fff; z-index:2; }
+
+        .date-badge { position: absolute; top: 0; left: 0; background: var(--elc-navy); color: var(--elc-white); font-size: 9px; font-weight: 700; padding: 4px 5px; text-transform: uppercase; z-index: 10; display: inline-flex; align-items: center; line-height: 1; }
+
+        .product-info { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+        .product-category { font-size: 9.5px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 3px; display: flex; justify-content: space-between; align-items: center; }
+        .product-name { font-family: var(--serif); font-size: 16px; font-weight: 600; color: var(--elc-navy); line-height: 1.15; margin-bottom: 5px; overflow-wrap: anywhere; }
+        .product-sku { font-family: monospace; font-size: 11px; color: var(--text-sub); background: #f2efe9; padding: 2px 5px; display: inline-block; letter-spacing: 0.5px; }
+        .tier-badge { font-size: 8.5px; font-weight: 700; text-transform: uppercase; padding: 4px 7px; display: inline-flex; align-items: center; line-height: 1; }
+
+        .card-actions { margin-top: 8px; display: flex; gap: 12px; border-top: 1px solid #f2efe9; padding-top: 8px; }
+        .action-btn { background: none; border: none; padding: 0; cursor: pointer; color: var(--text-sub); display:inline-flex; }
+        .action-btn:hover { color: var(--elc-navy); }
+        .action-btn svg { width:16px; height:16px; }
+
+        .modal-backdrop { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: var(--overlay-bg); backdrop-filter: blur(4px); display: flex; align-items: flex-end; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; z-index: 1000; }
+        .modal-backdrop.active { opacity: 1; pointer-events: auto; }
+        .modal-card { background-color: #fff; width: 100%; height: 100%; max-width: 100%; max-height: 100%; border-top: 4px solid var(--elc-navy); padding: 0; box-shadow: none; transform: translateY(100%); transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column; overflow-y: auto; }
+        .modal-backdrop.active .modal-card { transform: translateY(0); }
+        .modal-header { padding: 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: flex-start; }
+        .modal-title .brandline { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--text-sub); margin-bottom: 6px; }
+        .modal-title h3 { margin: 0; font-family: var(--serif); font-size: 26px; color: var(--elc-navy); font-weight: 600; line-height: 1.05; }
+        .modal-price { font-size: 14px; font-weight: 700; color: var(--elc-navy); margin-top: 6px; }
+        .close-btn { cursor: pointer; color: var(--elc-navy); display:inline-flex; }
+        .close-btn svg { width: 24px; height: 24px; }
+        .modal-content { padding: 24px; max-width: 800px; margin: 0 auto; width: 100%; box-sizing: border-box; }
+
+        .hero-wrap { width: 100%; height: 260px; margin-bottom: 22px; position: relative; overflow: hidden; background:#f7f5f1; }
+        .hero-tile { position:absolute; inset:0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; font-family: var(--serif); z-index:1; background: var(--elc-navy); }
+        .hero-tile .h-brand { font-size: 13px; letter-spacing: 4px; text-transform: uppercase; opacity: .85; margin-bottom: 10px; }
+        .hero-tile .h-name { font-size: 30px; font-weight: 600; text-align: center; padding: 0 24px; line-height: 1.1; }
+        .hero-photo { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; z-index:2; background:#fff; }
+
+        .detail-section { margin-bottom: 22px; }
+        .detail-title { font-size: 10.5px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .staff-note { background: var(--navy-tint); border-left: 3px solid var(--elc-navy); padding: 12px 14px; font-size: 13px; color: var(--elc-navy); line-height: 1.5; }
+        .spec-list { list-style: none; padding: 0; margin: 0; }
+        .spec-item { font-size: 13px; color: var(--elc-navy); margin-bottom: 8px; display: flex; align-items: center; gap: 9px; }
+        .spec-item svg { width: 15px; height: 15px; color: var(--elc-navy); flex-shrink:0; }
+
+        .btn-full { background-color: var(--elc-navy); color: var(--elc-white); border: 1px solid var(--elc-navy); padding: 16px; font-size: 12px; font-weight: 700; cursor: pointer; width: 100%; text-transform: uppercase; letter-spacing: 1.5px; transition: all 0.2s; display:inline-flex; align-items:center; justify-content:center; gap:8px; }
+        .btn-full svg { width:16px; height:16px; }
+        .btn-full:hover { background: var(--elc-white); color: var(--elc-navy); }
+        .btn-full.read { background: #f2efe9; border-color: #f2efe9; color: var(--elc-navy); cursor: default; }
+    </style>
+</head>
+
+<body>
+    <div class="plugin-wrapper">
+        <div class="dashboard-card">
+            <div class="header">
+                <div>
+                    <h2>Launch Calendar</h2>
+                    <div class="header-meta">Estée Lauder · Macy's Herald Square, NYC · <span id="current-date"></span></div>
+                </div>
+            </div>
+
+            <div class="filter-tabs">
+                <button class="tab active" onclick="filterReleases('ALL', this)">Upcoming</button>
+                <button class="tab" onclick="filterReleases('Skincare', this)">Skincare</button>
+                <button class="tab" onclick="filterReleases('Makeup', this)">Makeup</button>
+                <button class="tab" onclick="filterReleases('Fragrance', this)">Fragrance</button>
+            </div>
+
+            <div id="product-list" class="product-grid"></div>
+
+            <div class="modal-backdrop" id="productModal">
+                <div class="modal-card">
+                    <div class="modal-header">
+                        <div class="modal-title">
+                            <div class="brandline">ESTÉE LAUDER</div>
+                            <h3 id="mTitle">Product Name</h3>
+                            <div class="modal-price" id="mPrice">$000</div>
+                        </div>
+                        <div class="close-btn" onclick="closeModal()"><i data-lucide="x"></i></div>
+                    </div>
+                    <div class="modal-content">
+                        <div class="hero-wrap">
+                            <div class="hero-tile" id="mHeroTile">
+                                <div class="h-brand">ESTÉE LAUDER</div>
+                                <div class="h-name" id="mHeroName"></div>
+                            </div>
+                            <img id="mHeroPhoto" class="hero-photo" alt="" referrerpolicy="no-referrer" onerror="this.style.display='none'">
+                        </div>
+
+                        <div class="detail-section">
+                            <div class="detail-title">Launch Details</div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom: 6px;"><span style="font-size:12px; color:#8b8b8b;">In-Store Date</span><span style="font-size:14px; font-weight:700;" id="mDate">Date</span></div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom: 6px;"><span style="font-size:12px; color:#8b8b8b;">Category</span><span style="font-size:14px; font-weight:700;" id="mCat">Category</span></div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom: 6px;"><span style="font-size:12px; color:#8b8b8b;">SKU</span><span style="font-size:14px; font-weight:700; font-family:monospace;" id="mSku">SKU</span></div>
+                            <div style="display:flex; justify-content:space-between;"><span style="font-size:12px; color:#8b8b8b;">Priority</span><span style="font-size:14px; font-weight:700;" id="mTier">Tier</span></div>
+                        </div>
+
+                        <div class="detail-section">
+                            <div class="detail-title">Store Notes</div>
+                            <div class="staff-note" id="mNote">Note goes here...</div>
+                        </div>
+
+                        <div class="detail-section">
+                            <div class="detail-title">Key Claims</div>
+                            <ul class="spec-list">
+                                <li class="spec-item"><i data-lucide="check"></i> <span id="mHero1"></span></li>
+                                <li class="spec-item"><i data-lucide="check"></i> <span id="mHero2"></span></li>
+                                <li class="spec-item"><i data-lucide="check"></i> <span id="mHero3"></span></li>
+                            </ul>
+                        </div>
+
+                        <button id="markReadBtn" class="btn-full" onclick="handleMarkRead()">
+                            <i data-lucide="check-square"></i> Mark as Read
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('current-date').textContent =
+            new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase();
+
+        const IMG = code => `https://www.esteelauder.com/media/export/cms/products/640x640/el_sku_${code}_640x640_0.jpg`;
+
+        // Real Estée Lauder-brand products. Dates are illustrative in-store scheduling.
+        const releases = [
+            { id:1, name:"Advanced Night Repair Serum", sku:"PG5001", category:"Skincare", price:"$115", date:"AUG 2026", tier:"HERO",
+              note:"Evergreen number one serum. Keep full stock on the wall and anchor every skincare consultation. It pioneered the serum category back in 1982.",
+              hero:["Hyaluronic Acid plus Chronolux Power Signal", "Reduces the look of multiple signs of aging", "Suitable for all skin types"] },
+            { id:2, name:"Revitalizing Supreme+ Moisturizer", sku:"PMXW01", category:"Skincare", price:"$82", date:"AUG 2026", tier:"RESTOCK",
+              note:"Core moisturizer restock ahead of fall. Pair it with the ANR Serum for the two step routine sell.",
+              hero:["Powered by ReCoupage Technology", "Firms, moisturizes and improves radiance", "Multi-action anti-aging creme"] },
+            { id:3, name:"Advanced Night Repair Eye Gel-Creme", sku:"PYL501", category:"Skincare", price:"$72", date:"SEP 2026", tier:"HERO",
+              note:"The eye partner to ANR. Lead with de-puffing and the cooling applicator demo at the counter.",
+              hero:["Reduces the look of puffiness and lines", "Hyaluronic Acid plus Chronolux", "Lightweight gel-creme texture"] },
+            { id:4, name:"Micro Essence Treatment Lotion", sku:"PGJJ01", category:"Skincare", price:"$88", date:"SEP 2026", tier:"HERO",
+              note:"The essence step for guests building a fuller routine. Demo the press-in application.",
+              hero:["Bio-ferment for a radiant look", "Preps skin to absorb serum", "Alcohol-free, lightweight lotion"] },
+            { id:5, name:"Double Wear Stay-in-Place Foundation", sku:"PH7G10", category:"Makeup", price:"$52", date:"SEP 2026", tier:"HERO",
+              note:"The number one foundation. Prioritise shade-matching service and keep the full shade range faced up.",
+              hero:["24-hour flawless, matte wear", "Transfer and humidity resistant", "Broad shade range"] },
+            { id:6, name:"Futurist SkinTint Serum Foundation SPF 20", sku:"PR6F12", category:"Makeup", price:"$58", date:"SEP 2026", tier:"HERO",
+              note:"Skincare and makeup hybrid for the natural-coverage shopper. A great trade up from a tinted moisturizer.",
+              hero:["Serum-powered radiant coverage", "Hydrates while it perfects", "SPF 20 daytime protection"] },
+            { id:7, name:"Perfectionist Pro Rapid Firm + Lift", sku:"PTGK01", category:"Skincare", price:"$92", date:"OCT 2026", tier:"LAUNCH",
+              note:"Firming treatment push for fall. Target the visible-lift claim and upsell from ANR routines.",
+              hero:["Visibly firms and lifts in 2 weeks", "Acetyl hexapeptide-8 plus niacinamide", "Fast-absorbing treatment"] },
+            { id:8, name:"Futurist Hydra Rescue Foundation SPF 45", sku:"PE0W12", category:"Makeup", price:"$52", date:"OCT 2026", tier:"LAUNCH",
+              note:"Hydrating foundation for drier fall skin. Position it as the comfort-wear alternative to Double Wear.",
+              hero:["Moisturizing medium coverage", "Awakens tired-looking skin", "SPF 45 broad-spectrum protection"] },
+            { id:9, name:"DayWear Anti-Oxidant Creme", sku:"WFJM01", category:"Skincare", price:"$68", date:"OCT 2026", tier:"RESTOCK",
+              note:"Everyday daytime moisturizer and a gateway product for younger guests. Mention the SPF version.",
+              hero:["Multi-antioxidant daytime defense", "72-hour hydration", "Fresh, fast-absorbing creme"] },
+            { id:10, name:"Revitalizing Supreme+ Youth Power Creme", sku:"G4DH01", category:"Skincare", price:"$110", date:"NOV 2026", tier:"LAUNCH",
+              note:"Fall hero creme for the anti-aging shopper. Feature it on the front table for holiday footfall.",
+              hero:["Moringa Extract plus ReCoupage", "Firms, plumps and boosts radiance", "Rich, cushiony texture"] },
+            { id:11, name:"Modern Muse Eau de Parfum", sku:"YF3201", category:"Fragrance", price:"$92", date:"NOV 2026", tier:"HERO",
+              note:"Contemporary floral for the fragrance gifter. Set it beside Beautiful for a two-tier gifting choice.",
+              hero:["Dual-scent jasmine and woods signature", "Modern, confident floral", "Available in holiday coffrets"] },
+            { id:12, name:"Resilience Multi-Effect Night Creme", sku:"RW9A01", category:"Skincare", price:"$99", date:"NOV 2026", tier:"LAUNCH",
+              note:"Nighttime firming addition. Position it as the PM counterpart in a full AM and PM routine.",
+              hero:["Overnight firming and contouring", "Antioxidant night recovery", "Nourishing night texture"] },
+            { id:13, name:"Beautiful Eau de Parfum", sku:"W4TF01", category:"Fragrance", price:"$96", date:"DEC 2026", tier:"HERO",
+              note:"Holiday fragrance hero and the gifting icon. Set up the gift-wrap station and push the coffret value sets.",
+              hero:["Romantic floral bouquet signature", "The classic gifting fragrance", "Available in holiday coffrets"] },
+            { id:14, name:"Bronze Goddess Eau Fraiche", sku:"PCXN01", category:"Fragrance", price:"$76", date:"DEC 2026", tier:"LIMITED",
+              note:"Warm-weather escape scent as a holiday limited restock. Great for the sun-seeking gifter and travel retail.",
+              hero:["Warm amber, coconut and vanilla", "Sun-drenched skin scent", "Limited seasonal allocation"] },
+            { id:15, name:"Pleasures Eau de Parfum", sku:"702201", category:"Fragrance", price:"$80", date:"DEC 2026", tier:"LIMITED",
+              note:"Holiday limited coffret. Fresh floral for the gifting shopper with limited seasonal allocation.",
+              hero:["Fresh lily and peony florals", "Everyday-elegant signature", "Holiday limited-edition set"] },
+            { id:16, name:"Advanced Night Repair Duo Set", sku:"PG5C01", category:"Skincare", price:"$150", date:"DEC 2026", tier:"GWP",
+              note:"Holiday value set and the best gift-with-value offer. Lead the counter conversation with the savings story.",
+              hero:["Home and away ANR serum duo", "Best holiday value on the hero serum", "Ideal gift or self-purchase"] },
+            { id:17, name:"Perfectionist Pro Serum Duo", sku:"PTGL01", category:"Skincare", price:"$168", date:"JAN 2027", tier:"LAUNCH",
+              note:"New-year fresh-start firming set. Position it for resolution-season skincare resets.",
+              hero:["Firm and lift treatment duo", "Visible results in 2 weeks", "New-year routine reset"] }
+        ];
+
+        let currentOpenId = null;
+        const listContainer = document.getElementById('product-list');
+
+        function tierStyleFor(tier){
+            let s = 'background:#f2efe9; color:#8b8b8b;';
+            if (tier === 'HERO')    s = 'background:#ffffff; color:#040a2b; border:1px solid #040a2b;';
+            if (tier === 'LAUNCH')  s = 'background:#040a2b; color:#fff;';
+            if (tier === 'RESTOCK') s = 'background:#eceae4; color:#040a2b;';
+            if (tier === 'LIMITED') s = 'background:rgba(4,10,43,0.07); color:#040a2b; border:1px solid #040a2b;';
+            if (tier === 'GWP')     s = 'background:#ffffff; color:#040a2b; border:1px dashed #040a2b;';
+            return s;
+        }
+
+        function renderList(data) {
+            listContainer.innerHTML = data.map(item => `
+                <div class="product-card" onclick="openModal(${item.id})">
+                    <div class="product-image-container">
+                        <div class="date-badge">${item.date}</div>
+                        <div class="brand-tile">EL</div>
+                        <img class="product-photo" src="${IMG(item.sku)}" alt="${item.name}" referrerpolicy="no-referrer" onerror="this.style.display='none'">
+                    </div>
+                    <div class="product-info">
+                        <div class="product-category">
+                            <span>${item.category}</span>
+                            <span class="tier-badge" style="${tierStyleFor(item.tier)}">${item.tier}</span>
+                        </div>
+                        <div class="product-name" title="${item.name}">${item.name}</div>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span class="product-sku">SKU ${item.sku}</span>
+                            <span style="font-weight:700; font-size:12px; color:#040a2b;">${item.price}</span>
+                        </div>
+                        <div class="card-actions">
+                            <button class="action-btn" onclick="event.stopPropagation()" title="Notify team"><i data-lucide="bell"></i></button>
+                            <button class="action-btn" onclick="event.stopPropagation()" title="Stock"><i data-lucide="package"></i></button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            if (window.lucide) lucide.createIcons({ attrs: { 'stroke-width': 1.25 } });
+        }
+
+        function filterReleases(filterType, btn) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            renderList(releases.filter(item => filterType === 'ALL' ? true : item.category === filterType));
+        }
+
+        const modal = document.getElementById('productModal');
+        const readBtn = document.getElementById('markReadBtn');
+
+        function openModal(id) {
+            currentOpenId = id;
+            const item = releases.find(r => r.id === id);
+            if(!item) return;
+            document.getElementById('mTitle').textContent = item.name;
+            document.getElementById('mPrice').textContent = item.price;
+            document.getElementById('mDate').textContent = item.date;
+            document.getElementById('mCat').textContent = item.category;
+            document.getElementById('mSku').textContent = item.sku;
+            document.getElementById('mTier').textContent = item.tier;
+            document.getElementById('mNote').textContent = item.note;
+            document.getElementById('mHero1').textContent = item.hero[0];
+            document.getElementById('mHero2').textContent = item.hero[1];
+            document.getElementById('mHero3').textContent = item.hero[2];
+            document.getElementById('mHeroName').textContent = item.name;
+            const photo = document.getElementById('mHeroPhoto');
+            photo.style.display = ''; photo.src = IMG(item.sku);
+            if (item.read) setButtonReadState(); else setButtonUnreadState();
+            modal.classList.add('active');
+            if (window.lucide) lucide.createIcons({ attrs: { 'stroke-width': 1.25 } });
+        }
+        function closeModal() { modal.classList.remove('active'); }
+        function handleMarkRead() {
+            const item = releases.find(r => r.id === currentOpenId);
+            if (item) { item.read = true; setButtonReadState(); setTimeout(closeModal, 700); }
+        }
+        function setButtonReadState() { readBtn.classList.add('read'); readBtn.innerHTML = '<i data-lucide="check"></i> Read'; if (window.lucide) lucide.createIcons({ attrs: { 'stroke-width': 1.25 } }); }
+        function setButtonUnreadState() { readBtn.classList.remove('read'); readBtn.innerHTML = '<i data-lucide="check-square"></i> Mark as Read'; if (window.lucide) lucide.createIcons({ attrs: { 'stroke-width': 1.25 } }); }
+
+        renderList(releases);
+    </script>
+</body>
+</html>

@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adidas Commute Widget</title>
+    <style>
+        /* =========================================
+           GLOBAL & SHARED STYLES (Adidas 5th Ave Theme)
+           ========================================= */
+        :root {
+            /* BRAND PALETTE */
+            --adi-black: #000000;
+            --adi-dark-gray: #1a1a1a;
+            --adi-white: #FFFFFF;
+            
+            /* ACCENT: SOLAR YELLOW */
+            --adi-accent: #ede600;
+
+            /* FUNCTIONAL COLORS */
+            --bg-color: #F0F0F0;
+            --card-bg: #FFFFFF;
+            --text-main: #000000;
+            --text-sub: #767676;
+            --border-color: #e6e6e6;
+            --overlay-bg: rgba(0, 0, 0, 0.8);
+            
+            /* TRANSIT LINE COLORS (MTA Standard) */
+            --line-nqrw: #FCCC0A;
+            --line-456: #00933C;
+            --line-bdfm: #FF6319;
+            
+            --font-stack: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            font-family: var(--font-stack);
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .plugin-wrapper {
+            width: 100%;
+            max-width: 400px;
+            position: relative;
+        }
+
+        /* CARD STYLES */
+        .transit-card {
+            background-color: var(--card-bg);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            position: relative;
+            padding-bottom: 20px;
+            border-top: 6px solid var(--adi-black); /* Signature Top Border */
+            min-height: 600px;
+        }
+
+        .header {
+            padding: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .header h2 {
+            margin: 0;
+            font-size: 24px;
+            color: var(--adi-black);
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: -0.5px;
+            line-height: 1;
+        }
+
+        /* Action/Link Style (Top Right) */
+        .header-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 8px;
+            cursor: pointer;
+            font-size: 11px;
+            color: var(--adi-black);
+            font-weight: 800;
+            user-select: none;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            background: #f0f0f0;
+            padding: 8px 12px;
+            transition: all 0.2s;
+            clip-path: polygon(10% 0, 100% 0, 100% 100%, 0% 100%);
+        }
+
+        .header-action:hover {
+            background: var(--adi-accent);
+        }
+
+        /* HERO SECTION (Next Train) */
+        .hero-section {
+            padding: 30px 24px;
+            text-align: center;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 10px;
+            background: radial-gradient(circle at center, #fafafa 0%, #ffffff 70%);
+            position: relative;
+        }
+
+        .hero-label {
+            font-size: 12px;
+            font-weight: 800;
+            color: var(--text-sub);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .hero-train-group {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin: 10px 0;
+        }
+
+        .hero-bullet {
+            width: 48px;
+            height: 48px;
+            background-color: var(--line-nqrw);
+            color: var(--adi-black);
+            font-size: 28px;
+            font-weight: 800;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .hero-time {
+            font-size: 56px;
+            font-weight: 800;
+            color: var(--adi-black);
+            letter-spacing: -3px;
+            line-height: 1;
+        }
+
+        .hero-unit {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-sub);
+            text-transform: uppercase;
+            letter-spacing: 0;
+            margin-left: 5px;
+        }
+
+        .hero-sub {
+            font-size: 11px;
+            color: var(--adi-black);
+            font-weight: 700;
+            background: var(--adi-accent);
+            display: inline-block;
+            padding: 4px 8px;
+            text-transform: uppercase;
+            margin-top: 10px;
+        }
+
+        /* Alert Banner */
+        .alert-banner {
+            background-color: var(--adi-black);
+            color: var(--adi-white);
+            padding: 12px 24px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .alert-icon {
+            color: var(--adi-accent);
+            font-size: 14px;
+        }
+
+        .section-title {
+            padding: 10px 24px 5px;
+            margin: 15px 0 10px 0;
+            font-size: 12px;
+            font-weight: 800;
+            color: var(--text-main);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .section-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border-color);
+        }
+
+        /* TRANSIT LIST */
+        .transit-list {
+            list-style: none;
+            padding: 0 20px;
+            margin: 0;
+        }
+
+        .transit-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #fff;
+            padding: 16px 0;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .transit-item:hover {
+            background: #fafafa;
+        }
+
+        .transit-item:last-child {
+            border-bottom: none;
+        }
+
+        .transit-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .bullet {
+            width: 32px;
+            height: 32px;
+            color: white;
+            font-size: 16px;
+            font-weight: 800;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .bullet.n, .bullet.q, .bullet.r, .bullet.w {
+            background-color: var(--line-nqrw);
+            color: black;
+        }
+        .bullet.f, .bullet.m {
+            background-color: var(--line-bdfm);
+        }
+        .bullet.six {
+            background-color: var(--line-456);
+        }
+
+        .transit-details {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .destination {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--adi-black);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .direction {
+            font-size: 10px;
+            color: var(--text-sub);
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .transit-time-col {
+            text-align: right;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+
+        .arrival-time {
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--adi-black);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .status-badge {
+            font-size: 9px;
+            text-transform: uppercase;
+            font-weight: 800;
+            padding: 2px 6px;
+            margin-top: 4px;
+            display: inline-block;
+        }
+
+        /* Status Colors */
+        .status-badge.on-time {
+            background: var(--adi-black);
+            color: var(--adi-white);
+        }
+        
+        .status-badge.delayed {
+            background: var(--adi-accent); /* Solar Yellow */
+            color: var(--adi-black);
+        }
+
+        /* MODAL (Slide Up Animation) */
+        .modal-backdrop {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--overlay-bg);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: flex-end;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            z-index: 100;
+        }
+
+        .modal-backdrop.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-card {
+            background-color: white;
+            width: 100%;
+            border-top: 6px solid var(--adi-accent);
+            padding: 30px 24px;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            box-sizing: border-box;
+            max-height: 90%;
+            overflow-y: auto;
+        }
+
+        .modal-backdrop.active .modal-card {
+            transform: translateY(0);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 25px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
+        }
+
+        .modal-title h3 {
+            margin: 0;
+            font-size: 24px;
+            color: var(--adi-black);
+            font-weight: 800;
+            letter-spacing: -1px;
+            line-height: 1.1;
+        }
+
+        .modal-subtitle {
+            font-size: 12px;
+            color: var(--text-sub);
+            margin-top: 4px;
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .close-btn {
+            cursor: pointer;
+            padding: 5px;
+            font-size: 24px;
+            line-height: 1;
+            color: var(--adi-black);
+            transition: transform 0.2s;
+        }
+
+        .close-btn:hover {
+            transform: scale(1.1);
+        }
+
+        /* Modal Content */
+        .train-detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .train-stop {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-sub);
+        }
+
+        .train-stop.current {
+            color: var(--adi-black);
+            font-weight: 800;
+        }
+        
+        .stop-time {
+            font-weight: 700;
+            color: var(--adi-black);
+        }
+
+        .btn-action {
+            background-color: var(--adi-black);
+            color: var(--adi-white);
+            border: none;
+            padding: 18px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            width: 100%;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 20px;
+            border: 1px solid var(--adi-black);
+            transition: all 0.2s;
+        }
+
+        .btn-action:hover {
+            background-color: var(--adi-white);
+            color: var(--adi-black);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="plugin-wrapper">
+        <div class="transit-card">
+
+            <!-- Header -->
+            <div class="header">
+                <div>
+                    <h2>Commute Intel</h2>
+                    <div class="header-action" onclick="refreshData()">
+                        <span id="refresh-text">↻ Refresh</span>
+                    </div>
+                </div>
+                <!-- Brand Element -->
+                <div style="font-size: 24px;">///</div>
+            </div>
+
+            <!-- Alert Banner (Conditional) -->
+            <div class="alert-banner">
+                <span class="alert-icon">⚠</span>
+                <span>Signal Delays at Queens Plaza</span>
+            </div>
+
+            <!-- Hero: Next Train -->
+            <div class="hero-section">
+                <div class="hero-label">Next Train Home (5th Ave - 59 St)</div>
+                <div class="hero-train-group">
+                    <div class="hero-bullet">Q</div>
+                    <div class="hero-time">4<span class="hero-unit">min</span></div>
+                </div>
+                <div class="hero-sub">To Coney Island • On Time</div>
+            </div>
+
+            <!-- List -->
+            <h3 class="section-title">Nearby Departures</h3>
+            <ul class="transit-list">
+
+                <!-- Q Train (Active) -->
+                <li class="transit-item" onclick="openModal('Q', 'Coney Island', '4 min')">
+                    <div class="transit-info">
+                        <div class="bullet q">Q</div>
+                        <div class="transit-details">
+                            <div class="destination">Coney Island</div>
+                            <div class="direction">Downtown / Brooklyn</div>
+                        </div>
+                    </div>
+                    <div class="transit-time-col">
+                        <div class="arrival-time">4 min</div>
+                        <div class="status-badge on-time">On Time</div>
+                    </div>
+                </li>
+
+                <!-- N Train (Delayed) -->
+                <li class="transit-item" onclick="openModal('N', 'Astoria - Ditmars', 'Delayed')">
+                    <div class="transit-info">
+                        <div class="bullet n">N</div>
+                        <div class="transit-details">
+                            <div class="destination">Astoria</div>
+                            <div class="direction">Uptown / Queens</div>
+                        </div>
+                    </div>
+                    <div class="transit-time-col">
+                        <div class="arrival-time">12 min</div>
+                        <div class="status-badge delayed">Delayed</div>
+                    </div>
+                </li>
+
+                <!-- R Train -->
+                <li class="transit-item" onclick="openModal('R', 'Bay Ridge - 95 St', '9 min')">
+                    <div class="transit-info">
+                        <div class="bullet r">R</div>
+                        <div class="transit-details">
+                            <div class="destination">Bay Ridge</div>
+                            <div class="direction">Downtown / Brooklyn</div>
+                        </div>
+                    </div>
+                    <div class="transit-time-col">
+                        <div class="arrival-time">9 min</div>
+                        <div class="status-badge on-time">On Time</div>
+                    </div>
+                </li>
+
+                <!-- F Train (Nearby Station) -->
+                <li class="transit-item" onclick="openModal('F', 'Jamaica - 179 St', '6 min')">
+                    <div class="transit-info">
+                        <div class="bullet f">F</div>
+                        <div class="transit-details">
+                            <div class="destination">Jamaica</div>
+                            <div class="direction">Uptown (57 St)</div>
+                        </div>
+                    </div>
+                    <div class="transit-time-col">
+                        <div class="arrival-time">6 min</div>
+                        <div class="status-badge on-time">On Time</div>
+                    </div>
+                </li>
+
+            </ul>
+
+            <!-- MODAL: Details -->
+            <div class="modal-backdrop" id="transitModal">
+                <div class="modal-card">
+                    <div class="modal-header">
+                        <div class="modal-title">
+                            <h3 id="mLine">Q Train</h3>
+                            <div class="modal-subtitle">To <span id="mDest">Coney Island</span></div>
+                        </div>
+                        <div class="close-btn" onclick="closeModal()">✕</div>
+                    </div>
+
+                    <div class="breakdown-section">
+                        <div class="breakdown-title">Live Status</div>
+                        <div style="margin-bottom: 20px;">
+                            <span class="status-badge on-time" id="mStatusBadge" style="font-size: 12px; padding: 6px 10px;">Good Service</span>
+                        </div>
+                        
+                        <div class="breakdown-title">Upcoming Stops</div>
+                        
+                        <!-- Timeline Mockup -->
+                        <div class="train-detail-row">
+                            <span class="train-stop current">5th Ave - 59 St</span>
+                            <span class="stop-time" id="mArrival">4 min</span>
+                        </div>
+                        <div class="train-detail-row">
+                            <span class="train-stop">57 St - 7 Ave</span>
+                            <span class="stop-time">6 min</span>
+                        </div>
+                        <div class="train-detail-row">
+                            <span class="train-stop">49 St</span>
+                            <span class="stop-time">8 min</span>
+                        </div>
+                        <div class="train-detail-row">
+                            <span class="train-stop">Times Sq - 42 St</span>
+                            <span class="stop-time">11 min</span>
+                        </div>
+                        <div class="train-detail-row">
+                            <span class="train-stop">34 St - Herald Sq</span>
+                            <span class="stop-time">13 min</span>
+                        </div>
+                    </div>
+
+                    <button class="btn-action" onclick="closeModal()">Set Notification</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const modal = document.getElementById('transitModal');
+        const mLine = document.getElementById('mLine');
+        const mDest = document.getElementById('mDest');
+        const mArrival = document.getElementById('mArrival');
+        const mStatusBadge = document.getElementById('mStatusBadge');
+
+        function openModal(line, dest, time) {
+            mLine.innerText = line + " Train";
+            mDest.innerText = dest;
+            mArrival.innerText = time;
+
+            if(time === "Delayed") {
+                mStatusBadge.innerText = "Signal Delays";
+                mStatusBadge.className = "status-badge delayed";
+                mStatusBadge.style.background = "#ede600";
+                mStatusBadge.style.color = "#000";
+            } else {
+                mStatusBadge.innerText = "Good Service";
+                mStatusBadge.className = "status-badge on-time";
+                mStatusBadge.style.background = "#000";
+                mStatusBadge.style.color = "#fff";
+            }
+
+            modal.classList.add('active');
+        }
+
+        function closeModal() {
+            modal.classList.remove('active');
+        }
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+
+        function refreshData() {
+            const refreshText = document.getElementById('refresh-text');
+            refreshText.innerText = "Updating...";
+            
+            setTimeout(() => {
+                // 1. Update Hero Section
+                const heroTimeContainer = document.querySelector('.hero-time');
+                if(heroTimeContainer) {
+                    const newHeroTime = Math.floor(Math.random() * 10) + 1; // 1-10 min
+                    heroTimeContainer.innerHTML = `${newHeroTime}<span class="hero-unit">min</span>`;
+                }
+
+                // 2. Update List Items
+                const items = document.querySelectorAll('.transit-item');
+                items.forEach(item => {
+                    // Generate random time between 1 and 20
+                    const newTime = Math.floor(Math.random() * 20) + 1;
+                    
+                    // Update the text display
+                    const timeDisplay = item.querySelector('.arrival-time');
+                    if(timeDisplay) {
+                        timeDisplay.innerText = `${newTime} min`;
+                    }
+
+                    // Update the onclick handler so the modal matches the new time
+                    const bullet = item.querySelector('.bullet');
+                    const dest = item.querySelector('.destination');
+                    
+                    if (bullet && dest) {
+                        const line = bullet.innerText;
+                        const destination = dest.innerText;
+                        item.setAttribute('onclick', `openModal('${line}', '${destination}', '${newTime} min')`);
+                    }
+                });
+
+                refreshText.innerText = "↻ Refresh";
+            }, 1000);
+        }
+    </script>
+</body>
+
+</html>

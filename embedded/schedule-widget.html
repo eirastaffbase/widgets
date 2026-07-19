@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estée Lauder — My Schedule</title>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @font-face { font-family:"Optima"; font-weight:400; font-display:swap;
+          src:url("https://media.elcompanies.com/files/e/estee-lauder-companies/global/fonts-latest/optima-roman-woff2.woff2") format("woff2"); }
+        @font-face { font-family:"Optima"; font-weight:600; font-display:swap;
+          src:url("https://media.elcompanies.com/files/e/estee-lauder-companies/global/fonts-latest/optima-semi-bold-woff2.woff2") format("woff2"); }
+        @font-face { font-family:"Optima"; font-weight:700; font-display:swap;
+          src:url("https://media.elcompanies.com/files/e/estee-lauder-companies/global/fonts-latest/optima-bold-woff2.woff2") format("woff2"); }
+        @font-face { font-family:"Noto Sans"; font-weight:400; font-display:swap;
+          src:url("https://fonts.gstatic.com/s/notosans/v9/o-0IIpQlx3QUlC5A4PNr5TRA.woff2") format("woff2");
+          unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+2000-206F,U+2074,U+20AC,U+2122,U+2212,U+FEFF,U+FFFD; }
+        @font-face { font-family:"Akzidenz Grotesk Black"; font-display:swap;
+          src:url("Akzidenz-grotesk-black.ttf") format("truetype"); }
+
+        :root {
+            --navy: #040a2b;
+            --black: #000000;
+            --white: #ffffff;
+            --text-sub: #8b8b8b;
+            --bg-soft: #f4f2ee;
+            --line: #e7e4dd;
+            --serif: "Optima", "Palatino Linotype", Georgia, serif;
+            --sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+            --meta: "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+            --caps: "Akzidenz Grotesk Black", "Helvetica Neue", Arial, sans-serif;
+        }
+
+        * { box-sizing: border-box; }
+        body { font-family: var(--sans); background: var(--white); margin: 0; -webkit-font-smoothing: antialiased; }
+        .plugin-wrapper { width: 100%; max-width: none; position: relative; }
+        .app-section { display: none; animation: fadeIn 0.3s ease-out; }
+        .app-section.active-app { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+        .caps { font-family: var(--caps); text-transform: uppercase; letter-spacing: 1px; }
+
+        .shifts-card, .pulse-card { background: var(--white); box-shadow: none; overflow: hidden; position: relative; padding-bottom: 20px; border-top: 4px solid var(--navy); min-height: 100vh; }
+
+        .header, .nav-header-pulse { padding: 24px; display: flex; justify-content: space-between; align-items: center; }
+        .header { align-items: flex-start; }
+        .header h2, .nav-header-pulse h2 { margin: 0; font-family: var(--serif); font-size: 26px; color: var(--navy); font-weight: 600; line-height: 1; }
+        .subtitle { font-family: var(--meta); font-size: 11px; color: var(--text-sub); margin-top: 7px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+
+        .btn-nav-pulse { background: var(--navy); color: var(--white); border: none; padding: 10px 16px; font-family: var(--caps); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+        .btn-nav-pulse svg { width: 14px; height: 14px; }
+        .btn-nav-pulse:hover { background: var(--black); }
+
+        .calendar-wrapper { padding: 0 24px 20px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+        .calendar-weekdays, .calendar-days { display: grid; grid-template-columns: repeat(7, 1fr); justify-items: center; }
+        .calendar-weekdays { margin-bottom: 12px; }
+        .weekday { font-family: var(--meta); font-size: 10px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; }
+        .calendar-days { row-gap: 8px; }
+        .day { width: 32px; height: 32px; font-family: var(--meta); font-size: 13px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight: 600; color: var(--navy); }
+        .day:hover { background: var(--bg-soft); }
+        .day.has-shift { background: var(--navy); color: var(--white); }
+        .day.has-shift.drop-day { background: var(--white); color: var(--navy); border: 1.5px solid var(--navy); font-weight: 800; }
+
+        .section-title { padding: 0 24px; margin: 16px 0 10px; font-family: var(--caps); font-size: 12px; color: var(--navy); text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 8px; }
+        .section-title svg { width: 15px; height: 15px; }
+        .section-title::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+
+        .shift-list { list-style: none; padding: 0 24px; margin: 0; }
+        .shift-item { display: flex; align-items: stretch; padding: 16px 0; border-bottom: 1px solid var(--line); cursor: pointer; transition: background 0.2s; }
+        .shift-item:hover { background: #faf8f4; }
+        .shift-indicator { width: 4px; margin-right: 16px; }
+        .type-floor { background: var(--navy); }
+        .type-launch { background: var(--black); }
+        .type-vm { background: #b8b3a8; }
+        .shift-content { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; }
+        .shift-role { font-family: var(--serif); font-size: 16px; font-weight: 600; color: var(--navy); margin: 0 0 4px; }
+        .shift-meta { font-family: var(--meta); font-size: 12px; color: var(--text-sub); display: flex; align-items: center; gap: 6px; font-weight: 500; }
+        .shift-meta svg { width: 13px; height: 13px; }
+        .date-badge { width: 50px; height: 50px; border: 1.5px solid var(--navy); background: #fff; text-align: center; margin-left: 12px; display: flex; flex-direction: column; }
+        .date-month { background: var(--navy); color: var(--white); font-family: var(--caps); font-size: 9px; letter-spacing: 1px; padding: 4px 0; text-transform: uppercase; }
+        .date-day { flex-grow: 1; display: flex; align-items: center; justify-content: center; font-family: var(--serif); font-size: 18px; font-weight: 600; color: var(--navy); }
+
+        .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(4,10,43,0.8); backdrop-filter: blur(4px); display: flex; align-items: flex-end; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; z-index: 100; }
+        .modal-backdrop.active { opacity: 1; pointer-events: auto; }
+        .modal-card { background: #fff; width: 100%; max-width: 640px; border-top: 4px solid var(--navy); padding: 28px 24px 24px; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column; gap: 16px; max-height: 88vh; overflow-y: auto; }
+        .modal-backdrop.active .modal-card { transform: translateY(0); }
+        .modal-header { display: flex; justify-content: space-between; align-items: flex-start; }
+        .modal-title-group h3 { margin: 0; font-family: var(--serif); font-size: 22px; color: var(--navy); font-weight: 600; line-height: 1.1; }
+        .close-x { cursor: pointer; padding: 4px; color: var(--navy); display: inline-flex; }
+        .close-x svg { width: 22px; height: 22px; }
+        .detail-row { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--bg-soft); border-left: 3px solid var(--navy); }
+        .detail-row svg { width: 18px; height: 18px; color: var(--navy); flex-shrink: 0; }
+        .detail-text h4 { margin: 0; font-family: var(--meta); font-size: 10px; color: var(--text-sub); text-transform: uppercase; letter-spacing: 1px; }
+        .detail-text p { margin: 2px 0 0; font-size: 14px; font-weight: 700; color: var(--navy); }
+
+        .roster-section-title { margin: 10px 0 8px; font-family: var(--meta); font-size: 10px; color: var(--text-sub); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+        .roster-list { list-style: none; padding: 0; margin: 0; background: #fff; border: 1px solid var(--line); }
+        .roster-item { display: flex; align-items: center; padding: 10px; border-bottom: 1px solid var(--line); }
+        .roster-item:last-child { border-bottom: none; }
+        .avatar { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; margin-right: 11px; flex-shrink: 0; background: var(--navy); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+        .staff-name { font-size: 13px; font-weight: 700; color: var(--navy); line-height: 1.2; }
+        .staff-role { font-family: var(--meta); font-size: 9px; color: var(--text-sub); text-transform: uppercase; letter-spacing: .5px; font-weight: 600; }
+
+        .btn-swap { background: var(--navy); color: var(--white); border: 1px solid var(--navy); padding: 16px; font-family: var(--caps); font-size: 12px; letter-spacing: 1px; cursor: pointer; width: 100%; display: flex; align-items: center; justify-content: center; gap: 9px; margin-top: 6px; text-transform: uppercase; transition: all 0.2s; }
+        .btn-swap svg { width: 15px; height: 15px; }
+        .btn-swap:hover { background: #fff; color: var(--navy); }
+        .btn-swap:disabled { background: #d9d6cf; border-color: #d9d6cf; color: #fff; cursor: not-allowed; }
+
+        /* THE EDIT (hub) */
+        .nav-header-pulse { border-bottom: 1px solid var(--line); }
+        .back-btn { font-family: var(--caps); font-size: 11px; text-transform: uppercase; background: none; border: none; cursor: pointer; color: var(--text-sub); letter-spacing: 1px; display:inline-flex; align-items:center; gap:5px; }
+        .back-btn svg { width: 13px; height: 13px; }
+        .back-btn:hover { color: var(--navy); }
+
+        .quick-actions { display: grid; grid-template-columns: repeat(4, 1fr); padding: 20px 24px; gap: 12px; background: #faf8f4; }
+        .action-item { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; }
+        .action-icon { width: 46px; height: 46px; background: #fff; border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; transition: all 0.2s; color: var(--navy); }
+        .action-icon svg { width: 20px; height: 20px; }
+        .action-item:hover .action-icon { border-color: var(--navy); background: var(--navy); color: #fff; }
+        .action-label { font-family: var(--meta); font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--navy); text-align: center; letter-spacing: .5px; }
+
+        .drop-intel-banner { background: var(--navy); color: #fff; padding: 22px; margin: 0 24px; }
+        .tag-urgent { background: #fff; color: var(--navy); font-family: var(--caps); font-size: 9px; letter-spacing: 1px; padding: 3px 7px; text-transform: uppercase; display: inline-block; margin-bottom: 10px; }
+        .drop-title { font-family: var(--serif); font-size: 20px; font-weight: 600; margin: 0 0 8px; }
+        .drop-info { font-family: var(--meta); font-size: 12px; color: #c8cbdb; margin-bottom: 16px; line-height: 1.7; }
+        .btn-outline-white { background: transparent; border: 1px solid #fff; color: #fff; padding: 9px 13px; font-family: var(--caps); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; }
+        .btn-outline-white:hover { background: #fff; color: var(--navy); }
+
+        .news-feed { padding: 20px 24px; }
+        .news-item { display: flex; gap: 15px; margin-bottom: 20px; border-bottom: 1px solid var(--line); padding-bottom: 20px; }
+        .news-item:last-child { border-bottom: none; margin-bottom: 0; }
+        .news-thumb { width: 80px; height: 80px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #fff; background: var(--navy); position: relative; overflow: hidden; }
+        .news-thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .news-thumb .play { position: absolute; inset: 0; display:flex; align-items:center; justify-content:center; background: rgba(4,10,43,0.35); color:#fff; }
+        .news-thumb .play svg { width: 22px; height: 22px; }
+        .news-thumb svg { width: 26px; height: 26px; }
+        .news-content h4 { margin: 0 0 5px; font-family: var(--serif); font-size: 15px; font-weight: 600; color: var(--navy); }
+        .news-content p { margin: 0; font-family: var(--meta); font-size: 12px; color: var(--text-sub); line-height: 1.4; }
+        .video-tag { font-family: var(--caps); font-size: 9px; color: var(--navy); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; display: block; }
+
+        .loading-spinner { width: 15px; height: 15px; border: 2px solid #fff; border-bottom-color: transparent; border-radius: 50%; display: inline-block; animation: rotation 1s linear infinite; }
+        .status-message { font-family: var(--caps); font-size: 11px; letter-spacing: 1px; text-align: center; margin-top: 6px; min-height: 18px; text-transform: uppercase; }
+        .status-success { color: #1f6f4f; }
+        @keyframes rotation { to { transform: rotate(360deg); } }
+    </style>
+</head>
+
+<body>
+    <div class="plugin-wrapper">
+
+        <!-- APP 1: SCHEDULE -->
+        <div id="app-shifts" class="app-section active-app">
+            <div class="shifts-card">
+                <div class="header">
+                    <div>
+                        <h2>My Schedule</h2>
+                        <div class="subtitle">Estée Lauder · Macy's Herald Square</div>
+                    </div>
+                    <button id="nav-to-pulse" class="btn-nav-pulse">The Edit <i data-lucide="arrow-right"></i></button>
+                </div>
+
+                <div class="calendar-wrapper">
+                    <div class="calendar-weekdays">
+                        <div class="weekday">Mon</div><div class="weekday">Tue</div><div class="weekday">Wed</div><div class="weekday">Thu</div><div class="weekday">Fri</div><div class="weekday">Sat</div><div class="weekday">Sun</div>
+                    </div>
+                    <div class="calendar-days" id="calDays"></div>
+                </div>
+
+                <h3 class="section-title"><i data-lucide="calendar-clock"></i> Upcoming Shifts</h3>
+                <ul class="shift-list" id="shiftList"></ul>
+
+                <div class="modal-backdrop" id="shiftModal">
+                    <div class="modal-card">
+                        <div class="modal-header">
+                            <div class="modal-title-group">
+                                <h3 id="modalTitle">Shift Name</h3>
+                                <div class="subtitle" id="modalDate">Date</div>
+                            </div>
+                            <div class="close-x" onclick="closeModal()"><i data-lucide="x"></i></div>
+                        </div>
+                        <div class="detail-row"><i data-lucide="map-pin"></i><div class="detail-text"><h4>Location</h4><p id="modalLocation">Loc</p></div></div>
+                        <div class="detail-row"><i data-lucide="clock"></i><div class="detail-text"><h4>Time</h4><p id="modalTime">Time</p></div></div>
+                        <div class="detail-row"><i data-lucide="shirt"></i><div class="detail-text"><h4>Uniform</h4><p>Counter black · full glam</p></div></div>
+                        <div>
+                            <div class="roster-section-title">Team on Shift (3)</div>
+                            <ul class="roster-list" id="teamOnShift"></ul>
+                        </div>
+                        <div class="status-message" id="statusMessage"></div>
+                        <button class="btn-swap" id="swapBtn" onclick="triggerSwap()"><i data-lucide="refresh-cw"></i> <span>Post to Swap Board</span></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- APP 2: THE EDIT -->
+        <div id="app-pulse" class="app-section">
+            <div class="pulse-card">
+                <div class="nav-header-pulse">
+                    <button class="back-btn" onclick="navToShifts()"><i data-lucide="arrow-left"></i> Schedule</button>
+                    <h2>The Edit</h2>
+                    <div style="width: 60px;"></div>
+                </div>
+
+                <div class="quick-actions">
+                    <div class="action-item"><div class="action-icon"><i data-lucide="file-text"></i></div><div class="action-label">My Pay</div></div>
+                    <div class="action-item"><div class="action-icon"><i data-lucide="umbrella"></i></div><div class="action-label">Time Off</div></div>
+                    <div class="action-item"><div class="action-icon"><i data-lucide="message-circle"></i></div><div class="action-label">Chat</div></div>
+                    <div class="action-item"><div class="action-icon"><i data-lucide="package"></i></div><div class="action-label">Stock</div></div>
+                </div>
+
+                <h3 class="section-title"><i data-lucide="sparkles"></i> Launch Intel</h3>
+                <div class="drop-intel-banner">
+                    <span class="tag-urgent">In 24 Hours</span>
+                    <div class="drop-title">Revitalizing Supreme+ Sculpting Serum</div>
+                    <div class="drop-info">
+                        Allocation: launch stock landing tonight<br>
+                        Priority: hero launch of the season<br>
+                        Talking point: lead with the firming face + neck story and the sculpting applicator.
+                    </div>
+                    <button class="btn-outline-white">View Launch Guide</button>
+                </div>
+
+                <h3 class="section-title"><i data-lucide="megaphone"></i> Team Updates</h3>
+                <div class="news-feed">
+                    <div class="news-item">
+                        <div class="news-thumb">
+                            <img src="https://elc-demo.staffbase.rocks/api/media/secure/external/v2/image/upload/c_crop,w_416,h_416,x_50/c_fill,w_200,h_200/340854e956c3e248110804b429e8cbf9.png" referrerpolicy="no-referrer" alt="" onerror="this.style.display='none'">
+                            <div class="play"><i data-lucide="play"></i></div>
+                        </div>
+                        <div class="news-content">
+                            <span class="video-tag">Regional Update</span>
+                            <h4>Launch week goals for the counter</h4>
+                            <p>Patrick Anderson walks through targets for the Revitalizing Supreme+ launch and holiday gifting.</p>
+                        </div>
+                    </div>
+                    <div class="news-item">
+                        <div class="news-thumb"><i data-lucide="award"></i></div>
+                        <div class="news-content">
+                            <span class="video-tag">High Five</span>
+                            <h4>Great work, Maria!</h4>
+                            <p>Nicole recognized you for the Advanced Night Repair routine upsell yesterday. Keep it up.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const AV = "https://elc-demo.staffbase.rocks/api/media/secure/external/v2/image/upload/";
+        const initials = n => n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+
+        // Shift days this month (navy = shift, drop-day = launch)
+        const shiftDays = { 12:'shift', 15:'shift', 18:'drop', 22:'shift' };
+
+        // Upcoming shifts (first one matches the shift-swap 'today' shift)
+        const shifts = [
+            { role:"Beauty Advisor", type:"floor", loc:"Main Floor", time:"09:00 AM – 05:30 PM", metaIcon:"map-pin", meta:"Main Floor", m:"AUG", d:"12" },
+            { role:"Launch Support: Supreme+", type:"launch", loc:"Main Floor · Skincare", time:"08:00 AM – 04:00 PM", metaIcon:"flame", meta:"Hero launch day", m:"AUG", d:"18" },
+            { role:"Skincare Specialist", type:"floor", loc:"Main Floor · Skincare", time:"12:00 PM – 08:00 PM", metaIcon:"map-pin", meta:"Skincare zone", m:"AUG", d:"22" },
+            { role:"Visual Merch Reset", type:"vm", loc:"Counter · after close", time:"10:00 PM – 06:00 AM", metaIcon:"map-pin", meta:"Counter reset", m:"AUG", d:"25" }
+        ];
+
+        const teamOnShift = [
+            { name:"Nicole Adams",       role:"Counter Manager", img:AV+"c_crop,w_355,h_355,x_35/c_fill,w_200,h_200/2bc57ad12be1c908a0b8aee563a2ee3b.png" },
+            { name:"Maria Apathangelou", role:"Beauty Advisor",  img:AV+"c_thumb,g_face,h_200,w_200/11efb7cee8233c369f439a88b638b17b.jpg" },
+            { name:"Ruby Gray",          role:"Makeup Artist",   img:AV+"c_thumb,g_face,h_200,w_200/9dc72b7e7fc0d33fc4bd88e82c3f707e.png" }
+        ];
+
+        function renderCalendar() {
+            let html = '';
+            for (let n = 1; n <= 31; n++) {
+                const s = shiftDays[n];
+                const cls = s === 'drop' ? 'day has-shift drop-day' : (s ? 'day has-shift' : 'day');
+                html += `<div class="${cls}">${n}</div>`;
+            }
+            document.getElementById('calDays').innerHTML = html;
+        }
+
+        function renderShifts() {
+            document.getElementById('shiftList').innerHTML = shifts.map((s,i) => `
+                <li class="shift-item" onclick="openModal(${i})">
+                    <div class="shift-indicator type-${s.type}"></div>
+                    <div class="shift-content">
+                        <div class="shift-role">${s.role}</div>
+                        <div class="shift-meta"><i data-lucide="${s.metaIcon}"></i> ${s.meta}</div>
+                        <div class="shift-meta" style="margin-top:2px;"><i data-lucide="clock"></i> ${s.time}</div>
+                    </div>
+                    <div class="date-badge"><div class="date-month">${s.m}</div><div class="date-day">${s.d}</div></div>
+                </li>`).join('');
+        }
+
+        function renderTeamOnShift() {
+            document.getElementById('teamOnShift').innerHTML = teamOnShift.map(m => `
+                <li class="roster-item">
+                    <img class="avatar" src="${m.img}" referrerpolicy="no-referrer" alt="" onerror="this.outerHTML='<div class=\\'avatar\\'>${initials(m.name)}</div>'">
+                    <div class="staff-info"><div class="staff-name">${m.name}</div><div class="staff-role">${m.role}</div></div>
+                </li>`).join('');
+        }
+
+        // Navigation
+        const appShifts = document.getElementById('app-shifts');
+        const appPulse = document.getElementById('app-pulse');
+        document.getElementById('nav-to-pulse').onclick = () => { appShifts.classList.remove('active-app'); appPulse.classList.add('active-app'); refreshIcons(); };
+        function navToShifts() { appPulse.classList.remove('active-app'); appShifts.classList.add('active-app'); refreshIcons(); }
+
+        // Modal
+        const modal = document.getElementById('shiftModal');
+        const swapBtn = document.getElementById('swapBtn');
+        const statusMsg = document.getElementById('statusMessage');
+        function openModal(i) {
+            const s = shifts[i];
+            document.getElementById('modalTitle').innerText = s.role;
+            document.getElementById('modalTime').innerText = s.time;
+            document.getElementById('modalLocation').innerText = s.loc;
+            document.getElementById('modalDate').innerText = s.m + ' ' + s.d;
+            statusMsg.innerText = ''; statusMsg.className = 'status-message';
+            swapBtn.disabled = false; swapBtn.innerHTML = '<i data-lucide="refresh-cw"></i> <span>Post to Swap Board</span>';
+            modal.classList.add('active'); refreshIcons();
+        }
+        function closeModal() { modal.classList.remove('active'); }
+        modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+        function triggerSwap() {
+            swapBtn.disabled = true; swapBtn.innerHTML = '<span class="loading-spinner"></span> Notifying team...';
+            setTimeout(() => {
+                swapBtn.innerHTML = '<i data-lucide="check"></i> <span>Posted to Swap Board</span>';
+                statusMsg.className = 'status-message status-success'; statusMsg.innerText = 'Request sent · 3 people notified';
+                refreshIcons();
+                setTimeout(closeModal, 2000);
+            }, 1200);
+        }
+
+        function refreshIcons() { if (window.lucide) lucide.createIcons({ attrs: { 'stroke-width': 1.5 } }); }
+
+        renderCalendar(); renderShifts(); renderTeamOnShift(); refreshIcons();
+    </script>
+</body>
+</html>

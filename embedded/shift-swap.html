@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estée Lauder — Shift & Swap</title>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @font-face { font-family:"Optima"; font-weight:400; font-display:swap;
+          src:url("https://media.elcompanies.com/files/e/estee-lauder-companies/global/fonts-latest/optima-roman-woff2.woff2") format("woff2"); }
+        @font-face { font-family:"Optima"; font-weight:600; font-display:swap;
+          src:url("https://media.elcompanies.com/files/e/estee-lauder-companies/global/fonts-latest/optima-semi-bold-woff2.woff2") format("woff2"); }
+        @font-face { font-family:"Optima"; font-weight:700; font-display:swap;
+          src:url("https://media.elcompanies.com/files/e/estee-lauder-companies/global/fonts-latest/optima-bold-woff2.woff2") format("woff2"); }
+        @font-face { font-family:"Noto Sans"; font-weight:400; font-display:swap;
+          src:url("https://fonts.gstatic.com/s/notosans/v9/o-0IIpQlx3QUlC5A4PNr5TRA.woff2") format("woff2");
+          unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+2000-206F,U+2074,U+20AC,U+2122,U+2212,U+FEFF,U+FFFD; }
+        @font-face { font-family:"Akzidenz Grotesk Black"; font-display:swap;
+          src:url("Akzidenz-grotesk-black.ttf") format("truetype"); }
+
+        :root {
+            --navy: #040a2b;
+            --black: #000000;
+            --white: #ffffff;
+            --grey-text: #8b8b8b;
+            --line: #e7e4dd;
+            --serif: "Optima", "Palatino Linotype", Georgia, serif;
+            --sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+            --meta: "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+            --caps: "Akzidenz Grotesk Black", "Helvetica Neue", Arial, sans-serif;
+        }
+
+        * { box-sizing: border-box; }
+        body { font-family: var(--sans); background: var(--white); margin: 0; -webkit-font-smoothing: antialiased; }
+
+        .widget-card { background: var(--white); width: 100%; max-width: none; border: none; border-top: 4px solid var(--navy); padding: 28px 26px; position: relative; box-shadow: none; }
+
+        .caps { font-family: var(--caps); text-transform: uppercase; letter-spacing: 1px; }
+
+        .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; }
+        .header-title { font-family: var(--caps); font-size: 13px; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 8px; color: var(--navy); }
+        .header-title svg { width: 18px; height: 18px; }
+        .status-badge { background: var(--navy); color: var(--white); font-family: var(--caps); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; padding: 6px 11px; display:inline-flex; align-items:center; line-height:1; }
+
+        .shift-time-large { font-family: var(--serif); font-size: 44px; font-weight: 600; color: var(--navy); line-height: 1; margin-bottom: 8px; }
+        .shift-location { font-family: var(--meta); font-size: 13px; font-weight: 700; color: var(--grey-text); text-transform: uppercase; letter-spacing: 1px; }
+
+        .section-label { display: flex; align-items: center; gap: 7px; font-family: var(--caps); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--navy); margin-top: 28px; margin-bottom: 14px; }
+        .section-label svg { width: 15px; height: 15px; }
+
+        .team-list { display: flex; gap: 10px; flex-wrap: wrap; }
+        .team-badge { background: var(--navy); color: var(--white); padding: 7px 12px 7px 7px; font-size: 12px; font-weight: 400; display: flex; align-items: center; gap: 9px; }
+        .team-badge img { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; background:#fff; }
+        .team-badge .ini { width:26px;height:26px;border-radius:50%;background:#fff;color:var(--navy);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px; }
+        .team-badge .role { opacity: 0.7; margin-left: 4px; }
+        .team-badge.is-me { background: var(--white); color: var(--navy); border: 1px solid var(--navy); }
+        .team-badge.is-me .role { opacity: 0.6; }
+
+        .week-header { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 32px; margin-bottom: 14px; }
+        .btn-swap-text { background: none; border: none; cursor: pointer; font-family: var(--caps); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--navy); display: flex; align-items: center; gap: 6px; padding: 0; }
+        .btn-swap-text svg { width: 15px; height: 15px; }
+        .btn-swap-text:hover { text-decoration: underline; }
+
+        .calendar-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; }
+        .day-card { background: #f2efe9; color: var(--navy); padding: 15px 10px; text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100px; cursor: pointer; transition: transform 0.1s; }
+        .day-card:hover { transform: translateY(-2px); }
+        .day-card.active { background: var(--navy); color: var(--white); }
+        .day-name { font-family: var(--meta); font-size: 11px; text-transform: uppercase; letter-spacing:1px; margin-bottom: 5px; opacity: 0.75; }
+        .day-number { font-family: var(--serif); font-size: 32px; font-weight: 600; line-height: 1; margin-bottom: 5px; }
+        .day-hours { font-family: var(--meta); font-size: 10px; font-weight: 500; }
+        .day-card.off .day-number { opacity: 0.4; }
+        .day-card.off .day-hours { opacity: 0.6; }
+
+        .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(4,10,43,0.75); backdrop-filter: blur(4px); display: flex; align-items: flex-end; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 50; }
+        .modal-backdrop.active { opacity: 1; pointer-events: auto; }
+        .modal-content { background: var(--navy); color: #fff; width: 100%; max-width: 640px; padding: 30px; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); border-top: 4px solid #fff; }
+        .modal-backdrop.active .modal-content { transform: translateY(0); }
+        .modal-header h2 { margin: 0; font-family: var(--serif); font-size: 24px; color: #fff; font-weight: 600; }
+        .modal-detail { margin-top: 18px; font-size: 15px; line-height: 1.6; color: #cfd2e0; }
+        .modal-detail strong { color: #fff; }
+        .btn-confirm-swap { background: #fff; color: var(--navy); width: 100%; border: none; padding: 15px; font-family: var(--caps); font-size: 13px; letter-spacing: 1px; text-transform: uppercase; margin-top: 24px; cursor: pointer; display:inline-flex; align-items:center; justify-content:center; gap:8px; }
+        .btn-confirm-swap svg { width:16px; height:16px; }
+        .btn-confirm-swap:disabled { background: #33395a; color: #9aa0bd; cursor: not-allowed; }
+        .btn-close { background: transparent; border: 1px solid #33395a; color: #fff; width: 100%; padding: 11px; margin-top: 10px; cursor: pointer; font-family: var(--meta); }
+
+        .spinner { width: 16px; height: 16px; border: 3px solid rgba(4,10,43,0.15); border-radius: 50%; border-top-color: var(--navy); animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="widget-card">
+        <div class="header-row">
+            <div class="header-title"><i data-lucide="clock"></i> Today's Shift</div>
+            <div class="status-badge">In 2 Hours</div>
+        </div>
+
+        <div class="shift-time-large">09:00 – 17:30</div>
+        <div class="shift-location">Estée Lauder · Macy's Herald Square · Main Floor</div>
+
+        <div class="section-label"><i data-lucide="users"></i> Team on Counter</div>
+        <div class="team-list" id="teamList"></div>
+
+        <div class="week-header">
+            <div class="section-label" style="margin:0;"><i data-lucide="calendar"></i> This Week</div>
+            <button class="btn-swap-text" onclick="openSwapModal()"><i data-lucide="refresh-cw"></i> Request Swap</button>
+        </div>
+
+        <div class="calendar-grid" id="dynamicCalendar"></div>
+
+        <div class="modal-backdrop" id="swapModal">
+            <div class="modal-content">
+                <div class="modal-header"><h2>Confirm Swap</h2></div>
+                <div class="modal-detail">
+                    You are requesting to swap your shift on
+                    <strong id="modalDateDisplay">Today</strong>.<br>
+                    This will be sent to <strong>Nicole Adams</strong> (Counter Manager) for approval.
+                </div>
+                <button id="btnConfirm" class="btn-confirm-swap" onclick="processSwap()">Confirm Request</button>
+                <button class="btn-close" onclick="closeSwapModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Shared cast (real coworkers) — kept identical in the schedule widget.
+        const team = [
+            { name:"Nicole Adams",       role:"Counter Manager" },
+            { name:"Maria Apathangelou", role:"Beauty Advisor" },
+            { name:"You",                role:"Beauty Advisor" },
+            { name:"Ruby Gray",          role:"Makeup Artist" }
+        ];
+        const initials = n => n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+
+        function renderTeam() {
+            document.getElementById('teamList').innerHTML = team.map(m => {
+                const me = m.name === "You";
+                const short = me ? "You" : m.name.split(' ')[0] + ' ' + m.name.split(' ')[1][0] + '.';
+                const chip = `<span class="ini">${me ? 'Y' : initials(m.name)}</span>`;
+                return `<div class="team-badge${me?' is-me':''}">${chip}${short}<span class="role">${m.role}</span></div>`;
+            }).join('');
+        }
+
+        function initCalendar() {
+            const container = document.getElementById('dynamicCalendar');
+            const days = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+            let html = '';
+            for (let i = -2; i < 2; i++) {
+                let d = new Date(); d.setDate(new Date().getDate() + i);
+                let isToday = (i === 0);
+                let timeText = isToday ? '09:00-17:30' : (i===-1 ? '12:00-20:30' : (i===1 ? 'OFF' : '09:00-17:30'));
+                let offClass = (timeText === 'OFF') ? 'off' : '';
+                html += `<div class="day-card ${isToday?'active':''} ${offClass}" onclick="handleCardClick(${i})">
+                    <div class="day-name">${days[d.getDay()]}</div>
+                    <div class="day-number">${d.getDate()}</div>
+                    <div class="day-hours">${timeText}</div></div>`;
+            }
+            container.innerHTML = html;
+        }
+
+        const modal = document.getElementById('swapModal');
+        const btnConfirm = document.getElementById('btnConfirm');
+        function openSwapModal() {
+            document.getElementById('modalDateDisplay').innerText = new Date().toLocaleDateString('en-US', { weekday:'long', month:'short', day:'numeric' });
+            modal.classList.add('active');
+            btnConfirm.disabled = false; btnConfirm.innerHTML = 'Confirm Request';
+        }
+        function closeSwapModal() { modal.classList.remove('active'); }
+        function handleCardClick(offset) { if (offset === 0) openSwapModal(); }
+        async function processSwap() {
+            btnConfirm.disabled = true; btnConfirm.innerHTML = '<span class="spinner"></span> Sending...';
+            await new Promise(r => setTimeout(r, 1400));
+            btnConfirm.innerHTML = '<i data-lucide="check"></i> Sent';
+            if (window.lucide) lucide.createIcons({ attrs: { 'stroke-width': 1.75 } });
+            setTimeout(closeSwapModal, 1000);
+        }
+
+        renderTeam();
+        initCalendar();
+        if (window.lucide) lucide.createIcons({ attrs: { 'stroke-width': 1.75 } });
+    </script>
+</body>
+</html>

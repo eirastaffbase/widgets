@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adidas Pay Widget</title>
+    <style>
+        /* =========================================
+           GLOBAL & SHARED STYLES (Adidas 5th Ave Theme)
+           ========================================= */
+        :root {
+            /* BRAND PALETTE */
+            --adi-black: #000000;
+            --adi-dark-gray: #1a1a1a;
+            --adi-white: #FFFFFF;
+            
+            /* ACCENT: SOLAR YELLOW */
+            --adi-accent: #ede600;
+
+            /* FUNCTIONAL COLORS */
+            --bg-color: #F0F0F0;
+            --card-bg: #FFFFFF;
+            --text-main: #000000;
+            --text-sub: #767676;
+            --border-color: #e6e6e6;
+            --overlay-bg: rgba(0, 0, 0, 0.8);
+            
+            --font-stack: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            font-family: var(--font-stack);
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .plugin-wrapper {
+            width: 100%;
+            max-width: 400px;
+            position: relative;
+        }
+
+        /* CARD STYLES */
+        .pay-card {
+            background-color: var(--card-bg);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            position: relative;
+            padding-bottom: 20px;
+            border-top: 6px solid var(--adi-black); /* Signature Top Border */
+            min-height: 600px;
+        }
+
+        .header {
+            padding: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .header h2 {
+            margin: 0;
+            font-size: 24px;
+            color: var(--adi-black);
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: -0.5px;
+            line-height: 1;
+        }
+
+        /* Privacy Toggle Style */
+        .privacy-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+            cursor: pointer;
+            font-size: 11px;
+            color: var(--adi-black);
+            font-weight: 700;
+            user-select: none;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            background: #f0f0f0;
+            padding: 6px 12px;
+            transition: all 0.2s;
+            clip-path: polygon(10% 0, 100% 0, 100% 100%, 0% 100%);
+        }
+
+        .privacy-toggle:hover {
+            background: var(--adi-accent);
+        }
+
+        .toggle-icon {
+            font-size: 12px;
+        }
+
+        /* HERO SECTION (Net Pay) */
+        .hero-pay {
+            padding: 30px 24px;
+            text-align: center;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 10px;
+            background: radial-gradient(circle at center, #fafafa 0%, #ffffff 70%);
+        }
+
+        .hero-label {
+            font-size: 12px;
+            font-weight: 800;
+            color: var(--text-sub);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+
+        .hero-amount {
+            font-size: 48px;
+            font-weight: 800;
+            color: var(--adi-black);
+            letter-spacing: -2px;
+            margin: 10px 0;
+            font-variant-numeric: tabular-nums;
+        }
+        
+        /* Privacy Mask styling */
+        .hero-amount.privacy-mask {
+            letter-spacing: 2px;
+        }
+
+        .hero-date {
+            font-size: 13px;
+            color: var(--adi-black);
+            font-weight: 700;
+            background: var(--adi-accent);
+            display: inline-block;
+            padding: 4px 8px;
+            text-transform: uppercase;
+        }
+
+        .section-title {
+            padding: 10px 24px 5px;
+            margin: 15px 0 10px 0;
+            font-size: 12px;
+            font-weight: 800;
+            color: var(--text-main);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .section-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border-color);
+        }
+
+        /* PAYSLIP LIST */
+        .pay-list {
+            list-style: none;
+            padding: 0 20px;
+            margin: 0;
+        }
+
+        .pay-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #fff;
+            padding: 18px 0;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .pay-item:hover {
+            background: #fafafa;
+        }
+        
+        /* Add a little indicator on hover */
+        .pay-item:hover .pay-amount {
+            color: var(--text-sub);
+        }
+
+        .pay-item:last-child {
+            border-bottom: none;
+        }
+
+        .pay-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .pay-date {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--adi-black);
+            margin-bottom: 4px;
+            letter-spacing: -0.5px;
+        }
+
+        .pay-period {
+            font-size: 11px;
+            color: var(--text-sub);
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .pay-amount-col {
+            text-align: right;
+        }
+
+        .pay-amount {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--adi-black);
+            font-variant-numeric: tabular-nums;
+            transition: color 0.2s;
+        }
+
+        .pay-status {
+            font-size: 10px;
+            text-transform: uppercase;
+            font-weight: 800;
+            background: var(--adi-black);
+            padding: 2px 6px;
+            color: var(--adi-white);
+            margin-top: 4px;
+            display: inline-block;
+        }
+
+        /* MODAL (Slide Up Animation) */
+        .modal-backdrop {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--overlay-bg);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: flex-end;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            z-index: 100;
+        }
+
+        .modal-backdrop.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-card {
+            background-color: white;
+            width: 100%;
+            /* Adidas Accent Top Border */
+            border-top: 6px solid var(--adi-accent);
+            padding: 30px 24px;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            box-sizing: border-box;
+            max-height: 90%;
+            overflow-y: auto;
+        }
+
+        .modal-backdrop.active .modal-card {
+            transform: translateY(0);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 25px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
+        }
+
+        .modal-title h3 {
+            margin: 0;
+            font-size: 24px;
+            color: var(--adi-black);
+            font-weight: 800;
+            letter-spacing: -1px;
+        }
+
+        .modal-subtitle {
+            font-size: 12px;
+            color: var(--text-sub);
+            margin-top: 4px;
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .close-btn {
+            cursor: pointer;
+            padding: 5px;
+            font-size: 24px;
+            line-height: 1;
+            color: var(--adi-black);
+            transition: transform 0.2s;
+        }
+
+        .close-btn:hover {
+            transform: scale(1.1);
+        }
+
+        /* Breakdown Styles */
+        .breakdown-section {
+            margin-bottom: 20px;
+        }
+
+        .breakdown-title {
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--adi-black);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+            background: #f0f0f0;
+            padding: 5px 8px;
+            display: inline-block;
+        }
+
+        .breakdown-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 14px;
+            color: var(--text-sub);
+            font-weight: 500;
+        }
+
+        .breakdown-row span:last-child {
+            color: var(--adi-black);
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .breakdown-row.total {
+            font-weight: 800;
+            color: var(--adi-black);
+            border-top: 2px solid var(--adi-black);
+            padding-top: 12px;
+            margin-top: 12px;
+            font-size: 16px;
+        }
+
+        .highlight {
+            background-color: var(--adi-accent);
+            padding: 0 5px;
+            color: var(--adi-black);
+        }
+
+        .btn-download {
+            background-color: var(--adi-black);
+            color: var(--adi-white);
+            border: none;
+            padding: 18px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            width: 100%;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 20px;
+            border: 1px solid var(--adi-black);
+            transition: all 0.2s;
+        }
+
+        .btn-download:hover {
+            background-color: var(--adi-white);
+            color: var(--adi-black);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="plugin-wrapper">
+        <div class="pay-card">
+
+            <!-- Header -->
+            <div class="header">
+                <div>
+                    <h2>My Pay</h2>
+                    <!-- Toggle Switch -->
+                    <div class="privacy-toggle" onclick="togglePrivacy()">
+                        <span id="toggle-icon" class="toggle-icon">👁️</span>
+                        <span id="toggle-text">Show Pay</span>
+                    </div>
+                </div>
+                <!-- Adidas Logo Placeholder / Brand Element -->
+                <div style="font-size: 24px;">///</div>
+            </div>
+
+            <!-- Hero: Latest Pay -->
+            <div class="hero-pay">
+                <div class="hero-label">Latest Net Pay</div>
+                <!-- Data-original holds the real value, content starts hidden -->
+                <div class="hero-amount privacy-mask" data-original="$2,415.22">••••</div>
+                <div class="hero-date">Paid Dec 15, 2025</div>
+            </div>
+
+            <!-- History List -->
+            <h3 class="section-title">Recent Payslips</h3>
+            <ul class="pay-list">
+
+                <!-- Item 1 (Active) -->
+                <li class="pay-item"
+                    onclick="openModal('Dec 15, 2025', 'Dec 01 - Dec 14', '2,415.22', '3,100.00', '684.78')">
+                    <div class="pay-info">
+                        <div class="pay-date">Dec 15, 2025</div>
+                        <div class="pay-period">Period: Dec 01 - Dec 14</div>
+                    </div>
+                    <div class="pay-amount-col">
+                        <div class="pay-amount privacy-mask" data-original="$2,415.22">••••</div>
+                        <div class="pay-status">Paid</div>
+                    </div>
+                </li>
+
+                <!-- Item 2 -->
+                <li class="pay-item"
+                    onclick="openModal('Nov 30, 2025', 'Nov 15 - Nov 29', '2,390.50', '3,050.00', '659.50')">
+                    <div class="pay-info">
+                        <div class="pay-date">Nov 30, 2025</div>
+                        <div class="pay-period">Period: Nov 15 - Nov 29</div>
+                    </div>
+                    <div class="pay-amount-col">
+                        <div class="pay-amount privacy-mask" data-original="$2,390.50">••••</div>
+                        <div class="pay-status">Paid</div>
+                    </div>
+                </li>
+
+                <!-- Item 3 -->
+                <li class="pay-item"
+                    onclick="openModal('Nov 15, 2025', 'Nov 01 - Nov 14', '2,415.22', '3,100.00', '684.78')">
+                    <div class="pay-info">
+                        <div class="pay-date">Nov 15, 2025</div>
+                        <div class="pay-period">Period: Nov 01 - Nov 14</div>
+                    </div>
+                    <div class="pay-amount-col">
+                        <div class="pay-amount privacy-mask" data-original="$2,415.22">••••</div>
+                        <div class="pay-status">Paid</div>
+                    </div>
+                </li>
+
+                <!-- Item 4 -->
+                <li class="pay-item"
+                    onclick="openModal('Oct 31, 2025', 'Oct 15 - Oct 30', '2,200.00', '2,900.00', '700.00')">
+                    <div class="pay-info">
+                        <div class="pay-date">Oct 31, 2025</div>
+                        <div class="pay-period">Period: Oct 15 - Oct 30</div>
+                    </div>
+                    <div class="pay-amount-col">
+                        <div class="pay-amount privacy-mask" data-original="$2,200.00">••••</div>
+                        <div class="pay-status">Paid</div>
+                    </div>
+                </li>
+
+            </ul>
+
+            <!-- MODAL: Payslip Detail -->
+            <div class="modal-backdrop" id="payModal">
+                <div class="modal-card">
+                    <div class="modal-header">
+                        <div class="modal-title">
+                            <h3 id="mDate">Dec 15, 2025</h3>
+                            <div class="modal-subtitle" id="mPeriod">Dec 01 - Dec 14</div>
+                        </div>
+                        <div class="close-btn" onclick="closeModal()">✕</div>
+                    </div>
+
+                    <!-- Earnings -->
+                    <div class="breakdown-section">
+                        <div class="breakdown-title">Earnings</div>
+                        <div class="breakdown-row">
+                            <span>Regular Pay</span>
+                            <span>$2,800.00</span>
+                        </div>
+                        <div class="breakdown-row">
+                            <span>Overtime (1.5x)</span>
+                            <span>$300.00</span>
+                        </div>
+                        <div class="breakdown-row total">
+                            <span>Gross Pay</span>
+                            <span id="mGross">$3,100.00</span>
+                        </div>
+                    </div>
+
+                    <!-- Deductions & Taxes -->
+                    <div class="breakdown-section">
+                        <div class="breakdown-title">Taxes & Deductions</div>
+                        <div class="breakdown-row">
+                            <span>Federal Tax</span>
+                            <span>-$350.25</span>
+                        </div>
+                        <div class="breakdown-row">
+                            <span>State Tax (IL)</span>
+                            <span>-$120.50</span>
+                        </div>
+                        <div class="breakdown-row">
+                            <span>401(k) Contribution</span>
+                            <span>-$115.00</span>
+                        </div>
+                        <div class="breakdown-row">
+                            <span>Medical / Dental</span>
+                            <span>-$99.03</span>
+                        </div>
+                        <div class="breakdown-row total">
+                            <span>Total Deductions</span>
+                            <span id="mDed" style="color:#d9534f;">-$684.78</span>
+                        </div>
+                    </div>
+
+                    <!-- Net Pay Highlight -->
+                    <div class="breakdown-section"
+                        style="background: #fafafa; padding: 20px; border: 1px solid #eee; margin-top:20px;">
+                        <div class="breakdown-row total" style="border:none; margin:0; padding:0; font-size:16px;">
+                            <span>Net Pay Distribution</span>
+                            <span class="highlight" style="font-size:20px; letter-spacing: -1px;" id="mNet">$2,415.22</span>
+                        </div>
+                        <div style="font-size: 11px; color: #999; margin-top: 5px; font-weight: 600; text-transform: uppercase;">Chase Checking ****4589</div>
+                    </div>
+
+                    <button class="btn-download" onclick="closeModal()">Download PDF</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const modal = document.getElementById('payModal');
+
+        // Dynamic Data Elements
+        const mDate = document.getElementById('mDate');
+        const mPeriod = document.getElementById('mPeriod');
+        const mNet = document.getElementById('mNet');
+        const mGross = document.getElementById('mGross');
+        const mDed = document.getElementById('mDed');
+
+        // Toggle Logic
+        let isPayVisible = false; // Default is hidden
+
+        function togglePrivacy() {
+            isPayVisible = !isPayVisible;
+            const elements = document.querySelectorAll('.privacy-mask');
+            const toggleText = document.getElementById('toggle-text');
+            const toggleIcon = document.getElementById('toggle-icon');
+
+            if (isPayVisible) {
+                // Show Data
+                elements.forEach(el => {
+                    el.innerText = el.getAttribute('data-original');
+                });
+                toggleText.innerText = "Hide Pay";
+                toggleIcon.innerText = "🙈"; // or use a slashed eye svg if preferred
+            } else {
+                // Hide Data
+                elements.forEach(el => {
+                    el.innerText = "••••";
+                });
+                toggleText.innerText = "Show Pay";
+                toggleIcon.innerText = "👁️";
+            }
+        }
+
+        function openModal(date, period, net, gross, ded) {
+            // Populate Data
+            mDate.innerText = date;
+            mPeriod.innerText = period;
+            mNet.innerText = '$' + net;
+            mGross.innerText = '$' + gross;
+            mDed.innerText = '-$' + ded;
+
+            // Trigger Animation
+            modal.classList.add('active');
+        }
+
+        function closeModal() {
+            modal.classList.remove('active');
+        }
+
+        // Close when clicking outside modal card
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+
+</html>
