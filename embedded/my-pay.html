@@ -4,606 +4,168 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Adidas Pay Widget</title>
+    <title>Estée Lauder — My Pay</title>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        /* =========================================
-           GLOBAL & SHARED STYLES (Adidas 5th Ave Theme)
-           ========================================= */
+        @font-face { font-family:"Optima"; font-weight:400; font-display:swap;
+          src:url("https://media.elcompanies.com/files/e/estee-lauder-companies/global/fonts-latest/optima-roman-woff2.woff2") format("woff2"); }
+        @font-face { font-family:"Optima"; font-weight:600; font-display:swap;
+          src:url("https://media.elcompanies.com/files/e/estee-lauder-companies/global/fonts-latest/optima-semi-bold-woff2.woff2") format("woff2"); }
+        @font-face { font-family:"Noto Sans"; font-weight:400; font-display:swap;
+          src:url("https://fonts.gstatic.com/s/notosans/v9/o-0IIpQlx3QUlC5A4PNr5TRA.woff2") format("woff2");
+          unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+2000-206F,U+2074,U+20AC,U+2122,U+2212,U+FEFF,U+FFFD; }
+        @font-face { font-family:"Akzidenz Grotesk Black"; font-display:swap;
+          src:url("Akzidenz-grotesk-black.ttf") format("truetype"); }
+
         :root {
-            /* BRAND PALETTE */
-            --adi-black: #000000;
-            --adi-dark-gray: #1a1a1a;
-            --adi-white: #FFFFFF;
-            
-            /* ACCENT: SOLAR YELLOW */
-            --adi-accent: #ede600;
+            --navy: #040a2b; --black:#000; --white:#fff;
+            --text-sub:#8b8b8b; --bg-soft:#f4f2ee; --line:#e7e4dd;
+            --serif:"Optima","Palatino Linotype",Georgia,serif;
+            --sans:"Helvetica Neue",Helvetica,Arial,sans-serif;
+            --meta:"Noto Sans","Helvetica Neue",Helvetica,Arial,sans-serif;
+            --caps:"Akzidenz Grotesk Black","Helvetica Neue",Arial,sans-serif;
+        }
+        * { box-sizing:border-box; }
+        body { font-family:var(--sans); background:var(--white); margin:0; -webkit-font-smoothing:antialiased; }
+        .plugin-wrapper { width:100%; max-width:none; position:relative; }
+        .pay-card { background:var(--white); box-shadow:none; overflow:hidden; position:relative; padding-bottom:20px; border-top:4px solid var(--navy); min-height:100vh; }
 
-            /* FUNCTIONAL COLORS */
-            --bg-color: #F0F0F0;
-            --card-bg: #FFFFFF;
-            --text-main: #000000;
-            --text-sub: #767676;
-            --border-color: #e6e6e6;
-            --overlay-bg: rgba(0, 0, 0, 0.8);
-            
-            --font-stack: "Helvetica Neue", Helvetica, Arial, sans-serif;
-        }
+        .header { padding:24px; }
+        .header h2 { margin:0; font-family:var(--serif); font-size:26px; color:var(--navy); font-weight:600; line-height:1; }
+        .privacy-toggle { display:inline-flex; align-items:center; gap:8px; margin-top:12px; cursor:pointer; font-family:var(--caps); font-size:11px; color:var(--navy); letter-spacing:1px; text-transform:uppercase; background:var(--bg-soft); padding:7px 12px; transition:all 0.2s; }
+        .privacy-toggle:hover { background:var(--navy); color:#fff; }
+        .privacy-toggle svg { width:14px; height:14px; }
 
-        body {
-            font-family: var(--font-stack);
-            background-color: var(--bg-color);
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-            min-height: 100vh;
-            box-sizing: border-box;
-            -webkit-font-smoothing: antialiased;
-        }
+        .hero-pay { padding:26px 24px 30px; text-align:center; border-bottom:1px solid var(--line); margin-bottom:8px; }
+        .hero-label { font-family:var(--caps); font-size:11px; color:var(--text-sub); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
+        .hero-amount { font-family:var(--serif); font-size:46px; font-weight:600; color:var(--navy); margin:8px 0; font-variant-numeric:tabular-nums; }
+        .hero-amount.privacy-mask { letter-spacing:3px; }
+        .hero-date { font-family:var(--caps); font-size:11px; color:#fff; background:var(--navy); display:inline-block; padding:5px 9px; text-transform:uppercase; letter-spacing:1px; }
 
-        .plugin-wrapper {
-            width: 100%;
-            max-width: 400px;
-            position: relative;
-        }
+        .section-title { padding:10px 24px 5px; margin:14px 0 8px; font-family:var(--caps); font-size:12px; color:var(--navy); text-transform:uppercase; letter-spacing:1px; display:flex; align-items:center; gap:8px; }
+        .section-title::after { content:''; flex:1; height:1px; background:var(--line); }
 
-        /* CARD STYLES */
-        .pay-card {
-            background-color: var(--card-bg);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-            position: relative;
-            padding-bottom: 20px;
-            border-top: 6px solid var(--adi-black); /* Signature Top Border */
-            min-height: 600px;
-        }
+        .pay-list { list-style:none; padding:0 24px; margin:0; }
+        .pay-item { display:flex; align-items:center; justify-content:space-between; padding:18px 0; border-bottom:1px solid var(--line); cursor:pointer; transition:background 0.2s; }
+        .pay-item:hover { background:#faf8f4; }
+        .pay-item:last-child { border-bottom:none; }
+        .pay-date { font-family:var(--serif); font-size:17px; font-weight:600; color:var(--navy); margin-bottom:4px; }
+        .pay-period { font-family:var(--meta); font-size:11px; color:var(--text-sub); font-weight:500; text-transform:uppercase; letter-spacing:.5px; }
+        .pay-amount-col { text-align:right; }
+        .pay-amount { font-size:16px; font-weight:700; color:var(--navy); font-variant-numeric:tabular-nums; }
+        .pay-status { font-family:var(--caps); font-size:9px; text-transform:uppercase; letter-spacing:1px; background:var(--navy); padding:3px 6px; color:#fff; margin-top:5px; display:inline-block; }
 
-        .header {
-            padding: 24px;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-        }
+        .modal-backdrop { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(4,10,43,0.8); backdrop-filter:blur(4px); display:flex; align-items:flex-end; justify-content:center; opacity:0; pointer-events:none; transition:opacity 0.3s ease; z-index:100; }
+        .modal-backdrop.active { opacity:1; pointer-events:auto; }
+        .modal-card { background:#fff; width:100%; max-width:640px; border-top:4px solid var(--navy); padding:28px 24px; transform:translateY(100%); transition:transform 0.3s cubic-bezier(0.16,1,0.3,1); display:flex; flex-direction:column; max-height:90%; overflow-y:auto; }
+        .modal-backdrop.active .modal-card { transform:translateY(0); }
+        .modal-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:22px; border-bottom:1px solid var(--line); padding-bottom:15px; }
+        .modal-title h3 { margin:0; font-family:var(--serif); font-size:24px; color:var(--navy); font-weight:600; }
+        .modal-subtitle { font-family:var(--meta); font-size:12px; color:var(--text-sub); margin-top:4px; text-transform:uppercase; font-weight:700; letter-spacing:.5px; }
+        .close-btn { cursor:pointer; padding:4px; color:var(--navy); display:inline-flex; } .close-btn svg { width:22px; height:22px; }
 
-        .header h2 {
-            margin: 0;
-            font-size: 24px;
-            color: var(--adi-black);
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: -0.5px;
-            line-height: 1;
-        }
-
-        /* Privacy Toggle Style */
-        .privacy-toggle {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            margin-top: 8px;
-            cursor: pointer;
-            font-size: 11px;
-            color: var(--adi-black);
-            font-weight: 700;
-            user-select: none;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            background: #f0f0f0;
-            padding: 6px 12px;
-            transition: all 0.2s;
-            clip-path: polygon(10% 0, 100% 0, 100% 100%, 0% 100%);
-        }
-
-        .privacy-toggle:hover {
-            background: var(--adi-accent);
-        }
-
-        .toggle-icon {
-            font-size: 12px;
-        }
-
-        /* HERO SECTION (Net Pay) */
-        .hero-pay {
-            padding: 30px 24px;
-            text-align: center;
-            border-bottom: 1px solid var(--border-color);
-            margin-bottom: 10px;
-            background: radial-gradient(circle at center, #fafafa 0%, #ffffff 70%);
-        }
-
-        .hero-label {
-            font-size: 12px;
-            font-weight: 800;
-            color: var(--text-sub);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 5px;
-        }
-
-        .hero-amount {
-            font-size: 48px;
-            font-weight: 800;
-            color: var(--adi-black);
-            letter-spacing: -2px;
-            margin: 10px 0;
-            font-variant-numeric: tabular-nums;
-        }
-        
-        /* Privacy Mask styling */
-        .hero-amount.privacy-mask {
-            letter-spacing: 2px;
-        }
-
-        .hero-date {
-            font-size: 13px;
-            color: var(--adi-black);
-            font-weight: 700;
-            background: var(--adi-accent);
-            display: inline-block;
-            padding: 4px 8px;
-            text-transform: uppercase;
-        }
-
-        .section-title {
-            padding: 10px 24px 5px;
-            margin: 15px 0 10px 0;
-            font-size: 12px;
-            font-weight: 800;
-            color: var(--text-main);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .section-title::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: var(--border-color);
-        }
-
-        /* PAYSLIP LIST */
-        .pay-list {
-            list-style: none;
-            padding: 0 20px;
-            margin: 0;
-        }
-
-        .pay-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: #fff;
-            padding: 18px 0;
-            border-bottom: 1px solid var(--border-color);
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        .pay-item:hover {
-            background: #fafafa;
-        }
-        
-        /* Add a little indicator on hover */
-        .pay-item:hover .pay-amount {
-            color: var(--text-sub);
-        }
-
-        .pay-item:last-child {
-            border-bottom: none;
-        }
-
-        .pay-info {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .pay-date {
-            font-size: 16px;
-            font-weight: 700;
-            color: var(--adi-black);
-            margin-bottom: 4px;
-            letter-spacing: -0.5px;
-        }
-
-        .pay-period {
-            font-size: 11px;
-            color: var(--text-sub);
-            font-weight: 500;
-            text-transform: uppercase;
-        }
-
-        .pay-amount-col {
-            text-align: right;
-        }
-
-        .pay-amount {
-            font-size: 16px;
-            font-weight: 700;
-            color: var(--adi-black);
-            font-variant-numeric: tabular-nums;
-            transition: color 0.2s;
-        }
-
-        .pay-status {
-            font-size: 10px;
-            text-transform: uppercase;
-            font-weight: 800;
-            background: var(--adi-black);
-            padding: 2px 6px;
-            color: var(--adi-white);
-            margin-top: 4px;
-            display: inline-block;
-        }
-
-        /* MODAL (Slide Up Animation) */
-        .modal-backdrop {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: var(--overlay-bg);
-            backdrop-filter: blur(4px);
-            display: flex;
-            align-items: flex-end;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s ease;
-            z-index: 100;
-        }
-
-        .modal-backdrop.active {
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        .modal-card {
-            background-color: white;
-            width: 100%;
-            /* Adidas Accent Top Border */
-            border-top: 6px solid var(--adi-accent);
-            padding: 30px 24px;
-            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
-            transform: translateY(100%);
-            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-            display: flex;
-            flex-direction: column;
-            gap: 0;
-            box-sizing: border-box;
-            max-height: 90%;
-            overflow-y: auto;
-        }
-
-        .modal-backdrop.active .modal-card {
-            transform: translateY(0);
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 25px;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 15px;
-        }
-
-        .modal-title h3 {
-            margin: 0;
-            font-size: 24px;
-            color: var(--adi-black);
-            font-weight: 800;
-            letter-spacing: -1px;
-        }
-
-        .modal-subtitle {
-            font-size: 12px;
-            color: var(--text-sub);
-            margin-top: 4px;
-            text-transform: uppercase;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-        }
-
-        .close-btn {
-            cursor: pointer;
-            padding: 5px;
-            font-size: 24px;
-            line-height: 1;
-            color: var(--adi-black);
-            transition: transform 0.2s;
-        }
-
-        .close-btn:hover {
-            transform: scale(1.1);
-        }
-
-        /* Breakdown Styles */
-        .breakdown-section {
-            margin-bottom: 20px;
-        }
-
-        .breakdown-title {
-            font-size: 11px;
-            font-weight: 800;
-            color: var(--adi-black);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 12px;
-            background: #f0f0f0;
-            padding: 5px 8px;
-            display: inline-block;
-        }
-
-        .breakdown-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 10px;
-            font-size: 14px;
-            color: var(--text-sub);
-            font-weight: 500;
-        }
-
-        .breakdown-row span:last-child {
-            color: var(--adi-black);
-            font-weight: 600;
-            font-variant-numeric: tabular-nums;
-        }
-
-        .breakdown-row.total {
-            font-weight: 800;
-            color: var(--adi-black);
-            border-top: 2px solid var(--adi-black);
-            padding-top: 12px;
-            margin-top: 12px;
-            font-size: 16px;
-        }
-
-        .highlight {
-            background-color: var(--adi-accent);
-            padding: 0 5px;
-            color: var(--adi-black);
-        }
-
-        .btn-download {
-            background-color: var(--adi-black);
-            color: var(--adi-white);
-            border: none;
-            padding: 18px;
-            font-size: 14px;
-            font-weight: 700;
-            cursor: pointer;
-            width: 100%;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-top: 20px;
-            border: 1px solid var(--adi-black);
-            transition: all 0.2s;
-        }
-
-        .btn-download:hover {
-            background-color: var(--adi-white);
-            color: var(--adi-black);
-        }
+        .breakdown-section { margin-bottom:20px; }
+        .breakdown-title { font-family:var(--caps); font-size:11px; color:var(--navy); text-transform:uppercase; letter-spacing:1px; margin-bottom:12px; background:var(--bg-soft); padding:6px 8px; display:inline-block; }
+        .breakdown-row { display:flex; justify-content:space-between; margin-bottom:10px; font-size:14px; color:var(--text-sub); font-weight:500; }
+        .breakdown-row span:last-child { color:var(--navy); font-weight:600; font-variant-numeric:tabular-nums; }
+        .breakdown-row.total { font-weight:800; color:var(--navy); border-top:2px solid var(--navy); padding-top:12px; margin-top:12px; font-size:16px; }
+        .highlight { background:var(--navy); color:#fff; padding:2px 8px; }
+        .btn-download { background:var(--navy); color:#fff; border:1px solid var(--navy); padding:16px; font-family:var(--caps); font-size:12px; letter-spacing:1px; cursor:pointer; width:100%; text-transform:uppercase; margin-top:20px; transition:all 0.2s; display:inline-flex; align-items:center; justify-content:center; gap:8px; }
+        .btn-download svg { width:15px; height:15px; }
+        .btn-download:hover { background:#fff; color:var(--navy); }
     </style>
 </head>
 
 <body>
-
     <div class="plugin-wrapper">
         <div class="pay-card">
-
-            <!-- Header -->
             <div class="header">
-                <div>
-                    <h2>My Pay</h2>
-                    <!-- Toggle Switch -->
-                    <div class="privacy-toggle" onclick="togglePrivacy()">
-                        <span id="toggle-icon" class="toggle-icon">👁️</span>
-                        <span id="toggle-text">Show Pay</span>
-                    </div>
+                <h2>My Pay</h2>
+                <div class="privacy-toggle" onclick="togglePrivacy()">
+                    <span id="toggle-icon"><i data-lucide="eye"></i></span>
+                    <span id="toggle-text">Show Pay</span>
                 </div>
-                <!-- Adidas Logo Placeholder / Brand Element -->
-                <div style="font-size: 24px;">///</div>
             </div>
 
-            <!-- Hero: Latest Pay -->
             <div class="hero-pay">
                 <div class="hero-label">Latest Net Pay</div>
-                <!-- Data-original holds the real value, content starts hidden -->
                 <div class="hero-amount privacy-mask" data-original="$2,415.22">••••</div>
-                <div class="hero-date">Paid Dec 15, 2025</div>
+                <div class="hero-date">Paid Jul 15, 2026</div>
             </div>
 
-            <!-- History List -->
             <h3 class="section-title">Recent Payslips</h3>
             <ul class="pay-list">
-
-                <!-- Item 1 (Active) -->
-                <li class="pay-item"
-                    onclick="openModal('Dec 15, 2025', 'Dec 01 - Dec 14', '2,415.22', '3,100.00', '684.78')">
-                    <div class="pay-info">
-                        <div class="pay-date">Dec 15, 2025</div>
-                        <div class="pay-period">Period: Dec 01 - Dec 14</div>
-                    </div>
-                    <div class="pay-amount-col">
-                        <div class="pay-amount privacy-mask" data-original="$2,415.22">••••</div>
-                        <div class="pay-status">Paid</div>
-                    </div>
+                <li class="pay-item" onclick="openModal('Jul 15, 2026','Jul 01 - Jul 14','2,415.22','3,100.00','684.78')">
+                    <div class="pay-info"><div class="pay-date">Jul 15, 2026</div><div class="pay-period">Period: Jul 01 - Jul 14</div></div>
+                    <div class="pay-amount-col"><div class="pay-amount privacy-mask" data-original="$2,415.22">••••</div><div class="pay-status">Paid</div></div>
                 </li>
-
-                <!-- Item 2 -->
-                <li class="pay-item"
-                    onclick="openModal('Nov 30, 2025', 'Nov 15 - Nov 29', '2,390.50', '3,050.00', '659.50')">
-                    <div class="pay-info">
-                        <div class="pay-date">Nov 30, 2025</div>
-                        <div class="pay-period">Period: Nov 15 - Nov 29</div>
-                    </div>
-                    <div class="pay-amount-col">
-                        <div class="pay-amount privacy-mask" data-original="$2,390.50">••••</div>
-                        <div class="pay-status">Paid</div>
-                    </div>
+                <li class="pay-item" onclick="openModal('Jun 30, 2026','Jun 15 - Jun 29','2,390.50','3,050.00','659.50')">
+                    <div class="pay-info"><div class="pay-date">Jun 30, 2026</div><div class="pay-period">Period: Jun 15 - Jun 29</div></div>
+                    <div class="pay-amount-col"><div class="pay-amount privacy-mask" data-original="$2,390.50">••••</div><div class="pay-status">Paid</div></div>
                 </li>
-
-                <!-- Item 3 -->
-                <li class="pay-item"
-                    onclick="openModal('Nov 15, 2025', 'Nov 01 - Nov 14', '2,415.22', '3,100.00', '684.78')">
-                    <div class="pay-info">
-                        <div class="pay-date">Nov 15, 2025</div>
-                        <div class="pay-period">Period: Nov 01 - Nov 14</div>
-                    </div>
-                    <div class="pay-amount-col">
-                        <div class="pay-amount privacy-mask" data-original="$2,415.22">••••</div>
-                        <div class="pay-status">Paid</div>
-                    </div>
+                <li class="pay-item" onclick="openModal('Jun 15, 2026','Jun 01 - Jun 14','2,415.22','3,100.00','684.78')">
+                    <div class="pay-info"><div class="pay-date">Jun 15, 2026</div><div class="pay-period">Period: Jun 01 - Jun 14</div></div>
+                    <div class="pay-amount-col"><div class="pay-amount privacy-mask" data-original="$2,415.22">••••</div><div class="pay-status">Paid</div></div>
                 </li>
-
-                <!-- Item 4 -->
-                <li class="pay-item"
-                    onclick="openModal('Oct 31, 2025', 'Oct 15 - Oct 30', '2,200.00', '2,900.00', '700.00')">
-                    <div class="pay-info">
-                        <div class="pay-date">Oct 31, 2025</div>
-                        <div class="pay-period">Period: Oct 15 - Oct 30</div>
-                    </div>
-                    <div class="pay-amount-col">
-                        <div class="pay-amount privacy-mask" data-original="$2,200.00">••••</div>
-                        <div class="pay-status">Paid</div>
-                    </div>
+                <li class="pay-item" onclick="openModal('May 30, 2026','May 15 - May 29','2,200.00','2,900.00','700.00')">
+                    <div class="pay-info"><div class="pay-date">May 30, 2026</div><div class="pay-period">Period: May 15 - May 29</div></div>
+                    <div class="pay-amount-col"><div class="pay-amount privacy-mask" data-original="$2,200.00">••••</div><div class="pay-status">Paid</div></div>
                 </li>
-
             </ul>
 
-            <!-- MODAL: Payslip Detail -->
             <div class="modal-backdrop" id="payModal">
                 <div class="modal-card">
                     <div class="modal-header">
-                        <div class="modal-title">
-                            <h3 id="mDate">Dec 15, 2025</h3>
-                            <div class="modal-subtitle" id="mPeriod">Dec 01 - Dec 14</div>
-                        </div>
-                        <div class="close-btn" onclick="closeModal()">✕</div>
+                        <div class="modal-title"><h3 id="mDate">Jul 15, 2026</h3><div class="modal-subtitle" id="mPeriod">Jul 01 - Jul 14</div></div>
+                        <div class="close-btn" onclick="closeModal()"><i data-lucide="x"></i></div>
                     </div>
-
-                    <!-- Earnings -->
                     <div class="breakdown-section">
                         <div class="breakdown-title">Earnings</div>
-                        <div class="breakdown-row">
-                            <span>Regular Pay</span>
-                            <span>$2,800.00</span>
-                        </div>
-                        <div class="breakdown-row">
-                            <span>Overtime (1.5x)</span>
-                            <span>$300.00</span>
-                        </div>
-                        <div class="breakdown-row total">
-                            <span>Gross Pay</span>
-                            <span id="mGross">$3,100.00</span>
-                        </div>
+                        <div class="breakdown-row"><span>Regular Pay</span><span>$2,800.00</span></div>
+                        <div class="breakdown-row"><span>Overtime (1.5x)</span><span>$300.00</span></div>
+                        <div class="breakdown-row total"><span>Gross Pay</span><span id="mGross">$3,100.00</span></div>
                     </div>
-
-                    <!-- Deductions & Taxes -->
                     <div class="breakdown-section">
-                        <div class="breakdown-title">Taxes & Deductions</div>
-                        <div class="breakdown-row">
-                            <span>Federal Tax</span>
-                            <span>-$350.25</span>
-                        </div>
-                        <div class="breakdown-row">
-                            <span>State Tax (IL)</span>
-                            <span>-$120.50</span>
-                        </div>
-                        <div class="breakdown-row">
-                            <span>401(k) Contribution</span>
-                            <span>-$115.00</span>
-                        </div>
-                        <div class="breakdown-row">
-                            <span>Medical / Dental</span>
-                            <span>-$99.03</span>
-                        </div>
-                        <div class="breakdown-row total">
-                            <span>Total Deductions</span>
-                            <span id="mDed" style="color:#d9534f;">-$684.78</span>
-                        </div>
+                        <div class="breakdown-title">Taxes &amp; Deductions</div>
+                        <div class="breakdown-row"><span>Federal Tax</span><span>-$350.25</span></div>
+                        <div class="breakdown-row"><span>State Tax (NY)</span><span>-$120.50</span></div>
+                        <div class="breakdown-row"><span>401(k) Contribution</span><span>-$115.00</span></div>
+                        <div class="breakdown-row"><span>Medical / Dental</span><span>-$99.03</span></div>
+                        <div class="breakdown-row total"><span>Total Deductions</span><span id="mDed" style="color:#c0392b;">-$684.78</span></div>
                     </div>
-
-                    <!-- Net Pay Highlight -->
-                    <div class="breakdown-section"
-                        style="background: #fafafa; padding: 20px; border: 1px solid #eee; margin-top:20px;">
+                    <div class="breakdown-section" style="background:var(--bg-soft); padding:20px; border:1px solid var(--line); margin-top:20px;">
                         <div class="breakdown-row total" style="border:none; margin:0; padding:0; font-size:16px;">
                             <span>Net Pay Distribution</span>
-                            <span class="highlight" style="font-size:20px; letter-spacing: -1px;" id="mNet">$2,415.22</span>
+                            <span class="highlight" style="font-size:19px;" id="mNet">$2,415.22</span>
                         </div>
-                        <div style="font-size: 11px; color: #999; margin-top: 5px; font-weight: 600; text-transform: uppercase;">Chase Checking ****4589</div>
+                        <div style="font-family:var(--meta); font-size:11px; color:#999; margin-top:6px; font-weight:600; text-transform:uppercase;">Chase Checking ****4589</div>
                     </div>
-
-                    <button class="btn-download" onclick="closeModal()">Download PDF</button>
+                    <button class="btn-download" onclick="closeModal()"><i data-lucide="download"></i> Download PDF</button>
                 </div>
             </div>
-
         </div>
     </div>
 
     <script>
         const modal = document.getElementById('payModal');
-
-        // Dynamic Data Elements
-        const mDate = document.getElementById('mDate');
-        const mPeriod = document.getElementById('mPeriod');
-        const mNet = document.getElementById('mNet');
-        const mGross = document.getElementById('mGross');
-        const mDed = document.getElementById('mDed');
-
-        // Toggle Logic
-        let isPayVisible = false; // Default is hidden
-
+        const mDate=document.getElementById('mDate'), mPeriod=document.getElementById('mPeriod'),
+              mNet=document.getElementById('mNet'), mGross=document.getElementById('mGross'), mDed=document.getElementById('mDed');
+        let isPayVisible = false;
         function togglePrivacy() {
             isPayVisible = !isPayVisible;
-            const elements = document.querySelectorAll('.privacy-mask');
-            const toggleText = document.getElementById('toggle-text');
-            const toggleIcon = document.getElementById('toggle-icon');
-
-            if (isPayVisible) {
-                // Show Data
-                elements.forEach(el => {
-                    el.innerText = el.getAttribute('data-original');
-                });
-                toggleText.innerText = "Hide Pay";
-                toggleIcon.innerText = "🙈"; // or use a slashed eye svg if preferred
-            } else {
-                // Hide Data
-                elements.forEach(el => {
-                    el.innerText = "••••";
-                });
-                toggleText.innerText = "Show Pay";
-                toggleIcon.innerText = "👁️";
-            }
+            document.querySelectorAll('.privacy-mask').forEach(el => el.innerText = isPayVisible ? el.getAttribute('data-original') : '••••');
+            document.getElementById('toggle-text').innerText = isPayVisible ? 'Hide Pay' : 'Show Pay';
+            document.getElementById('toggle-icon').innerHTML = `<i data-lucide="${isPayVisible ? 'eye-off' : 'eye'}"></i>`;
+            refreshIcons();
         }
-
         function openModal(date, period, net, gross, ded) {
-            // Populate Data
-            mDate.innerText = date;
-            mPeriod.innerText = period;
-            mNet.innerText = '$' + net;
-            mGross.innerText = '$' + gross;
-            mDed.innerText = '-$' + ded;
-
-            // Trigger Animation
-            modal.classList.add('active');
+            mDate.innerText=date; mPeriod.innerText=period; mNet.innerText='$'+net; mGross.innerText='$'+gross; mDed.innerText='-$'+ded;
+            modal.classList.add('active'); refreshIcons();
         }
-
-        function closeModal() {
-            modal.classList.remove('active');
-        }
-
-        // Close when clicking outside modal card
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                closeModal();
-            }
-        });
+        function closeModal() { modal.classList.remove('active'); }
+        modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+        function refreshIcons() { if (window.lucide) lucide.createIcons({ attrs: { 'stroke-width': 1.5 } }); }
+        refreshIcons();
     </script>
 </body>
-
 </html>

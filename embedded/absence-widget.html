@@ -4,621 +4,158 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Adidas Absence Widget</title>
+    <title>Estée Lauder — My Time Off</title>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        /* =========================================
-           GLOBAL & SHARED STYLES (Adidas 5th Ave Theme)
-           ========================================= */
+        @font-face { font-family:"Optima"; font-weight:400; font-display:swap;
+          src:url("https://media.elcompanies.com/files/e/estee-lauder-companies/global/fonts-latest/optima-roman-woff2.woff2") format("woff2"); }
+        @font-face { font-family:"Optima"; font-weight:600; font-display:swap;
+          src:url("https://media.elcompanies.com/files/e/estee-lauder-companies/global/fonts-latest/optima-semi-bold-woff2.woff2") format("woff2"); }
+        @font-face { font-family:"Noto Sans"; font-weight:400; font-display:swap;
+          src:url("https://fonts.gstatic.com/s/notosans/v9/o-0IIpQlx3QUlC5A4PNr5TRA.woff2") format("woff2");
+          unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+2000-206F,U+2074,U+20AC,U+2122,U+2212,U+FEFF,U+FFFD; }
+        @font-face { font-family:"Akzidenz Grotesk Black"; font-display:swap;
+          src:url("Akzidenz-grotesk-black.ttf") format("truetype"); }
+
         :root {
-            /* BRAND PALETTE */
-            --adi-black: #000000;
-            --adi-dark-gray: #1a1a1a;
-            --adi-white: #FFFFFF;
-            
-            /* ACCENT: SOLAR YELLOW */
-            --adi-accent: #ede600;
+            --navy:#040a2b; --black:#000; --white:#fff;
+            --text-sub:#8b8b8b; --bg-soft:#f4f2ee; --line:#e7e4dd;
+            --serif:"Optima","Palatino Linotype",Georgia,serif;
+            --sans:"Helvetica Neue",Helvetica,Arial,sans-serif;
+            --meta:"Noto Sans","Helvetica Neue",Helvetica,Arial,sans-serif;
+            --caps:"Akzidenz Grotesk Black","Helvetica Neue",Arial,sans-serif;
+        }
+        * { box-sizing:border-box; }
+        body { font-family:var(--sans); background:var(--white); margin:0; -webkit-font-smoothing:antialiased; }
+        .plugin-wrapper { width:100%; max-width:none; position:relative; }
+        .absence-card { background:var(--white); box-shadow:none; overflow:hidden; position:relative; padding-bottom:20px; border-top:4px solid var(--navy); min-height:100vh; }
 
-            /* FUNCTIONAL COLORS */
-            --bg-color: #F0F0F0;
-            --card-bg: #FFFFFF;
-            --text-main: #000000;
-            --text-sub: #767676;
-            --border-color: #e6e6e6;
-            --overlay-bg: rgba(0, 0, 0, 0.8);
-            
-            --font-stack: "Helvetica Neue", Helvetica, Arial, sans-serif;
-        }
+        .header { padding:24px; }
+        .header h2 { margin:0; font-family:var(--serif); font-size:26px; color:var(--navy); font-weight:600; line-height:1; }
+        .header-action { display:inline-flex; align-items:center; gap:6px; margin-top:12px; cursor:pointer; font-family:var(--caps); font-size:11px; color:var(--navy); letter-spacing:1px; text-transform:uppercase; background:var(--bg-soft); padding:8px 12px; transition:all 0.2s; }
+        .header-action:hover { background:var(--navy); color:#fff; }
+        .header-action svg { width:14px; height:14px; }
 
-        body {
-            font-family: var(--font-stack);
-            background-color: var(--bg-color);
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-            min-height: 100vh;
-            box-sizing: border-box;
-            -webkit-font-smoothing: antialiased;
-        }
+        .hero-section { padding:26px 24px 30px; text-align:center; border-bottom:1px solid var(--line); margin-bottom:8px; }
+        .hero-label { font-family:var(--caps); font-size:11px; color:var(--text-sub); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
+        .hero-amount { font-family:var(--serif); font-size:46px; font-weight:600; color:var(--navy); margin:8px 0; font-variant-numeric:tabular-nums; }
+        .hero-sub { font-family:var(--caps); font-size:11px; color:#fff; background:var(--navy); display:inline-block; padding:5px 9px; text-transform:uppercase; letter-spacing:1px; margin-top:5px; }
 
-        .plugin-wrapper {
-            width: 100%;
-            max-width: 400px;
-            position: relative;
-        }
+        .section-title { padding:10px 24px 5px; margin:14px 0 8px; font-family:var(--caps); font-size:12px; color:var(--navy); text-transform:uppercase; letter-spacing:1px; display:flex; align-items:center; gap:8px; }
+        .section-title::after { content:''; flex:1; height:1px; background:var(--line); }
 
-        /* CARD STYLES */
-        .absence-card {
-            background-color: var(--card-bg);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-            position: relative;
-            padding-bottom: 20px;
-            border-top: 6px solid var(--adi-black); /* Signature Top Border */
-            min-height: 600px;
-        }
+        .absence-list { list-style:none; padding:0 24px; margin:0; }
+        .absence-item { display:flex; align-items:center; justify-content:space-between; padding:18px 0; border-bottom:1px solid var(--line); cursor:pointer; transition:background 0.2s; }
+        .absence-item:hover { background:#faf8f4; }
+        .absence-item:last-child { border-bottom:none; }
+        .absence-date { font-family:var(--serif); font-size:17px; font-weight:600; color:var(--navy); margin-bottom:4px; }
+        .absence-type { font-family:var(--meta); font-size:11px; color:var(--text-sub); font-weight:500; text-transform:uppercase; letter-spacing:.5px; }
+        .absence-status-col { text-align:right; display:flex; flex-direction:column; align-items:flex-end; }
+        .absence-hours { font-size:16px; font-weight:700; color:var(--navy); font-variant-numeric:tabular-nums; }
+        .status-badge { font-family:var(--caps); font-size:9px; text-transform:uppercase; letter-spacing:1px; padding:3px 6px; margin-top:5px; display:inline-block; }
+        .status-badge.approved { background:var(--navy); color:#fff; }
+        .status-badge.pending { background:#fff; color:var(--navy); border:1px solid var(--navy); }
+        .status-badge.past { background:#eceae4; color:var(--text-sub); }
 
-        .header {
-            padding: 24px;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-        }
+        .modal-backdrop { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(4,10,43,0.8); backdrop-filter:blur(4px); display:flex; align-items:flex-end; justify-content:center; opacity:0; pointer-events:none; transition:opacity 0.3s ease; z-index:100; }
+        .modal-backdrop.active { opacity:1; pointer-events:auto; }
+        .modal-card { background:#fff; width:100%; max-width:640px; border-top:4px solid var(--navy); padding:28px 24px; transform:translateY(100%); transition:transform 0.3s cubic-bezier(0.16,1,0.3,1); display:flex; flex-direction:column; max-height:90%; overflow-y:auto; }
+        .modal-backdrop.active .modal-card { transform:translateY(0); }
+        .modal-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:22px; border-bottom:1px solid var(--line); padding-bottom:15px; }
+        .modal-title h3 { margin:0; font-family:var(--serif); font-size:24px; color:var(--navy); font-weight:600; line-height:1.1; }
+        .modal-subtitle { font-family:var(--meta); font-size:12px; color:var(--text-sub); margin-top:4px; text-transform:uppercase; font-weight:700; letter-spacing:.5px; }
+        .close-btn { cursor:pointer; padding:4px; color:var(--navy); display:inline-flex; } .close-btn svg { width:22px; height:22px; }
 
-        .header h2 {
-            margin: 0;
-            font-size: 24px;
-            color: var(--adi-black);
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: -0.5px;
-            line-height: 1;
-        }
+        .breakdown-section { margin-bottom:20px; }
+        .breakdown-title { font-family:var(--caps); font-size:11px; color:var(--navy); text-transform:uppercase; letter-spacing:1px; margin-bottom:12px; background:var(--bg-soft); padding:6px 8px; display:inline-block; }
+        .breakdown-row { display:flex; justify-content:space-between; margin-bottom:10px; font-size:14px; color:var(--text-sub); font-weight:500; }
+        .breakdown-row span:last-child { color:var(--navy); font-weight:600; font-variant-numeric:tabular-nums; }
+        .breakdown-row.total { font-weight:800; color:var(--navy); border-top:2px solid var(--navy); padding-top:12px; margin-top:12px; font-size:16px; }
+        .highlight { background:var(--navy); color:#fff; padding:2px 8px; }
 
-        /* Action/Link Style (Top Right) */
-        .header-action {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            margin-top: 8px;
-            cursor: pointer;
-            font-size: 11px;
-            color: var(--adi-black);
-            font-weight: 800;
-            user-select: none;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            background: #f0f0f0;
-            padding: 8px 12px;
-            transition: all 0.2s;
-            clip-path: polygon(10% 0, 100% 0, 100% 100%, 0% 100%);
-        }
+        .btn-action { background:var(--navy); color:#fff; border:1px solid var(--navy); padding:16px; font-family:var(--caps); font-size:12px; letter-spacing:1px; cursor:pointer; width:100%; text-transform:uppercase; margin-top:14px; transition:all 0.2s; }
+        .btn-action:hover { background:#fff; color:var(--navy); }
+        .btn-action.secondary { background:transparent; color:var(--text-sub); border:1px solid var(--line); margin-top:10px; }
+        .btn-action.secondary:hover { border-color:var(--navy); color:var(--navy); }
 
-        .header-action:hover {
-            background: var(--adi-accent);
-        }
-
-        /* HERO SECTION (Balances) */
-        .hero-section {
-            padding: 30px 24px;
-            text-align: center;
-            border-bottom: 1px solid var(--border-color);
-            margin-bottom: 10px;
-            background: radial-gradient(circle at center, #fafafa 0%, #ffffff 70%);
-        }
-
-        .hero-label {
-            font-size: 12px;
-            font-weight: 800;
-            color: var(--text-sub);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 5px;
-        }
-
-        .hero-amount {
-            font-size: 48px;
-            font-weight: 800;
-            color: var(--adi-black);
-            letter-spacing: -2px;
-            margin: 10px 0;
-            font-variant-numeric: tabular-nums;
-        }
-
-        .hero-sub {
-            font-size: 11px;
-            color: var(--adi-black);
-            font-weight: 700;
-            background: var(--adi-accent);
-            display: inline-block;
-            padding: 4px 8px;
-            text-transform: uppercase;
-            margin-top: 5px;
-        }
-
-        .section-title {
-            padding: 10px 24px 5px;
-            margin: 15px 0 10px 0;
-            font-size: 12px;
-            font-weight: 800;
-            color: var(--text-main);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .section-title::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: var(--border-color);
-        }
-
-        /* ABSENCE LIST */
-        .absence-list {
-            list-style: none;
-            padding: 0 20px;
-            margin: 0;
-        }
-
-        .absence-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: #fff;
-            padding: 18px 0;
-            border-bottom: 1px solid var(--border-color);
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        .absence-item:hover {
-            background: #fafafa;
-        }
-
-        .absence-item:last-child {
-            border-bottom: none;
-        }
-
-        .absence-info {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .absence-date {
-            font-size: 16px;
-            font-weight: 700;
-            color: var(--adi-black);
-            margin-bottom: 4px;
-            letter-spacing: -0.5px;
-        }
-
-        .absence-type {
-            font-size: 11px;
-            color: var(--text-sub);
-            font-weight: 500;
-            text-transform: uppercase;
-        }
-
-        .absence-status-col {
-            text-align: right;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-        }
-
-        .absence-hours {
-            font-size: 16px;
-            font-weight: 700;
-            color: var(--adi-black);
-            font-variant-numeric: tabular-nums;
-        }
-
-        .status-badge {
-            font-size: 10px;
-            text-transform: uppercase;
-            font-weight: 800;
-            padding: 2px 6px;
-            margin-top: 4px;
-            display: inline-block;
-        }
-
-        /* Status Colors */
-        .status-badge.approved {
-            background: var(--adi-black);
-            color: var(--adi-white);
-        }
-        
-        .status-badge.pending {
-            background: var(--adi-accent); /* Solar Yellow */
-            color: var(--adi-black);
-        }
-        
-        .status-badge.past {
-            background: #e0e0e0;
-            color: var(--text-sub);
-        }
-
-        /* MODAL (Slide Up Animation) */
-        .modal-backdrop {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: var(--overlay-bg);
-            backdrop-filter: blur(4px);
-            display: flex;
-            align-items: flex-end;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s ease;
-            z-index: 100;
-        }
-
-        .modal-backdrop.active {
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        .modal-card {
-            background-color: white;
-            width: 100%;
-            /* Adidas Accent Top Border */
-            border-top: 6px solid var(--adi-accent);
-            padding: 30px 24px;
-            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
-            transform: translateY(100%);
-            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-            display: flex;
-            flex-direction: column;
-            gap: 0;
-            box-sizing: border-box;
-            max-height: 90%;
-            overflow-y: auto;
-        }
-
-        .modal-backdrop.active .modal-card {
-            transform: translateY(0);
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 25px;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 15px;
-        }
-
-        .modal-title h3 {
-            margin: 0;
-            font-size: 24px;
-            color: var(--adi-black);
-            font-weight: 800;
-            letter-spacing: -1px;
-            line-height: 1.1;
-        }
-
-        .modal-subtitle {
-            font-size: 12px;
-            color: var(--text-sub);
-            margin-top: 4px;
-            text-transform: uppercase;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-        }
-
-        .close-btn {
-            cursor: pointer;
-            padding: 5px;
-            font-size: 24px;
-            line-height: 1;
-            color: var(--adi-black);
-            transition: transform 0.2s;
-        }
-
-        .close-btn:hover {
-            transform: scale(1.1);
-        }
-
-        /* Breakdown Styles */
-        .breakdown-section {
-            margin-bottom: 20px;
-        }
-
-        .breakdown-title {
-            font-size: 11px;
-            font-weight: 800;
-            color: var(--adi-black);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 12px;
-            background: #f0f0f0;
-            padding: 5px 8px;
-            display: inline-block;
-        }
-
-        .breakdown-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 10px;
-            font-size: 14px;
-            color: var(--text-sub);
-            font-weight: 500;
-        }
-
-        .breakdown-row span:last-child {
-            color: var(--adi-black);
-            font-weight: 600;
-            font-variant-numeric: tabular-nums;
-        }
-
-        .breakdown-row.total {
-            font-weight: 800;
-            color: var(--adi-black);
-            border-top: 2px solid var(--adi-black);
-            padding-top: 12px;
-            margin-top: 12px;
-            font-size: 16px;
-        }
-
-        .highlight {
-            background-color: var(--adi-accent);
-            padding: 0 5px;
-            color: var(--adi-black);
-        }
-
-        /* Buttons */
-        .btn-action {
-            background-color: var(--adi-black);
-            color: var(--adi-white);
-            border: none;
-            padding: 18px;
-            font-size: 14px;
-            font-weight: 700;
-            cursor: pointer;
-            width: 100%;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-top: 15px;
-            border: 1px solid var(--adi-black);
-            transition: all 0.2s;
-        }
-
-        .btn-action.secondary {
-            background-color: transparent;
-            color: var(--text-sub);
-            border: 1px solid var(--border-color);
-            margin-top: 10px;
-        }
-        
-        .btn-action.secondary:hover {
-            border-color: var(--adi-black);
-            color: var(--adi-black);
-        }
-
-        .btn-action:hover {
-            background-color: var(--adi-white);
-            color: var(--adi-black);
-        }
-
-        /* FORM STYLES */
-        .form-group {
-            margin-bottom: 16px;
-        }
-
-        .form-label {
-            display: block;
-            font-size: 11px;
-            font-weight: 800;
-            color: var(--adi-black);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 8px;
-        }
-
-        .form-input {
-            width: 100%;
-            padding: 14px;
-            border: 1px solid #ccc;
-            border-radius: 0; /* Sharp edges */
-            font-family: var(--font-stack);
-            font-size: 14px;
-            color: var(--adi-black);
-            box-sizing: border-box;
-            background: #fff;
-            transition: border-color 0.2s, box-shadow 0.2s;
-        }
-
-        .form-input:focus {
-            border-color: var(--adi-black);
-            outline: none;
-            box-shadow: inset 3px 0 0 var(--adi-accent); /* Solar Yellow left highlight */
-        }
-
-        .form-row {
-            display: flex;
-            gap: 12px;
-        }
-
-        .form-col {
-            flex: 1;
-        }
-
-        textarea.form-input {
-            resize: vertical;
-            min-height: 80px;
-        }
+        .form-group { margin-bottom:16px; }
+        .form-label { display:block; font-family:var(--caps); font-size:11px; color:var(--navy); text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px; }
+        .form-input { width:100%; padding:14px; border:1px solid #ccc; border-radius:0; font-family:var(--sans); font-size:14px; color:var(--navy); background:#fff; transition:border-color 0.2s, box-shadow 0.2s; }
+        .form-input:focus { border-color:var(--navy); outline:none; box-shadow:inset 3px 0 0 var(--navy); }
+        .form-row { display:flex; gap:12px; } .form-col { flex:1; }
+        textarea.form-input { resize:vertical; min-height:80px; }
     </style>
 </head>
 
 <body>
-
     <div class="plugin-wrapper">
         <div class="absence-card">
-
-            <!-- Header -->
             <div class="header">
-                <div>
-                    <h2>My Absence</h2>
-                    <!-- Request Link -->
-                    <div class="header-action" onclick="openRequestModal()">
-                        <span>+ New Request</span>
-                    </div>
-                </div>
-                <!-- Brand Element -->
-                <div style="font-size: 24px;">///</div>
+                <h2>My Time Off</h2>
+                <div class="header-action" onclick="openRequestModal()"><i data-lucide="plus"></i> New Request</div>
             </div>
 
-            <!-- Hero: Balance -->
             <div class="hero-section">
                 <div class="hero-label">Available Vacation</div>
                 <div class="hero-amount">120 Hrs</div>
                 <div class="hero-sub">Sick Balance: 48 Hrs</div>
             </div>
 
-            <!-- History List -->
-            <h3 class="section-title">Requests & History</h3>
+            <h3 class="section-title">Requests &amp; History</h3>
             <ul class="absence-list">
-
-                <!-- Item 1 (Pending) -->
-                <li class="absence-item"
-                    onclick="openModal('Dec 20 - Dec 24, 2025', 'Vacation', '40 Hrs', 'Pending', 'Family Trip')">
-                    <div class="absence-info">
-                        <div class="absence-date">Dec 20 - Dec 24</div>
-                        <div class="absence-type">Vacation</div>
-                    </div>
-                    <div class="absence-status-col">
-                        <div class="absence-hours">40h</div>
-                        <div class="status-badge pending">Pending</div>
-                    </div>
+                <li class="absence-item" onclick="openModal('Aug 18 - Aug 22, 2026','Vacation','40 Hrs','Pending','Family trip')">
+                    <div class="absence-info"><div class="absence-date">Aug 18 - Aug 22</div><div class="absence-type">Vacation</div></div>
+                    <div class="absence-status-col"><div class="absence-hours">40h</div><div class="status-badge pending">Pending</div></div>
                 </li>
-
-                <!-- Item 2 (Approved) -->
-                <li class="absence-item" onclick="openModal('Nov 28, 2025', 'Sick', '8 Hrs', 'Approved', 'Flu')">
-                    <div class="absence-info">
-                        <div class="absence-date">Nov 28, 2025</div>
-                        <div class="absence-type">Sick</div>
-                    </div>
-                    <div class="absence-status-col">
-                        <div class="absence-hours">8h</div>
-                        <div class="status-badge approved">Approved</div>
-                    </div>
+                <li class="absence-item" onclick="openModal('Jul 08, 2026','Sick','8 Hrs','Approved','Flu')">
+                    <div class="absence-info"><div class="absence-date">Jul 08, 2026</div><div class="absence-type">Sick</div></div>
+                    <div class="absence-status-col"><div class="absence-hours">8h</div><div class="status-badge approved">Approved</div></div>
                 </li>
-
-                <!-- Item 3 (Approved) -->
-                <li class="absence-item"
-                    onclick="openModal('Oct 15 - Oct 17, 2025', 'Personal', '24 Hrs', 'Approved', 'Personal matters')">
-                    <div class="absence-info">
-                        <div class="absence-date">Oct 15 - Oct 17</div>
-                        <div class="absence-type">Personal</div>
-                    </div>
-                    <div class="absence-status-col">
-                        <div class="absence-hours">24h</div>
-                        <div class="status-badge approved">Approved</div>
-                    </div>
+                <li class="absence-item" onclick="openModal('Jun 15 - Jun 17, 2026','Personal','24 Hrs','Approved','Personal matters')">
+                    <div class="absence-info"><div class="absence-date">Jun 15 - Jun 17</div><div class="absence-type">Personal</div></div>
+                    <div class="absence-status-col"><div class="absence-hours">24h</div><div class="status-badge approved">Approved</div></div>
                 </li>
-
-                <!-- Item 4 (Past) -->
-                <li class="absence-item"
-                    onclick="openModal('Sep 05, 2025', 'Vacation', '8 Hrs', 'Past', 'Long Weekend')">
-                    <div class="absence-info">
-                        <div class="absence-date">Sep 05, 2025</div>
-                        <div class="absence-type">Vacation</div>
-                    </div>
-                    <div class="absence-status-col">
-                        <div class="absence-hours">8h</div>
-                        <div class="status-badge past">Past</div>
-                    </div>
+                <li class="absence-item" onclick="openModal('May 23, 2026','Vacation','8 Hrs','Past','Long weekend')">
+                    <div class="absence-info"><div class="absence-date">May 23, 2026</div><div class="absence-type">Vacation</div></div>
+                    <div class="absence-status-col"><div class="absence-hours">8h</div><div class="status-badge past">Past</div></div>
                 </li>
-
             </ul>
 
-            <!-- MODAL: Absence Detail -->
             <div class="modal-backdrop" id="absenceModal">
                 <div class="modal-card">
                     <div class="modal-header">
-                        <div class="modal-title">
-                            <h3 id="mDate">Dec 20 - Dec 24</h3>
-                            <div class="modal-subtitle" id="mType">Vacation</div>
-                        </div>
-                        <div class="close-btn" onclick="closeModal()">✕</div>
+                        <div class="modal-title"><h3 id="mDate">Aug 18 - Aug 22</h3><div class="modal-subtitle" id="mType">Vacation</div></div>
+                        <div class="close-btn" onclick="closeModal()"><i data-lucide="x"></i></div>
                     </div>
-
-                    <!-- Details -->
                     <div class="breakdown-section">
                         <div class="breakdown-title">Request Details</div>
-                        <div class="breakdown-row">
-                            <span>Status</span>
-                            <span id="mStatus" style="font-weight:700;">Pending</span>
-                        </div>
-                        <div class="breakdown-row">
-                            <span>Total Hours</span>
-                            <span id="mHours">40 Hrs</span>
-                        </div>
-                        <div class="breakdown-row">
-                            <span>Notes</span>
-                            <span id="mNotes">Family Trip</span>
-                        </div>
+                        <div class="breakdown-row"><span>Status</span><span id="mStatus" style="font-weight:700;">Pending</span></div>
+                        <div class="breakdown-row"><span>Total Hours</span><span id="mHours">40 Hrs</span></div>
+                        <div class="breakdown-row"><span>Approver</span><span>Nicole Adams</span></div>
+                        <div class="breakdown-row"><span>Notes</span><span id="mNotes">Family trip</span></div>
                     </div>
-
-                    <!-- Balance Impact -->
-                    <div class="breakdown-section"
-                        style="background: #fafafa; padding: 20px; border: 1px solid #eee; margin-top: 10px;">
-                        <div class="breakdown-title" style="margin-bottom: 10px;">Projected Balance</div>
-                        <div class="breakdown-row">
-                            <span>Current Balance</span>
-                            <span>160 Hrs</span>
-                        </div>
-                        <div class="breakdown-row">
-                            <span>This Request</span>
-                            <span style="background: var(--adi-black); color: #fff; padding: 0 4px;">-40 Hrs</span>
-                        </div>
-                        <div class="breakdown-row total"
-                            style="border-top:1px solid #ccc; margin-top:5px; padding-top:10px;">
-                            <span>Remaining</span>
-                            <span class="highlight">120 Hrs</span>
-                        </div>
+                    <div class="breakdown-section" style="background:var(--bg-soft); padding:20px; border:1px solid var(--line); margin-top:10px;">
+                        <div class="breakdown-title" style="margin-bottom:10px;">Projected Balance</div>
+                        <div class="breakdown-row"><span>Current Balance</span><span>160 Hrs</span></div>
+                        <div class="breakdown-row"><span>This Request</span><span style="background:var(--navy); color:#fff; padding:0 6px;">-40 Hrs</span></div>
+                        <div class="breakdown-row total" style="border-top:1px solid #ccc; margin-top:5px; padding-top:10px;"><span>Remaining</span><span class="highlight">120 Hrs</span></div>
                     </div>
-
                     <button class="btn-action" onclick="closeModal()">Edit Request</button>
                     <button class="btn-action secondary" onclick="closeModal()">Cancel Request</button>
                 </div>
             </div>
 
-            <!-- MODAL: New Request Form -->
             <div class="modal-backdrop" id="requestModal">
                 <div class="modal-card">
                     <div class="modal-header">
-                        <div class="modal-title">
-                            <h3>New Request</h3>
-                            <div class="modal-subtitle">Submit Time Off</div>
-                        </div>
-                        <div class="close-btn" onclick="closeRequestModal()">✕</div>
+                        <div class="modal-title"><h3>New Request</h3><div class="modal-subtitle">Submit Time Off</div></div>
+                        <div class="close-btn" onclick="closeRequestModal()"><i data-lucide="x"></i></div>
                     </div>
-
                     <form onsubmit="submitRequest(event)">
-
-                        <!-- Date Range -->
                         <div class="form-row">
-                            <div class="form-col">
-                                <div class="form-group">
-                                    <label class="form-label">Start Date</label>
-                                    <input type="date" class="form-input" required>
-                                </div>
-                            </div>
-                            <div class="form-col">
-                                <div class="form-group">
-                                    <label class="form-label">End Date</label>
-                                    <input type="date" class="form-input" required>
-                                </div>
-                            </div>
+                            <div class="form-col"><div class="form-group"><label class="form-label">Start Date</label><input type="date" class="form-input" required></div></div>
+                            <div class="form-col"><div class="form-group"><label class="form-label">End Date</label><input type="date" class="form-input" required></div></div>
                         </div>
-
-                        <!-- Type -->
                         <div class="form-group">
                             <label class="form-label">Absence Type</label>
                             <select class="form-input" required>
@@ -631,110 +168,51 @@
                                 <option value="unpaid">Unpaid Leave</option>
                             </select>
                         </div>
-
-                        <!-- Notes -->
                         <div class="form-group">
                             <label class="form-label">Notes / Reason</label>
-                            <textarea class="form-input" placeholder="Optional notes for manager..."></textarea>
+                            <textarea class="form-input" placeholder="Optional notes for Nicole (Counter Manager)..."></textarea>
                         </div>
-
-                        <!-- Balance Snapshot -->
-                        <div class="breakdown-section"
-                            style="background: #fafafa; padding: 20px; border: 1px solid #eee; margin-top: 20px;">
+                        <div class="breakdown-section" style="background:var(--bg-soft); padding:20px; border:1px solid var(--line); margin-top:20px;">
                             <div class="breakdown-row" style="margin-bottom:0;">
-                                <span style="font-size:12px; font-weight: 700; text-transform: uppercase;">Available Vacation</span>
+                                <span style="font-family:var(--caps); font-size:11px; letter-spacing:1px; text-transform:uppercase;">Available Vacation</span>
                                 <span class="highlight" style="font-weight:800;">120 Hrs</span>
                             </div>
                         </div>
-
                         <button type="submit" class="btn-action">Submit Request</button>
                         <button type="button" class="btn-action secondary" onclick="closeRequestModal()">Cancel</button>
                     </form>
                 </div>
             </div>
-
         </div>
     </div>
 
     <script>
-        // === DETAIL MODAL LOGIC ===
         const modal = document.getElementById('absenceModal');
-        const mDate = document.getElementById('mDate');
-        const mType = document.getElementById('mType');
-        const mHours = document.getElementById('mHours');
-        const mStatus = document.getElementById('mStatus');
-        const mNotes = document.getElementById('mNotes');
-
+        const mDate=document.getElementById('mDate'), mType=document.getElementById('mType'),
+              mHours=document.getElementById('mHours'), mStatus=document.getElementById('mStatus'), mNotes=document.getElementById('mNotes');
         function openModal(date, type, hours, status, notes) {
-            mDate.innerText = date;
-            mType.innerText = type;
-            mHours.innerText = hours;
-            mStatus.innerText = status;
-            mNotes.innerText = notes;
-            
-            // Logic for status styling in modal
-            mStatus.className = ""; // Reset
-            if (status === 'Pending') {
-                 mStatus.style.color = '#000';
-                 mStatus.style.background = '#ede600';
-                 mStatus.style.padding = '2px 6px';
-            } else {
-                 mStatus.style.color = '#000';
-                 mStatus.style.background = 'transparent';
-                 mStatus.style.padding = '0';
-            }
-
-            modal.classList.add('active');
+            mDate.innerText=date; mType.innerText=type; mHours.innerText=hours; mStatus.innerText=status; mNotes.innerText=notes;
+            modal.classList.add('active'); refreshIcons();
         }
+        function closeModal() { modal.classList.remove('active'); }
+        modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
 
-        function closeModal() {
-            modal.classList.remove('active');
-        }
-
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                closeModal();
-            }
-        });
-
-        // === REQUEST FORM MODAL LOGIC ===
         const requestModal = document.getElementById('requestModal');
-
-        function openRequestModal() {
-            requestModal.classList.add('active');
-        }
-
-        function closeRequestModal() {
-            requestModal.classList.remove('active');
-        }
-
-        requestModal.addEventListener('click', (e) => {
-            if (e.target === requestModal) {
-                closeRequestModal();
-            }
-        });
-
+        function openRequestModal() { requestModal.classList.add('active'); refreshIcons(); }
+        function closeRequestModal() { requestModal.classList.remove('active'); }
+        requestModal.addEventListener('click', e => { if (e.target === requestModal) closeRequestModal(); });
         function submitRequest(e) {
             e.preventDefault();
-            // Simulate API call / processing
             const btn = e.target.querySelector('button[type="submit"]');
-            const originalText = btn.innerText;
-
-            btn.innerText = "Submitting...";
-            btn.style.opacity = "0.7";
-
+            const original = btn.innerText;
+            btn.innerText = "Submitting..."; btn.style.opacity = "0.7";
             setTimeout(() => {
                 btn.innerText = "Success!";
-                setTimeout(() => {
-                    closeRequestModal();
-                    // Reset button for next time
-                    btn.innerText = originalText;
-                    btn.style.opacity = "1";
-                    e.target.reset(); // Clear form
-                }, 800);
+                setTimeout(() => { closeRequestModal(); btn.innerText = original; btn.style.opacity = "1"; e.target.reset(); }, 800);
             }, 1000);
         }
+        function refreshIcons() { if (window.lucide) lucide.createIcons({ attrs: { 'stroke-width': 1.5 } }); }
+        refreshIcons();
     </script>
 </body>
-
 </html>
