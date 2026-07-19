@@ -251,16 +251,19 @@
         const AV = "https://elc-demo.staffbase.rocks/api/media/secure/external/v2/image/upload/";
         const initials = n => n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
 
-        // Shift days this month (navy = shift, drop-day = launch)
-        const shiftDays = { 12:'shift', 15:'shift', 18:'drop', 22:'shift' };
-
-        // Upcoming shifts (first one matches the shift-swap 'today' shift)
-        const shifts = [
-            { role:"Beauty Advisor", type:"floor", loc:"Main Floor", time:"09:00 AM – 05:30 PM", metaIcon:"map-pin", meta:"Main Floor", m:"AUG", d:"12" },
-            { role:"Launch Support: Supreme+", type:"launch", loc:"Main Floor · Skincare", time:"08:00 AM – 04:00 PM", metaIcon:"flame", meta:"Hero launch day", m:"AUG", d:"18" },
-            { role:"Skincare Specialist", type:"floor", loc:"Main Floor · Skincare", time:"12:00 PM – 08:00 PM", metaIcon:"map-pin", meta:"Skincare zone", m:"AUG", d:"22" },
-            { role:"Visual Merch Reset", type:"vm", loc:"Counter · after close", time:"10:00 PM – 06:00 AM", metaIcon:"map-pin", meta:"Counter reset", m:"AUG", d:"25" }
+        // Upcoming shifts auto-generate relative to today (offsets in days),
+        // so the schedule always looks current — same approach as shift-swap.
+        const today = new Date();
+        const shiftDefs = [
+            { off:1,  role:"Beauty Advisor",           type:"floor",  loc:"Main Floor",            time:"09:00 AM – 05:30 PM", metaIcon:"map-pin", meta:"Main Floor" },
+            { off:4,  role:"Launch Support: Supreme+", type:"launch", loc:"Main Floor · Skincare", time:"08:00 AM – 04:00 PM", metaIcon:"flame",   meta:"Hero launch day" },
+            { off:8,  role:"Skincare Specialist",      type:"floor",  loc:"Main Floor · Skincare", time:"12:00 PM – 08:00 PM", metaIcon:"map-pin", meta:"Skincare zone" },
+            { off:12, role:"Visual Merch Reset",       type:"vm",     loc:"Counter · after close", time:"10:00 PM – 06:00 AM", metaIcon:"map-pin", meta:"Counter reset" }
         ];
+        const shifts = shiftDefs.map(s => {
+            const d = new Date(); d.setDate(today.getDate() + s.off);
+            return { ...s, m: d.toLocaleString('en-US',{month:'short'}).toUpperCase(), d: String(d.getDate()), _day: d.getDate(), _month: d.getMonth() };
+        });
 
         const teamOnShift = [
             { name:"Nicole Adams",       role:"Counter Manager", img:AV+"c_crop,w_355,h_355,x_35/c_fill,w_200,h_200/2bc57ad12be1c908a0b8aee563a2ee3b.png" },
@@ -269,10 +272,14 @@
         ];
 
         function renderCalendar() {
+            const now = new Date(), year = now.getFullYear(), month = now.getMonth();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const marks = {};
+            shifts.forEach(s => { if (s._month === month) marks[s._day] = (s.type === 'launch' ? 'drop' : 'shift'); });
             let html = '';
-            for (let n = 1; n <= 31; n++) {
-                const s = shiftDays[n];
-                const cls = s === 'drop' ? 'day has-shift drop-day' : (s ? 'day has-shift' : 'day');
+            for (let n = 1; n <= daysInMonth; n++) {
+                const mk = marks[n];
+                const cls = mk === 'drop' ? 'day has-shift drop-day' : (mk ? 'day has-shift' : 'day');
                 html += `<div class="${cls}">${n}</div>`;
             }
             document.getElementById('calDays').innerHTML = html;
