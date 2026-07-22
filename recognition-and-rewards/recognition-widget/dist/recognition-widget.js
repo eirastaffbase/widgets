@@ -22,8 +22,9 @@ const DEFAULT_REWARD_TYPES = [
     { name: "Above & beyond", icon: "ti-rocket", points: 150 },
 ];
 // Regex to parse recognition metadata from post title:
-// format: "FromName recognized ToName · Type · +Xpts"
-const RECOG_TITLE_RE = /^(.+?) recognized (.+?) · (.+?) · \+(\d+)pts$/;
+// format: "FromName recognized ToName · Type · +Xpts" (the "· +Xpts" suffix is
+// optional — it's omitted when points are disabled, so older/newer posts both parse).
+const RECOG_TITLE_RE = /^(.+?) recognized (.+?) · (.+?)(?: · \+(\d+)pts)?$/;
 // ── Inline SVG chrome icons (data-driven reward-type icons stay Tabler) ────────
 const ICONS = {
     heart: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 12.572 12 20l-7.5-7.428A5 5 0 1 1 12 6.006a5 5 0 1 1 7.5 6.566Z"/></svg>`,
@@ -426,6 +427,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const channelId = this.getAttribute("channelid") || DEFAULT_CHANNEL;
                 const token = this.getAttribute("apitoken") || "";
                 const pointsField = this.getAttribute("pointsfield") || "points";
+                const pointsEnabled = this.getAttribute("enablepoints") !== "false";
                 const adminId = this.getAttribute("adminuserid") || DEFAULT_ADMIN_ID;
                 const notificationLink = this.getAttribute("notificationlink") || "";
                 const apiOpts = (extra) => makeApiOpts(token, extra);
@@ -526,7 +528,7 @@ const factory = (BaseBlockClass, widgetApi) => {
               <button class="${p}-ktype" data-idx="${i}" data-name="${t.name}" data-pts="${t.points}">
                 <div class="${p}-ktype-ic"><i class="ti ${t.icon}"></i></div>
                 <div class="${p}-ktype-name">${t.name}</div>
-                <div class="${p}-ktype-pts">+${t.points} pts</div>
+                ${pointsEnabled ? `<div class="${p}-ktype-pts">+${t.points} pts</div>` : ""}
               </button>`).join("")}
           </div>
         </div>
@@ -748,7 +750,9 @@ const factory = (BaseBlockClass, widgetApi) => {
                     try {
                         // 1. Post to social wall
                         // Title embeds structured metadata parseable via RECOG_TITLE_RE — no hidden elements needed.
-                        const postTitle = `${fromName} recognized ${toName} · ${type.name} · +${type.points}pts`;
+                        const postTitle = pointsEnabled
+                            ? `${fromName} recognized ${toName} · ${type.name} · +${type.points}pts`
+                            : `${fromName} recognized ${toName} · ${type.name}`;
                         const postContent = `<p>${message}</p>`;
                         // Create AS the logged-in user (session+CSRF) so the post carries a real
                         // author (id + avatar) and likes/ownership work. `published:true` publishes
@@ -764,17 +768,19 @@ const factory = (BaseBlockClass, widgetApi) => {
                                 notificationChannels: [],
                             }),
                         }));
-                        // 2. Update recipient points
-                        try {
-                            const userResp = yield fetch(`${baseUrl}/users/${toId}`, apiOpts()).then(r => r.json());
-                            const currentPts = parseInt(((_a = userResp === null || userResp === void 0 ? void 0 : userResp.profile) === null || _a === void 0 ? void 0 : _a[pointsField]) || "0", 10);
-                            const newPts = currentPts + type.points;
-                            yield fetch(`${baseUrl}/users/${toId}`, Object.assign(Object.assign({}, apiOpts({
-                                method: "PUT",
-                                body: JSON.stringify({ profile: { [pointsField]: String(newPts) } }),
-                            })), { headers: Object.assign(Object.assign({}, makeApiOpts(token).headers), { USERID: adminId }) }));
+                        // 2. Update recipient points (only when the points capability is enabled)
+                        if (pointsEnabled) {
+                            try {
+                                const userResp = yield fetch(`${baseUrl}/users/${toId}`, apiOpts()).then(r => r.json());
+                                const currentPts = parseInt(((_a = userResp === null || userResp === void 0 ? void 0 : userResp.profile) === null || _a === void 0 ? void 0 : _a[pointsField]) || "0", 10);
+                                const newPts = currentPts + type.points;
+                                yield fetch(`${baseUrl}/users/${toId}`, Object.assign(Object.assign({}, apiOpts({
+                                    method: "PUT",
+                                    body: JSON.stringify({ profile: { [pointsField]: String(newPts) } }),
+                                })), { headers: Object.assign(Object.assign({}, makeApiOpts(token).headers), { USERID: adminId }) }));
+                            }
+                            catch (_b) { }
                         }
-                        catch (_b) { }
                         // 3. Send notification (best effort)
                         try {
                             yield fetch(`${baseUrl}/branch/notifications`, Object.assign({}, apiOpts({
@@ -782,13 +788,15 @@ const factory = (BaseBlockClass, widgetApi) => {
                                 body: JSON.stringify(Object.assign({ accessorIds: [toId], channels: ["notificationCenter"], content: {
                                         en_US: {
                                             title: `You've been recognized!`,
-                                            text: `${fromName} recognized you for ${type.name} and awarded you ${type.points} points.`,
+                                            text: pointsEnabled
+                                                ? `${fromName} recognized you for ${type.name} and awarded you ${type.points} points.`
+                                                : `${fromName} recognized you for ${type.name}.`,
                                         },
                                     } }, (notificationLink ? { link: notificationLink } : {}))),
                             })));
                         }
                         catch (_c) { }
-                        showToast(`Recognition sent! +${type.points} pts awarded`);
+                        showToast(pointsEnabled ? `Recognition sent! +${type.points} pts awarded` : "Recognition sent!");
                         // Reset form
                         kudosMsg.value = "";
                         selectedType = null;
@@ -1127,7 +1135,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                                 const fromName = (m === null || m === void 0 ? void 0 : m[1]) || "";
                                 const toName = (m === null || m === void 0 ? void 0 : m[2]) || "";
                                 const type = (m === null || m === void 0 ? void 0 : m[3]) || "";
-                                const pts = m ? parseInt(m[4], 10) : 0;
+                                const pts = m && m[4] ? parseInt(m[4], 10) : 0;
                                 const message = content.replace(/<[^>]+>/g, "").trim();
                                 const author = post.author || null;
                                 const authorAvatar = ((_f = (_e = author === null || author === void 0 ? void 0 : author.avatar) === null || _e === void 0 ? void 0 : _e.icon) === null || _f === void 0 ? void 0 : _f.url) || ((_h = (_g = author === null || author === void 0 ? void 0 : author.avatar) === null || _g === void 0 ? void 0 : _g.thumb) === null || _h === void 0 ? void 0 : _h.url) || ((_k = (_j = author === null || author === void 0 ? void 0 : author.avatar) === null || _j === void 0 ? void 0 : _j.original) === null || _k === void 0 ? void 0 : _k.url) || "";
@@ -1156,7 +1164,7 @@ const factory = (BaseBlockClass, widgetApi) => {
             });
         }
         static get observedAttributes() {
-            return ["apitoken", "baseurl", "channelid", "rewardtypes", "pointsfield", "adminuserid", "notificationlink", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor"];
+            return ["apitoken", "baseurl", "channelid", "rewardtypes", "enablepoints", "pointsfield", "adminuserid", "notificationlink", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor"];
         }
     };
 };
@@ -1167,7 +1175,7 @@ const configurationSchema = {
         baseurl: { type: "string", title: "Base URL", default: DEFAULT_BASE_URL },
         channelid: { type: "string", title: "Social Wall Channel ID" },
         rewardtypes: { type: "string", title: "Reward Types (JSON array)", default: JSON.stringify(DEFAULT_REWARD_TYPES, null, 2) },
-        pointsfield: { type: "string", title: "Points Profile Field Slug", default: "points" },
+        enablepoints: { type: "boolean", title: "Enable Points", default: true },
         adminuserid: { type: "string", title: "Admin User ID (for profile updates)" },
         notificationlink: { type: "string", title: "Notification Link (page path)" },
         usethemecolors: { type: "boolean", title: "Use Theme Colors", default: false },
@@ -1189,6 +1197,20 @@ const configurationSchema = {
                 },
             ],
         },
+        // Only expose the points profile-field slug when the points capability is enabled.
+        enablepoints: {
+            oneOf: [
+                {
+                    properties: {
+                        enablepoints: { const: true },
+                        pointsfield: { type: "string", title: "Points Profile Field Slug", default: "points" },
+                    },
+                },
+                {
+                    properties: { enablepoints: { const: false } },
+                },
+            ],
+        },
     },
 };
 const uiSchema = {
@@ -1197,8 +1219,9 @@ const uiSchema = {
     channelid: { "ui:help": "ID of the Social Wall channel where recognitions will be posted" },
     rewardtypes: {
         "ui:widget": "textarea",
-        "ui:help": 'JSON array of {"name","icon","points"}. "icon" is a Tabler icon class — suggested: ti-users, ti-bulb, ti-star, ti-rocket, ti-target, ti-heart, ti-trophy, ti-award, ti-medal, ti-crown, ti-thumb-up, ti-flame, ti-bolt, ti-shield, ti-confetti, ti-mood-happy, ti-hand-love-you, ti-diamond. Browse all at tabler.io/icons.',
+        "ui:help": 'JSON array of {"name","icon","points"}. "points" is optional and ignored when "Enable Points" is off. "icon" is a Tabler icon class — suggested: ti-users, ti-bulb, ti-star, ti-rocket, ti-target, ti-heart, ti-trophy, ti-award, ti-medal, ti-crown, ti-thumb-up, ti-flame, ti-bolt, ti-shield, ti-confetti, ti-mood-happy, ti-hand-love-you, ti-diamond. Browse all at tabler.io/icons.',
     },
+    enablepoints: { "ui:help": "Award and display points for recognitions. Turn off for kudos-only mode — the points UI, profile updates, and the \"points\" field in Reward Types are all skipped." },
     pointsfield: { "ui:help": "Profile field slug to store/read points (default: points)" },
     adminuserid: { "ui:help": "Admin user ID used as USERID header when updating user profiles" },
     notificationlink: { "ui:help": "Page path the notification links to e.g. /content/page/abc123" },
@@ -1210,7 +1233,7 @@ const uiSchema = {
 const blockDefinition = {
     name: "recognition-widget",
     label: "Recognition Widget",
-    attributes: ["apitoken", "baseurl", "channelid", "rewardtypes", "pointsfield", "adminuserid", "notificationlink", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor"],
+    attributes: ["apitoken", "baseurl", "channelid", "rewardtypes", "enablepoints", "pointsfield", "adminuserid", "notificationlink", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor"],
     factory,
     configurationSchema,
     uiSchema,
