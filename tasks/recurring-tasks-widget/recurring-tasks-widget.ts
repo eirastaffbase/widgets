@@ -10,7 +10,7 @@ import { UiSchema } from "@rjsf/utils";
 
 import { detectLocale, isRtl, makeT, DEFAULT_LOCALE } from "../shared/i18n";
 import { fetchThemeColors } from "../shared/theming";
-import { linkifyEscaped, AUTOLINK_CSS } from "../shared/linkify";
+import { linkifyEscaped, AUTOLINK_CSS, internalHost } from "../shared/linkify";
 import { STRINGS } from "./strings";
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
@@ -201,6 +201,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
     async renderBlock(container: any) {
       const apiToken = this.getAttribute("apitoken") || DEFAULT_API_TOKEN;
       const baseUrl  = (this.getAttribute("baseurl") || DEFAULT_BASE_URL).replace(/\/$/, "");
+      // Same-app links (same host as the API base URL) navigate in place.
+      const selfHost = internalHost(baseUrl);
       let   primaryColor = this.getAttribute("primarycolor") || DEFAULT_PRIMARY_COLOR;
       let   accentColor  = this.getAttribute("accentcolor")  || DEFAULT_ACCENT_COLOR;
       // When "Use Theme Colors" is on, pull Primary/Accent from the branding theme
@@ -1566,7 +1568,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             <div class="${p}-detail-row">${iconStore}<div><b>${esc(storeP)}</b><div class="${p}-detail-stores v">${stores}</div></div></div>
             <div class="${p}-detail-row">${iconUser}<div><b>${tr("assignedTo")}</b><span class="v">${names.length ? esc(names.join(", ")) : tr("anyoneWithAccess")}</span></div></div>
           </div>
-          ${s.description ? `<div class="${p}-detail-desc-label">${tr("description")}</div><div class="${p}-detail-desc">${linkifyEscaped(esc(s.description))}</div>` : ""}`;
+          ${s.description ? `<div class="${p}-detail-desc-label">${tr("description")}</div><div class="${p}-detail-desc">${linkifyEscaped(esc(s.description), selfHost)}</div>` : ""}`;
         overlayEl.classList.add("open");
         void detailEl.offsetWidth; // commit the closed (centered) state so the first open animates from it, not from the bottom
         requestAnimationFrame(() => detailEl.classList.add("open"));

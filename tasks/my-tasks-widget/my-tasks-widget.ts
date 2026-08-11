@@ -10,7 +10,7 @@ import { UiSchema } from "@rjsf/utils";
 
 import { detectLocale, isRtl, makeT, translateMap, DEFAULT_LOCALE } from "../shared/i18n";
 import { fetchThemeColors } from "../shared/theming";
-import { linkifyEscaped, linkifyHtml, AUTOLINK_CSS } from "../shared/linkify";
+import { linkifyEscaped, linkifyHtml, AUTOLINK_CSS, internalHost } from "../shared/linkify";
 import { STRINGS } from "./strings";
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
@@ -287,6 +287,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
     async renderBlock(container: any) {
       const apiToken     = this.getAttribute("apitoken")           || DEFAULT_API_TOKEN;
       const baseUrl      = (this.getAttribute("baseurl")||DEFAULT_BASE_URL).replace(/\/$/,"");
+      // Same-app links (same host as the API base URL) navigate in place.
+      const selfHost = internalHost(baseUrl);
       let   primaryColor = this.getAttribute("primarycolor")       || DEFAULT_PRIMARY_COLOR;
       let   accentColor  = this.getAttribute("accentcolor")        || DEFAULT_ACCENT_COLOR;
       const bgColor      = this.getAttribute("backgroundcolor")    || "";
@@ -1650,7 +1652,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             ${avatarHtml(a)}
             <div class="${p}-cmt-main">
               <div class="${p}-cmt-head"><span class="${p}-cmt-author">${esc(a.name)}</span><span class="${p}-cmt-time">${esc(commentTime(c.createdAt||c.created||""))}</span></div>
-              <div class="${p}-cmt-body" dir="auto">${linkifyHtml(resolveAttachments(stripProof(body)))||"<em>(empty)</em>"}</div>
+              <div class="${p}-cmt-body" dir="auto">${linkifyHtml(resolveAttachments(stripProof(body)), selfHost)||"<em>(empty)</em>"}</div>
             </div>
           </div>`;
         }).join("");
@@ -2388,7 +2390,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             ${pa?.date?`<div class="${p}-detail-meta-row">${iCal2} ${esc(pa.date)}</div>`:""}
             ${pa?.taskCount!=null?`<div class="${p}-detail-meta-row">${iClip} ${tr("nTasksFlagged").replace("{n}",String(pa.taskCount))}</div>`:""}
           </div>
-          ${pa?.notes?`<div class="${p}-detail-desc-label">${tr("notes")}</div><div class="${p}-detail-desc" style="margin-bottom:18px" dir="auto">${linkifyEscaped(esc(ct(pa.notes)))}</div>`:""}
+          ${pa?.notes?`<div class="${p}-detail-desc-label">${tr("notes")}</div><div class="${p}-detail-desc" style="margin-bottom:18px" dir="auto">${linkifyEscaped(esc(ct(pa.notes)), selfHost)}</div>`:""}
           ${(sysTask&&sysTask.attachmentIds&&sysTask.attachmentIds.length)?`<div class="${p}-detail-desc-label">${tr("attachments")}</div><div class="${p}-att-grid" id="${p}-audit-att-${instId}" style="margin-bottom:18px"><span class="${p}-att-empty">${tr("loading")}</span></div>`:""}
           ${cats.length?`<div class="${p}-detail-desc-label">${tr("categoryBreakdown")}</div><div class="${p}-cat-chart">${bars}</div>`:""}
         `;
@@ -2551,7 +2553,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               return `<div class="${p}-detail-desc-label">${tr("auditFinding")}</div>
                 <div class="${p}-af">
                   ${af.code?`<span class="${p}-af-code">${esc(af.code)}</span>`:""}
-                  ${af.finding?`<div class="${p}-af-finding" dir="auto">${linkifyEscaped(esc(ct(af.finding)))}</div>`:""}
+                  ${af.finding?`<div class="${p}-af-finding" dir="auto">${linkifyEscaped(esc(ct(af.finding)), selfHost)}</div>`:""}
                   <div class="${p}-af-pills">
                     ${af.audit?`<span class="${p}-af-pill">${iCal}<span>${esc(af.audit)}</span></span>`:""}
                     ${af.auditor?`<span class="${p}-af-pill">${iUser}<span>${esc(af.auditor)}</span></span>`:""}
@@ -2559,7 +2561,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
                 </div>`;
             }
             return cleanDesc
-              ? `<div class="${p}-detail-desc-label">${tr("description")}</div><div class="${p}-detail-desc" dir="auto">${linkifyEscaped(esc(ct(cleanDesc)))}</div>`
+              ? `<div class="${p}-detail-desc-label">${tr("description")}</div><div class="${p}-detail-desc" dir="auto">${linkifyEscaped(esc(ct(cleanDesc)), selfHost)}</div>`
               : `<div class="${p}-detail-desc empty">${tr("noDescription")}</div>`;
           })()}
           <div class="${p}-att">

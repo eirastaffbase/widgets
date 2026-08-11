@@ -496,23 +496,57 @@ function sliceEntitySafe(s, n) {
 }
 /** Class applied to every auto-detected link; widgets style it as a chip. */
 const AUTOLINK_CLASS = "sb-autolink";
-const LINK_ICON = '<svg class="sb-autolink-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+/**
+ * Host of the app the widget lives in, derived from the configured API base URL
+ * (e.g. "https://app.staffbase.com/api" → "app.staffbase.com"). Links to this
+ * host are same-app navigation and so open in the current window instead of a
+ * new tab. A leading "www." is dropped so both spellings compare equal.
+ */
+function internalHost(baseUrl) {
+    const m = String(baseUrl || "").match(/^https?:\/\/([^/?#]+)/i);
+    if (!m)
+        return "";
+    return m[1].replace(/^www\./i, "").toLowerCase();
+}
+/** Host portion of an already-escaped URL, normalized the same way. */
+function hostOf(escapedUrl) {
+    return escapedUrl
+        .replace(/^https?:\/\//i, "")
+        .replace(/^www\./i, "")
+        .split(/[/?#]/)[0]
+        .toLowerCase();
+}
+const ICON_EXTERNAL = '<svg class="sb-autolink-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
     'stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
     '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>' +
     '<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
-/** Build the anchor markup for one detected URL (input already escaped). */
-function linkify_anchor(href, url) {
-    return (`<a class="${AUTOLINK_CLASS}" href="${href}" title="${url}" ` +
-        `target="_blank" rel="noopener noreferrer">${LINK_ICON}` +
+// Same-app links get an arrow instead of the chain-link glyph, so it's obvious
+// at a glance that they won't spawn a new tab.
+const ICON_INTERNAL = '<svg class="sb-autolink-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<line x1="4" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>';
+/**
+ * Build the anchor markup for one detected URL (input already escaped).
+ * Same-host links navigate in place; everything else opens in a new tab.
+ */
+function linkify_anchor(href, url, internal) {
+    const cls = internal ? `${AUTOLINK_CLASS} ${AUTOLINK_CLASS}-int` : AUTOLINK_CLASS;
+    const rel = internal ? "" : ' target="_blank" rel="noopener noreferrer"';
+    return (`<a class="${cls}" href="${href}" title="${url}"${rel}>` +
+        `${internal ? ICON_INTERNAL : ICON_EXTERNAL}` +
         `<span class="sb-autolink-txt">${shortLabel(url)}</span></a>`);
 }
 /**
  * Linkify HTML-escaped plain text. Returns HTML.
  * Input must already be escaped — this never escapes for you.
+ *
+ * `selfHost` (see internalHost) marks which host counts as same-app: links to
+ * it navigate in the current window rather than opening a new tab.
  */
-function linkifyEscaped(escaped) {
+function linkifyEscaped(escaped, selfHost) {
     if (!escaped)
         return escaped;
+    const self = (selfHost || "").replace(/^www\./i, "").toLowerCase();
     URL_RE.lastIndex = 0;
     let out = "";
     let last = 0;
@@ -528,7 +562,7 @@ function linkifyEscaped(escaped) {
         if (!href)
             continue;
         out += escaped.slice(last, start);
-        out += linkify_anchor(href, url);
+        out += linkify_anchor(href, url, !!self && hostOf(url) === self);
         last = start + url.length;
     }
     if (!last)
@@ -538,9 +572,9 @@ function linkifyEscaped(escaped) {
 /**
  * Linkify the text nodes of an HTML fragment, skipping anything already inside
  * an <a> element (and inside <script>/<style>, which should never appear here
- * but are cheap to guard).
+ * but are cheap to guard). `selfHost` behaves as in linkifyEscaped.
  */
-function linkifyHtml(html) {
+function linkifyHtml(html, selfHost) {
     if (!html)
         return html;
     const tagRe = /<[^>]*>/g;
@@ -548,7 +582,7 @@ function linkifyHtml(html) {
     let last = 0;
     let skipDepth = 0;
     let m;
-    const emit = (text) => (out += skipDepth > 0 ? text : linkifyEscaped(text));
+    const emit = (text) => (out += skipDepth > 0 ? text : linkifyEscaped(text, selfHost));
     while ((m = tagRe.exec(html))) {
         emit(html.slice(last, m.index));
         const tag = m[0];
@@ -582,6 +616,7 @@ const AUTOLINK_CSS = `
   .${AUTOLINK_CLASS}:focus-visible{outline:2px solid var(--accent,#2563eb);outline-offset:1px}
   .${AUTOLINK_CLASS} .sb-autolink-ico{width:11px;height:11px;flex-shrink:0;opacity:.55}
   .${AUTOLINK_CLASS} .sb-autolink-txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .${AUTOLINK_CLASS}-int .sb-autolink-ico{opacity:.75}
 `;
 
 ;// ./strings.ts
@@ -2361,6 +2396,8 @@ const factory = (BaseBlockClass, widgetApi) => {
             return manager_tasks_widget_awaiter(this, void 0, void 0, function* () {
                 const apiToken = this.getAttribute("apitoken") || DEFAULT_API_TOKEN;
                 const baseUrl = (this.getAttribute("baseurl") || DEFAULT_BASE_URL).replace(/\/$/, "");
+                // Same-app links (same host as the API base URL) navigate in place.
+                const selfHost = internalHost(baseUrl);
                 let primaryColor = this.getAttribute("primarycolor") || DEFAULT_PRIMARY_COLOR;
                 let accentColor = this.getAttribute("accentcolor") || DEFAULT_ACCENT_COLOR;
                 const bgColor = this.getAttribute("backgroundcolor") || "";
@@ -3987,7 +4024,7 @@ const factory = (BaseBlockClass, widgetApi) => {
             ${avatarHtml(a)}
             <div class="${p}-cmt-main">
               <div class="${p}-cmt-head"><span class="${p}-cmt-author">${esc(a.name)}</span><span class="${p}-cmt-time">${esc(commentTime(c.createdAt || c.created || ""))}</span></div>
-              <div class="${p}-cmt-body" dir="auto">${linkifyHtml(resolveAttachments(stripProof(body))) || "<em>(empty)</em>"}</div>
+              <div class="${p}-cmt-body" dir="auto">${linkifyHtml(resolveAttachments(stripProof(body)), selfHost) || "<em>(empty)</em>"}</div>
             </div>
           </div>`;
                     }).join("");
@@ -5538,7 +5575,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                             return `<div class="${p}-detail-desc-label">${tr("auditFinding")}</div>
                 <div class="${p}-af">
                   ${af.code ? `<span class="${p}-af-code">${esc(af.code)}</span>` : ""}
-                  ${af.finding ? `<div class="${p}-af-finding" dir="auto">${linkifyEscaped(esc(ct(af.finding)))}</div>` : ""}
+                  ${af.finding ? `<div class="${p}-af-finding" dir="auto">${linkifyEscaped(esc(ct(af.finding)), selfHost)}</div>` : ""}
                   <div class="${p}-af-pills">
                     ${af.audit ? `<span class="${p}-af-pill">${iCal}<span>${esc(af.audit)}</span></span>` : ""}
                     ${af.auditor ? `<span class="${p}-af-pill">${iUser}<span>${esc(af.auditor)}</span></span>` : ""}
@@ -5546,7 +5583,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 </div>`;
                         }
                         return cleanDesc
-                            ? `<div class="${p}-detail-desc-label">${tr("description")}</div><div class="${p}-detail-desc" dir="auto">${linkifyEscaped(esc(ct(cleanDesc)))}</div>`
+                            ? `<div class="${p}-detail-desc-label">${tr("description")}</div><div class="${p}-detail-desc" dir="auto">${linkifyEscaped(esc(ct(cleanDesc)), selfHost)}</div>`
                             : `<div class="${p}-detail-desc empty">${tr("noDescription")}</div>`;
                     })()}
           <div class="${p}-proof-sec" id="${p}-proof-sec-${instId}" style="display:none"></div>

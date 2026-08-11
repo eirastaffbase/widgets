@@ -118,17 +118,50 @@ function sliceEntitySafe(s: string, n: number): string {
 /** Class applied to every auto-detected link; widgets style it as a chip. */
 export const AUTOLINK_CLASS = "sb-autolink";
 
-const LINK_ICON =
+/**
+ * Host of the app the widget lives in, derived from the configured API base URL
+ * (e.g. "https://app.staffbase.com/api" → "app.staffbase.com"). Links to this
+ * host are same-app navigation and so open in the current window instead of a
+ * new tab. A leading "www." is dropped so both spellings compare equal.
+ */
+export function internalHost(baseUrl: string): string {
+  const m = String(baseUrl || "").match(/^https?:\/\/([^/?#]+)/i);
+  if (!m) return "";
+  return m[1].replace(/^www\./i, "").toLowerCase();
+}
+
+/** Host portion of an already-escaped URL, normalized the same way. */
+function hostOf(escapedUrl: string): string {
+  return escapedUrl
+    .replace(/^https?:\/\//i, "")
+    .replace(/^www\./i, "")
+    .split(/[/?#]/)[0]
+    .toLowerCase();
+}
+
+const ICON_EXTERNAL =
   '<svg class="sb-autolink-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
   'stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
   '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>' +
   '<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
 
-/** Build the anchor markup for one detected URL (input already escaped). */
-function anchor(href: string, url: string): string {
+// Same-app links get an arrow instead of the chain-link glyph, so it's obvious
+// at a glance that they won't spawn a new tab.
+const ICON_INTERNAL =
+  '<svg class="sb-autolink-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+  'stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+  '<line x1="4" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>';
+
+/**
+ * Build the anchor markup for one detected URL (input already escaped).
+ * Same-host links navigate in place; everything else opens in a new tab.
+ */
+function anchor(href: string, url: string, internal: boolean): string {
+  const cls = internal ? `${AUTOLINK_CLASS} ${AUTOLINK_CLASS}-int` : AUTOLINK_CLASS;
+  const rel = internal ? "" : ' target="_blank" rel="noopener noreferrer"';
   return (
-    `<a class="${AUTOLINK_CLASS}" href="${href}" title="${url}" ` +
-    `target="_blank" rel="noopener noreferrer">${LINK_ICON}` +
+    `<a class="${cls}" href="${href}" title="${url}"${rel}>` +
+    `${internal ? ICON_INTERNAL : ICON_EXTERNAL}` +
     `<span class="sb-autolink-txt">${shortLabel(url)}</span></a>`
   );
 }
@@ -136,9 +169,13 @@ function anchor(href: string, url: string): string {
 /**
  * Linkify HTML-escaped plain text. Returns HTML.
  * Input must already be escaped — this never escapes for you.
+ *
+ * `selfHost` (see internalHost) marks which host counts as same-app: links to
+ * it navigate in the current window rather than opening a new tab.
  */
-export function linkifyEscaped(escaped: string): string {
+export function linkifyEscaped(escaped: string, selfHost?: string): string {
   if (!escaped) return escaped;
+  const self = (selfHost || "").replace(/^www\./i, "").toLowerCase();
   URL_RE.lastIndex = 0;
   let out = "";
   let last = 0;
@@ -152,7 +189,7 @@ export function linkifyEscaped(escaped: string): string {
     const href = safeHref(url);
     if (!href) continue;
     out += escaped.slice(last, start);
-    out += anchor(href, url);
+    out += anchor(href, url, !!self && hostOf(url) === self);
     last = start + url.length;
   }
   if (!last) return escaped;
@@ -162,9 +199,9 @@ export function linkifyEscaped(escaped: string): string {
 /**
  * Linkify the text nodes of an HTML fragment, skipping anything already inside
  * an <a> element (and inside <script>/<style>, which should never appear here
- * but are cheap to guard).
+ * but are cheap to guard). `selfHost` behaves as in linkifyEscaped.
  */
-export function linkifyHtml(html: string): string {
+export function linkifyHtml(html: string, selfHost?: string): string {
   if (!html) return html;
   const tagRe = /<[^>]*>/g;
   let out = "";
@@ -172,7 +209,7 @@ export function linkifyHtml(html: string): string {
   let skipDepth = 0;
   let m: RegExpExecArray | null;
   const emit = (text: string) =>
-    (out += skipDepth > 0 ? text : linkifyEscaped(text));
+    (out += skipDepth > 0 ? text : linkifyEscaped(text, selfHost));
 
   while ((m = tagRe.exec(html))) {
     emit(html.slice(last, m.index));
@@ -206,4 +243,5 @@ export const AUTOLINK_CSS = `
   .${AUTOLINK_CLASS}:focus-visible{outline:2px solid var(--accent,#2563eb);outline-offset:1px}
   .${AUTOLINK_CLASS} .sb-autolink-ico{width:11px;height:11px;flex-shrink:0;opacity:.55}
   .${AUTOLINK_CLASS} .sb-autolink-txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .${AUTOLINK_CLASS}-int .sb-autolink-ico{opacity:.75}
 `;

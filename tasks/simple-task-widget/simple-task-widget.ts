@@ -10,7 +10,7 @@ import { UiSchema } from "@rjsf/utils";
 
 import { detectLocale, isRtl, makeT, translateMap, DEFAULT_LOCALE } from "../shared/i18n";
 import { fetchThemeColors } from "../shared/theming";
-import { linkifyEscaped, linkifyHtml, AUTOLINK_CSS } from "../shared/linkify";
+import { linkifyEscaped, linkifyHtml, AUTOLINK_CSS, internalHost } from "../shared/linkify";
 import { STRINGS } from "./strings";
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
@@ -121,6 +121,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
     async renderBlock(container: any) {
       const apiToken     = this.getAttribute("apitoken")        || DEFAULT_API_TOKEN;
       const baseUrl      = (this.getAttribute("baseurl")||DEFAULT_BASE_URL).replace(/\/$/,"");
+      // Same-app links (same host as the API base URL) navigate in place.
+      const selfHost = internalHost(baseUrl);
       let   primaryColor = this.getAttribute("primarycolor")    || DEFAULT_PRIMARY_COLOR;
       let   accentColor  = this.getAttribute("accentcolor")     || DEFAULT_ACCENT_COLOR;
       const bgColor      = this.getAttribute("backgroundcolor") || "";
@@ -859,7 +861,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             ${avatarHtml(a)}
             <div class="${p}-cmt-main">
               <div class="${p}-cmt-head"><span class="${p}-cmt-author">${esc(a.name)}</span><span class="${p}-cmt-time">${esc(commentTime(c.createdAt||c.created||""))}</span></div>
-              <div class="${p}-cmt-body" dir="auto">${linkifyHtml(resolveAttachments(stripProof(body)))||"<em>(empty)</em>"}</div>
+              <div class="${p}-cmt-body" dir="auto">${linkifyHtml(resolveAttachments(stripProof(body)), selfHost)||"<em>(empty)</em>"}</div>
             </div>
           </div>`;
         }).join("");
@@ -952,7 +954,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             ${groupRows}${personRows}
           </div>
           ${cleanDesc
-            ? `<div class="${p}-detail-desc-label">${tr("description")}</div><div class="${p}-detail-desc" dir="auto">${linkifyEscaped(esc(ct(cleanDesc)))}</div>`
+            ? `<div class="${p}-detail-desc-label">${tr("description")}</div><div class="${p}-detail-desc" dir="auto">${linkifyEscaped(esc(ct(cleanDesc)), selfHost)}</div>`
             : `<div class="${p}-detail-desc empty">${tr("noDescription")}</div>`}
           <div class="${p}-att">
             <div class="${p}-att-head">

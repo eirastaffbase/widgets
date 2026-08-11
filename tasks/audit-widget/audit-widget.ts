@@ -10,7 +10,7 @@ import { UiSchema } from "@rjsf/utils";
 
 import { detectLocale, isRtl, makeT, DEFAULT_LOCALE } from "../shared/i18n";
 import { fetchThemeColors } from "../shared/theming";
-import { linkifyEscaped, AUTOLINK_CSS } from "../shared/linkify";
+import { linkifyEscaped, AUTOLINK_CSS, internalHost } from "../shared/linkify";
 import { STRINGS } from "./strings";
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
@@ -156,6 +156,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const appsScriptUrl  = this.getAttribute("appsscripturl")      || DEFAULT_APPS_SCRIPT_URL;
       const apiToken       = this.getAttribute("apitoken")            || DEFAULT_API_TOKEN;
       const baseUrl        = (this.getAttribute("baseurl")||DEFAULT_BASE_URL).replace(/\/$/,"");
+      // Same-app links (same host as the API base URL) navigate in place.
+      const selfHost = internalHost(baseUrl);
       let   primaryColor   = this.getAttribute("primarycolor")        || DEFAULT_PRIMARY;
       let   accentColor    = this.getAttribute("accentcolor")         || DEFAULT_ACCENT;
       const bgColor        = this.getAttribute("backgroundcolor")     || "";
@@ -1567,8 +1569,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
         const iCheck2=`<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
         return `<div class="${p}-question" data-qid="${esc(q.id)}">
-          <div class="${p}-q-header"><span class="${p}-q-id">${esc(q.id)}</span><span class="${p}-q-text">${linkifyEscaped(esc(q.text))}</span></div>
-          ${q.passCriteria?`<div class="${p}-q-criteria">${iCheck2} ${linkifyEscaped(esc(q.passCriteria))}</div>`:""}
+          <div class="${p}-q-header"><span class="${p}-q-id">${esc(q.id)}</span><span class="${p}-q-text">${linkifyEscaped(esc(q.text), selfHost)}</span></div>
+          ${q.passCriteria?`<div class="${p}-q-criteria">${iCheck2} ${linkifyEscaped(esc(q.passCriteria), selfHost)}</div>`:""}
           <div class="${p}-q-chips">
             <span class="${p}-chip ${p}-chip-pts">${tr("nPts").replace("{n}",String(q.pts))}</span>
             ${q.critical?`<span class="${p}-chip ${p}-chip-crit">${iWarn} ${tr("critical")}</span>`:""}
@@ -1821,7 +1823,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
                 <div class="${p}-meta-row"><span>${iUser} ${tr("auditor")}</span><span>${esc(auditorName)}</span></div>
                 <div class="${p}-meta-row"><span>${tr("date")}</span><span>${esc(auditDate)}</span></div>
                 <div class="${p}-meta-row"><span>${tr("tasksFlagged")}</span><span style="font-weight:700;color:${ft.length>0?"var(--error)":"var(--success)"}">${ft.length}</span></div>
-                ${auditNotes?`<div class="${p}-meta-row" style="flex-direction:column;align-items:flex-start;gap:3px"><span style="color:var(--gray-lt);font-size:11px;text-transform:uppercase;letter-spacing:.3px">${tr("notes")}</span><span class="${p}-notes-text" style="line-height:1.5">${linkifyEscaped(esc(auditNotes))}</span></div>`:""}
+                ${auditNotes?`<div class="${p}-meta-row" style="flex-direction:column;align-items:flex-start;gap:3px"><span style="color:var(--gray-lt);font-size:11px;text-transform:uppercase;letter-spacing:.3px">${tr("notes")}</span><span class="${p}-notes-text" style="line-height:1.5">${linkifyEscaped(esc(auditNotes), selfHost)}</span></div>`:""}
               </div>
               <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-lt);margin-bottom:8px">${tr("categoryBreakdown")}</div>
               ${catRows}
