@@ -368,6 +368,143 @@ function fetchThemeColors(baseUrl_1, apiToken_1) {
     });
 }
 
+;// ../shared/linkify.ts
+// ─────────────────────────────────────────────────────────────────────────────
+// Auto-linking of URLs in free-text task content.
+//
+// Task descriptions and comments are authored as plain text, so a pasted URL
+// arrives as inert text. These helpers turn those URLs into real anchors.
+//
+// Two entry points, depending on what the caller already has:
+//   • linkifyEscaped(s) — `s` is HTML-*escaped plain text* (the usual
+//     `esc(description)` output). Every URL found becomes an anchor.
+//   • linkifyHtml(s)    — `s` is a *rich HTML* fragment (e.g. a comment body
+//     returned by the API). Only text nodes are touched, and anything already
+//     inside an <a> is left alone so existing links aren't nested/broken.
+//
+// Both operate on escaped text, meaning a URL's "&" arrives as "&amp;". That is
+// fine to keep verbatim inside href — the HTML parser decodes it back to "&".
+// ─────────────────────────────────────────────────────────────────────────────
+// Matches http(s):// and bare www. URLs. The character class deliberately
+// excludes whitespace and the raw HTML delimiters so a match can never escape
+// the text node it was found in; trailing punctuation is trimmed afterwards.
+const URL_RE = /(?:https?:\/\/|www\.)[^\s<>"'`]+/gi;
+// Punctuation that commonly follows a URL in prose rather than belonging to it.
+const TRAILING_RE = /[.,;:!?]+$/;
+/** Trim characters that a sentence—not the URL—owns. */
+function trimTrailing(url) {
+    let out = url;
+    let changed = true;
+    while (changed && out) {
+        changed = false;
+        // Entities produced by escaping: &amp; &quot; &lt; &gt; &#39;
+        const ent = out.match(/&(?:amp|quot|lt|gt|#39|apos);$/i);
+        if (ent) {
+            out = out.slice(0, -ent[0].length);
+            changed = true;
+            continue;
+        }
+        const punct = out.match(TRAILING_RE);
+        if (punct) {
+            out = out.slice(0, -punct[0].length);
+            changed = true;
+            continue;
+        }
+        // Only drop a closing bracket when it has no opener inside the URL, so
+        // links like .../Foo_(bar) survive but "(see https://x.com)" does not.
+        const last = out.charAt(out.length - 1);
+        const pairs = { ")": "(", "]": "[", "}": "{" };
+        if (pairs[last]) {
+            const open = pairs[last];
+            let opens = 0, closes = 0;
+            for (let i = 0; i < out.length; i++) {
+                if (out.charAt(i) === open)
+                    opens++;
+                else if (out.charAt(i) === last)
+                    closes++;
+            }
+            if (closes > opens) {
+                out = out.slice(0, -1);
+                changed = true;
+                continue;
+            }
+        }
+    }
+    return out;
+}
+/** Guard against `javascript:`/`data:` style payloads sneaking into href. */
+function safeHref(url) {
+    const normalized = /^www\./i.test(url) ? `https://${url}` : url;
+    if (!/^https?:\/\//i.test(normalized))
+        return null;
+    // The value is already HTML-escaped, but quotes/angles are re-checked here so
+    // the attribute can never be broken out of.
+    if (/["'<>]/.test(normalized))
+        return null;
+    return normalized;
+}
+/**
+ * Linkify HTML-escaped plain text. Returns HTML.
+ * Input must already be escaped — this never escapes for you.
+ */
+function linkifyEscaped(escaped) {
+    if (!escaped)
+        return escaped;
+    URL_RE.lastIndex = 0;
+    let out = "";
+    let last = 0;
+    let m;
+    while ((m = URL_RE.exec(escaped))) {
+        const raw = m[0];
+        const url = trimTrailing(raw);
+        const start = m.index;
+        URL_RE.lastIndex = start + raw.length;
+        if (!url)
+            continue;
+        const href = safeHref(url);
+        if (!href)
+            continue;
+        out += escaped.slice(last, start);
+        out += `<a href="${href}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+        last = start + url.length;
+    }
+    if (!last)
+        return escaped;
+    return out + escaped.slice(last);
+}
+/**
+ * Linkify the text nodes of an HTML fragment, skipping anything already inside
+ * an <a> element (and inside <script>/<style>, which should never appear here
+ * but are cheap to guard).
+ */
+function linkifyHtml(html) {
+    if (!html)
+        return html;
+    const tagRe = /<[^>]*>/g;
+    let out = "";
+    let last = 0;
+    let skipDepth = 0;
+    let m;
+    const emit = (text) => (out += skipDepth > 0 ? text : linkifyEscaped(text));
+    while ((m = tagRe.exec(html))) {
+        emit(html.slice(last, m.index));
+        const tag = m[0];
+        out += tag;
+        last = m.index + tag.length;
+        const name = (tag.match(/^<\s*(\/?)\s*([a-zA-Z][a-zA-Z0-9]*)/) || []);
+        const closing = name[1] === "/";
+        const el = (name[2] || "").toLowerCase();
+        if (el === "a" || el === "script" || el === "style") {
+            if (closing)
+                skipDepth = Math.max(0, skipDepth - 1);
+            else if (!/\/\s*>$/.test(tag))
+                skipDepth++;
+        }
+    }
+    emit(html.slice(last));
+    return out;
+}
+
 ;// ./strings.ts
 const STRINGS = {
     en_US: {
@@ -1422,6 +1559,7 @@ var audit_widget_awaiter = (undefined && undefined.__awaiter) || function (thisA
 
 
 
+
 // ── Defaults ──────────────────────────────────────────────────────────────────
 const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzlqYwqZ6gaq-nwDbIQ0M1spl77Qu5_fZtOwytNYYAsBKC_baY7WGUOEmM60Y6edInr/exec";
 const DEFAULT_API_TOKEN = "";
@@ -1685,6 +1823,9 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-q-id{background:#f3f4f6;color:var(--gray);font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;border:1px solid var(--border);flex-shrink:0;margin-top:2px;white-space:nowrap}
           .${p}-q-text{font-size:14px;line-height:1.4;flex:1}
           .${p}-q-criteria{font-size:11px;color:var(--gray-lt);margin-bottom:8px;padding-inline-start:2px;display:flex;align-items:flex-start;gap:4px;line-height:1.4}
+          /* Auto-detected URLs in free text (question text, criteria, notes) */
+          .${p}-q-text a,.${p}-q-criteria a,.${p}-notes-text a{color:var(--accent);text-decoration:underline;word-break:break-all}
+          .${p}-q-text a:hover,.${p}-q-criteria a:hover,.${p}-notes-text a:hover{opacity:.8}
           .${p}-q-chips{display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap}
           .${p}-chip{font-size:10px;padding:2px 7px;border-radius:10px;font-weight:600;display:inline-flex;align-items:center;gap:3px}
           .${p}-chip-pts{background:#eef2ff;color:#3730a3}
@@ -3150,8 +3291,8 @@ const factory = (BaseBlockClass, widgetApi) => {
           </div>` : "";
                     const iCheck2 = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
                     return `<div class="${p}-question" data-qid="${esc(q.id)}">
-          <div class="${p}-q-header"><span class="${p}-q-id">${esc(q.id)}</span><span class="${p}-q-text">${esc(q.text)}</span></div>
-          ${q.passCriteria ? `<div class="${p}-q-criteria">${iCheck2} ${esc(q.passCriteria)}</div>` : ""}
+          <div class="${p}-q-header"><span class="${p}-q-id">${esc(q.id)}</span><span class="${p}-q-text">${linkifyEscaped(esc(q.text))}</span></div>
+          ${q.passCriteria ? `<div class="${p}-q-criteria">${iCheck2} ${linkifyEscaped(esc(q.passCriteria))}</div>` : ""}
           <div class="${p}-q-chips">
             <span class="${p}-chip ${p}-chip-pts">${tr("nPts").replace("{n}", String(q.pts))}</span>
             ${q.critical ? `<span class="${p}-chip ${p}-chip-crit">${iWarn} ${tr("critical")}</span>` : ""}
@@ -3473,7 +3614,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 <div class="${p}-meta-row"><span>${iUser} ${tr("auditor")}</span><span>${esc(auditorName)}</span></div>
                 <div class="${p}-meta-row"><span>${tr("date")}</span><span>${esc(auditDate)}</span></div>
                 <div class="${p}-meta-row"><span>${tr("tasksFlagged")}</span><span style="font-weight:700;color:${ft.length > 0 ? "var(--error)" : "var(--success)"}">${ft.length}</span></div>
-                ${auditNotes ? `<div class="${p}-meta-row" style="flex-direction:column;align-items:flex-start;gap:3px"><span style="color:var(--gray-lt);font-size:11px;text-transform:uppercase;letter-spacing:.3px">${tr("notes")}</span><span style="line-height:1.5">${esc(auditNotes)}</span></div>` : ""}
+                ${auditNotes ? `<div class="${p}-meta-row" style="flex-direction:column;align-items:flex-start;gap:3px"><span style="color:var(--gray-lt);font-size:11px;text-transform:uppercase;letter-spacing:.3px">${tr("notes")}</span><span class="${p}-notes-text" style="line-height:1.5">${linkifyEscaped(esc(auditNotes))}</span></div>` : ""}
               </div>
               <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-lt);margin-bottom:8px">${tr("categoryBreakdown")}</div>
               ${catRows}

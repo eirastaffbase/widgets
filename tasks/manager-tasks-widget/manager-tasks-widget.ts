@@ -10,6 +10,7 @@ import { UiSchema } from "@rjsf/utils";
 
 import { detectLocale, isRtl, makeT, translateMap, DEFAULT_LOCALE } from "../shared/i18n";
 import { fetchThemeColors } from "../shared/theming";
+import { linkifyEscaped, linkifyHtml } from "../shared/linkify";
 import { STRINGS } from "./strings";
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
@@ -404,6 +405,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-detail-desc-label{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--gray-lt);margin-bottom:6px}
           .${p}-detail-desc{font-size:13px;color:var(--gray);line-height:1.65;white-space:pre-wrap;word-break:break-word}
           .${p}-detail-desc.empty{font-style:italic;color:var(--gray-lt)}
+          /* Auto-detected URLs in free text (description, findings, comments) */
+          .${p}-detail-desc a,.${p}-af-finding a,.${p}-cmt-body a:not(.${p}-cmt-att){color:var(--accent);text-decoration:underline;word-break:break-all}
+          .${p}-detail-desc a:hover,.${p}-af-finding a:hover,.${p}-cmt-body a:not(.${p}-cmt-att):hover{opacity:.8}
           /* Audit finding (parsed, audit mode only) */
           .${p}-af{margin-top:2px}
           .${p}-af-code{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--primary);background:rgba(var(--primary-rgb),.1);border-radius:6px;padding:3px 9px;margin-bottom:9px}
@@ -1589,7 +1593,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             ${avatarHtml(a)}
             <div class="${p}-cmt-main">
               <div class="${p}-cmt-head"><span class="${p}-cmt-author">${esc(a.name)}</span><span class="${p}-cmt-time">${esc(commentTime(c.createdAt||c.created||""))}</span></div>
-              <div class="${p}-cmt-body" dir="auto">${resolveAttachments(stripProof(body))||"<em>(empty)</em>"}</div>
+              <div class="${p}-cmt-body" dir="auto">${linkifyHtml(resolveAttachments(stripProof(body)))||"<em>(empty)</em>"}</div>
             </div>
           </div>`;
         }).join("");
@@ -2887,7 +2891,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               return `<div class="${p}-detail-desc-label">${tr("auditFinding")}</div>
                 <div class="${p}-af">
                   ${af.code?`<span class="${p}-af-code">${esc(af.code)}</span>`:""}
-                  ${af.finding?`<div class="${p}-af-finding" dir="auto">${esc(ct(af.finding))}</div>`:""}
+                  ${af.finding?`<div class="${p}-af-finding" dir="auto">${linkifyEscaped(esc(ct(af.finding)))}</div>`:""}
                   <div class="${p}-af-pills">
                     ${af.audit?`<span class="${p}-af-pill">${iCal}<span>${esc(af.audit)}</span></span>`:""}
                     ${af.auditor?`<span class="${p}-af-pill">${iUser}<span>${esc(af.auditor)}</span></span>`:""}
@@ -2895,7 +2899,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
                 </div>`;
             }
             return cleanDesc
-              ? `<div class="${p}-detail-desc-label">${tr("description")}</div><div class="${p}-detail-desc" dir="auto">${esc(ct(cleanDesc))}</div>`
+              ? `<div class="${p}-detail-desc-label">${tr("description")}</div><div class="${p}-detail-desc" dir="auto">${linkifyEscaped(esc(ct(cleanDesc)))}</div>`
               : `<div class="${p}-detail-desc empty">${tr("noDescription")}</div>`;
           })()}
           <div class="${p}-proof-sec" id="${p}-proof-sec-${instId}" style="display:none"></div>

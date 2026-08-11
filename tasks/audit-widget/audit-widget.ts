@@ -10,6 +10,7 @@ import { UiSchema } from "@rjsf/utils";
 
 import { detectLocale, isRtl, makeT, DEFAULT_LOCALE } from "../shared/i18n";
 import { fetchThemeColors } from "../shared/theming";
+import { linkifyEscaped } from "../shared/linkify";
 import { STRINGS } from "./strings";
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
@@ -290,6 +291,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-q-id{background:#f3f4f6;color:var(--gray);font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;border:1px solid var(--border);flex-shrink:0;margin-top:2px;white-space:nowrap}
           .${p}-q-text{font-size:14px;line-height:1.4;flex:1}
           .${p}-q-criteria{font-size:11px;color:var(--gray-lt);margin-bottom:8px;padding-inline-start:2px;display:flex;align-items:flex-start;gap:4px;line-height:1.4}
+          /* Auto-detected URLs in free text (question text, criteria, notes) */
+          .${p}-q-text a,.${p}-q-criteria a,.${p}-notes-text a{color:var(--accent);text-decoration:underline;word-break:break-all}
+          .${p}-q-text a:hover,.${p}-q-criteria a:hover,.${p}-notes-text a:hover{opacity:.8}
           .${p}-q-chips{display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap}
           .${p}-chip{font-size:10px;padding:2px 7px;border-radius:10px;font-weight:600;display:inline-flex;align-items:center;gap:3px}
           .${p}-chip-pts{background:#eef2ff;color:#3730a3}
@@ -1564,8 +1568,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
         const iCheck2=`<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
         return `<div class="${p}-question" data-qid="${esc(q.id)}">
-          <div class="${p}-q-header"><span class="${p}-q-id">${esc(q.id)}</span><span class="${p}-q-text">${esc(q.text)}</span></div>
-          ${q.passCriteria?`<div class="${p}-q-criteria">${iCheck2} ${esc(q.passCriteria)}</div>`:""}
+          <div class="${p}-q-header"><span class="${p}-q-id">${esc(q.id)}</span><span class="${p}-q-text">${linkifyEscaped(esc(q.text))}</span></div>
+          ${q.passCriteria?`<div class="${p}-q-criteria">${iCheck2} ${linkifyEscaped(esc(q.passCriteria))}</div>`:""}
           <div class="${p}-q-chips">
             <span class="${p}-chip ${p}-chip-pts">${tr("nPts").replace("{n}",String(q.pts))}</span>
             ${q.critical?`<span class="${p}-chip ${p}-chip-crit">${iWarn} ${tr("critical")}</span>`:""}
@@ -1818,7 +1822,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
                 <div class="${p}-meta-row"><span>${iUser} ${tr("auditor")}</span><span>${esc(auditorName)}</span></div>
                 <div class="${p}-meta-row"><span>${tr("date")}</span><span>${esc(auditDate)}</span></div>
                 <div class="${p}-meta-row"><span>${tr("tasksFlagged")}</span><span style="font-weight:700;color:${ft.length>0?"var(--error)":"var(--success)"}">${ft.length}</span></div>
-                ${auditNotes?`<div class="${p}-meta-row" style="flex-direction:column;align-items:flex-start;gap:3px"><span style="color:var(--gray-lt);font-size:11px;text-transform:uppercase;letter-spacing:.3px">${tr("notes")}</span><span style="line-height:1.5">${esc(auditNotes)}</span></div>`:""}
+                ${auditNotes?`<div class="${p}-meta-row" style="flex-direction:column;align-items:flex-start;gap:3px"><span style="color:var(--gray-lt);font-size:11px;text-transform:uppercase;letter-spacing:.3px">${tr("notes")}</span><span class="${p}-notes-text" style="line-height:1.5">${linkifyEscaped(esc(auditNotes))}</span></div>`:""}
               </div>
               <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-lt);margin-bottom:8px">${tr("categoryBreakdown")}</div>
               ${catRows}

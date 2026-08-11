@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<!--
+  Standalone, single-page version of the Weather Time widget.
+  Hardcoded to New York. Self-contained: HTML, CSS and JS in one file.
+  No build step required.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Time — New York</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background:#fff;
+            color:#1a1a1a;
+            -webkit-font-smoothing:antialiased;
+        }
+
+        .weather-card {
+            width:100%;
+            max-width:none;
+            padding:28px 24px;
+        }
+
+        .wt-city {
+            font-size:13px;
+            letter-spacing:1px;
+            text-transform:uppercase;
+            color:#8b8b8b;
+            font-weight:600;
+            margin-bottom:14px;
+        }
+
+        /* Mirrors the desktop layout of the original widget. */
+        .weather-time {
+            display:flex;
+            flex-direction:row;
+            justify-content:space-between;
+            align-items:center;
+            position:relative;
+        }
+
+        .wt-temp {
+            cursor:pointer;
+            font-size:44px;
+            font-weight:bold;
+            line-height:1;
+            margin:0 0 10px 0;
+        }
+
+        .wt-time {
+            cursor:pointer;
+            font-size:16px;
+            color:#4a4a4a;
+            margin:0;
+        }
+
+        .wt-icon-wrap {
+            display:flex;
+            align-items:center;
+            flex-shrink:0;
+        }
+
+        .wt-icon {
+            width:150px;
+            cursor:pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="weather-card">
+        <div class="wt-city" id="wt-city">New York</div>
+        <div class="weather-time">
+            <div class="wt-left">
+                <p id="wt-temp" class="wt-temp" title="Click to toggle °C / °F">--°</p>
+                <p id="wt-time" class="wt-time" title="Click to refresh">Loading time...</p>
+            </div>
+            <div class="wt-icon-wrap">
+                <img id="wt-icon" class="wt-icon" alt="Weather Icon" title="Click to refresh" />
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            "use strict";
+
+            // ---- Hardcoded configuration -------------------------------------
+            var CITY = "New York";
+            var IMAGE_BASE_PATH =
+                "https://eirastaffbase.github.io/weather-time/resources/img";
+
+            // ---- DOM references ----------------------------------------------
+            var tempEl = document.getElementById("wt-temp");
+            var timeEl = document.getElementById("wt-time");
+            var iconEl = document.getElementById("wt-icon");
+            var cityEl = document.getElementById("wt-city");
+
+            // ---- State -------------------------------------------------------
+            var temperatureC = null;
+            var temperatureF = null;
+            var isFahrenheit = false;
+            var timeZone = "America/New_York";
+            var timeInterval = null;
+
+            /**
+             * Map WeatherAPI `code` + day/night => custom SVG filename.
+             */
+            function getIconFilename(code, timeOfDay) {
+                switch (code) {
+                    case 1000:
+                        return timeOfDay === "day" ? "sunny.svg" : "clear-moon.svg";
+                    case 1003:
+                        return timeOfDay === "day"
+                            ? "partly-cloudy-sun.svg"
+                            : "partly-cloudy-moon.svg";
+                    case 1006:
+                        return "cloudy.svg";
+                    case 1009:
+                    case 1030:
+                    case 1135:
+                    case 1147:
+                        return "double-clouds.svg";
+                    case 1063:
+                    case 1072:
+                    case 1150:
+                    case 1153:
+                    case 1168:
+                    case 1171:
+                        return timeOfDay === "day" ? "drizzle.svg" : "drizzle-moon.svg";
+                    case 1180:
+                    case 1183:
+                    case 1186:
+                    case 1189:
+                    case 1192:
+                    case 1195:
+                    case 1198:
+                    case 1201:
+                    case 1240:
+                    case 1243:
+                    case 1246:
+                        return "rain.svg";
+                    case 1066:
+                    case 1069:
+                    case 1114:
+                    case 1117:
+                    case 1204:
+                    case 1207:
+                    case 1210:
+                    case 1213:
+                    case 1216:
+                    case 1219:
+                    case 1222:
+                    case 1225:
+                    case 1237:
+                    case 1249:
+                    case 1252:
+                    case 1255:
+                    case 1258:
+                    case 1261:
+                    case 1264:
+                        return "snow.svg";
+                    case 1087:
+                    case 1273:
+                    case 1276:
+                    case 1279:
+                    case 1282:
+                        return "thunderstorm.svg";
+                    default:
+                        return "default.svg";
+                }
+            }
+
+            function getOrdinalSuffix(n) {
+                if (n % 10 === 1 && n % 100 !== 11) return "st";
+                if (n % 10 === 2 && n % 100 !== 12) return "nd";
+                if (n % 10 === 3 && n % 100 !== 13) return "rd";
+                return "th";
+            }
+
+            /**
+             * Format the current time in the given time zone, e.g. "Nov 26th, 9:05am".
+             */
+            function formatDateTime(tz) {
+                var parts = new Intl.DateTimeFormat("en-US", {
+                    timeZone: tz,
+                    month: "short",
+                    day: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                    hour12: true,
+                }).formatToParts(new Date());
+
+                var lookup = {};
+                parts.forEach(function (p) {
+                    lookup[p.type] = p.value;
+                });
+
+                var monthShort = lookup.month;
+                var day = parseInt(lookup.day, 10);
+                var hours12 = parseInt(lookup.hour, 10);
+                var minStr = lookup.minute;
+                var ampm = (lookup.dayPeriod || "").toLowerCase();
+                var suffix = getOrdinalSuffix(day);
+
+                return monthShort + " " + day + suffix + ", " + hours12 + ":" + minStr + ampm;
+            }
+
+            function renderTemperature() {
+                var temperature = isFahrenheit ? temperatureF : temperatureC;
+                if (temperature === null || temperature === undefined) {
+                    tempEl.textContent = "--°";
+                    return;
+                }
+                tempEl.textContent =
+                    Math.round(temperature) + "°" + (isFahrenheit ? "F" : "C");
+            }
+
+            function renderTime() {
+                timeEl.textContent = timeZone
+                    ? formatDateTime(timeZone)
+                    : "Loading time...";
+            }
+
+            function startClock() {
+                renderTime();
+                if (timeInterval) clearInterval(timeInterval);
+                timeInterval = setInterval(renderTime, 6000);
+            }
+
+            function setIcon(url) {
+                // Reset fallback flags each time we set a fresh icon.
+                delete iconEl.dataset.fallback;
+                delete iconEl.dataset.fallback2;
+                iconEl.src = url;
+            }
+
+            iconEl.addEventListener("error", function () {
+                if (!iconEl.dataset.fallback) {
+                    iconEl.dataset.fallback = "true";
+                    var filename = iconEl.src.split("/").pop();
+                    iconEl.src = IMAGE_BASE_PATH + "/" + filename;
+                } else if (!iconEl.dataset.fallback2) {
+                    iconEl.dataset.fallback2 = "true";
+                    iconEl.src = IMAGE_BASE_PATH + "/default.svg";
+                } else {
+                    console.warn("All icon fallbacks failed. Stopping.");
+                }
+            });
+
+            /**
+             * Fetch weather from WeatherAPI for the hardcoded city.
+             */
+            function fetchWeatherData() {
+                return fetch(
+                    "https://api.weatherapi.com/v1/current.json?key=" +
+                        API_KEY +
+                        "&q=" +
+                        encodeURIComponent(CITY)
+                )
+                    .then(function (response) {
+                        if (!response.ok) throw new Error("Network response was not ok");
+                        return response.json();
+                    })
+                    .then(function (data) {
+                        if (data && data.current && data.current.condition) {
+                            temperatureC = data.current.temp_c;
+                            temperatureF = data.current.temp_f;
+
+                            // Default to Fahrenheit when in the United States.
+                            isFahrenheit =
+                                data.location &&
+                                data.location.country === "United States of America";
+
+                            var weatherCode = data.current.condition.code || 1000;
+                            var timeOfDay = data.current.is_day === 1 ? "day" : "night";
+                            var filename = getIconFilename(weatherCode, timeOfDay);
+                            setIcon(IMAGE_BASE_PATH + "/" + filename);
+
+                            timeZone =
+                                (data.location && data.location.tz_id) || "America/New_York";
+
+                            if (data.location && data.location.name) {
+                                cityEl.textContent = data.location.name;
+                            }
+
+                            renderTemperature();
+                            startClock();
+                        } else {
+                            throw new Error("Invalid data received from weather API");
+                        }
+                    })
+                    .catch(function (error) {
+                        console.error("Error fetching weather data:", error);
+
+                        // Fallback values, matching the original widget defaults.
+                        temperatureC = 27;
+                        temperatureF = (27 * 9) / 5 + 32;
+                        isFahrenheit = false;
+                        setIcon(IMAGE_BASE_PATH + "/default.svg");
+                        timeZone = "America/New_York";
+
+                        renderTemperature();
+                        startClock();
+                    });
+            }
+
+            // Toggle Celsius / Fahrenheit on temperature click.
+            tempEl.addEventListener("click", function () {
+                isFahrenheit = !isFahrenheit;
+                renderTemperature();
+            });
+
+            // Manual refresh when clicking the time or the icon.
+            timeEl.addEventListener("click", fetchWeatherData);
+            iconEl.addEventListener("click", fetchWeatherData);
+
+            // Initial load.
+            fetchWeatherData();
+        })();
+    </script>
+</body>
+</html>
