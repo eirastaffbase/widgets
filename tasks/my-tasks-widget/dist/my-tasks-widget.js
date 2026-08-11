@@ -445,59 +445,83 @@ function safeHref(url) {
 }
 /**
  * Display label for a URL: the whole URL minus the scheme, a leading "www." and
- * a trailing slash.
+ * a trailing slash, with the path middle-elided when it's too long.
  *
- * A same-app link keeps only a hint of its host — the first DNS label, elided —
- * rather than the whole thing. The reader is already on that host, so spelling
- * it out in full says little and crowds out the path, but dropping it entirely
- * loses the cue that this is a link at all. An external link keeps its full
- * domain, since there the domain is the most important thing to show.
+ * Two rules, differing on one point — how much of the host to show:
  *
- *   internal:  harristeeter-demo…/content/form/6a7b815efeae020a98098727
  *   external:  google.com/search?q=hello
+ *              docs.example.com/guides/…/publishing
+ *   internal:  harris…/content/…/6a7b815efeae020a98098727
  *
- * The path is never elided. Long URLs are handled visually instead: the chip is
- * capped at the container width and ellipsizes via CSS, so the label stays
- * selectable/copyable and never loses the middle of a path.
+ * An external link keeps its full domain: on the open web the domain is the
+ * security signal, and truncating it is the shape phishing imitates (see the
+ * Chromium URL Display Guidelines and NN/g's "URL as UI"). A same-app link is
+ * different — the reader is already on that host, inside an internal comms
+ * platform, so the domain carries no trust information and is just noise. It's
+ * cut to a short hint that keeps the cue "this is a link" without eating the
+ * line.
+ *
+ * The path follows the usual convention: keep the first and last segments,
+ * elide the middle. Those are the meaningful ends — the first says which area
+ * of the site, the last identifies the actual resource. The full URL stays in
+ * the anchor's `title` for anyone who wants it.
  */
 function displayLabel(escapedUrl, internal) {
     const base = escapedUrl.replace(/^https?:\/\//i, "").replace(/^www\./i, "");
-    const shown = internal ? hintHost(stripOpenlink(base)) : base;
-    // Keep a bare "host/" or "host…/" readable rather than leaving a lone slash.
-    return shown.replace(/(.)\/+$/, "$1");
+    const cut = base.search(/[/?#]/);
+    const host = cut < 0 ? base : base.slice(0, cut);
+    const rest = cut < 0 ? "" : base.slice(cut);
+    return (internal ? hintHost(host) : host) + elidePath(rest);
 }
+// Host hint for same-app links: enough to recognise, not enough to dominate.
+const HOST_HINT_KEEP = 6;
 /**
- * Drop a leading "/openlink" path segment from a "host/path" string.
- * See stripOpenlinkUrl — this is the same transform, applied to the label so it
- * matches where the link actually points.
+ * Shorten a host to a recognisable hint ("harristeeter-demo.staffbase.rocks" →
+ * "harris…"). Left alone when it's already at or under the budget, so short
+ * hosts don't gain a pointless ellipsis.
  */
-function stripOpenlink(hostAndPath) {
-    return hostAndPath.replace(/^([^/?#]+)\/openlink(?=[/?#]|$)/i, "$1");
+function hintHost(host) {
+    return host.length <= HOST_HINT_KEEP ? host : `${host.slice(0, HOST_HINT_KEEP)}…`;
 }
+// Longest path we render in full before eliding the middle.
+const MAX_PATH = 28;
+// Tail of the final segment kept when that segment is itself very long.
+const LEAF_KEEP = 12;
 /**
- * Replace the host of a "host/path" string with a shortened hint. Used for
- * same-app links only, where the reader is already on that host.
+ * Middle-elide a path, keeping the first and last segments:
  *
- * A short subdomain is shown whole ("hi.staffbase.com/x" → "hi…/x"). A long one
- * gets cut short and keeps the TLD, so the hint stays recognisable as a domain
- * instead of trailing off into nothing:
+ *   /content/form/6a7b…/test  →  /content/…/test
+ *   /a/b/c                    →  /a/b/c            (already short)
  *
- *   ucfuirfeoreoif.staffbase.com/whatever → ucfuirfeo…com/whatever
+ * Query and fragment are dropped — they're rarely meaningful to a reader and
+ * routinely long (tracking parameters especially). A trailing slash goes too.
  */
-const MAX_HOST_HINT = 12;
-const HOST_HINT_KEEP = 9;
-function hintHost(hostAndPath) {
-    const cut = hostAndPath.search(/[/?#]/);
-    const host = cut < 0 ? hostAndPath : hostAndPath.slice(0, cut);
-    const rest = cut < 0 ? "" : hostAndPath.slice(cut);
-    const labels = host.split(".");
-    const first = labels[0];
-    if (labels.length < 2)
-        return first + rest;
-    const hint = first.length > MAX_HOST_HINT
-        ? `${first.slice(0, HOST_HINT_KEEP)}…${labels[labels.length - 1]}`
-        : `${first}…`;
-    return hint + rest;
+function elidePath(rest) {
+    const path = rest.split(/[?#]/)[0].replace(/\/+$/, "");
+    if (!path || path === "/")
+        return "";
+    if (path.length <= MAX_PATH)
+        return path;
+    const segs = path.split("/").filter(Boolean);
+    const leaf = segs[segs.length - 1];
+    // A single long segment has no middle to elide, so trim its head instead —
+    // the tail is the part that distinguishes one id from another.
+    if (segs.length < 2)
+        return `/…${sliceTail(leaf, LEAF_KEEP)}`;
+    const short = `/${segs[0]}/…/${leaf}`;
+    if (short.length <= MAX_PATH)
+        return short;
+    return `/${segs[0]}/…${sliceTail(leaf, LEAF_KEEP)}`;
+}
+/** Last `n` characters, without splitting a trailing HTML entity. */
+function sliceTail(s, n) {
+    if (s.length <= n)
+        return s;
+    const out = s.slice(-n);
+    // The input is escaped, so a cut can land inside "&amp;" — drop the fragment.
+    const partial = out.indexOf(";");
+    const amp = out.indexOf("&");
+    return partial >= 0 && (amp < 0 || partial < amp) ? out.slice(partial + 1) : out;
 }
 /** Class applied to every auto-detected link; widgets style it as a chip. */
 const AUTOLINK_CLASS = "sb-autolink";
@@ -544,28 +568,23 @@ const ICON_INTERNAL = '<svg class="sb-autolink-ico" viewBox="0 0 24 24" fill="no
  * cause of same-app links either bouncing out to the system browser or landing
  * on the home screen. External links open in a new tab as usual.
  *
- * The href is otherwise the URL exactly as pasted, except that a same-app link
- * has its "/openlink" segment removed — that's the share/copy-link redirect
- * wrapper, and the known-good markup above points straight at "/content/...".
- * Note this was tried once before and didn't help, but that was without the
- * internal-link classes; the two may only work as a pair.
+ * The href is the URL exactly as pasted — nothing is rewritten. Two attempts at
+ * being clever here have already failed, so the URL is left alone pending a
+ * definitive answer on how the app routes links:
  *
- * One thing deliberately *not* done: rewriting same-app links to a root-relative
- * path ("/content/form/<id>"). That works in a browser tab, but the widget runs
- * in a webview whose document base isn't the site root, so the path resolved
- * against the wrong base and dumped the user on the home screen.
+ *   • Rewriting to a root-relative path ("/content/form/<id>") works in a
+ *     browser tab, but the widget runs in a webview whose document base isn't
+ *     the site root, so it resolved against the wrong base and landed on home.
+ *   • Stripping the "/openlink" share-link wrapper didn't fix it either, tried
+ *     both with and without the classes above.
  */
 const INTERNAL_LINK_CLASSES = "internal-link colored clickable";
-/** Drop the "/openlink" redirect wrapper from an absolute same-app URL. */
-function stripOpenlinkUrl(absoluteUrl) {
-    return absoluteUrl.replace(/^(https?:\/\/[^/?#]+)\/openlink(?=[/?#]|$)/i, "$1");
-}
 function linkify_anchor(href, url, internal) {
     const cls = internal
         ? `${AUTOLINK_CLASS} ${AUTOLINK_CLASS}-int ${INTERNAL_LINK_CLASSES}`
         : AUTOLINK_CLASS;
     const rel = internal ? "" : ' target="_blank" rel="noopener noreferrer"';
-    return (`<a class="${cls}" href="${internal ? stripOpenlinkUrl(href) : href}" title="${url}"${rel}>` +
+    return (`<a class="${cls}" href="${href}" title="${url}"${rel}>` +
         `${internal ? ICON_INTERNAL : ICON_EXTERNAL}` +
         `<span class="sb-autolink-txt">${displayLabel(url, internal)}</span></a>`);
 }
