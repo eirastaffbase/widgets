@@ -444,37 +444,40 @@ function safeHref(url) {
     return normalized;
 }
 /**
- * Display label for a URL. The whole URL is kept — only the noise comes off:
- * the scheme, a leading "www.", a trailing slash, and the "/openlink" redirect
- * wrapper (which is an implementation detail of Staffbase's copy-link action,
- * not somewhere a reader ever means to go).
+ * Display label for a URL: the whole URL minus the scheme, a leading "www." and
+ * a trailing slash.
  *
- * For a same-app link the host is dropped too, leaving just the path. The
- * reader is already on that host, so repeating it says nothing and crowds out
- * the part that actually identifies the destination. An external link keeps its
- * full domain, since there the domain is the most important thing to show.
+ * A same-app link keeps only a hint of its host — the first DNS label, elided —
+ * rather than the whole thing. The reader is already on that host, so spelling
+ * it out in full says little and crowds out the path, but dropping it entirely
+ * loses the cue that this is a link at all. An external link keeps its full
+ * domain, since there the domain is the most important thing to show.
  *
- *   internal:  /content/form/6a7b815efeae020a98098727
+ *   internal:  harristeeter-demo…/content/form/6a7b815efeae020a98098727
  *   external:  google.com/search?q=hello
  *
- * Nothing is elided. Long URLs are handled visually instead: the chip is capped
- * at the container width and ellipsizes via CSS, so the label stays fully
+ * The path is never elided. Long URLs are handled visually instead: the chip is
+ * capped at the container width and ellipsizes via CSS, so the label stays
  * selectable/copyable and never loses the middle of a path.
  */
 function displayLabel(escapedUrl, internal) {
     const base = escapedUrl.replace(/^https?:\/\//i, "").replace(/^www\./i, "");
-    const clean = stripOpenlink(base);
-    const shown = internal ? clean.replace(/^[^/?#]+/, "") || "/" : clean;
-    // Keep a bare "host/" or "/" readable rather than rendering a dangling slash.
+    const shown = internal ? hintHost(base) : base;
+    // Keep a bare "host/" or "host…/" readable rather than leaving a lone slash.
     return shown.replace(/(.)\/+$/, "$1");
 }
 /**
- * Drop a "/openlink" path segment. Staffbase's share/copy-link action hands out
- * URLs like "host/openlink/content/form/<id>"; /openlink is a redirect wrapper
- * that resolves to the real page, so it's noise in a label.
+ * Replace the host of a "host/path" string with a shortened hint: its first DNS
+ * label plus an ellipsis when there was more to it ("harristeeter-demo.staffbase.rocks/x"
+ * → "harristeeter-demo…/x"). Used for same-app links only.
  */
-function stripOpenlink(hostAndPath) {
-    return hostAndPath.replace(/^([^/?#]+)\/openlink(?=[/?#]|$)/i, "$1");
+function hintHost(hostAndPath) {
+    const cut = hostAndPath.search(/[/?#]/);
+    const host = cut < 0 ? hostAndPath : hostAndPath.slice(0, cut);
+    const rest = cut < 0 ? "" : hostAndPath.slice(cut);
+    const dot = host.indexOf(".");
+    const hint = dot < 0 ? host : `${host.slice(0, dot)}…`;
+    return hint + rest;
 }
 /** Class applied to every auto-detected link; widgets style it as a chip. */
 const AUTOLINK_CLASS = "sb-autolink";
@@ -509,37 +512,33 @@ const ICON_INTERNAL = '<svg class="sb-autolink-ico" viewBox="0 0 24 24" fill="no
     '<line x1="4" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>';
 /**
  * Build the anchor markup for one detected URL (input already escaped).
- * Same-host links navigate in place; everything else opens in a new tab.
- */
-/**
- * Destination for a same-app link.
  *
- * The href stays *absolute*. An earlier version rewrote these to a root-relative
- * path ("/content/form/<id>"), which works in a browser tab but breaks inside
- * the Staffbase mobile app: the widget runs in a webview whose document base
- * isn't the site root, so a root-relative path resolves against the wrong base
- * and dumps the user on the home screen. Keeping the full URL resolves the same
- * either way. Same-window behaviour comes from omitting `target`, not from the
- * href's shape.
+ * The href is the URL exactly as it was pasted — absolute, and otherwise
+ * untouched. Two earlier attempts at being clever here both broke navigation in
+ * the Staffbase mobile app, so the URL is now left alone and Staffbase does its
+ * own routing:
  *
- * A leading "/openlink" segment is dropped. Staffbase's share/copy-link action
- * hands out URLs like ".../openlink/content/form/<id>", where /openlink is just
- * a redirect wrapper that bounces to the real page — we link straight at the
- * destination and skip the round trip.
- */
-function internalHref(absoluteUrl) {
-    return absoluteUrl.replace(/^(https?:\/\/[^/?#]+)\/openlink(?=[/?#]|$)/i, "$1");
-}
-/**
- * Build the anchor markup for one detected URL (input already escaped).
- * Same-host links stay absolute but omit `target`, so they navigate in the
- * current window; everything else opens in a new tab.
+ *   • Rewriting same-app links to a root-relative path ("/content/form/<id>")
+ *     works in a browser tab, but the widget runs in a webview whose document
+ *     base isn't the site root, so the path resolved against the wrong base and
+ *     landed on the home screen.
+ *   • Stripping the "/openlink" segment didn't help either — it's Staffbase's
+ *     own deep-link resolver, not just a redirect wrapper, so removing it is at
+ *     best pointless and at worst skips the routing the app relies on.
+ *
+ * Same-app links carry an explicit target="_self". Omitting `target` entirely
+ * is equivalent in a browser, but the mobile app's webview appears to treat a
+ * target-less link as "not ours" and hand it to the outer shell — which is the
+ * likeliest cause of same-app links either bouncing out to the system browser
+ * or landing on the home screen. Being explicit keeps navigation in the webview.
+ * External links open in a new tab.
  */
 function linkify_anchor(href, url, internal) {
     const cls = internal ? `${AUTOLINK_CLASS} ${AUTOLINK_CLASS}-int` : AUTOLINK_CLASS;
-    const rel = internal ? "" : ' target="_blank" rel="noopener noreferrer"';
-    const dest = internal ? internalHref(href) : href;
-    return (`<a class="${cls}" href="${dest}" title="${url}"${rel}>` +
+    const rel = internal
+        ? ' target="_self"'
+        : ' target="_blank" rel="noopener noreferrer"';
+    return (`<a class="${cls}" href="${href}" title="${url}"${rel}>` +
         `${internal ? ICON_INTERNAL : ICON_EXTERNAL}` +
         `<span class="sb-autolink-txt">${displayLabel(url, internal)}</span></a>`);
 }
@@ -554,17 +553,24 @@ function linkifyEscaped(escaped, selfHost) {
     const self = (selfHost || "").replace(/^www\./i, "").toLowerCase();
     return scanUrls(escaped, (url, href) => linkify_anchor(href, url, !!self && hostOf(url) === self));
 }
+/** Class applied to the shortened URL text in previews (not a link). */
+const AUTOLINK_TEXT_CLASS = "sb-autolink-plain";
 /**
- * Replace every URL with its display label — no anchor, no chip. Used for
- * truncated previews (task cards, calendar entries) where the whole row is
- * already a click target and a raw "https://…" would eat the line budget.
+ * Replace every URL with its display label, wrapped in a non-interactive span
+ * tinted with the widget's primary colour. Used for truncated previews (task
+ * cards, calendar entries) where the whole row is already a click target, so a
+ * real link would fight with it — but the URL should still read as a URL rather
+ * than disappearing into the surrounding prose.
  *
  * `selfHost` (see internalHost) matters here for labelling only: same-app links
  * are shown as a bare path, matching how they read in the detail view.
  */
 function shortenUrls(escaped, selfHost) {
     const self = (selfHost || "").replace(/^www\./i, "").toLowerCase();
-    return scanUrls(escaped, (url) => displayLabel(url, !!self && hostOf(url) === self));
+    return scanUrls(escaped, (url) => {
+        const label = displayLabel(url, !!self && hostOf(url) === self);
+        return `<span class="${AUTOLINK_TEXT_CLASS}">${label}</span>`;
+    });
 }
 /**
  * Walk the escaped text and hand every valid URL to `render`, splicing the
@@ -648,6 +654,10 @@ const AUTOLINK_CSS = `
   .${AUTOLINK_CLASS} .sb-autolink-txt{min-width:0;overflow:hidden;
     text-overflow:ellipsis;white-space:nowrap}
   .${AUTOLINK_CLASS}-int .sb-autolink-ico{opacity:.75}
+  /* Shortened URL text in card/calendar previews. Not a link — the row itself
+     is the click target — but tinted so it still reads as a URL. Inherits the
+     preview's own line-clamping, so no overflow handling of its own. */
+  .${AUTOLINK_TEXT_CLASS}{color:var(--primary,#2563eb);font-weight:500}
 `;
 
 ;// ./strings.ts
