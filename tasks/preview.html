@@ -184,7 +184,7 @@ window.defineBlock = (def) => { registeredBlocks[def.blockDefinition.name] = def
 const MOCK_TASKS_INST1 = [
   {
     id: "t1", title: "EOM Inventory Count",
-    description: "Complete full store inventory count for April. [type: Finance]",
+    description: "Complete full store inventory count for April. Count sheet: https://example.com/sheets/inventory-april [type: Finance]",
     status: "OPEN", dueDate: "2026-04-30T00:00:00Z",
     priority: "Priority_1", taskListId: "list1",
     assigneeIds: [MOCK_USER_ID], groupIds: [],
@@ -212,7 +212,7 @@ const MOCK_TASKS_INST1 = [
   },
   {
     id: "t5", title: "Walk-In Cooler Deep Clean",
-    description: "Execute quarterly cooler cleaning checklist.",
+    description: "Execute quarterly cooler cleaning checklist. SOP: www.example.com/sop/cooler-clean — log it at https://example.com/log?store=1234&task=t5.",
     status: "OPEN", dueDate: "2026-05-25T00:00:00Z",
     priority: "Priority_3", taskListId: "list1",
     assigneeIds: [MOCK_USER_ID], groupIds: [],
@@ -261,7 +261,7 @@ const MOCK_USERS = {
 
 const MOCK_COMMENTS = {
   data: [
-    { id:"c1", authorId:"u-maria", content:"<p>I started the count for the dry storage section — about halfway done.</p>", createdAt: new Date(Date.now()-1000*60*60*26).toISOString() },
+    { id:"c1", authorId:"u-maria", content:"<p>I started the count for the dry storage section — about halfway done. Tally: https://example.com/sheets/inventory-april</p>", createdAt: new Date(Date.now()-1000*60*60*26).toISOString() },
     { id:"c2", authorId:"u-james", content:"<p>Thanks Maria! I'll cover the walk-in cooler this afternoon.</p>",       createdAt: new Date(Date.now()-1000*60*60*3).toISOString() },
     { id:"c3", authorId:"u-priya", content:"<p>Heads up: a few items in aisle 4 are mislabeled, flagging for the manager.</p>", createdAt: new Date(Date.now()-1000*60*25).toISOString() },
   ],

@@ -33,7 +33,7 @@
   <script>
     // ── In-memory mock Staffbase environment ───────────────────────────────────
     // A couple of pre-seeded template tasks so the List & Calendar views have data.
-    function tmplDesc(blob) { return "Demo recurring task. [type: recur-template] [rrule: " + blob + "]"; }
+    function tmplDesc(blob) { return "Demo recurring task. Full SOP: https://example.com/sop/opening-walk [type: recur-template] [rrule: " + blob + "]"; }
     // Anchor schedules ~30 days in the past so occurrences always show around "today".
     const START = (function () {
       const d = new Date(Date.now() - 30 * 86400000);
