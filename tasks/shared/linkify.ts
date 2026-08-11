@@ -70,15 +70,24 @@ function safeHref(url: string): string | null {
  * wrapper (which is an implementation detail of Staffbase's copy-link action,
  * not somewhere a reader ever means to go).
  *
- * Nothing is elided. Long URLs are handled visually instead: the chip is
- * capped at the container width and ellipsizes via CSS, so the label stays
- * fully selectable/copyable and never loses the middle of a path.
+ * For a same-app link the host is dropped too, leaving just the path. The
+ * reader is already on that host, so repeating it says nothing and crowds out
+ * the part that actually identifies the destination. An external link keeps its
+ * full domain, since there the domain is the most important thing to show.
+ *
+ *   internal:  /content/form/6a7b815efeae020a98098727
+ *   external:  google.com/search?q=hello
+ *
+ * Nothing is elided. Long URLs are handled visually instead: the chip is capped
+ * at the container width and ellipsizes via CSS, so the label stays fully
+ * selectable/copyable and never loses the middle of a path.
  */
-function displayLabel(escapedUrl: string): string {
+function displayLabel(escapedUrl: string, internal?: boolean): string {
   const base = escapedUrl.replace(/^https?:\/\//i, "").replace(/^www\./i, "");
   const clean = stripOpenlink(base);
-  // Keep a bare "host/" readable rather than rendering a dangling slash.
-  return clean.replace(/\/+$/, "") || clean;
+  const shown = internal ? clean.replace(/^[^/?#]+/, "") || "/" : clean;
+  // Keep a bare "host/" or "/" readable rather than rendering a dangling slash.
+  return shown.replace(/(.)\/+$/, "$1");
 }
 
 /**
@@ -166,7 +175,7 @@ function anchor(href: string, url: string, internal: boolean): string {
   return (
     `<a class="${cls}" href="${dest}" title="${url}"${rel}>` +
     `${internal ? ICON_INTERNAL : ICON_EXTERNAL}` +
-    `<span class="sb-autolink-txt">${displayLabel(url)}</span></a>`
+    `<span class="sb-autolink-txt">${displayLabel(url, internal)}</span></a>`
   );
 }
 
@@ -188,9 +197,15 @@ export function linkifyEscaped(escaped: string, selfHost?: string): string {
  * Replace every URL with its display label — no anchor, no chip. Used for
  * truncated previews (task cards, calendar entries) where the whole row is
  * already a click target and a raw "https://…" would eat the line budget.
+ *
+ * `selfHost` (see internalHost) matters here for labelling only: same-app links
+ * are shown as a bare path, matching how they read in the detail view.
  */
-export function shortenUrls(escaped: string): string {
-  return scanUrls(escaped, (url) => displayLabel(url));
+export function shortenUrls(escaped: string, selfHost?: string): string {
+  const self = (selfHost || "").replace(/^www\./i, "").toLowerCase();
+  return scanUrls(escaped, (url) =>
+    displayLabel(url, !!self && hostOf(url) === self)
+  );
 }
 
 /**

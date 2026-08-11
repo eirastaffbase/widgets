@@ -2286,7 +2286,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       function renderTaskCard(task:Task):string{
         const isDone=task.status==="DONE"||task.status==="done"||task.status==="CLOSED";
         const dueInfo=formatDate(task.dueDate);
-        const desc=task.description?shortenUrls(esc(ct(stripTypeTag(task.description).trim()))):"";
+        const desc=task.description?shortenUrls(esc(ct(stripTypeTag(task.description).trim())),selfHost):"";
         const typeCol=task.taskType?typeColor(task.taskType):"";
         const typeText=task.taskType?contrastColor(typeCol):"";
         const isCrit=(task.auditSeverity||"").toLowerCase()==="critical";
