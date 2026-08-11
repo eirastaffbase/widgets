@@ -10,7 +10,7 @@ import { UiSchema } from "@rjsf/utils";
 
 import { detectLocale, isRtl, makeT, DEFAULT_LOCALE } from "../shared/i18n";
 import { fetchThemeColors } from "../shared/theming";
-import { linkifyEscaped } from "../shared/linkify";
+import { linkifyEscaped, AUTOLINK_CSS } from "../shared/linkify";
 import { STRINGS } from "./strings";
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
@@ -291,9 +291,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-q-id{background:#f3f4f6;color:var(--gray);font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;border:1px solid var(--border);flex-shrink:0;margin-top:2px;white-space:nowrap}
           .${p}-q-text{font-size:14px;line-height:1.4;flex:1}
           .${p}-q-criteria{font-size:11px;color:var(--gray-lt);margin-bottom:8px;padding-inline-start:2px;display:flex;align-items:flex-start;gap:4px;line-height:1.4}
-          /* Auto-detected URLs in free text (question text, criteria, notes) */
-          .${p}-q-text a,.${p}-q-criteria a,.${p}-notes-text a{color:var(--accent);text-decoration:underline;word-break:break-all}
-          .${p}-q-text a:hover,.${p}-q-criteria a:hover,.${p}-notes-text a:hover{opacity:.8}
+          /* Auto-detected URLs render as compact chips (see shared/linkify) */
+          ${AUTOLINK_CSS}
           .${p}-q-chips{display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap}
           .${p}-chip{font-size:10px;padding:2px 7px;border-radius:10px;font-weight:600;display:inline-flex;align-items:center;gap:3px}
           .${p}-chip-pts{background:#eef2ff;color:#3730a3}

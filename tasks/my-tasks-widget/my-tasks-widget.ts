@@ -10,7 +10,7 @@ import { UiSchema } from "@rjsf/utils";
 
 import { detectLocale, isRtl, makeT, translateMap, DEFAULT_LOCALE } from "../shared/i18n";
 import { fetchThemeColors } from "../shared/theming";
-import { linkifyEscaped, linkifyHtml } from "../shared/linkify";
+import { linkifyEscaped, linkifyHtml, AUTOLINK_CSS } from "../shared/linkify";
 import { STRINGS } from "./strings";
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
@@ -466,9 +466,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-detail-desc-label{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--gray-lt);margin-bottom:6px}
           .${p}-detail-desc{font-size:13px;color:var(--gray);line-height:1.65;white-space:pre-wrap;word-break:break-word}
           .${p}-detail-desc.empty{font-style:italic;color:var(--gray-lt)}
-          /* Auto-detected URLs in free text (description, findings, comments) */
-          .${p}-detail-desc a,.${p}-af-finding a,.${p}-cmt-body a:not(.${p}-cmt-att){color:var(--accent);text-decoration:underline;word-break:break-all}
-          .${p}-detail-desc a:hover,.${p}-af-finding a:hover,.${p}-cmt-body a:not(.${p}-cmt-att):hover{opacity:.8}
+          /* Auto-detected URLs render as compact chips (see shared/linkify) */
+          ${AUTOLINK_CSS}
           /* Audit finding (parsed, audit mode only) */
           .${p}-af{margin-top:2px}
           .${p}-af-code{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--primary);background:rgba(var(--primary-rgb),.1);border-radius:6px;padding:3px 9px;margin-bottom:9px}

@@ -69,41 +69,50 @@ function safeHref(url: string): string | null {
 const MAX_LABEL = 38;
 
 /**
- * Human-friendly label for a URL: drop the scheme, "www." and any trailing
- * slash, then middle-ellipsize the path if it's still too long. Operates on the
- * escaped form, so slicing is done on entity boundaries to avoid cutting an
- * entity such as "&amp;" in half.
+ * Human-friendly label for a URL: drop the scheme, "www.", any query/hash and a
+ * trailing slash, then ellipsize the middle of the path if it's still too long.
+ * The full URL stays available in the chip's `title`. Operates on the escaped
+ * form, so slicing is entity-aware to avoid cutting an "&amp;" in half.
  */
 function shortLabel(escapedUrl: string): string {
-  let s = escapedUrl.replace(/^https?:\/\//i, "").replace(/^www\./i, "").replace(/\/+$/, "");
-  if (s.length <= MAX_LABEL) return s;
+  const base = escapedUrl.replace(/^https?:\/\//i, "").replace(/^www\./i, "");
+  // Query strings and fragments are noise in a label — drop them, but mark that
+  // something was removed so the chip doesn't look like the whole URL.
+  const cut = base.search(/[?#]/);
+  const dropped = cut >= 0;
+  let s = (dropped ? base.slice(0, cut) : base).replace(/\/+$/, "");
+  const tail = dropped ? "…" : "";
+
+  if (s.length + tail.length <= MAX_LABEL) return s + tail;
 
   const slash = s.indexOf("/");
   const host = slash < 0 ? s : s.slice(0, slash);
-  const rest = slash < 0 ? "" : s.slice(slash);
-  if (!rest) return sliceEntitySafe(s, MAX_LABEL - 1) + "…";
+  const segs = slash < 0 ? [] : s.slice(slash + 1).split("/").filter(Boolean);
+  if (!segs.length) return sliceEntitySafe(s, MAX_LABEL - 1) + "…";
 
-  // Keep the host intact and show the tail of the path — that's the part that
-  // actually identifies the page.
-  const budget = MAX_LABEL - host.length - 1;
-  if (budget < 6) return sliceEntitySafe(host, MAX_LABEL - 1) + "…";
-  return host + "/…" + tailEntitySafe(rest, budget - 2);
+  // Keep the host, then add path segments from the end (the part that actually
+  // identifies the page) until the budget runs out.
+  const budget = MAX_LABEL - host.length - 2; // room for the "/…" marker
+  if (budget < 4) return sliceEntitySafe(host, MAX_LABEL - 1) + "…";
+  const kept: string[] = [];
+  let used = 0;
+  for (let i = segs.length - 1; i >= 0; i--) {
+    const next = used + segs[i].length + 1;
+    if (kept.length && next > budget) break;
+    kept.unshift(segs[i]);
+    used = next;
+    if (used >= budget) break;
+  }
+  let path = kept.join("/");
+  if (path.length > budget) path = sliceEntitySafe(path, Math.max(1, budget - 1)) + "…";
+  return `${host}/…/${path}${tail}`;
 }
 
 /** Slice from the start without splitting an HTML entity. */
 function sliceEntitySafe(s: string, n: number): string {
-  let out = s.slice(0, n);
+  const out = s.slice(0, n);
   const dangling = out.match(/&[a-z#0-9]*$/i);
   return dangling ? out.slice(0, -dangling[0].length) : out;
-}
-
-/** Slice from the end without splitting an HTML entity. */
-function tailEntitySafe(s: string, n: number): string {
-  let out = s.slice(-n);
-  const dangling = out.match(/^[a-z#0-9]*;/i);
-  return dangling && s.slice(0, s.length - out.length).lastIndexOf("&") >= 0
-    ? out.slice(dangling[0].length)
-    : out;
 }
 
 /** Class applied to every auto-detected link; widgets style it as a chip. */

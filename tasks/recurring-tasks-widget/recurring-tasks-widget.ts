@@ -10,7 +10,7 @@ import { UiSchema } from "@rjsf/utils";
 
 import { detectLocale, isRtl, makeT, DEFAULT_LOCALE } from "../shared/i18n";
 import { fetchThemeColors } from "../shared/theming";
-import { linkifyEscaped } from "../shared/linkify";
+import { linkifyEscaped, AUTOLINK_CSS } from "../shared/linkify";
 import { STRINGS } from "./strings";
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
@@ -709,9 +709,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-detail-stores { display:flex; flex-direction:column; gap:3px; }
           .${p}-detail-desc-label { font-size:11px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; color:var(--gray-lt); margin-bottom:6px; }
           .${p}-detail-desc { font-size:13px; color:var(--gray); line-height:1.6; white-space:pre-wrap; word-break:break-word; }
-          /* Auto-detected URLs in free text (description) */
-          .${p}-detail-desc a { color:var(--accent); text-decoration:underline; word-break:break-all; }
-          .${p}-detail-desc a:hover { opacity:.8; }
+          /* Auto-detected URLs render as compact chips (see shared/linkify) */
+          ${AUTOLINK_CSS}
           .${p}-detail-foot { display:flex; gap:10px; padding:14px 20px; border-top:1px solid var(--border); flex-shrink:0; }
           .${p}-detail-foot button { flex:1; padding:12px; border-radius:var(--r-md); border:none; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px; }
           .${p}-detail-foot button svg { width:15px; height:15px; }

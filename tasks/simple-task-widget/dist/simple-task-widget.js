@@ -421,6 +421,69 @@ function safeHref(url) {
         return null;
     return normalized;
 }
+// A long raw URL wrecks the layout of a description or comment, so the chip
+// shows a trimmed label instead and keeps the full URL in `title`.
+const MAX_LABEL = 38;
+/**
+ * Human-friendly label for a URL: drop the scheme, "www.", any query/hash and a
+ * trailing slash, then ellipsize the middle of the path if it's still too long.
+ * The full URL stays available in the chip's `title`. Operates on the escaped
+ * form, so slicing is entity-aware to avoid cutting an "&amp;" in half.
+ */
+function shortLabel(escapedUrl) {
+    const base = escapedUrl.replace(/^https?:\/\//i, "").replace(/^www\./i, "");
+    // Query strings and fragments are noise in a label — drop them, but mark that
+    // something was removed so the chip doesn't look like the whole URL.
+    const cut = base.search(/[?#]/);
+    const dropped = cut >= 0;
+    let s = (dropped ? base.slice(0, cut) : base).replace(/\/+$/, "");
+    const tail = dropped ? "…" : "";
+    if (s.length + tail.length <= MAX_LABEL)
+        return s + tail;
+    const slash = s.indexOf("/");
+    const host = slash < 0 ? s : s.slice(0, slash);
+    const segs = slash < 0 ? [] : s.slice(slash + 1).split("/").filter(Boolean);
+    if (!segs.length)
+        return sliceEntitySafe(s, MAX_LABEL - 1) + "…";
+    // Keep the host, then add path segments from the end (the part that actually
+    // identifies the page) until the budget runs out.
+    const budget = MAX_LABEL - host.length - 2; // room for the "/…" marker
+    if (budget < 4)
+        return sliceEntitySafe(host, MAX_LABEL - 1) + "…";
+    const kept = [];
+    let used = 0;
+    for (let i = segs.length - 1; i >= 0; i--) {
+        const next = used + segs[i].length + 1;
+        if (kept.length && next > budget)
+            break;
+        kept.unshift(segs[i]);
+        used = next;
+        if (used >= budget)
+            break;
+    }
+    let path = kept.join("/");
+    if (path.length > budget)
+        path = sliceEntitySafe(path, Math.max(1, budget - 1)) + "…";
+    return `${host}/…/${path}${tail}`;
+}
+/** Slice from the start without splitting an HTML entity. */
+function sliceEntitySafe(s, n) {
+    const out = s.slice(0, n);
+    const dangling = out.match(/&[a-z#0-9]*$/i);
+    return dangling ? out.slice(0, -dangling[0].length) : out;
+}
+/** Class applied to every auto-detected link; widgets style it as a chip. */
+const AUTOLINK_CLASS = "sb-autolink";
+const LINK_ICON = '<svg class="sb-autolink-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>' +
+    '<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
+/** Build the anchor markup for one detected URL (input already escaped). */
+function linkify_anchor(href, url) {
+    return (`<a class="${AUTOLINK_CLASS}" href="${href}" title="${url}" ` +
+        `target="_blank" rel="noopener noreferrer">${LINK_ICON}` +
+        `<span class="sb-autolink-txt">${shortLabel(url)}</span></a>`);
+}
 /**
  * Linkify HTML-escaped plain text. Returns HTML.
  * Input must already be escaped — this never escapes for you.
@@ -443,7 +506,7 @@ function linkifyEscaped(escaped) {
         if (!href)
             continue;
         out += escaped.slice(last, start);
-        out += `<a href="${href}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+        out += linkify_anchor(href, url);
         last = start + url.length;
     }
     if (!last)
@@ -482,6 +545,22 @@ function linkifyHtml(html) {
     emit(html.slice(last));
     return out;
 }
+/**
+ * Stylesheet for the auto-link chips. Widgets concatenate this into their own
+ * <style> block so the chip looks identical everywhere; `--accent` is picked up
+ * from the host widget's theme variables when present.
+ */
+const AUTOLINK_CSS = `
+  .${AUTOLINK_CLASS}{display:inline-flex;align-items:center;gap:4px;max-width:100%;
+    vertical-align:baseline;margin:0 1px;padding:1px 7px 1px 6px;border-radius:11px;
+    background:rgba(15,23,42,.055);border:1px solid rgba(15,23,42,.09);
+    color:inherit;text-decoration:none;font-size:.92em;line-height:1.5;
+    transition:background .12s,border-color .12s}
+  .${AUTOLINK_CLASS}:hover{background:rgba(15,23,42,.1);border-color:rgba(15,23,42,.16);text-decoration:none}
+  .${AUTOLINK_CLASS}:focus-visible{outline:2px solid var(--accent,#2563eb);outline-offset:1px}
+  .${AUTOLINK_CLASS} .sb-autolink-ico{width:11px;height:11px;flex-shrink:0;opacity:.55}
+  .${AUTOLINK_CLASS} .sb-autolink-txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+`;
 
 ;// ./strings.ts
 const STRINGS = {
@@ -1146,9 +1225,8 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-detail-desc-label{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--gray-lt);margin-bottom:6px}
           .${p}-detail-desc{font-size:13px;color:var(--gray);line-height:1.65;white-space:pre-wrap;word-break:break-word}
           .${p}-detail-desc.empty{font-style:italic;color:var(--gray-lt)}
-          /* Auto-detected URLs in free text (description, comments) */
-          .${p}-detail-desc a,.${p}-cmt-body a:not(.${p}-cmt-att){color:var(--accent);text-decoration:underline;word-break:break-all}
-          .${p}-detail-desc a:hover,.${p}-cmt-body a:not(.${p}-cmt-att):hover{opacity:.8}
+          /* Auto-detected URLs render as compact chips (see shared/linkify) */
+          ${AUTOLINK_CSS}
           .${p}-detail-foot{padding:14px 20px;border-top:1px solid var(--border);flex-shrink:0}
           .${p}-detail-toggle-btn{width:100%;padding:11px;border-radius:var(--r-md);border:none;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px}
           .${p}-detail-toggle-btn.done-btn{background:rgba(var(--primary-rgb),.08);border:1.5px solid rgba(var(--primary-rgb),.2);color:var(--primary)}
