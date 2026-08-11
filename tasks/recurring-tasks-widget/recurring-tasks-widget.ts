@@ -10,7 +10,7 @@ import { UiSchema } from "@rjsf/utils";
 
 import { detectLocale, isRtl, makeT, DEFAULT_LOCALE } from "../shared/i18n";
 import { fetchThemeColors } from "../shared/theming";
-import { linkifyEscaped, shortenUrls, AUTOLINK_CSS, internalHost } from "../shared/linkify";
+import { linkifyEscaped, shortenUrls, AUTOLINK_CSS, internalHost, installLinkHandler } from "../shared/linkify";
 import { STRINGS } from "./strings";
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
@@ -852,6 +852,11 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           </div>
         </div>
       `;
+      
+      // Same-app links are routed by the widget itself. See installLinkHandler.
+      installLinkHandler(container, selfHost, {
+        beforeNavigate:()=>{ closeDetail(); },
+      });
 
       // ── DOM refs ────────────────────────────────────────────────────────
       const $ = (id: string) => container.querySelector(`#${p}-${id}`) as any;

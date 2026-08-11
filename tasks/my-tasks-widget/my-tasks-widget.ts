@@ -10,7 +10,7 @@ import { UiSchema } from "@rjsf/utils";
 
 import { detectLocale, isRtl, makeT, translateMap, DEFAULT_LOCALE } from "../shared/i18n";
 import { fetchThemeColors } from "../shared/theming";
-import { linkifyEscaped, linkifyHtml, shortenUrls, AUTOLINK_CSS, internalHost } from "../shared/linkify";
+import { linkifyEscaped, linkifyHtml, shortenUrls, AUTOLINK_CSS, internalHost, installLinkHandler, linkEnvReport, AUTOLINK_CLASS, AUTOLINK_TEXT_CLASS } from "../shared/linkify";
 import { STRINGS } from "./strings";
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
@@ -938,6 +938,15 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           </div>
         </div>
       `;
+      
+      // Same-app links are routed by the widget itself. See installLinkHandler.
+      // The logger is wrapped rather than passed directly because dlog's buffer
+      // is declared further down; it is only ever invoked on a click, by which
+      // point everything is initialised.
+      installLinkHandler(container, selfHost, {
+        log:(...a:any[])=>dlog(...a),
+        beforeNavigate:()=>{ closeDetail(); closeAttModal(); },
+      });
 
       // ── DOM refs ──────────────────────────────────────────────────────
       const countEl       = container.querySelector(`#${p}-count`)!;
@@ -1260,6 +1269,23 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           setTimeout(()=>{ copyBtn.textContent=tr("copy"); },1500);
         });
         dlog("debug panel ready · origin",location.origin,"· comments",enableComments);
+        // Everything in-app link navigation depends on, captured up front so a
+        // failing link can be diagnosed from the copied log alone.
+        linkEnvReport().forEach(line=>dlog(line));
+        dlog("link env · selfHost",selfHost||"(none)");
+        dlog("link env · shadow root",(container as any)?.host?"yes":"no");
+        // Answers "did linkify even run?". Counted on screen at this moment:
+        // the list itself renders shortened *text* (the row is the click
+        // target), so anchors only appear once a detail panel is open — a 0/0
+        // here is normal, a 0 for both is not.
+        setTimeout(()=>{
+          try{
+            const q=(r:any,s:string)=>r.querySelectorAll(s).length;
+            dlog("link env · on screen now · anchors widget",q(container,`a.${AUTOLINK_CLASS}`),
+                 "body",q(document,`a.${AUTOLINK_CLASS}`),
+                 "· shortened text",q(container,`.${AUTOLINK_TEXT_CLASS}`));
+          }catch(e:any){ dlog("link env · auto-link count failed",(e&&e.message)||String(e)); }
+        },2500);
       }
       buildDebugPanel();
 

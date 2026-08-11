@@ -537,13 +537,53 @@ function internalHost(baseUrl) {
         return "";
     return m[1].replace(/^www\./i, "").toLowerCase();
 }
-/** Host portion of an already-escaped URL, normalized the same way. */
-function hostOf(escapedUrl) {
-    return escapedUrl
-        .replace(/^https?:\/\//i, "")
-        .replace(/^www\./i, "")
-        .split(/[/?#]/)[0]
-        .toLowerCase();
+/**
+ * Whether a URL points at same-app content, and if so the in-app path it maps to
+ * ("https://app.example.com/openlink/content/form/x" → "/content/form/x").
+ * Returns null for anything that should be treated as external.
+ *
+ * Kept deliberately conservative: disagreeing with the host app about what
+ * "internal" means is how you end up rendering an in-app link that then
+ * navigates away.
+ *
+ * Excluded because they aren't pages:
+ *   /api/       — the REST API
+ *   /external/  — external-redirect route
+ *   /url/, /lp/ — link-tracking and landing-page redirectors
+ *
+ * `/openlink/` is the share/copy-link wrapper and resolves to the same
+ * destination without it.
+ *
+ * Input is HTML-escaped, which only affects the query string ("&" as "&amp;").
+ * Every rule below looks at the path alone, so that's harmless.
+ */
+function parseInternalLink(escapedUrl, selfHost) {
+    const self = (selfHost || "").replace(/^www\./i, "").toLowerCase();
+    if (!escapedUrl || !self)
+        return null;
+    // Path is matched case-insensitively; the query is left untouched.
+    const q = escapedUrl.indexOf("?");
+    let link = q < 0
+        ? escapedUrl.toLowerCase()
+        : escapedUrl.slice(0, q).toLowerCase() + escapedUrl.slice(q);
+    const abs = link.match(/^https?:\/\/([^/?#]+)(.*)$/i);
+    if (abs) {
+        if (abs[1].replace(/^www\./i, "") !== self)
+            return null;
+        link = abs[2] || "/";
+    }
+    if (link.charAt(0) !== "/")
+        return null;
+    // Only the "/openlink/" form is a wrapper; a bare "/openlink" stays put.
+    if (link.indexOf("/openlink/") === 0)
+        link = link.slice("/openlink".length);
+    if (link.indexOf("/api/") !== -1)
+        return null;
+    if (link.indexOf("/external/") !== -1)
+        return null;
+    if (link.indexOf("/url/") === 0 || link.indexOf("/lp/") === 0)
+        return null;
+    return link;
 }
 const ICON_EXTERNAL = '<svg class="sb-autolink-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
     'stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
@@ -557,26 +597,12 @@ const ICON_INTERNAL = '<svg class="sb-autolink-ico" viewBox="0 0 24 24" fill="no
 /**
  * Build the anchor markup for one detected URL (input already escaped).
  *
- * Same-app links reproduce the markup Staffbase's own editor emits for an
- * internal link, which is known to route correctly in the mobile app:
+ * Same-app links carry the platform's standard internal-link classes and no
+ * `target`, so they inherit its styling and are recognisable as in-app links.
+ * Navigation itself is handled by installLinkHandler. External links open in a
+ * new tab as usual.
  *
- *   <a class="internal-link colored clickable" href="https://host/content/...">
- *
- * That includes carrying *no* `target`. The app appears to key off these
- * classes to decide a link is its own and should be handled in-app; an
- * unrecognised anchor gets punted to the outer shell, which is the likeliest
- * cause of same-app links either bouncing out to the system browser or landing
- * on the home screen. External links open in a new tab as usual.
- *
- * The href is the URL exactly as pasted — nothing is rewritten. Two attempts at
- * being clever here have already failed, so the URL is left alone pending a
- * definitive answer on how the app routes links:
- *
- *   • Rewriting to a root-relative path ("/content/form/<id>") works in a
- *     browser tab, but the widget runs in a webview whose document base isn't
- *     the site root, so it resolved against the wrong base and landed on home.
- *   • Stripping the "/openlink" share-link wrapper didn't fix it either, tried
- *     both with and without the classes above.
+ * The href is the URL exactly as pasted — nothing is rewritten.
  */
 const INTERNAL_LINK_CLASSES = "internal-link colored clickable";
 function linkify_anchor(href, url, internal) {
@@ -596,8 +622,7 @@ function linkify_anchor(href, url, internal) {
  * it navigate in the current window rather than opening a new tab.
  */
 function linkifyEscaped(escaped, selfHost) {
-    const self = (selfHost || "").replace(/^www\./i, "").toLowerCase();
-    return scanUrls(escaped, (url, href) => linkify_anchor(href, url, !!self && hostOf(url) === self));
+    return scanUrls(escaped, (url, href) => linkify_anchor(href, url, parseInternalLink(url, selfHost || "") !== null));
 }
 /** Class applied to the shortened URL text in previews (not a link). */
 const AUTOLINK_TEXT_CLASS = "sb-autolink-plain";
@@ -612,9 +637,8 @@ const AUTOLINK_TEXT_CLASS = "sb-autolink-plain";
  * are shown as a bare path, matching how they read in the detail view.
  */
 function shortenUrls(escaped, selfHost) {
-    const self = (selfHost || "").replace(/^www\./i, "").toLowerCase();
     return scanUrls(escaped, (url) => {
-        const label = displayLabel(url, !!self && hostOf(url) === self);
+        const label = displayLabel(url, parseInternalLink(url, selfHost || "") !== null);
         return `<span class="${AUTOLINK_TEXT_CLASS}">${label}</span>`;
     });
 }
@@ -684,8 +708,7 @@ function linkifyHtml(html, selfHost) {
  * Stylesheet for the auto-link chips. Widgets concatenate this into their own
  * <style> block so the chip looks identical everywhere; `--accent` is picked up
  * from the host widget's theme variables when present.
- */
-const AUTOLINK_CSS = `
+ */ const AUTOLINK_CSS = `
   .${AUTOLINK_CLASS}{display:inline-flex;align-items:center;gap:4px;max-width:100%;
     vertical-align:baseline;margin:0 1px;padding:1px 7px 1px 6px;border-radius:11px;
     background:rgba(15,23,42,.055);border:1px solid rgba(15,23,42,.09);
@@ -705,6 +728,165 @@ const AUTOLINK_CSS = `
      preview's own line-clamping, so no overflow handling of its own. */
   .${AUTOLINK_TEXT_CLASS}{color:var(--primary,#2563eb);font-weight:500}
 `;
+// ─────────────────────────────────────────────────────────────────────────────
+// In-app navigation
+//
+// A widget-sdk v3 widget renders inside a shadow root, so the surrounding page's
+// link handling doesn't pick up anchors we render and the browser falls back to
+// a full page load. In the mobile app that means the user loses their place.
+//
+// So the widget routes its own links: `window.NavigationMgr` is exposed for
+// exactly this kind of custom code and navigates without a reload, on both web
+// and mobile. Anything it can't handle falls back to an ordinary navigation.
+// ─────────────────────────────────────────────────────────────────────────────
+// Roots that already carry the delegated handler, so repeated renders don't
+// stack duplicate listeners.
+const HANDLED = new WeakSet();
+/**
+ * One-shot snapshot of everything the in-app navigation depends on, for the
+ * debug panel. Every line is a reason navigation could fail, so a user who
+ * reports "the link still doesn't work" can copy this instead of guessing.
+ */
+function linkEnvReport() {
+    if (typeof window === "undefined")
+        return ["link env · no window"];
+    const w = window;
+    const nav = w.NavigationMgr;
+    const we = w.we;
+    const out = [];
+    out.push("link env · NavigationMgr " +
+        (!nav
+            ? "MISSING (links will use a full page load)"
+            : typeof nav.goTo === "function"
+                ? "ok"
+                : "present but goTo() missing"));
+    out.push("link env · we " +
+        (!we ? "MISSING" : "ok") +
+        " · native " +
+        (we ? JSON.stringify(we.native) : "n/a") +
+        " · hideAllTabs " +
+        (nav && typeof nav.hideAllTabs === "function" ? "ok" : "missing"));
+    // When the platform exposes its own classifier we cross-check ours against it
+    // at click time, which is the fastest way to spot a rules drift.
+    out.push("link env · platform link parser " +
+        (we && we.util && we.util.ui && typeof we.util.ui.parseInternalLink === "function"
+            ? "ok (ours will be cross-checked)"
+            : "unavailable (ours only)"));
+    out.push("link env · origin " + location.origin + " · href " + location.href);
+    return out;
+}
+/** Ask the platform's own classifier, when it happens to be reachable. */
+function realParseInternalLink(href) {
+    const w = window;
+    const fn = w && w.we && w.we.util && w.we.util.ui && w.we.util.ui.parseInternalLink;
+    if (typeof fn !== "function")
+        return undefined;
+    try {
+        return fn(href);
+    }
+    catch (_) {
+        return undefined;
+    }
+}
+/**
+ * Route clicks on same-app auto-links through the platform's router.
+ *
+ * Call once per render with the container the widget was given (its shadow
+ * root). `document` is bound too, because panels and modals are appended to
+ * document.body — outside the shadow root — so those links would otherwise be
+ * unhandled as well.
+ *
+ * External links are left completely alone: they keep target="_blank" and the
+ * browser opens them as usual.
+ */
+function installLinkHandler(container, selfHost, opts) {
+    bindLinkHandler(container, selfHost, opts);
+    bindLinkHandler(typeof document !== "undefined" ? document : null, selfHost, opts);
+}
+function bindLinkHandler(root, selfHost, opts) {
+    if (!root || HANDLED.has(root))
+        return;
+    HANDLED.add(root);
+    // Capture phase, so the link is resolved before a surrounding card's own click
+    // handler can treat it as a click on the card.
+    root.addEventListener("click", (ev) => onLinkClick(ev, selfHost, opts), true);
+}
+function onLinkClick(ev, selfHost, opts) {
+    const log = opts && opts.log;
+    if (ev.defaultPrevented)
+        return;
+    // Leave modified clicks to the browser: cmd/ctrl-click, middle-click and
+    // shift-click all have meanings a reader expects to keep working.
+    if (ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) {
+        return;
+    }
+    const target = ev.target;
+    if (!target || typeof target.closest !== "function")
+        return;
+    const a = target.closest(`a.${AUTOLINK_CLASS}`);
+    if (!a)
+        return;
+    const href = a.getAttribute("href") || "";
+    const path = parseInternalLink(href, selfHost || "");
+    if (log) {
+        log("link click · href", href, "· selfHost", selfHost || "(none)");
+        log("link click · internal path", path === null ? "null (external → new tab)" : path);
+        // A disagreement here means our rules have drifted from the platform's.
+        const real = realParseInternalLink(href);
+        if (real !== undefined && real !== path) {
+            log("link click · WARNING ours/platform disagree · platform says", real === null ? "null" : real);
+        }
+    }
+    if (!path)
+        return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    if (opts && opts.beforeNavigate) {
+        try {
+            opts.beforeNavigate();
+            if (log)
+                log("link nav · dismissed open panels");
+        }
+        catch (e) {
+            // Never let a dismissal problem swallow the navigation itself.
+            if (log)
+                log("link nav · beforeNavigate threw", (e && e.message) || String(e));
+        }
+    }
+    goToInApp(path, log);
+}
+/** Navigate to an in-app path, falling back to a plain load if the app's router isn't there. */
+function goToInApp(path, log) {
+    const w = window;
+    const nav = w.NavigationMgr;
+    if (nav && typeof nav.goTo === "function") {
+        try {
+            // On mobile the tab overlays are dismissed before routing.
+            if (w.we && w.we.native && typeof nav.hideAllTabs === "function") {
+                if (log)
+                    log("link nav · native", JSON.stringify(w.we.native), "· hideAllTabs()");
+                nav.hideAllTabs();
+            }
+            if (log)
+                log("link nav · NavigationMgr.goTo", path);
+            nav.goTo(path);
+            if (log)
+                log("link nav · goTo returned ok");
+            return;
+        }
+        catch (e) {
+            // Router present but unhappy — fall through rather than dead-ending.
+            if (log)
+                log("link nav · goTo THREW", (e && e.message) || String(e), "· falling back");
+        }
+    }
+    else if (log) {
+        log("link nav · NavigationMgr unavailable · falling back to location.assign");
+    }
+    if (log)
+        log("link nav · location.assign", path);
+    window.location.assign(path);
+}
 
 ;// ./strings.ts
 const STRINGS = {
@@ -3175,6 +3357,14 @@ const factory = (BaseBlockClass, widgetApi) => {
           </div>
         </div>
       `;
+                // Same-app links are routed by the widget itself. See installLinkHandler.
+                // The logger is wrapped rather than passed directly because dlog's buffer
+                // is declared further down; it is only ever invoked on a click, by which
+                // point everything is initialised.
+                installLinkHandler(container, selfHost, {
+                    log: (...a) => dlog(...a),
+                    beforeNavigate: () => { closeDetail(); closeAttModal(); },
+                });
                 // ── DOM refs ──────────────────────────────────────────────────────
                 const countEl = container.querySelector(`#${p}-count`);
                 const bannerEl = container.querySelector(`#${p}-banner`);
@@ -3597,6 +3787,24 @@ const factory = (BaseBlockClass, widgetApi) => {
                         setTimeout(() => { copyBtn.textContent = tr("copy"); }, 1500);
                     }));
                     dlog("debug panel ready · origin", location.origin, "· comments", enableComments);
+                    // Everything in-app link navigation depends on, captured up front so a
+                    // failing link can be diagnosed from the copied log alone.
+                    linkEnvReport().forEach(line => dlog(line));
+                    dlog("link env · selfHost", selfHost || "(none)");
+                    dlog("link env · shadow root", (container === null || container === void 0 ? void 0 : container.host) ? "yes" : "no");
+                    // Answers "did linkify even run?". Counted on screen at this moment:
+                    // the list itself renders shortened *text* (the row is the click
+                    // target), so anchors only appear once a detail panel is open — a 0/0
+                    // here is normal, a 0 for both is not.
+                    setTimeout(() => {
+                        try {
+                            const q = (r, s) => r.querySelectorAll(s).length;
+                            dlog("link env · on screen now · anchors widget", q(container, `a.${AUTOLINK_CLASS}`), "body", q(document, `a.${AUTOLINK_CLASS}`), "· shortened text", q(container, `.${AUTOLINK_TEXT_CLASS}`));
+                        }
+                        catch (e) {
+                            dlog("link env · auto-link count failed", (e && e.message) || String(e));
+                        }
+                    }, 2500);
                 }
                 buildDebugPanel();
                 function formatDate(iso) {
