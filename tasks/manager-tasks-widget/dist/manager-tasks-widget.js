@@ -445,20 +445,26 @@ function safeHref(url) {
 }
 // A long raw URL wrecks the layout of a description or comment, so the chip
 // shows a trimmed label instead and keeps the full URL in `title`.
-const MAX_LABEL = 38;
+const MAX_LABEL = 42;
+// Even for a long host, keep at least this much of the path visible.
+const MIN_PATH_LABEL = 8;
 /**
  * Human-friendly label for a URL: drop the scheme, "www.", any query/hash and a
  * trailing slash, then ellipsize the middle of the path if it's still too long.
  * The full URL stays available in the chip's `title`. Operates on the escaped
  * form, so slicing is entity-aware to avoid cutting an "&amp;" in half.
  */
-function shortLabel(escapedUrl) {
-    const base = escapedUrl.replace(/^https?:\/\//i, "").replace(/^www\./i, "");
+function shortLabel(escapedUrl, internal) {
+    let base = escapedUrl.replace(/^https?:\/\//i, "").replace(/^www\./i, "");
+    // Hide the /openlink redirect wrapper so the label matches where the link
+    // actually goes. Only for same-app links, since those are the ones we rewrite.
+    if (internal)
+        base = base.replace(/^([^/?#]+)\/openlink(?=[/?#]|$)/i, "$1");
     // Query strings and fragments are noise in a label — drop them, but mark that
     // something was removed so the chip doesn't look like the whole URL.
     const cut = base.search(/[?#]/);
     const dropped = cut >= 0;
-    let s = (dropped ? base.slice(0, cut) : base).replace(/\/+$/, "");
+    const s = (dropped ? base.slice(0, cut) : base).replace(/\/+$/, "");
     const tail = dropped ? "…" : "";
     if (s.length + tail.length <= MAX_LABEL)
         return s + tail;
@@ -467,11 +473,13 @@ function shortLabel(escapedUrl) {
     const segs = slash < 0 ? [] : s.slice(slash + 1).split("/").filter(Boolean);
     if (!segs.length)
         return sliceEntitySafe(s, MAX_LABEL - 1) + "…";
-    // Keep the host, then add path segments from the end (the part that actually
-    // identifies the page) until the budget runs out.
-    const budget = MAX_LABEL - host.length - 2; // room for the "/…" marker
-    if (budget < 4)
-        return sliceEntitySafe(host, MAX_LABEL - 1) + "…";
+    // The host is what tells a reader where they're going, so it's shown in full
+    // and the path absorbs the truncation.
+    const shownHost = host.length > MAX_LABEL ? sliceEntitySafe(host, MAX_LABEL - 1) + "…" : host;
+    if (shownHost !== host)
+        return shownHost;
+    // Never let the path vanish entirely — a bare host reads as the site root.
+    const budget = Math.max(MIN_PATH_LABEL, MAX_LABEL - shownHost.length - 2);
     const kept = [];
     let used = 0;
     for (let i = segs.length - 1; i >= 0; i--) {
@@ -486,7 +494,8 @@ function shortLabel(escapedUrl) {
     let path = kept.join("/");
     if (path.length > budget)
         path = sliceEntitySafe(path, Math.max(1, budget - 1)) + "…";
-    return `${host}/…/${path}${tail}`;
+    const elided = kept.length < segs.length ? "/…" : "";
+    return `${shownHost}${elided}/${path}${tail}`;
 }
 /** Slice from the start without splitting an HTML entity. */
 function sliceEntitySafe(s, n) {
@@ -533,12 +542,19 @@ const ICON_INTERNAL = '<svg class="sb-autolink-ico" viewBox="0 0 24 24" fill="no
  * Root-relative path of an absolute URL ("https://app.staffbase.com/bye?x=1"
  * → "/bye?x=1"). Used for same-app links so navigation stays inside the current
  * document instead of doing a full cross-origin-style load.
+ *
+ * A leading "/openlink" segment is dropped. Staffbase's share/copy-link action
+ * hands out URLs like ".../openlink/content/form/<id>", where /openlink is just
+ * a redirect wrapper that resolves to the real page. Since we're already
+ * staying in the app, we link straight at the destination and skip the bounce.
  */
 function relativePath(absoluteUrl) {
     const rest = absoluteUrl.replace(/^https?:\/\/[^/?#]*/i, "");
     if (!rest)
         return "/";
-    return rest.charAt(0) === "/" ? rest : `/${rest}`;
+    const path = rest.charAt(0) === "/" ? rest : `/${rest}`;
+    const direct = path.replace(/^\/openlink(?=[/?#]|$)/i, "");
+    return direct || "/";
 }
 /**
  * Build the anchor markup for one detected URL (input already escaped).
@@ -552,7 +568,7 @@ function linkify_anchor(href, url, internal) {
     const dest = internal ? relativePath(href) : href;
     return (`<a class="${cls}" href="${dest}" title="${url}"${rel}>` +
         `${internal ? ICON_INTERNAL : ICON_EXTERNAL}` +
-        `<span class="sb-autolink-txt">${shortLabel(url)}</span></a>`);
+        `<span class="sb-autolink-txt">${shortLabel(url, internal)}</span></a>`);
 }
 /**
  * Linkify HTML-escaped plain text. Returns HTML.
@@ -562,9 +578,25 @@ function linkify_anchor(href, url, internal) {
  * it navigate in the current window rather than opening a new tab.
  */
 function linkifyEscaped(escaped, selfHost) {
+    const self = (selfHost || "").replace(/^www\./i, "").toLowerCase();
+    return scanUrls(escaped, (url, href) => linkify_anchor(href, url, !!self && hostOf(url) === self));
+}
+/**
+ * Replace every URL with its shortened, human-readable label — no anchor, no
+ * chip. Used for truncated previews (task cards, calendar entries) where the
+ * whole row is already a click target and a raw URL would eat the line budget.
+ */
+function shortenUrls(escaped) {
+    return scanUrls(escaped, (url) => shortLabel(url));
+}
+/**
+ * Walk the escaped text and hand every valid URL to `render`, splicing the
+ * result in place of the original. Returns the input untouched when no URL is
+ * found, so the common case allocates nothing.
+ */
+function scanUrls(escaped, render) {
     if (!escaped)
         return escaped;
-    const self = (selfHost || "").replace(/^www\./i, "").toLowerCase();
     URL_RE.lastIndex = 0;
     let out = "";
     let last = 0;
@@ -580,7 +612,7 @@ function linkifyEscaped(escaped, selfHost) {
         if (!href)
             continue;
         out += escaped.slice(last, start);
-        out += linkify_anchor(href, url, !!self && hostOf(url) === self);
+        out += render(url, href);
         last = start + url.length;
     }
     if (!last)
@@ -5394,8 +5426,6 @@ const factory = (BaseBlockClass, widgetApi) => {
                         card.addEventListener("click", (e) => {
                             if (e.target.closest(`.${p}-check-wrap`))
                                 return;
-                            if (e.target.closest(`.${AUTOLINK_CLASS}`))
-                                return;
                             const taskId = card.dataset.taskId;
                             const task = allTasks.find(t => t.id === taskId);
                             if (task)
@@ -5407,7 +5437,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 function renderTaskCard(task) {
                     const isDone = task.status === "DONE" || task.status === "done" || task.status === "CLOSED";
                     const dueInfo = formatDate(task.dueDate);
-                    const desc = task.description ? linkifyEscaped(esc(ct(stripTypeTag(task.description).trim())), selfHost) : "";
+                    const desc = task.description ? shortenUrls(esc(ct(stripTypeTag(task.description).trim()))) : "";
                     const typeCol = task.taskType ? typeColor(task.taskType) : "";
                     const typeText = task.taskType ? contrastColor(typeCol) : "";
                     const isCrit = (task.auditSeverity || "").toLowerCase() === "critical";

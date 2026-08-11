@@ -10,7 +10,7 @@ import { UiSchema } from "@rjsf/utils";
 
 import { detectLocale, isRtl, makeT, DEFAULT_LOCALE } from "../shared/i18n";
 import { fetchThemeColors } from "../shared/theming";
-import { linkifyEscaped, AUTOLINK_CSS, internalHost } from "../shared/linkify";
+import { linkifyEscaped, shortenUrls, AUTOLINK_CSS, internalHost } from "../shared/linkify";
 import { STRINGS } from "./strings";
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
@@ -1285,7 +1285,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
                 <div class="${p}-ev-time">${esc(fmtTime12(s.rule.time))}</div>
                 <span class="${p}-ev-freq">${esc(shortFreq(s.rule))}</span>
                 <div class="${p}-ev-title">${esc(s.title)}</div>
-                ${s.description ? `<div class="${p}-ev-desc">${linkifyEscaped(esc(s.description), selfHost)}</div>` : ""}
+                ${s.description ? `<div class="${p}-ev-desc">${shortenUrls(esc(s.description))}</div>` : ""}
               </div>`
             ).join("") : `<div class="${p}-col-empty">—</div>`;
             return `<div class="${p}-cal-col">
