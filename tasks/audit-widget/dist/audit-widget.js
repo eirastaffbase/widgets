@@ -443,65 +443,29 @@ function safeHref(url) {
         return null;
     return normalized;
 }
-// A long raw URL wrecks the layout of a description or comment, so the chip
-// shows a trimmed label instead and keeps the full URL in `title`.
-const MAX_LABEL = 42;
-// Even for a long host, keep at least this much of the path visible.
-const MIN_PATH_LABEL = 8;
 /**
- * Human-friendly label for a URL: drop the scheme, "www.", any query/hash and a
- * trailing slash, then ellipsize the middle of the path if it's still too long.
- * The full URL stays available in the chip's `title`. Operates on the escaped
- * form, so slicing is entity-aware to avoid cutting an "&amp;" in half.
+ * Display label for a URL. The whole URL is kept — only the noise comes off:
+ * the scheme, a leading "www.", a trailing slash, and the "/openlink" redirect
+ * wrapper (which is an implementation detail of Staffbase's copy-link action,
+ * not somewhere a reader ever means to go).
+ *
+ * Nothing is elided. Long URLs are handled visually instead: the chip is
+ * capped at the container width and ellipsizes via CSS, so the label stays
+ * fully selectable/copyable and never loses the middle of a path.
  */
-function shortLabel(escapedUrl, internal) {
-    let base = escapedUrl.replace(/^https?:\/\//i, "").replace(/^www\./i, "");
-    // Hide the /openlink redirect wrapper so the label matches where the link
-    // actually goes. Only for same-app links, since those are the ones we rewrite.
-    if (internal)
-        base = base.replace(/^([^/?#]+)\/openlink(?=[/?#]|$)/i, "$1");
-    // Query strings and fragments are noise in a label — drop them, but mark that
-    // something was removed so the chip doesn't look like the whole URL.
-    const cut = base.search(/[?#]/);
-    const dropped = cut >= 0;
-    const s = (dropped ? base.slice(0, cut) : base).replace(/\/+$/, "");
-    const tail = dropped ? "…" : "";
-    if (s.length + tail.length <= MAX_LABEL)
-        return s + tail;
-    const slash = s.indexOf("/");
-    const host = slash < 0 ? s : s.slice(0, slash);
-    const segs = slash < 0 ? [] : s.slice(slash + 1).split("/").filter(Boolean);
-    if (!segs.length)
-        return sliceEntitySafe(s, MAX_LABEL - 1) + "…";
-    // The host is what tells a reader where they're going, so it's shown in full
-    // and the path absorbs the truncation.
-    const shownHost = host.length > MAX_LABEL ? sliceEntitySafe(host, MAX_LABEL - 1) + "…" : host;
-    if (shownHost !== host)
-        return shownHost;
-    // Never let the path vanish entirely — a bare host reads as the site root.
-    const budget = Math.max(MIN_PATH_LABEL, MAX_LABEL - shownHost.length - 2);
-    const kept = [];
-    let used = 0;
-    for (let i = segs.length - 1; i >= 0; i--) {
-        const next = used + segs[i].length + 1;
-        if (kept.length && next > budget)
-            break;
-        kept.unshift(segs[i]);
-        used = next;
-        if (used >= budget)
-            break;
-    }
-    let path = kept.join("/");
-    if (path.length > budget)
-        path = sliceEntitySafe(path, Math.max(1, budget - 1)) + "…";
-    const elided = kept.length < segs.length ? "/…" : "";
-    return `${shownHost}${elided}/${path}${tail}`;
+function displayLabel(escapedUrl) {
+    const base = escapedUrl.replace(/^https?:\/\//i, "").replace(/^www\./i, "");
+    const clean = stripOpenlink(base);
+    // Keep a bare "host/" readable rather than rendering a dangling slash.
+    return clean.replace(/\/+$/, "") || clean;
 }
-/** Slice from the start without splitting an HTML entity. */
-function sliceEntitySafe(s, n) {
-    const out = s.slice(0, n);
-    const dangling = out.match(/&[a-z#0-9]*$/i);
-    return dangling ? out.slice(0, -dangling[0].length) : out;
+/**
+ * Drop a "/openlink" path segment. Staffbase's share/copy-link action hands out
+ * URLs like "host/openlink/content/form/<id>"; /openlink is a redirect wrapper
+ * that resolves to the real page, so it's noise in a label.
+ */
+function stripOpenlink(hostAndPath) {
+    return hostAndPath.replace(/^([^/?#]+)\/openlink(?=[/?#]|$)/i, "$1");
 }
 /** Class applied to every auto-detected link; widgets style it as a chip. */
 const AUTOLINK_CLASS = "sb-autolink";
@@ -539,36 +503,36 @@ const ICON_INTERNAL = '<svg class="sb-autolink-ico" viewBox="0 0 24 24" fill="no
  * Same-host links navigate in place; everything else opens in a new tab.
  */
 /**
- * Root-relative path of an absolute URL ("https://app.staffbase.com/bye?x=1"
- * → "/bye?x=1"). Used for same-app links so navigation stays inside the current
- * document instead of doing a full cross-origin-style load.
+ * Destination for a same-app link.
+ *
+ * The href stays *absolute*. An earlier version rewrote these to a root-relative
+ * path ("/content/form/<id>"), which works in a browser tab but breaks inside
+ * the Staffbase mobile app: the widget runs in a webview whose document base
+ * isn't the site root, so a root-relative path resolves against the wrong base
+ * and dumps the user on the home screen. Keeping the full URL resolves the same
+ * either way. Same-window behaviour comes from omitting `target`, not from the
+ * href's shape.
  *
  * A leading "/openlink" segment is dropped. Staffbase's share/copy-link action
  * hands out URLs like ".../openlink/content/form/<id>", where /openlink is just
- * a redirect wrapper that resolves to the real page. Since we're already
- * staying in the app, we link straight at the destination and skip the bounce.
+ * a redirect wrapper that bounces to the real page — we link straight at the
+ * destination and skip the round trip.
  */
-function relativePath(absoluteUrl) {
-    const rest = absoluteUrl.replace(/^https?:\/\/[^/?#]*/i, "");
-    if (!rest)
-        return "/";
-    const path = rest.charAt(0) === "/" ? rest : `/${rest}`;
-    const direct = path.replace(/^\/openlink(?=[/?#]|$)/i, "");
-    return direct || "/";
+function internalHref(absoluteUrl) {
+    return absoluteUrl.replace(/^(https?:\/\/[^/?#]+)\/openlink(?=[/?#]|$)/i, "$1");
 }
 /**
  * Build the anchor markup for one detected URL (input already escaped).
- * Same-host links are rewritten to a root-relative href and navigate in place;
- * everything else keeps its absolute URL and opens in a new tab. The visible
- * label is identical either way.
+ * Same-host links stay absolute but omit `target`, so they navigate in the
+ * current window; everything else opens in a new tab.
  */
 function linkify_anchor(href, url, internal) {
     const cls = internal ? `${AUTOLINK_CLASS} ${AUTOLINK_CLASS}-int` : AUTOLINK_CLASS;
     const rel = internal ? "" : ' target="_blank" rel="noopener noreferrer"';
-    const dest = internal ? relativePath(href) : href;
+    const dest = internal ? internalHref(href) : href;
     return (`<a class="${cls}" href="${dest}" title="${url}"${rel}>` +
         `${internal ? ICON_INTERNAL : ICON_EXTERNAL}` +
-        `<span class="sb-autolink-txt">${shortLabel(url, internal)}</span></a>`);
+        `<span class="sb-autolink-txt">${displayLabel(url)}</span></a>`);
 }
 /**
  * Linkify HTML-escaped plain text. Returns HTML.
@@ -582,12 +546,12 @@ function linkifyEscaped(escaped, selfHost) {
     return scanUrls(escaped, (url, href) => linkify_anchor(href, url, !!self && hostOf(url) === self));
 }
 /**
- * Replace every URL with its shortened, human-readable label — no anchor, no
- * chip. Used for truncated previews (task cards, calendar entries) where the
- * whole row is already a click target and a raw URL would eat the line budget.
+ * Replace every URL with its display label — no anchor, no chip. Used for
+ * truncated previews (task cards, calendar entries) where the whole row is
+ * already a click target and a raw "https://…" would eat the line budget.
  */
 function shortenUrls(escaped) {
-    return scanUrls(escaped, (url) => shortLabel(url));
+    return scanUrls(escaped, (url) => displayLabel(url));
 }
 /**
  * Walk the escaped text and hand every valid URL to `render`, splicing the
@@ -665,7 +629,11 @@ const AUTOLINK_CSS = `
   .${AUTOLINK_CLASS}:hover{background:rgba(15,23,42,.1);border-color:rgba(15,23,42,.16);text-decoration:none}
   .${AUTOLINK_CLASS}:focus-visible{outline:2px solid var(--accent,#2563eb);outline-offset:1px}
   .${AUTOLINK_CLASS} .sb-autolink-ico{width:11px;height:11px;flex-shrink:0;opacity:.55}
-  .${AUTOLINK_CLASS} .sb-autolink-txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* The label is the full URL, so let the chip take the width it can get and
+     ellipsize only what genuinely doesn't fit. min-width:0 is required or the
+     flex item refuses to shrink below its content and overflows instead. */
+  .${AUTOLINK_CLASS} .sb-autolink-txt{min-width:0;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
   .${AUTOLINK_CLASS}-int .sb-autolink-ico{opacity:.75}
 `;
 
