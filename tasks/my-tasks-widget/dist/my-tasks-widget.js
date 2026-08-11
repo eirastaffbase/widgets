@@ -462,21 +462,41 @@ function safeHref(url) {
  */
 function displayLabel(escapedUrl, internal) {
     const base = escapedUrl.replace(/^https?:\/\//i, "").replace(/^www\./i, "");
-    const shown = internal ? hintHost(base) : base;
+    const shown = internal ? hintHost(stripOpenlink(base)) : base;
     // Keep a bare "host/" or "host…/" readable rather than leaving a lone slash.
     return shown.replace(/(.)\/+$/, "$1");
 }
 /**
- * Replace the host of a "host/path" string with a shortened hint: its first DNS
- * label plus an ellipsis when there was more to it ("harristeeter-demo.staffbase.rocks/x"
- * → "harristeeter-demo…/x"). Used for same-app links only.
+ * Drop a leading "/openlink" path segment from a "host/path" string.
+ * See stripOpenlinkUrl — this is the same transform, applied to the label so it
+ * matches where the link actually points.
  */
+function stripOpenlink(hostAndPath) {
+    return hostAndPath.replace(/^([^/?#]+)\/openlink(?=[/?#]|$)/i, "$1");
+}
+/**
+ * Replace the host of a "host/path" string with a shortened hint. Used for
+ * same-app links only, where the reader is already on that host.
+ *
+ * A short subdomain is shown whole ("hi.staffbase.com/x" → "hi…/x"). A long one
+ * gets cut short and keeps the TLD, so the hint stays recognisable as a domain
+ * instead of trailing off into nothing:
+ *
+ *   ucfuirfeoreoif.staffbase.com/whatever → ucfuirfeo…com/whatever
+ */
+const MAX_HOST_HINT = 12;
+const HOST_HINT_KEEP = 9;
 function hintHost(hostAndPath) {
     const cut = hostAndPath.search(/[/?#]/);
     const host = cut < 0 ? hostAndPath : hostAndPath.slice(0, cut);
     const rest = cut < 0 ? "" : hostAndPath.slice(cut);
-    const dot = host.indexOf(".");
-    const hint = dot < 0 ? host : `${host.slice(0, dot)}…`;
+    const labels = host.split(".");
+    const first = labels[0];
+    if (labels.length < 2)
+        return first + rest;
+    const hint = first.length > MAX_HOST_HINT
+        ? `${first.slice(0, HOST_HINT_KEEP)}…${labels[labels.length - 1]}`
+        : `${first}…`;
     return hint + rest;
 }
 /** Class applied to every auto-detected link; widgets style it as a chip. */
@@ -513,32 +533,39 @@ const ICON_INTERNAL = '<svg class="sb-autolink-ico" viewBox="0 0 24 24" fill="no
 /**
  * Build the anchor markup for one detected URL (input already escaped).
  *
- * The href is the URL exactly as it was pasted — absolute, and otherwise
- * untouched. Two earlier attempts at being clever here both broke navigation in
- * the Staffbase mobile app, so the URL is now left alone and Staffbase does its
- * own routing:
+ * Same-app links reproduce the markup Staffbase's own editor emits for an
+ * internal link, which is known to route correctly in the mobile app:
  *
- *   • Rewriting same-app links to a root-relative path ("/content/form/<id>")
- *     works in a browser tab, but the widget runs in a webview whose document
- *     base isn't the site root, so the path resolved against the wrong base and
- *     landed on the home screen.
- *   • Stripping the "/openlink" segment didn't help either — it's Staffbase's
- *     own deep-link resolver, not just a redirect wrapper, so removing it is at
- *     best pointless and at worst skips the routing the app relies on.
+ *   <a class="internal-link colored clickable" href="https://host/content/...">
  *
- * Same-app links carry an explicit target="_self". Omitting `target` entirely
- * is equivalent in a browser, but the mobile app's webview appears to treat a
- * target-less link as "not ours" and hand it to the outer shell — which is the
- * likeliest cause of same-app links either bouncing out to the system browser
- * or landing on the home screen. Being explicit keeps navigation in the webview.
- * External links open in a new tab.
+ * That includes carrying *no* `target`. The app appears to key off these
+ * classes to decide a link is its own and should be handled in-app; an
+ * unrecognised anchor gets punted to the outer shell, which is the likeliest
+ * cause of same-app links either bouncing out to the system browser or landing
+ * on the home screen. External links open in a new tab as usual.
+ *
+ * The href is otherwise the URL exactly as pasted, except that a same-app link
+ * has its "/openlink" segment removed — that's the share/copy-link redirect
+ * wrapper, and the known-good markup above points straight at "/content/...".
+ * Note this was tried once before and didn't help, but that was without the
+ * internal-link classes; the two may only work as a pair.
+ *
+ * One thing deliberately *not* done: rewriting same-app links to a root-relative
+ * path ("/content/form/<id>"). That works in a browser tab, but the widget runs
+ * in a webview whose document base isn't the site root, so the path resolved
+ * against the wrong base and dumped the user on the home screen.
  */
+const INTERNAL_LINK_CLASSES = "internal-link colored clickable";
+/** Drop the "/openlink" redirect wrapper from an absolute same-app URL. */
+function stripOpenlinkUrl(absoluteUrl) {
+    return absoluteUrl.replace(/^(https?:\/\/[^/?#]+)\/openlink(?=[/?#]|$)/i, "$1");
+}
 function linkify_anchor(href, url, internal) {
-    const cls = internal ? `${AUTOLINK_CLASS} ${AUTOLINK_CLASS}-int` : AUTOLINK_CLASS;
-    const rel = internal
-        ? ' target="_self"'
-        : ' target="_blank" rel="noopener noreferrer"';
-    return (`<a class="${cls}" href="${href}" title="${url}"${rel}>` +
+    const cls = internal
+        ? `${AUTOLINK_CLASS} ${AUTOLINK_CLASS}-int ${INTERNAL_LINK_CLASSES}`
+        : AUTOLINK_CLASS;
+    const rel = internal ? "" : ' target="_blank" rel="noopener noreferrer"';
+    return (`<a class="${cls}" href="${internal ? stripOpenlinkUrl(href) : href}" title="${url}"${rel}>` +
         `${internal ? ICON_INTERNAL : ICON_EXTERNAL}` +
         `<span class="sb-autolink-txt">${displayLabel(url, internal)}</span></a>`);
 }
