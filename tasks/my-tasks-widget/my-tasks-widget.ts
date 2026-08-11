@@ -10,7 +10,7 @@ import { UiSchema } from "@rjsf/utils";
 
 import { detectLocale, isRtl, makeT, translateMap, DEFAULT_LOCALE } from "../shared/i18n";
 import { fetchThemeColors } from "../shared/theming";
-import { linkifyEscaped, linkifyHtml, AUTOLINK_CSS, internalHost } from "../shared/linkify";
+import { linkifyEscaped, linkifyHtml, AUTOLINK_CSS, AUTOLINK_CLASS, internalHost } from "../shared/linkify";
 import { STRINGS } from "./strings";
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
@@ -2053,6 +2053,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         listWrap.querySelectorAll(`.${p}-card`).forEach((card: Element)=>{
           card.addEventListener("click",(e: Event)=>{
             if((e.target as Element).closest(`.${p}-check-wrap`)) return;
+            if((e.target as Element).closest(`.${AUTOLINK_CLASS}`)) return;
             const taskId=(card as HTMLElement).dataset.taskId;
             const task=allTasks.find(t=>t.id===taskId);
             if(task) openDetail(task);
@@ -2286,7 +2287,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       function renderTaskCard(task:Task):string{
         const isDone=task.status==="DONE"||task.status==="done"||task.status==="CLOSED";
         const dueInfo=formatDate(task.dueDate);
-        const desc=task.description?esc(ct(stripTypeTag(task.description).trim())):"";
+        const desc=task.description?linkifyEscaped(esc(ct(stripTypeTag(task.description).trim())), selfHost):"";
         const typeCol=task.taskType?typeColor(task.taskType):"";
         const typeText=task.taskType?contrastColor(typeCol):"";
         const isCrit=(task.auditSeverity||"").toLowerCase()==="critical";

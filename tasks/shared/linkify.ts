@@ -156,11 +156,29 @@ const ICON_INTERNAL =
  * Build the anchor markup for one detected URL (input already escaped).
  * Same-host links navigate in place; everything else opens in a new tab.
  */
+/**
+ * Root-relative path of an absolute URL ("https://app.staffbase.com/bye?x=1"
+ * → "/bye?x=1"). Used for same-app links so navigation stays inside the current
+ * document instead of doing a full cross-origin-style load.
+ */
+function relativePath(absoluteUrl: string): string {
+  const rest = absoluteUrl.replace(/^https?:\/\/[^/?#]*/i, "");
+  if (!rest) return "/";
+  return rest.charAt(0) === "/" ? rest : `/${rest}`;
+}
+
+/**
+ * Build the anchor markup for one detected URL (input already escaped).
+ * Same-host links are rewritten to a root-relative href and navigate in place;
+ * everything else keeps its absolute URL and opens in a new tab. The visible
+ * label is identical either way.
+ */
 function anchor(href: string, url: string, internal: boolean): string {
   const cls = internal ? `${AUTOLINK_CLASS} ${AUTOLINK_CLASS}-int` : AUTOLINK_CLASS;
   const rel = internal ? "" : ' target="_blank" rel="noopener noreferrer"';
+  const dest = internal ? relativePath(href) : href;
   return (
-    `<a class="${cls}" href="${href}" title="${url}"${rel}>` +
+    `<a class="${cls}" href="${dest}" title="${url}"${rel}>` +
     `${internal ? ICON_INTERNAL : ICON_EXTERNAL}` +
     `<span class="sb-autolink-txt">${shortLabel(url)}</span></a>`
   );

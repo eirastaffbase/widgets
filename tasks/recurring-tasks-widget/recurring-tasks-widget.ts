@@ -1285,7 +1285,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
                 <div class="${p}-ev-time">${esc(fmtTime12(s.rule.time))}</div>
                 <span class="${p}-ev-freq">${esc(shortFreq(s.rule))}</span>
                 <div class="${p}-ev-title">${esc(s.title)}</div>
-                ${s.description ? `<div class="${p}-ev-desc">${esc(s.description)}</div>` : ""}
+                ${s.description ? `<div class="${p}-ev-desc">${linkifyEscaped(esc(s.description), selfHost)}</div>` : ""}
               </div>`
             ).join("") : `<div class="${p}-col-empty">—</div>`;
             return `<div class="${p}-cal-col">

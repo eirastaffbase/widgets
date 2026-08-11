@@ -529,10 +529,28 @@ const ICON_INTERNAL = '<svg class="sb-autolink-ico" viewBox="0 0 24 24" fill="no
  * Build the anchor markup for one detected URL (input already escaped).
  * Same-host links navigate in place; everything else opens in a new tab.
  */
+/**
+ * Root-relative path of an absolute URL ("https://app.staffbase.com/bye?x=1"
+ * → "/bye?x=1"). Used for same-app links so navigation stays inside the current
+ * document instead of doing a full cross-origin-style load.
+ */
+function relativePath(absoluteUrl) {
+    const rest = absoluteUrl.replace(/^https?:\/\/[^/?#]*/i, "");
+    if (!rest)
+        return "/";
+    return rest.charAt(0) === "/" ? rest : `/${rest}`;
+}
+/**
+ * Build the anchor markup for one detected URL (input already escaped).
+ * Same-host links are rewritten to a root-relative href and navigate in place;
+ * everything else keeps its absolute URL and opens in a new tab. The visible
+ * label is identical either way.
+ */
 function linkify_anchor(href, url, internal) {
     const cls = internal ? `${AUTOLINK_CLASS} ${AUTOLINK_CLASS}-int` : AUTOLINK_CLASS;
     const rel = internal ? "" : ' target="_blank" rel="noopener noreferrer"';
-    return (`<a class="${cls}" href="${href}" title="${url}"${rel}>` +
+    const dest = internal ? relativePath(href) : href;
+    return (`<a class="${cls}" href="${dest}" title="${url}"${rel}>` +
         `${internal ? ICON_INTERNAL : ICON_EXTERNAL}` +
         `<span class="sb-autolink-txt">${shortLabel(url)}</span></a>`);
 }
@@ -4521,6 +4539,8 @@ const factory = (BaseBlockClass, widgetApi) => {
                         card.addEventListener("click", (e) => {
                             if (e.target.closest(`.${p}-check-wrap`))
                                 return;
+                            if (e.target.closest(`.${AUTOLINK_CLASS}`))
+                                return;
                             const taskId = card.dataset.taskId;
                             const task = allTasks.find(t => t.id === taskId);
                             if (task)
@@ -4802,7 +4822,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 function renderTaskCard(task) {
                     const isDone = task.status === "DONE" || task.status === "done" || task.status === "CLOSED";
                     const dueInfo = formatDate(task.dueDate);
-                    const desc = task.description ? esc(ct(stripTypeTag(task.description).trim())) : "";
+                    const desc = task.description ? linkifyEscaped(esc(ct(stripTypeTag(task.description).trim())), selfHost) : "";
                     const typeCol = task.taskType ? typeColor(task.taskType) : "";
                     const typeText = task.taskType ? contrastColor(typeCol) : "";
                     const isCrit = (task.auditSeverity || "").toLowerCase() === "critical";
