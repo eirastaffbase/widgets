@@ -36,8 +36,14 @@ A JSON array. Each entry:
 | --- | --- | --- |
 | `id` | yes | The group ID. |
 | `name` | no | Overrides the name read from `GET /api/groups/{id}`. |
-| `description` | no | A supporting line under the name. |
+| `description` | no | Overrides the description read from the same endpoint. |
 | `icon` | no | An image URL or data URI, or one of the built-in icon names. |
+
+Name and description are both read from the group API. Setting either in the
+config overrides the fetched value, so you only need to write the ones you want
+to change. Localized fields are handled: a `{ "en_US": "..." }` map resolves to
+its first non-empty string. The lookup is skipped entirely when the config
+already supplies both fields.
 
 ```json
 [
@@ -57,6 +63,26 @@ A JSON array. Each entry:
 
 An entry that isn't shaped like this is skipped. JSON that doesn't parse at all
 is reported inline, since that's an authoring mistake worth surfacing.
+
+### Icons and images
+
+`icon` accepts either a built-in icon name or an image (any `http(s)` URL or
+`data:image/` URI).
+
+How an image is displayed depends on the width available:
+
+- **Narrow** — a 40px thumbnail at the left of the row, same shape as an icon.
+- **Wide (720px container and up)** — the row becomes a near-square card with
+  the image filling a 4:3 frame across the top and the name and description
+  beneath it.
+
+Card mode only engages when at least one entry actually has an image. A list of
+line icons stays as rows, because a large picture frame around a small glyph is
+empty weight. Images are cropped to fill the frame, so use art that survives
+being centred.
+
+The card grid is capped at 900px so a very wide host doesn't turn each card into
+a billboard.
 
 ### Icon names
 

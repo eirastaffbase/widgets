@@ -96,6 +96,9 @@ const uiSchema: UiSchema = {
 type GroupConfig = { id: string; name?: string; description?: string; icon?: string };
 type ParseResult = { ok: true; groups: GroupConfig[] } | { ok: false; message: string };
 type Viewer = { id: string; groupIDs: string[] };
+type GroupDetails = { name: string; description: string };
+
+const BLANK_GROUP: GroupDetails = { name: "", description: "" };
 
 // ── Utilities ────────────────────────────────────────────────────────────────
 
@@ -227,19 +230,33 @@ async function fetchViewer(widgetApi: any): Promise<Viewer> {
   return { id: String(user.id), groupIDs: user.groupIDs || [] };
 }
 
-/** Display name for a group, or "" when it can't be read. */
-async function fetchGroupName(id: string): Promise<string> {
+/** Staffbase text fields are sometimes localized maps rather than plain strings. */
+function text(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (value && typeof value === "object") {
+    const map = value as Record<string, unknown>;
+    const key = Object.keys(map).find((k) => typeof map[k] === "string" && map[k]);
+    if (key) return String(map[key]);
+  }
+  return "";
+}
+
+/** Name and description for a group; blank fields when they can't be read. */
+async function fetchGroup(id: string): Promise<GroupDetails> {
   try {
     const response = await fetch(`/api/groups/${encodeURIComponent(id)}`, {
       method: "GET",
       credentials: "include",
       headers: { accept: "application/json" },
     });
-    if (!response.ok) return "";
+    if (!response.ok) return BLANK_GROUP;
     const group = await response.json();
-    return String(group?.name || group?.title || "");
+    return {
+      name: text(group?.name) || text(group?.title),
+      description: text(group?.description),
+    };
   } catch (_) {
-    return "";
+    return BLANK_GROUP;
   }
 }
 
@@ -335,9 +352,13 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         return;
       }
 
+      // Cards only pay their way when there are real images to show.
+      const hasMedia = groups.some((g) => resolveIcon(g.icon).kind === "image");
+      const listAttrs = `class="${p}-list"${hasMedia ? ` data-media="true"` : ""}`;
+
       // One skeleton per group, so the list is at final height before data lands.
       main.innerHTML =
-        `<ul class="${p}-list">` +
+        `<ul ${listAttrs}>` +
         groups
           .map(
             () =>
@@ -353,11 +374,18 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         `<span class="${p}-sr">Loading your groups.</span>`;
 
       let viewer: Viewer;
-      let names: string[];
+      let details: GroupDetails[];
       try {
-        [viewer, names] = await Promise.all([
+        [viewer, details] = await Promise.all([
           fetchViewer(widgetApi),
-          Promise.all(groups.map((g) => (g.name ? Promise.resolve(g.name) : fetchGroupName(g.id)))),
+          // Skip the lookup only when the config already supplies both fields.
+          Promise.all(
+            groups.map((g) =>
+              g.name && g.description
+                ? Promise.resolve({ name: g.name, description: g.description })
+                : fetchGroup(g.id)
+            )
+          ),
         ]);
       } catch (_) {
         main.innerHTML = note(
@@ -373,9 +401,12 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
       const list = document.createElement("ul");
       list.className = `${p}-list`;
+      if (hasMedia) list.dataset.media = "true";
 
       groups.forEach((group, index) => {
-        const label = names[index] || group.id;
+        // Config wins over the API, so an editor can override either field.
+        const label = group.name || details[index].name || group.id;
+        const description = group.description || details[index].description;
         const isCurrent = memberOf.has(group.id);
         const icon = resolveIcon(group.icon);
 
@@ -401,7 +432,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           `</span>` +
           `<span class="${p}-text">` +
           `<span class="${p}-name">${esc(label)}</span>` +
-          (group.description ? `<span class="${p}-desc">${esc(group.description)}</span>` : "") +
+          (description ? `<span class="${p}-desc">${esc(description)}</span>` : "") +
           `</span>` +
           (isCurrent
             ? `<span class="${p}-cue">${ICONS.check}<span class="${p}-cue-label">Current</span></span>`

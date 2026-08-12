@@ -30,6 +30,8 @@
 <body>
 <div class="wrap">
   <div class="panel wide"><h2>Wide host</h2><div id="f"></div></div>
+  <div class="panel wide"><h2>Wide host, images</h2><div id="g"></div></div>
+  <div class="panel narrow"><h2>Narrow, images</h2><div id="h"></div></div>
   <div class="panel"><h2>Light host</h2><div id="a"></div></div>
   <div class="panel dark"><h2>Dark host</h2><div id="b"></div></div>
   <div class="panel narrow"><h2>Narrow</h2><div id="c"></div></div>
@@ -40,11 +42,12 @@
 <script>
 // Stub the Staffbase session endpoints.
 const VIEWER = { id: "user-1", groupIDs: ["6967000000000000000000b2"] };
-const NAMES = {
-  "6967000000000000000000a1": "Retail",
-  "6967000000000000000000b2": "Manufacturing",
-  "6967000000000000000000c3": "Healthcare",
-  "6967000000000000000000d4": "Financial Services",
+const GROUP_API = {
+  "6967000000000000000000a1": { name: "Retail", description: "Stores, shift teams and field associates." },
+  "6967000000000000000000b2": { name: "Manufacturing", description: "Plant floor, maintenance and safety." },
+  // Localized map, to exercise the non-string branch.
+  "6967000000000000000000c3": { name: { en_US: "Healthcare" }, description: { en_US: "Clinical and care teams." } },
+  "6967000000000000000000d4": { name: "Financial Services", description: "" },
 };
 // ?delay=800 holds the loading state open; the default resolves immediately.
 const DELAY = Number(new URLSearchParams(location.search).get("delay") || 0);
@@ -57,7 +60,7 @@ window.fetch = async (url, opts) => {
   const g = u.match(/\/api\/groups\/([^/?]+)$/);
   if (g) {
     if (DELAY) await new Promise((r) => setTimeout(r, DELAY));
-    return json({ id: g[1], name: NAMES[g[1]] || "" });
+    return json({ id: g[1], ...(GROUP_API[g[1]] || {}) });
   }
   if (/\/api\/groups\/[^/]+\/members/.test(u)) return json({});
   if (u.includes("/theming/")) return new Response("{}", { status: 404 });
@@ -89,11 +92,26 @@ window.defineBlock = (external) => {
 </script>
 <script src="./dist/group-switcher.js"></script>
 <script>
+// Name and description come from the stubbed API unless overridden here.
 const GROUPS = JSON.stringify([
-  { id: "6967000000000000000000a1", description: "Stores, shift teams and field associates.", icon: "store" },
-  { id: "6967000000000000000000b2", description: "Plant floor, maintenance and safety.", icon: "factory" },
-  { id: "6967000000000000000000c3", description: "Clinical and care teams.", icon: "health" },
-  { id: "6967000000000000000000d4", name: "Financial Services", icon: "bank" },
+  { id: "6967000000000000000000a1", icon: "store" },
+  { id: "6967000000000000000000b2", icon: "factory" },
+  { id: "6967000000000000000000c3", icon: "health" },
+  { id: "6967000000000000000000d4", description: "Overridden in config.", icon: "bank" },
+]);
+
+const shot = (h, c) =>
+  "data:image/svg+xml;base64," + btoa(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="400">' +
+    '<rect width="640" height="400" fill="hsl(' + h + ',42%,' + c + '%)"/>' +
+    '<circle cx="470" cy="90" r="150" fill="hsl(' + h + ',52%,' + (c + 12) + '%)"/>' +
+    '<rect y="270" width="640" height="130" fill="hsl(' + h + ',38%,' + (c - 10) + '%)"/></svg>');
+
+const IMAGE_GROUPS = JSON.stringify([
+  { id: "6967000000000000000000a1", icon: shot(14, 52) },
+  { id: "6967000000000000000000b2", icon: shot(212, 46) },
+  { id: "6967000000000000000000c3", icon: shot(160, 44) },
+  { id: "6967000000000000000000d4", icon: shot(38, 54) },
 ]);
 
 const base = { groups: GROUPS, accentcolor: "#1f6feb", usethemecolors: "false" };
@@ -103,6 +121,8 @@ window.__mount(document.getElementById("c"), base);
 window.__mount(document.getElementById("d"), { ...base, groups: "" });
 window.__mount(document.getElementById("e"), { ...base, groups: "[{ oops }]" });
 window.__mount(document.getElementById("f"), base);
+window.__mount(document.getElementById("g"), { ...base, groups: IMAGE_GROUPS });
+window.__mount(document.getElementById("h"), { ...base, groups: IMAGE_GROUPS });
 </script>
 </body>
 </html>
