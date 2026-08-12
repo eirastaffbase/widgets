@@ -44,6 +44,9 @@ A JSON array. Each entry:
 | `description` | no | Overrides the description read from the same endpoint. |
 | `icon` | no | An image URL or data URI, or one of the built-in icon names. |
 
+Large images turn the list into cards on wide screens. See below for the bar
+they have to clear.
+
 Name and description are both read from the group API. Setting either in the
 config overrides the fetched value, so you only need to write the ones you want
 to change. Localized fields are handled: a `{ "en_US": "..." }` map resolves to
@@ -91,18 +94,25 @@ How an image is displayed depends on the width available:
   the image filling a 4:3 frame across the top and the name and description
   beneath it.
 
-Card mode only engages when at least one entry actually has an image. A list of
-line icons stays as rows, because a large picture frame around a small glyph is
-empty weight.
+Cards have to be earned. The widget loads every image and measures it before
+committing to the layout, and drops back to rows unless all of the following
+hold for **every** entry:
 
-Mixing the two is allowed: entries still using an icon name get their glyph
-enlarged and centred in the same frame. It stays coherent, but a list where
-every entry has a picture reads considerably better as cards.
+- it has an image, not an icon name — one missing picture leaves a hole
+- at least **800x500**, so the ~450px frame stays sharp on a 2x display
+- an aspect ratio between **0.9 and 2.4**, since letterbox strips and tall
+  portraits both crop badly into a 4:3 frame
+
+So a favicon, a 200x200 logo, a 400x300 thumbnail, a 2400x400 banner or a list
+where one entry still uses `users` all stay as rows. This is deliberate: a small
+logo blown up across a card frame looks worse than the row it replaced.
+
+Measuring happens alongside the group lookups, so it costs no extra wait, and a
+slow or broken image times out after 3 seconds and falls back to rows.
 
 Images are cropped to fill (`object-fit:cover`), so keep the subject near the
-centre. Landscape art around 640x480 or wider works best; a tall portrait loses
-its top and bottom. Any URL the viewer can reach will do, though a Staffbase
-media URL is the safer choice since it is same-origin and behind the same auth.
+centre. Any URL the viewer can reach will do, though a Staffbase media URL is
+the safer choice since it is same-origin and behind the same auth.
 
 The card grid is capped at 900px so a very wide host doesn't turn each card into
 a billboard.

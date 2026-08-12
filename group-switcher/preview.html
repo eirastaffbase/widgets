@@ -41,6 +41,9 @@
   <div class="panel wide css-14whny0-StyledRichText"><h2>Staffbase rich-text host</h2><div id="i"></div></div>
   <div class="panel wide"><h2>Wide host</h2><div id="f"></div></div>
   <div class="panel wide"><h2>Wide host, images</h2><div id="g"></div></div>
+  <div class="panel wide"><h2>Wide host, tiny images</h2><div id="j"></div></div>
+  <div class="panel wide"><h2>Wide host, midsize images</h2><div id="m"></div></div>
+  <div class="panel wide"><h2>Wide host, mixed</h2><div id="k"></div></div>
   <div class="panel narrow"><h2>Narrow, images</h2><div id="h"></div></div>
   <div class="panel"><h2>Light host</h2><div id="a"></div></div>
   <div class="panel dark"><h2>Dark host</h2><div id="b"></div></div>
@@ -120,10 +123,43 @@ const GROUPS = JSON.stringify([
 
 const shot = (h, c) =>
   "data:image/svg+xml;base64," + btoa(
-    '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="400">' +
-    '<rect width="640" height="400" fill="hsl(' + h + ',42%,' + c + '%)"/>' +
-    '<circle cx="470" cy="90" r="150" fill="hsl(' + h + ',52%,' + (c + 12) + '%)"/>' +
-    '<rect y="270" width="640" height="130" fill="hsl(' + h + ',38%,' + (c - 10) + '%)"/></svg>');
+    '<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="800">' +
+    '<rect width="1280" height="800" fill="hsl(' + h + ',42%,' + c + '%)"/>' +
+    '<circle cx="940" cy="180" r="300" fill="hsl(' + h + ',52%,' + (c + 12) + '%)"/>' +
+    '<rect y="540" width="1280" height="260" fill="hsl(' + h + ',38%,' + (c - 10) + '%)"/></svg>');
+
+// A favicon-sized logo: has an image, but nowhere near card artwork.
+const tiny = (h) =>
+  "data:image/svg+xml;base64," + btoa(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32">' +
+    '<rect width="32" height="32" fill="hsl(' + h + ',45%,50%)"/></svg>');
+
+const TINY_GROUPS = JSON.stringify([
+  { id: "6967000000000000000000a1", icon: tiny(14) },
+  { id: "6967000000000000000000b2", icon: tiny(212) },
+  { id: "6967000000000000000000c3", icon: tiny(160) },
+  { id: "6967000000000000000000d4", icon: tiny(38) },
+]);
+
+const midsize = (h) =>
+  "data:image/svg+xml;base64," + btoa(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300">' +
+    '<rect width="400" height="300" fill="hsl(' + h + ',45%,55%)"/></svg>');
+
+const MIDSIZE_GROUPS = JSON.stringify([
+  { id: "6967000000000000000000a1", icon: midsize(14) },
+  { id: "6967000000000000000000b2", icon: midsize(212) },
+  { id: "6967000000000000000000c3", icon: midsize(160) },
+  { id: "6967000000000000000000d4", icon: midsize(38) },
+]);
+
+// One entry without a picture leaves a hole, so this must stay as rows.
+const MIXED_GROUPS = JSON.stringify([
+  { id: "6967000000000000000000a1", icon: shot(14, 52) },
+  { id: "6967000000000000000000b2", icon: shot(212, 46) },
+  { id: "6967000000000000000000c3", icon: "health" },
+  { id: "6967000000000000000000d4", icon: shot(38, 54) },
+]);
 
 const IMAGE_GROUPS = JSON.stringify([
   { id: "6967000000000000000000a1", icon: shot(14, 52) },
@@ -142,6 +178,9 @@ window.__mount(document.getElementById("f"), base);
 window.__mount(document.getElementById("i"), base);
 window.__mount(document.getElementById("g"), { ...base, groups: IMAGE_GROUPS });
 window.__mount(document.getElementById("h"), { ...base, groups: IMAGE_GROUPS });
+window.__mount(document.getElementById("j"), { ...base, groups: TINY_GROUPS });
+window.__mount(document.getElementById("k"), { ...base, groups: MIXED_GROUPS });
+window.__mount(document.getElementById("m"), { ...base, groups: MIDSIZE_GROUPS });
 </script>
 </body>
 </html>

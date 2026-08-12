@@ -23,6 +23,15 @@ import { styles } from "./styles";
 const DEFAULT_BASE_URL = "https://app.staffbase.com/api";
 const DEFAULT_ACCENT = "#1f6feb";
 
+// A card frame is ~450px wide, so this is roughly what a 2x display needs to
+// render it sharply. Anything smaller is a logo, not artwork.
+const MIN_CARD_WIDTH = 800;
+const MIN_CARD_HEIGHT = 500;
+// Letterbox strips and tall banners both crop badly into a 4:3 frame.
+const MIN_CARD_RATIO = 0.9;
+const MAX_CARD_RATIO = 2.4;
+const IMAGE_PROBE_TIMEOUT = 3000;
+
 const PLACEHOLDER = `[
   {
     "id": "000000000000000000000000",
@@ -79,9 +88,10 @@ const uiSchema: UiSchema = {
       'The name and description are read from the group itself; add "name" or "description" only ' +
       'to override them. ' +
       '"icon" takes either a picture or an icon name. Anything starting with http:// https:// or ' +
-      "data:image/ is treated as a picture, and once any entry has one the list becomes image cards " +
-      "on wide screens (pictures are cropped to fill, so keep the subject centered). " +
-      "Otherwise it's one of these names: " +
+      "data:image/ is treated as a picture. When every entry has a large picture (at least 800x500, " +
+      "roughly landscape) the list becomes image cards on wide screens; smaller logos, mixed lists " +
+      "and icons stay as rows. Pictures are cropped to fill, so keep the subject centered. " +
+      "Icon names: " +
       resolveIcon.names.join(", ") +
       ".",
   },
@@ -307,6 +317,53 @@ async function readGroup(id: string): Promise<any | undefined> {
   return undefined;
 }
 
+/**
+ * Decide whether the configured images are good enough to build cards from.
+ *
+ * Every entry has to earn it. One missing image leaves a hole in the grid, and a
+ * logo blown up across a 4:3 frame looks worse than the row it replaced, so the
+ * list stays as rows unless all of the artwork is large, sharp and roughly the
+ * right shape.
+ */
+async function imagesAreCardWorthy(groups: GroupConfig[]): Promise<boolean> {
+  const sources = groups.map((g) => resolveIcon(g.icon));
+  if (!sources.every((icon) => icon.kind === "image")) return false;
+
+  const sizes = await Promise.all(sources.map((icon) => measureImage(icon.value)));
+  return sizes.every((size) => {
+    if (size.width < MIN_CARD_WIDTH || size.height < MIN_CARD_HEIGHT) return false;
+    const ratio = size.width / size.height;
+    return ratio >= MIN_CARD_RATIO && ratio <= MAX_CARD_RATIO;
+  });
+}
+
+/** Natural size of an image, or zeroes if it fails or takes too long. */
+function measureImage(src: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve) => {
+    const none = { width: 0, height: 0 };
+    const img = new Image();
+    let settled = false;
+
+    const done = (value: { width: number; height: number }) => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
+
+    // A slow host shouldn't hold the list in its skeleton state.
+    const timer = setTimeout(() => done(none), IMAGE_PROBE_TIMEOUT);
+    img.onload = () => {
+      clearTimeout(timer);
+      done({ width: img.naturalWidth, height: img.naturalHeight });
+    };
+    img.onerror = () => {
+      clearTimeout(timer);
+      done(none);
+    };
+    img.src = src;
+  });
+}
+
 /** The localization entry matching the viewer's language, else the first usable one. */
 function pickLocale(localization: unknown): Record<string, unknown> | undefined {
   if (!localization || typeof localization !== "object") return undefined;
@@ -418,13 +475,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         return;
       }
 
-      // Cards only pay their way when there are real images to show.
-      const hasMedia = groups.some((g) => resolveIcon(g.icon).kind === "image");
-      const listAttrs = `class="${p}-list"${hasMedia ? ` data-media="true"` : ""}`;
-
       // One skeleton per group, so the list is at final height before data lands.
       main.innerHTML =
-        `<ul ${listAttrs}>` +
+        `<ul class="${p}-list">` +
         groups
           .map(
             () =>
@@ -441,8 +494,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
       let viewer: Viewer;
       let details: GroupDetails[];
+      let cardWorthy = false;
       try {
-        [viewer, details] = await Promise.all([
+        [viewer, details, cardWorthy] = await Promise.all([
           fetchViewer(widgetApi),
           // Skip the lookup only when the config already supplies both fields.
           Promise.all(
@@ -452,6 +506,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
                 : fetchGroup(g.id)
             )
           ),
+          // Runs alongside the group lookups, so it costs no extra wait.
+          imagesAreCardWorthy(groups),
         ]);
       } catch (_) {
         main.innerHTML = note(
@@ -467,7 +523,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
       const list = document.createElement("ul");
       list.className = `${p}-list`;
-      if (hasMedia) list.dataset.media = "true";
+      if (cardWorthy) list.dataset.media = "true";
 
       groups.forEach((group, index) => {
         // Config wins over the API, so an editor can override either field.
