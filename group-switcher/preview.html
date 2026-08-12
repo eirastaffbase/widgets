@@ -52,12 +52,20 @@
 <script>
 // Stub the Staffbase session endpoints.
 const VIEWER = { id: "user-1", groupIDs: ["6967000000000000000000b2"] };
+// Mirrors the real groups API: text lives under config.localization.{locale}.
+const loc = (name, description, tag = "en_US") => ({
+  config: { localization: { [tag]: { name, description } } },
+});
 const GROUP_API = {
-  "6967000000000000000000a1": { name: "Retail", description: "Stores, shift teams and field associates." },
-  "6967000000000000000000b2": { name: "Manufacturing", description: "Plant floor, maintenance and safety." },
-  // Localized map, to exercise the non-string branch.
-  "6967000000000000000000c3": { name: { en_US: "Healthcare" }, description: { en_US: "Clinical and care teams." } },
-  "6967000000000000000000d4": { name: "Financial Services", description: "" },
+  "6967000000000000000000a1": loc("Retail", "Stores, shift teams and field associates."),
+  "6967000000000000000000b2": loc("Manufacturing", "Plant floor, maintenance and safety."),
+  // A locale the viewer doesn't have, to prove the fallback still resolves.
+  "6967000000000000000000c3": loc("Healthcare", "Clinical and care teams.", "de_DE"),
+  // Flat name only, with the description nested. This is the reported case.
+  "6967000000000000000000d4": {
+    name: "Financial Services",
+    config: { localization: { en_US: { description: "Banking and insurance." } } },
+  },
 };
 // ?delay=800 holds the loading state open; the default resolves immediately.
 const DELAY = Number(new URLSearchParams(location.search).get("delay") || 0);
@@ -107,7 +115,7 @@ const GROUPS = JSON.stringify([
   { id: "6967000000000000000000a1", icon: "store" },
   { id: "6967000000000000000000b2", icon: "factory" },
   { id: "6967000000000000000000c3", icon: "health" },
-  { id: "6967000000000000000000d4", description: "Overridden in config.", icon: "bank" },
+  { id: "6967000000000000000000d4", icon: "bank" },
 ]);
 
 const shot = (h, c) =>

@@ -32,8 +32,8 @@ const PLACEHOLDER = `[
   },
   {
     "id": "111111111111111111111111",
-    "description": "Only \\"id\\" is required. Everything else is optional.",
-    "icon": "https://example.com/logo.png"
+    "description": "Only \\"id\\" is required. Name and description are read from the group.",
+    "icon": "https://example.com/photo.jpg"
   }
 ]`;
 
@@ -76,8 +76,12 @@ const uiSchema: UiSchema = {
     "ui:placeholder": PLACEHOLDER,
     "ui:help":
       'A JSON array of the groups a viewer can move between. Each entry needs "id", the group ID. ' +
-      'Add "name" to override the name read from the API, "description" for a supporting line, and ' +
-      '"icon" for either an image URL or one of these names: ' +
+      'The name and description are read from the group itself; add "name" or "description" only ' +
+      'to override them. ' +
+      '"icon" takes either a picture or an icon name. Anything starting with http:// https:// or ' +
+      "data:image/ is treated as a picture, and once any entry has one the list becomes image cards " +
+      "on wide screens (pictures are cropped to fill, so keep the subject centered). " +
+      "Otherwise it's one of these names: " +
       resolveIcon.names.join(", ") +
       ".",
   },
@@ -238,33 +242,88 @@ async function fetchViewer(widgetApi: any): Promise<Viewer> {
 }
 
 /** Staffbase text fields are sometimes localized maps rather than plain strings. */
+/** A plain string, or the best entry from a locale-keyed map. */
 function text(value: unknown): string {
-  if (typeof value === "string") return value;
-  if (value && typeof value === "object") {
-    const map = value as Record<string, unknown>;
-    const key = Object.keys(map).find((k) => typeof map[k] === "string" && map[k]);
-    if (key) return String(map[key]);
-  }
-  return "";
+  if (typeof value === "string") return value.trim();
+  if (!value || typeof value !== "object") return "";
+
+  const map = value as Record<string, unknown>;
+  const wanted = (navigator.language || "en").toLowerCase().replace("-", "_");
+  const base = wanted.split("_")[0];
+  const has = (k: string) => typeof map[k] === "string" && String(map[k]).trim();
+
+  // Exact locale, then same language, then English, then anything non-empty.
+  const key =
+    Object.keys(map).find((k) => k.toLowerCase() === wanted && has(k)) ||
+    Object.keys(map).find((k) => k.toLowerCase().split("_")[0] === base && has(k)) ||
+    Object.keys(map).find((k) => k.toLowerCase().startsWith("en") && has(k)) ||
+    Object.keys(map).find((k) => has(k));
+
+  return key ? String(map[key]).trim() : "";
 }
 
-/** Name and description for a group; blank fields when they can't be read. */
+/**
+ * Name and description for a group; blank fields when they can't be read.
+ *
+ * The groups API keeps both under `config.localization.{locale}`, so the flat
+ * top-level fields are only a fallback for endpoints that expose them.
+ */
 async function fetchGroup(id: string): Promise<GroupDetails> {
   try {
-    const response = await fetch(`/api/groups/${encodeURIComponent(id)}`, {
-      method: "GET",
-      credentials: "include",
-      headers: { accept: "application/json" },
-    });
-    if (!response.ok) return BLANK_GROUP;
-    const group = await response.json();
+    const group = await readGroup(id);
+    if (!group) return BLANK_GROUP;
+
+    const local = group?.config?.localization;
+    const picked = pickLocale(local);
+
     return {
-      name: text(group?.name) || text(group?.title),
-      description: text(group?.description),
+      name: text(picked?.name) || text(group?.name) || text(group?.title),
+      description: text(picked?.description) || text(group?.description),
     };
   } catch (_) {
     return BLANK_GROUP;
   }
+}
+
+/** The vendor media type carries the full record; plain JSON is the fallback. */
+async function readGroup(id: string): Promise<any | undefined> {
+  const url = `/api/groups/${encodeURIComponent(id)}`;
+  const accepts = ["application/vnd.staffbase.accessors.group.v2+json", "application/json"];
+
+  for (const accept of accepts) {
+    try {
+      const response = await fetch(url, {
+        method: "GET",
+        credentials: "include",
+        headers: { accept },
+      });
+      if (!response.ok) continue;
+      const body = await response.json();
+      if (body) return body;
+    } catch (_) {
+      /* try the next media type */
+    }
+  }
+  return undefined;
+}
+
+/** The localization entry matching the viewer's language, else the first usable one. */
+function pickLocale(localization: unknown): Record<string, unknown> | undefined {
+  if (!localization || typeof localization !== "object") return undefined;
+  const map = localization as Record<string, any>;
+
+  const wanted = (navigator.language || "en").toLowerCase().replace("-", "_");
+  const base = wanted.split("_")[0];
+  const usable = (k: string) => map[k] && typeof map[k] === "object";
+  const named = (k: string) => usable(k) && (map[k].name || map[k].description);
+
+  const key =
+    Object.keys(map).find((k) => k.toLowerCase() === wanted && named(k)) ||
+    Object.keys(map).find((k) => k.toLowerCase().split("_")[0] === base && named(k)) ||
+    Object.keys(map).find((k) => k.toLowerCase().startsWith("en") && named(k)) ||
+    Object.keys(map).find(named);
+
+  return key ? map[key] : undefined;
 }
 
 async function updateMembership(

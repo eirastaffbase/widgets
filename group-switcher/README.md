@@ -74,6 +74,16 @@ is reported inline, since that's an authoring mistake worth surfacing.
 `icon` accepts either a built-in icon name or an image (any `http(s)` URL or
 `data:image/` URI).
 
+The JSON shape doesn't change — you just put a URL in `icon` instead of a name:
+
+```json
+[
+  { "id": "6a7cb644a3ddb7189dd7d953", "icon": "users" },
+  { "id": "6a7cb637b883923553fb506a", "icon": "https://example.com/photo.jpg" },
+  { "id": "6a7cb62c97e3273f2740e12e" }
+]
+```
+
 How an image is displayed depends on the width available:
 
 - **Narrow** — a 40px thumbnail at the left of the row, same shape as an icon.
@@ -83,23 +93,56 @@ How an image is displayed depends on the width available:
 
 Card mode only engages when at least one entry actually has an image. A list of
 line icons stays as rows, because a large picture frame around a small glyph is
-empty weight. Images are cropped to fill the frame, so use art that survives
-being centred.
+empty weight.
+
+Mixing the two is allowed: entries still using an icon name get their glyph
+enlarged and centred in the same frame. It stays coherent, but a list where
+every entry has a picture reads considerably better as cards.
+
+Images are cropped to fill (`object-fit:cover`), so keep the subject near the
+centre. Landscape art around 640x480 or wider works best; a tall portrait loses
+its top and bottom. Any URL the viewer can reach will do, though a Staffbase
+media URL is the safer choice since it is same-origin and behind the same auth.
 
 The card grid is capped at 900px so a very wide host doesn't turn each card into
 a billboard.
 
 ### Icon names
 
-`users`, `building`, `briefcase`, `store`, `warehouse`, `factory`, `truck`,
-`car`, `ship`, `plane`, `tractor`, `package`, `cart`, `hospital`, `health`,
-`pharmacy`, `lab`, `school`, `book`, `bank`, `government`, `legal`, `tech`,
-`laptop`, `telecom`, `energy`, `fuel`, `construction`, `tools`, `hammer`,
-`safety`, `hotel`, `restaurant`, `support`, `marketing`, `design`,
-`environment`, `global`.
+All 38 are Lucide glyphs, grouped by what they tend to be used for.
 
-Unknown names fall back to `users`. To change the set, edit
-`scripts/generate-icons.js` and run `npm run icons`.
+**People and places**
+`users`, `building`, `briefcase`, `hotel`, `restaurant`, `global`
+
+**Retail and logistics**
+`store`, `cart`, `warehouse`, `package`, `truck`, `car`, `ship`, `plane`,
+`tractor`
+
+**Industry and trades**
+`factory`, `construction`, `tools`, `hammer`, `safety`, `energy`, `fuel`
+
+**Health and science**
+`hospital`, `health`, `pharmacy`, `lab`, `environment`
+
+**Knowledge and civic**
+`school`, `book`, `bank`, `government`, `legal`
+
+**Tech and office**
+`tech`, `laptop`, `telecom`, `support`, `marketing`, `design`
+
+A few aren't literal: `hospital` is a stethoscope, `legal` is scales, `tech` is a
+CPU, `safety` is a shield with a check, `support` is a headset, `energy` is a
+bolt and `environment` is a leaf.
+
+Matching ignores case and strips spaces, hyphens and underscores, so `Global` and
+`hard_hat`-style variants of a real name still resolve. An unrecognised name
+falls back to `users` rather than leaving a gap in the layout.
+
+To add one, map your name to any [Lucide
+export](https://react-icons.github.io/react-icons/icons/lu/) in the `NAMED`
+object in `scripts/generate-icons.js`, then run `npm run build`. Only the names
+listed there are bundled, which is what keeps the widget at ~41 KiB instead of
+shipping all of Lucide.
 
 ## Build
 
