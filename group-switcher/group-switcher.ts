@@ -43,10 +43,9 @@ const configurationSchema: JSONSchema7 = {
   properties: {
     groups: { type: "string", title: "Groups (JSON)", default: PLACEHOLDER },
     usethemecolors: { type: "boolean", title: "Use Theme Colors", default: false },
-    apitoken: { type: "string", title: "API Token", default: "" },
-    baseurl: { type: "string", title: "Base URL", default: DEFAULT_BASE_URL },
   },
-  // As in the task widgets: hide the color picker while the theme supplies it.
+  // The token is only ever read for theming, so it appears only with theming on;
+  // the manual picker takes its place when theming is off.
   dependencies: {
     usethemecolors: {
       oneOf: [
@@ -56,7 +55,14 @@ const configurationSchema: JSONSchema7 = {
             accentcolor: { type: "string", title: "Accent Color", default: DEFAULT_ACCENT },
           },
         },
-        { properties: { usethemecolors: { const: true } } },
+        {
+          properties: {
+            usethemecolors: { const: true },
+            apitoken: { type: "string", title: "API Token", default: "" },
+            baseurl: { type: "string", title: "Base URL", default: DEFAULT_BASE_URL },
+          },
+          required: ["apitoken"],
+        },
       ],
     },
   },
@@ -77,7 +83,7 @@ const uiSchema: UiSchema = {
   },
   usethemecolors: {
     "ui:help":
-      "Read the accent from the app's branding theme instead of setting it here. Needs the API Token below.",
+      "Read the accent from the app's branding theme instead of setting it here. Needs an API token.",
   },
   accentcolor: {
     "ui:widget": "color",
@@ -86,7 +92,8 @@ const uiSchema: UiSchema = {
   apitoken: {
     "ui:widget": "password",
     "ui:help":
-      "Staffbase Basic auth token. Only used to read theme colors. Switching groups always runs as the viewer.",
+      "Staffbase Basic auth token, used only to read the theme colors. " +
+      "Groups are read and switched using the viewer's own session, never this token.",
   },
   baseurl: { "ui:help": "Staffbase API base URL, used for the theme lookup." },
 };

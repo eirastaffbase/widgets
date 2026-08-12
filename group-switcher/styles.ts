@@ -36,20 +36,28 @@ export function styles(p: string, accent: string, accentFallbackRgb: string): st
     }
   }
 
-  .${p} *{box-sizing:border-box;}
+  .${p}.${p} *{box-sizing:border-box;}
+
+  /* The host styles bare ul/li/button; take those back before laying out. */
+  .${p} ul,.${p} li{margin:0;padding:0;list-style:none;}
+  .${p} li::marker{content:"";}
+  .${p} button{
+    margin:0;font:inherit;color:inherit;
+    background:none;border:0;appearance:none;-webkit-appearance:none;
+  }
 
   .${p} .${p}-list{
     display:grid;grid-template-columns:1fr;gap:6px;
     margin:0;padding:0;list-style:none;
   }
-  .${p} .${p}-list > li{display:flex;}
+  .${p} .${p}-list > li{display:flex;line-height:inherit;}
 
   /* Wide enough that two rows still read as rows, not as squeezed cards. */
   @container (min-width:720px){
     .${p} .${p}-list{grid-template-columns:1fr 1fr;}
   }
   @supports not (container-type:inline-size){
-    @media (min-width:900px){.${p}-list{grid-template-columns:1fr 1fr;}}
+    @media (min-width:900px){.${p} .${p}-list{grid-template-columns:1fr 1fr;}}
   }
 
   .${p} .${p}-row{
@@ -167,10 +175,10 @@ export function styles(p: string, accent: string, accentFallbackRgb: string): st
     transition:opacity var(--${p}-step) var(--${p}-ease),
                transform var(--${p}-step) var(--${p}-ease);
   }
-  .${p} .${p}-row:hover:not(:disabled) .${p}-cue-go
+  .${p} .${p}-row:hover:not(:disabled) .${p}-cue-go,
   .${p} .${p}-row:focus-visible .${p}-cue-go{opacity:1;transform:none;}
   /* Touch has no hover, so it stays visible there. */
-  @media (hover:none){.${p}-cue-go{opacity:1;transform:none;}}
+  @media (hover:none){.${p} .${p}-cue-go{opacity:1;transform:none;}}
 
   .${p} .${p}-spin{display:flex;color:var(--${p}-accent);}
   .${p} .${p}-spin svg{width:16px;height:16px;animation:${p}-rot 900ms linear infinite;}
@@ -178,7 +186,7 @@ export function styles(p: string, accent: string, accentFallbackRgb: string): st
 
   /* Skeletons match the real row count, so the list never jumps. */
   .${p} .${p}-sk{pointer-events:none;}
-  .${p} .${p}-sk .${p}-mark
+  .${p} .${p}-sk .${p}-mark,
   .${p} .${p}-sk-line{background:var(--${p}-surface);border-radius:6px;}
   .${p} .${p}-sk-line{display:block;height:11px;}
   .${p} .${p}-sk-line + .${p}-sk-line{margin-top:8px;height:9px;}
@@ -221,7 +229,7 @@ export function styles(p: string, accent: string, accentFallbackRgb: string): st
     .${p} .${p}-row{gap:11px;padding:11px 12px;}
   }
   @supports not (container-type:inline-size){
-    @media (max-width:340px){.${p}-cue-label{display:none;}}
+    @media (max-width:340px){.${p} .${p}-cue-label{display:none;}}
   }
 
   @media (prefers-reduced-motion:reduce){

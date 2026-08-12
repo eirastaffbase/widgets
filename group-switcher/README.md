@@ -23,10 +23,15 @@ Memberships outside that list are left alone.
 | Field | Required | Notes |
 | --- | --- | --- |
 | Groups (JSON) | yes | The list of groups. See below. |
-| Use Theme Colors | no | Reads the accent from the app's branding theme. Needs the API Token. |
+| Use Theme Colors | no | Reads the accent from the app's branding theme. |
 | Accent Color | no | Shown only when Use Theme Colors is off. Defaults to `#1f6feb`. |
-| API Token | no | Staffbase Basic auth token. Theme lookup only. |
-| Base URL | no | Staffbase API base URL. Defaults to `https://app.staffbase.com/api`. |
+| API Token | with theming | Staffbase Basic auth token. Theme lookup only. |
+| Base URL | with theming | Staffbase API base URL. Defaults to `https://app.staffbase.com/api`. |
+
+The API token is used for exactly one thing: reading the brand palette. Reading
+group names, reading descriptions and changing membership all run on the
+viewer's own session. Leave Use Theme Colors off and no token is needed at all
+— the field isn't even shown.
 
 ### Groups JSON
 
@@ -127,6 +132,11 @@ loading state open.
 - The list is a single column, switching to two at container widths of 720px and
   up. It measures its own container, not the viewport, so a narrow sidebar stays
   single-column on a wide screen.
+- Every CSS rule is prefixed with the root class, giving each a specificity of
+  0,2,0. Staffbase's rich-text styles reach the widget as `.css-xxx ul` at 0,1,1
+  and would otherwise beat a bare `.gsw-list`, silently dropping `display:grid`
+  and collapsing the layout to full-width rows with no gaps. `preview.html` has
+  a panel that reproduces those host rules so the guard stays honest.
 - CSRF token discovery is best effort. If no token is found the request is still
   attempted, since the session cookie is usually sufficient.
 - Group name lookups run in parallel. If the endpoint is unavailable the widget

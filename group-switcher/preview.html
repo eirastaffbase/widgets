@@ -25,10 +25,20 @@
     font-weight:700;color:#5b6470;
   }
   .panel.dark h2{color:#9aa4b0;}
+
+  /* Reproduces the Staffbase rich-text CSS that outranks bare .gsw-* selectors. */
+  .css-14whny0-StyledRichText ul,
+  .css-14whny0-StyledRichText ol{display:block;padding-left:40px;list-style:disc;}
+  .css-14whny0-StyledRichText ul > li,
+  .css-14whny0-StyledRichText ol > li{
+    display:list-item;margin-top:0;margin-bottom:0;line-height:26px;
+  }
+  .css-14whny0-StyledRichText div{display:block;}
 </style>
 </head>
 <body>
 <div class="wrap">
+  <div class="panel wide css-14whny0-StyledRichText"><h2>Staffbase rich-text host</h2><div id="i"></div></div>
   <div class="panel wide"><h2>Wide host</h2><div id="f"></div></div>
   <div class="panel wide"><h2>Wide host, images</h2><div id="g"></div></div>
   <div class="panel narrow"><h2>Narrow, images</h2><div id="h"></div></div>
@@ -121,6 +131,7 @@ window.__mount(document.getElementById("c"), base);
 window.__mount(document.getElementById("d"), { ...base, groups: "" });
 window.__mount(document.getElementById("e"), { ...base, groups: "[{ oops }]" });
 window.__mount(document.getElementById("f"), base);
+window.__mount(document.getElementById("i"), base);
 window.__mount(document.getElementById("g"), { ...base, groups: IMAGE_GROUPS });
 window.__mount(document.getElementById("h"), { ...base, groups: IMAGE_GROUPS });
 </script>
