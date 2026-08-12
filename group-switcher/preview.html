@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Group Switcher — preview</title>
+<style>
+  /* Stand-in host page. Panels differ so the widget's inherited theming shows. */
+  body{
+    margin:0;padding:32px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:#f4f5f7;color:#141821;
+  }
+  .wrap{display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start;}
+  .panel{
+    flex:1 1 380px;max-width:520px;
+    padding:20px;border-radius:14px;
+    background:#fff;
+  }
+  .panel.dark{background:#14171a;color:#e8eaed;}
+  .panel.narrow{max-width:300px;}
+  .panel.wide{flex:1 1 100%;max-width:none;}
+  h2{
+    margin:0 0 14px;font-size:13px;letter-spacing:.09em;text-transform:uppercase;
+    font-weight:700;color:#5b6470;
+  }
+  .panel.dark h2{color:#9aa4b0;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="panel wide"><h2>Wide host</h2><div id="f"></div></div>
+  <div class="panel"><h2>Light host</h2><div id="a"></div></div>
+  <div class="panel dark"><h2>Dark host</h2><div id="b"></div></div>
+  <div class="panel narrow"><h2>Narrow</h2><div id="c"></div></div>
+  <div class="panel"><h2>Empty</h2><div id="d"></div></div>
+  <div class="panel"><h2>Invalid JSON</h2><div id="e"></div></div>
+</div>
+
+<script>
+// Stub the Staffbase session endpoints.
+const VIEWER = { id: "user-1", groupIDs: ["6967000000000000000000b2"] };
+const NAMES = {
+  "6967000000000000000000a1": "Retail",
+  "6967000000000000000000b2": "Manufacturing",
+  "6967000000000000000000c3": "Healthcare",
+  "6967000000000000000000d4": "Financial Services",
+};
+// ?delay=800 holds the loading state open; the default resolves immediately.
+const DELAY = Number(new URLSearchParams(location.search).get("delay") || 0);
+const realFetch = window.fetch.bind(window);
+window.fetch = async (url, opts) => {
+  const u = String(url);
+  const json = (body) => new Response(JSON.stringify(body), { status: 200 });
+  if (u.includes("/auth/discover")) return json({ user: VIEWER, csrfToken: "stub" });
+  if (u.includes("/api/users/me")) return json(VIEWER);
+  const g = u.match(/\/api\/groups\/([^/?]+)$/);
+  if (g) {
+    if (DELAY) await new Promise((r) => setTimeout(r, DELAY));
+    return json({ id: g[1], name: NAMES[g[1]] || "" });
+  }
+  if (/\/api\/groups\/[^/]+\/members/.test(u)) return json({});
+  if (u.includes("/theming/")) return new Response("{}", { status: 404 });
+  return realFetch(url, opts);
+};
+
+// Stub the widget SDK.
+const widgetApi = { getUserInformation: async () => VIEWER };
+
+window.defineBlock = (external) => {
+  const def = external.blockDefinition;
+  class Base {
+    getAttribute(name) {
+      return Object.prototype.hasOwnProperty.call(this._attrs || {}, name) ? this._attrs[name] : null;
+    }
+  }
+  const Widget = def.factory(Base, widgetApi);
+  // The widget's constructor calls super() with no args, so attach attrs after.
+  window.__mount = (el, attrs) => {
+    const instance = new Widget();
+    instance._attrs = attrs;
+    Promise.resolve(instance.renderBlock(el)).catch((e) => {
+      el.textContent = "renderBlock failed: " + e.message;
+      console.error(e);
+    });
+  };
+  window.dispatchEvent(new Event("widget-ready"));
+};
+</script>
+<script src="./dist/group-switcher.js"></script>
+<script>
+const GROUPS = JSON.stringify([
+  { id: "6967000000000000000000a1", description: "Stores, shift teams and field associates.", icon: "store" },
+  { id: "6967000000000000000000b2", description: "Plant floor, maintenance and safety.", icon: "factory" },
+  { id: "6967000000000000000000c3", description: "Clinical and care teams.", icon: "health" },
+  { id: "6967000000000000000000d4", name: "Financial Services", icon: "bank" },
+]);
+
+const base = { groups: GROUPS, accentcolor: "#1f6feb", usethemecolors: "false" };
+window.__mount(document.getElementById("a"), base);
+window.__mount(document.getElementById("b"), { ...base, accentcolor: "#5ea9ff" });
+window.__mount(document.getElementById("c"), base);
+window.__mount(document.getElementById("d"), { ...base, groups: "" });
+window.__mount(document.getElementById("e"), { ...base, groups: "[{ oops }]" });
+window.__mount(document.getElementById("f"), base);
+</script>
+</body>
+</html>
