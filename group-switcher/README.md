@@ -42,7 +42,7 @@ A JSON array. Each entry:
 | `id` | yes | The group ID. |
 | `name` | no | Overrides the name read from `GET /api/groups/{id}`. |
 | `description` | no | Overrides the description read from the same endpoint. |
-| `icon` | no | An image URL or data URI, or one of the built-in icon names. |
+| `icon` | no | An image URL or data URI, or one of the built-in icon names. Defaults to the group's own image from the API. |
 
 Large images turn the list into cards on wide screens. See below for the bar
 they have to clear.
@@ -192,5 +192,20 @@ loading state open.
   a panel that reproduces those host rules so the guard stays honest.
 - CSRF token discovery is best effort. If no token is found the request is still
   attempted, since the session cookie is usually sufficient.
-- Group name lookups run in parallel. If the endpoint is unavailable the widget
-  still works, falling back to the group ID.
+- Every request targets the app's real origin, resolved from
+  `getBranchInformation().webUrl`, rather than a root-relative `/api/...` path.
+  In the native apps the widget runs under `capacitor://`, where a root-relative
+  path resolves against the local app shell and returns `index.html` instead of
+  ever reaching Staffbase. This is why names and switching failed on mobile
+  while working fine on the web, and it is the same reason the task widget
+  points its comment endpoint at an absolute host. The fallback order is SDK,
+  then the current origin when it is `http(s)`, then the configured Base URL.
+- Names, descriptions and artwork come from `/api/groups/search`, which the
+  Groups page itself uses. It is authenticated with the viewer's session, needs
+  no admin token, and returns every visible group in one request that is fetched
+  once per page and shared across all entries. Groups the search does not return
+  fall back to a per-group read, and a group that resolves neither way falls
+  back to its ID.
+- A group's own image from the API is used when no `icon` is configured, so
+  groups that already have artwork in Staffbase get it for free. It still has to
+  clear the size bar above before the list becomes cards.

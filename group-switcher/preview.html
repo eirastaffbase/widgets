@@ -78,6 +78,13 @@ window.fetch = async (url, opts) => {
   const json = (body) => new Response(JSON.stringify(body), { status: 200 });
   if (u.includes("/auth/discover")) return json({ user: VIEWER, csrfToken: "stub" });
   if (u.includes("/api/users/me")) return json(VIEWER);
+  // The directory search, wrapped in `data` exactly like the real response.
+  if (u.includes("/api/groups/search")) {
+    if (DELAY) await new Promise((r) => setTimeout(r, DELAY));
+    return json({
+      entries: Object.keys(GROUP_API).map((id) => ({ data: { id, ...GROUP_API[id] } })),
+    });
+  }
   const g = u.match(/\/api\/groups\/([^/?]+)$/);
   if (g) {
     if (DELAY) await new Promise((r) => setTimeout(r, DELAY));
@@ -89,7 +96,10 @@ window.fetch = async (url, opts) => {
 };
 
 // Stub the widget SDK.
-const widgetApi = { getUserInformation: async () => VIEWER };
+const widgetApi = {
+  getUserInformation: async () => VIEWER,
+  getBranchInformation: () => ({ webUrl: location.origin, slug: "preview", branchId: "b1", flags: [] }),
+};
 
 window.defineBlock = (external) => {
   const def = external.blockDefinition;

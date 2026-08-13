@@ -117,9 +117,9 @@ const uiSchema: UiSchema = {
 type GroupConfig = { id: string; name?: string; description?: string; icon?: string };
 type ParseResult = { ok: true; groups: GroupConfig[] } | { ok: false; message: string };
 type Viewer = { id: string; groupIDs: string[] };
-type GroupDetails = { name: string; description: string };
+type GroupDetails = { name: string; description: string; imageUrl: string };
 
-const BLANK_GROUP: GroupDetails = { name: "", description: "" };
+const BLANK_GROUP: GroupDetails = { name: "", description: "", imageUrl: "" };
 
 // ── Utilities ────────────────────────────────────────────────────────────────
 
@@ -184,6 +184,55 @@ function parseGroups(raw: string): ParseResult {
   return { ok: true, groups };
 }
 
+// ── Host ─────────────────────────────────────────────────────────────────────
+// Every call below must target the real app origin rather than a root-relative
+// path. In the native apps the widget runs under capacitor:// (or file://,
+// ionic://), where "/api/..." resolves against the local app shell and hands
+// back index.html instead of ever reaching Staffbase. Same lesson as the task
+// widget's comment endpoint.
+
+/** The app's own origin, preferred from the SDK and cached once resolved. */
+let appOrigin = "";
+
+function originOf(url: string): string {
+  try {
+    return new URL(String(url)).origin;
+  } catch (_) {
+    return "";
+  }
+}
+
+/** Web origins are trustworthy; capacitor/file/ionic shells are not. */
+function webOrigin(): string {
+  const p = window.location.protocol;
+  return p === "http:" || p === "https:" ? window.location.origin : "";
+}
+
+function resolveOrigin(widgetApi: any, baseUrlAttr: string): string {
+  if (appOrigin) return appOrigin;
+
+  // getBranchInformation().webUrl is the app's real address in every context.
+  try {
+    const fromSdk = originOf(widgetApi?.getBranchInformation?.()?.webUrl || "");
+    if (fromSdk) return (appOrigin = fromSdk);
+  } catch (_) { /* the SDK isn't always ready */ }
+
+  // On the web the current origin is definitive, and beats a `baseurl` left at
+  // its default value pointing somewhere else entirely.
+  const here = webOrigin();
+  if (here) return (appOrigin = here);
+
+  const configured = originOf(baseUrlAttr);
+  if (configured) return (appOrigin = configured);
+
+  return (appOrigin = originOf(DEFAULT_BASE_URL));
+}
+
+/** Absolute URL for a root-relative API path. */
+function api(path: string): string {
+  return `${appOrigin || webOrigin()}${path}`;
+}
+
 // ── Session ──────────────────────────────────────────────────────────────────
 
 const DISCOVER_ACCEPT = "application/vnd.staffbase.auth.discovery.v2+json";
@@ -194,7 +243,7 @@ let discoverPromise: Promise<any> | null = null;
 /** `/auth/discover` returns both the viewer and a CSRF token. Cached per page. */
 function fetchDiscover(): Promise<any> {
   if (!discoverPromise) {
-    discoverPromise = fetch("/auth/discover", {
+    discoverPromise = fetch(api("/auth/discover"), {
       method: "GET",
       credentials: "include",
       cache: "no-store",
@@ -239,7 +288,7 @@ async function fetchViewer(widgetApi: any): Promise<Viewer> {
     return { id: String(discovery.user.id), groupIDs: discovery.user.groupIDs || [] };
   }
 
-  const response = await fetch("/api/users/me", {
+  const response = await fetch(api("/api/users/me"), {
     method: "GET",
     credentials: "include",
     cache: "no-store",
@@ -273,31 +322,82 @@ function text(value: unknown): string {
 }
 
 /**
- * Name and description for a group; blank fields when they can't be read.
+ * Name, description and artwork for a group; blank fields when unreadable.
  *
- * The groups API keeps both under `config.localization.{locale}`, so the flat
- * top-level fields are only a fallback for endpoints that expose them.
+ * Reads the shared directory first, because that single search request is
+ * session-authenticated and covers every group at once. The per-group endpoint
+ * is only a fallback for groups the search doesn't return.
  */
 async function fetchGroup(id: string): Promise<GroupDetails> {
   try {
+    const listed = (await fetchDirectory()).get(id);
+    if (listed) return listed;
+
     const group = await readGroup(id);
-    if (!group) return BLANK_GROUP;
-
-    const local = group?.config?.localization;
-    const picked = pickLocale(local);
-
-    return {
-      name: text(picked?.name) || text(group?.name) || text(group?.title),
-      description: text(picked?.description) || text(group?.description),
-    };
+    return group ? detailsOf(group) : BLANK_GROUP;
   } catch (_) {
     return BLANK_GROUP;
   }
 }
 
+/** Pull the display fields out of a group record. */
+function detailsOf(group: any): GroupDetails {
+  const picked = pickLocale(group?.config?.localization);
+  return {
+    name: text(picked?.name) || text(group?.name) || text(group?.title),
+    description: text(picked?.description) || text(group?.description),
+    imageUrl: text(group?.config?.imageUrl) || text(group?.config?.customIconUrl),
+  };
+}
+
+const SEARCH_ACCEPT = "application/vnd.staffbase.accessors.groups-search.v1+json";
+
+let directoryPromise: Promise<Map<string, GroupDetails>> | null = null;
+
+/**
+ * Every group the viewer can see, keyed by ID. One request for the whole list,
+ * fetched once per page and shared by all the lookups.
+ */
+function fetchDirectory(): Promise<Map<string, GroupDetails>> {
+  if (directoryPromise) return directoryPromise;
+
+  directoryPromise = (async () => {
+    const found = new Map<string, GroupDetails>();
+    // Unfiltered first; the type filter is a fallback for stricter deployments.
+    const queries = [
+      "query=&sort=name_ASC&limit=400&permission=access",
+      "query=&sort=name_ASC&limit=400&type=open&permission=access",
+    ];
+
+    for (const query of queries) {
+      try {
+        const response = await fetch(api(`/api/groups/search?${query}`), {
+          method: "GET",
+          credentials: "include",
+          headers: { accept: SEARCH_ACCEPT },
+        });
+        if (!response.ok) continue;
+
+        const body = await response.json();
+        // Entries are wrapped in `data`, though plain records are accepted too.
+        for (const entry of body?.entries || []) {
+          const group = entry?.data || entry;
+          if (group?.id) found.set(String(group.id), detailsOf(group));
+        }
+        if (found.size) return found;
+      } catch (_) {
+        /* try the next query */
+      }
+    }
+    return found;
+  })();
+
+  return directoryPromise;
+}
+
 /** The vendor media type carries the full record; plain JSON is the fallback. */
 async function readGroup(id: string): Promise<any | undefined> {
-  const url = `/api/groups/${encodeURIComponent(id)}`;
+  const url = api(`/api/groups/${encodeURIComponent(id)}`);
   const accepts = ["application/vnd.staffbase.accessors.group.v2+json", "application/json"];
 
   for (const accept of accepts) {
@@ -325,8 +425,8 @@ async function readGroup(id: string): Promise<any | undefined> {
  * list stays as rows unless all of the artwork is large, sharp and roughly the
  * right shape.
  */
-async function imagesAreCardWorthy(groups: GroupConfig[]): Promise<boolean> {
-  const sources = groups.map((g) => resolveIcon(g.icon));
+async function imagesAreCardWorthy(artwork: string[]): Promise<boolean> {
+  const sources = artwork.map((value) => resolveIcon(value));
   if (!sources.every((icon) => icon.kind === "image")) return false;
 
   const sizes = await Promise.all(sources.map((icon) => measureImage(icon.value)));
@@ -397,7 +497,7 @@ async function updateMembership(
   const headers: Record<string, string> = { accept: mediaType, "content-type": mediaType };
   if (token) headers["x-csrf-token"] = token;
 
-  const response = await fetch(`/api/groups/${encodeURIComponent(groupId)}/members`, {
+  const response = await fetch(api(`/api/groups/${encodeURIComponent(groupId)}/members`), {
     method: "PATCH",
     credentials: "include",
     headers,
@@ -408,11 +508,17 @@ async function updateMembership(
 
 /** Full document load of the app root, so the app re-boots against the new groups. */
 function refreshToHome(): void {
-  const home = new URL("/", window.location.origin);
-  if (home.origin !== window.location.origin) return;
-  const atRoot = window.location.pathname === home.pathname && !window.location.search;
+  // On a web origin, navigate to the app root. Inside the native shell the
+  // origin is capacitor://, where the SPA still lives at "/" — so reload the
+  // shell rather than sending the webview at an https URL it can't host.
+  const here = webOrigin();
+  if (!here) {
+    window.location.replace("/");
+    return;
+  }
+  const atRoot = window.location.pathname === "/" && !window.location.search;
   if (atRoot) window.location.reload();
-  else window.location.assign(home.href);
+  else window.location.assign(`${here}/`);
 }
 
 // ── Widget ───────────────────────────────────────────────────────────────────
@@ -431,6 +537,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const useTheme = this.getAttribute("usethemecolors") === "true";
       const apiToken = this.getAttribute("apitoken") || "";
       const baseUrl = (this.getAttribute("baseurl") || DEFAULT_BASE_URL).replace(/\/$/, "");
+      // Must run before any request: it decides whether calls go to the app's
+      // real origin or the local shell.
+      resolveOrigin(widgetApi, baseUrl);
       if (useTheme && apiToken) {
         // `primary` is the palette entry already contrast-checked for fills.
         const themed = await fetchThemeColors(baseUrl, apiToken);
@@ -494,20 +603,17 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
       let viewer: Viewer;
       let details: GroupDetails[];
-      let cardWorthy = false;
       try {
-        [viewer, details, cardWorthy] = await Promise.all([
+        [viewer, details] = await Promise.all([
           fetchViewer(widgetApi),
-          // Skip the lookup only when the config already supplies both fields.
+          // Skip the lookup only when the config already supplies every field.
           Promise.all(
             groups.map((g) =>
-              g.name && g.description
-                ? Promise.resolve({ name: g.name, description: g.description })
+              g.name && g.description && g.icon
+                ? Promise.resolve({ name: g.name, description: g.description, imageUrl: "" })
                 : fetchGroup(g.id)
             )
           ),
-          // Runs alongside the group lookups, so it costs no extra wait.
-          imagesAreCardWorthy(groups),
         ]);
       } catch (_) {
         main.innerHTML = note(
@@ -517,6 +623,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         );
         return;
       }
+
+      // A configured icon wins; otherwise the group's own artwork stands in.
+      const artwork = groups.map((g, i) => g.icon || details[i].imageUrl || "");
+      const cardWorthy = await imagesAreCardWorthy(artwork);
 
       const memberOf = new Set(viewer.groupIDs || []);
       let busy = false;
@@ -530,7 +640,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         const label = group.name || details[index].name || group.id;
         const description = group.description || details[index].description;
         const isCurrent = memberOf.has(group.id);
-        const icon = resolveIcon(group.icon);
+        const icon = resolveIcon(artwork[index]);
 
         const row = document.createElement("button");
         row.type = "button";
