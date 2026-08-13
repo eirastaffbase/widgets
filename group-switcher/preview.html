@@ -34,6 +34,19 @@
     display:list-item;margin-top:0;margin-bottom:0;line-height:26px;
   }
   .css-14whny0-StyledRichText div{display:block;}
+
+  /* The mobile app indents lists with the logical property, at a specificity
+     that outruns a bare `padding:0`. This is the reported 24px. */
+  /* Staffbase's real rich-text rule, :not() and all. Specificity (0,2,2). */
+  .sb-mobile .sb-rte ol:not(.quick-links-widget ol),
+  .sb-mobile .sb-rte ul:not(.quick-links-widget ul){
+    padding-inline-start:24px;
+    margin-inline-start:16px;
+    font-size:16px;
+    margin-block-start:0px;
+    margin-bottom:16px;
+  }
+  .sb-mobile .sb-rte li{padding-inline-start:0;}
 </style>
 </head>
 <body>
@@ -46,6 +59,9 @@
   <div class="panel wide"><h2>Wide host, full logos</h2><div id="n"></div></div>
   <div class="panel narrow"><h2>Narrow, full logos</h2><div id="o"></div></div>
   <div class="panel wide"><h2>Wide host, same logos cropped</h2><div id="q"></div></div>
+  <div class="panel wide"><h2>Wide host, real brand sizes</h2><div id="r"></div></div>
+  <div class="panel narrow"><h2>Narrow, real brand sizes</h2><div id="t"></div></div>
+  <div class="panel narrow sb-mobile"><h2>Mobile host indent</h2><div class="sb-rte"><div id="u"></div></div></div>
   <div class="panel wide"><h2>Wide host, mixed</h2><div id="k"></div></div>
   <div class="panel narrow"><h2>Narrow, images</h2><div id="h"></div></div>
   <div class="panel"><h2>Light host</h2><div id="a"></div></div>
@@ -197,6 +213,23 @@ const LOGO_GROUPS = JSON.stringify([
   { id: "6967000000000000000000d4", icon: logo(38, "Finance") },
 ]);
 
+// Real-world brand assets, at the exact pixel sizes of the reported set. Most
+// are small wordmarks, which is why nothing may be scaled up to fill a card.
+const brand = (w, h, hue, label) =>
+  "data:image/svg+xml;base64," + btoa(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '">' +
+    '<rect width="' + w + '" height="' + h + '" fill="none"/>' +
+    '<text x="' + (w / 2) + '" y="' + (h * 0.78) + '" text-anchor="middle" ' +
+    'font-family="Helvetica,Arial" font-size="' + Math.round(h * 0.8) + '" ' +
+    'font-weight="700" fill="hsl(' + hue + ',55%,42%)">' + label + '</text></svg>');
+
+const BRAND_GROUPS = JSON.stringify([
+  { id: "6967000000000000000000a1", name: "Winmark", icon: brand(1514, 902, 210, "W") },
+  { id: "6967000000000000000000b2", name: "Plato's Closet", icon: brand(176, 51, 14, "Plato") },
+  { id: "6967000000000000000000c3", name: "Once Upon A Child", icon: brand(259, 34, 160, "Once Upon") },
+  { id: "6967000000000000000000d4", name: "Play It Again", icon: brand(288, 25, 38, "Play It Again") },
+]);
+
 const base = { groups: GROUPS, accentcolor: "#1f6feb", usethemecolors: "false" };
 window.__mount(document.getElementById("a"), base);
 window.__mount(document.getElementById("b"), { ...base, accentcolor: "#5ea9ff" });
@@ -214,6 +247,10 @@ const logos = { ...base, groups: LOGO_GROUPS, showfulllogos: "true" };
 window.__mount(document.getElementById("n"), logos);
 window.__mount(document.getElementById("o"), logos);
 window.__mount(document.getElementById("q"), { ...base, groups: LOGO_GROUPS });
+const brands = { ...base, groups: BRAND_GROUPS, showfulllogos: "true" };
+window.__mount(document.getElementById("r"), brands);
+window.__mount(document.getElementById("t"), brands);
+window.__mount(document.getElementById("u"), brands);
 </script>
 </body>
 </html>

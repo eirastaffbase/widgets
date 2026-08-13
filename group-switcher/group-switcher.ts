@@ -31,6 +31,8 @@ const MIN_CARD_HEIGHT = 500;
 const MIN_CARD_RATIO = 0.9;
 const MAX_CARD_RATIO = 2.4;
 const IMAGE_PROBE_TIMEOUT = 3000;
+// Ceiling on the shared logo band, so a set of tall marks can't dominate a card.
+const MAX_LOGO_BAND = 72;
 
 const PLACEHOLDER = `[
   {
@@ -445,6 +447,43 @@ async function imagesAreCardWorthy(artwork: string[]): Promise<boolean> {
   });
 }
 
+/**
+ * Give every logo the same height, without scaling any of them up.
+ *
+ * Brand assets arrive at wildly different sizes — 176x51 next to 288x25 next to
+ * 1514x902 — so left alone they render at four different heights. The height
+ * they can all reach is set by whichever is most constrained: for each one, the
+ * tallest it can be drawn without exceeding either its own pixels or the width
+ * of the card. The smallest of those is the band, so the widest mark spans the
+ * full card and every other one matches its height.
+ */
+function fitLogoBand(
+  list: HTMLElement,
+  sizes: { width: number; height: number }[],
+  p: string
+): void {
+  const mark = list.querySelector(`.${p}-mark`) as HTMLElement | null;
+  if (!mark) return;
+
+  const style = getComputedStyle(mark);
+  const available =
+    mark.clientWidth - parseFloat(style.paddingLeft || "0") - parseFloat(style.paddingRight || "0");
+  if (!(available > 0)) return;
+
+  let band = MAX_LOGO_BAND;
+  let measured = false;
+  for (const size of sizes) {
+    if (!size.width || !size.height) continue;
+    measured = true;
+    band = Math.min(band, size.height * Math.min(1, available / size.width));
+  }
+  // Without a single measurement, leave the fallback rules to size the images.
+  if (!measured) return;
+
+  list.style.setProperty(`--${p}-logo-h`, `${Math.max(Math.round(band), 8)}px`);
+  list.dataset.band = "fit";
+}
+
 /** Natural size of an image, or zeroes if it fails or takes too long. */
 function measureImage(src: string): Promise<{ width: number; height: number }> {
   return new Promise((resolve) => {
@@ -634,12 +673,15 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       }
 
       // A configured icon wins; otherwise the group's own artwork stands in.
-      // A configured icon wins; otherwise the group's own artwork stands in.
       const artwork = groups.map((g, i) => g.icon || details[i].imageUrl || "");
       // Logo mode is an explicit editor choice, so it skips the size gate. It
       // still needs a picture everywhere, or the grid would sit half empty.
       const everyEntryHasImage = artwork.every((a) => resolveIcon(a).kind === "image");
       const logoMode = fullLogos && everyEntryHasImage;
+      // Logo mode needs the sizes to level the band; the gate needs them to judge.
+      const sizes = await Promise.all(
+        logoMode ? artwork.map((a) => measureImage(resolveIcon(a).value)) : []
+      );
       const cardWorthy = logoMode || (await imagesAreCardWorthy(artwork));
 
       const memberOf = new Set(viewer.groupIDs || []);
@@ -695,6 +737,14 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
       main.innerHTML = "";
       main.appendChild(list);
+
+      if (logoMode) {
+        fitLogoBand(list, sizes, p);
+        // The band is a function of the card width, so it has to follow a resize.
+        if (typeof ResizeObserver !== "undefined") {
+          new ResizeObserver(() => fitLogoBand(list, sizes, p)).observe(list);
+        }
+      }
 
       const rows = () => Array.from(list.querySelectorAll(`.${p}-row`)) as HTMLButtonElement[];
 

@@ -128,15 +128,29 @@ behaviour above in two ways:
   too small, to pass it. A 600x160 wordmark stays a row on its own and becomes a
   card here.
 - **Cards are used at every screen size**, two to a column, picture stacked
-  above the name. The picture sits in a fixed band, 104px on wider screens and
-  74px on narrow ones, rather than a fixed ratio: contain a 4:1 wordmark in a
-  16:9 box and it floats in dead space.
+  above the name.
+- **Nothing is ever scaled up.** Brand assets are often small — a 176x51
+  wordmark stretched across a 445px card is a 2.5x upscale, and looks it.
+  Pictures are only ever scaled down.
+- **Every logo is given the same height.** The height they share is measured, not
+  fixed: for each picture the widget works out the tallest it can be drawn
+  without exceeding either its own pixels or the width of the card, then uses the
+  smallest of those. So the most constrained logo spans the full card width and
+  every other one matches its height. It is recalculated on resize.
+
+That last rule has a consequence worth knowing. **The widest logo sets the
+height for all of them.** Given a set at 176x51, 259x34 and 288x25, the 288x25
+one is 11.5:1 and can only be 25px tall before it runs out of card width, so
+every logo is drawn 25px tall. Trimming empty margin from the flattest picture
+in the set lifts all of them.
 
 The one rule it keeps is that **every entry still needs a picture**, since a
 missing one leaves a visible hole in the grid.
 
 Two columns is tight, so names and descriptions are capped at two lines each and
-the word "Switch" drops to just its arrow below 560px.
+the word "Switch" drops to just its arrow below 560px. Narrow screens leave the
+logos genuinely small, since a wide wordmark in a half-width column has nowhere
+to grow without being scaled up.
 
 Because the background is transparent, artwork is drawn against whatever the
 host page uses. A dark logo will disappear on a dark theme, so prefer a
@@ -213,6 +227,17 @@ loading state open.
 - The list is a single column, switching to two at container widths of 720px and
   up. It measures its own container, not the viewport, so a narrow sidebar stays
   single-column on a wide screen.
+- The list resets `padding-inline` and `margin-inline` as well as the plain
+  shorthands. Staffbase indents rich-text lists with `padding-inline-start:24px`
+  **and** `margin-inline-start:16px` — logical properties, which `padding:0` and
+  `margin:0` do not reliably cancel. Left alone it reads as the widget being
+  pushed off to one side.
+- That rule is `.css-x ul:not(.quick-links-widget ul)`. `:not()` takes the
+  specificity of its argument, so it weighs two classes and two elements, not
+  one class and one element. The reset repeats the list class three times to
+  outweigh it, and the media cap repeats it too so its `margin-inline:auto`
+  still centres. `preview.html` reproduces the rule verbatim, `:not()` included
+  — an approximation of it was not strong enough to catch the bug.
 - Every CSS rule is prefixed with the root class, giving each a specificity of
   0,2,0. Staffbase's rich-text styles reach the widget as `.css-xxx ul` at 0,1,1
   and would otherwise beat a bare `.gsw-list`, silently dropping `display:grid`

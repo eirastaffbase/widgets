@@ -16,8 +16,11 @@
  */
 function cardRules(p: string, logo = false): string {
   const on = logo ? `.${p} .${p}-list[data-fit="contain"]` : `.${p} .${p}-list[data-media="true"]`;
-  // Cap the columns, or a very wide host turns each card into a billboard.
-  const cap = logo ? "" : `${on}{max-width:900px;margin-inline:auto;}`;
+  // Cap the columns, or a very wide host turns each card into a billboard. The
+  // selector is armoured to outweigh the host list reset, which zeroes margin.
+  const cap = logo
+    ? ""
+    : `.${p} .${p}-list.${p}-list.${p}-list[data-media="true"]{max-width:900px;margin-inline:auto;}`;
 
   return `
     ${cap}
@@ -27,7 +30,7 @@ function cardRules(p: string, logo = false): string {
       grid-template-areas:"media media" "text cue";
       align-items:center;
       gap:0 12px;
-      padding:0 0 ${logo ? "12px" : "14px"};
+      padding:${logo ? "12px 0" : "0 0 14px"};
       overflow:hidden;
     }
     ${on} .${p}-mark{
@@ -93,6 +96,31 @@ export function styles(p: string, accent: string, accentFallbackRgb: string): st
     margin:0;padding:0;list-style:none;
   }
   .${p} .${p}-list > li{display:flex;line-height:inherit;}
+
+  /* Staffbase indents rich-text lists with both padding-inline-start:24px and
+     margin-inline-start:16px, and also forces font-size. Those are logical
+     properties, which plain padding/margin shorthands do not reliably cancel.
+     Its selector is .css-x ul:not(.quick-links-widget ul), and :not() carries
+     its argument's weight, so it lands at two classes and two elements. Repeat
+     the list class until this outweighs that, and reset every spelling.
+     The media cap re-centres with margin-inline:auto; it is armoured to match
+     and emitted later, so it still wins. */
+  .${p} .${p}-list.${p}-list.${p}-list{
+    padding:0;
+    padding-inline:0;
+    padding-block:0;
+    margin:0;
+    margin-inline:0;
+    margin-block:0;
+    font-size:inherit;
+  }
+  .${p} .${p}-list.${p}-list.${p}-list > li{
+    padding:0;
+    padding-inline:0;
+    margin:0;
+    margin-inline:0;
+    margin-block:0;
+  }
 
   /* Wide enough that two rows still read as rows, not as squeezed cards. */
   @container (min-width:720px){
@@ -161,15 +189,15 @@ ${cardRules(p)}
   /* Logo mode: images shown whole rather than cropped to fill. Opted into by
      the editor, so it skips the size gate and builds cards at every width. */
   .${p} .${p}-list[data-fit="contain"]{
-    --${p}-logo-h:74px;
+    --${p}-logo-h:46px;
     grid-template-columns:1fr 1fr;
   }
   @container (min-width:560px){
-    .${p} .${p}-list[data-fit="contain"]{--${p}-logo-h:104px;}
+    .${p} .${p}-list[data-fit="contain"]{--${p}-logo-h:60px;}
   }
   @supports not (container-type:inline-size){
     @media (min-width:700px){
-      .${p} .${p}-list[data-fit="contain"]{--${p}-logo-h:104px;}
+      .${p} .${p}-list[data-fit="contain"]{--${p}-logo-h:60px;}
     }
   }
 ${cardRules(p, true)}
@@ -186,16 +214,27 @@ ${cardRules(p, true)}
   }
   .${p} .${p}-list[data-fit="contain"] .${p}-name{-webkit-line-clamp:2;}
   .${p} .${p}-list[data-fit="contain"] .${p}-desc{-webkit-line-clamp:2;}
+  /* Padding on the frame, so a logo never touches the card edge. */
+  .${p} .${p}-list[data-fit="contain"] .${p}-mark{padding:0 10px;}
   .${p} .${p}-list[data-fit="contain"] .${p}-mark img{
+    /* Never scale a logo up. Brand assets are often tiny — a 176x51 wordmark
+       stretched across a 445px card is a 2.5x upscale, and looks it. Auto sizing
+       with max bounds means the artwork is only ever scaled down. */
+    width:auto;height:auto;
+    max-width:100%;max-height:100%;
     object-fit:contain;
-    /* Padding inside the frame, so a logo never touches the card edge. */
-    padding:12px 14px;
+    margin:auto;
+  }
+  /* Once the band has been measured every logo can fill it exactly, which is
+     what makes them share a height. The band is chosen so this never upscales. */
+  .${p} .${p}-list[data-fit="contain"][data-band="fit"] .${p}-mark img{
+    height:100%;width:auto;max-width:100%;max-height:none;
   }
   /* Two narrow columns leave no room to spell out the action, and every pixel
      the cue keeps is one the name loses to a mid-word break. */
   @container (max-width:560px){
     .${p} .${p}-list[data-fit="contain"] .${p}-cue-label{display:none;}
-    .${p} .${p}-list[data-fit="contain"] .${p}-mark img{padding:9px 10px;}
+    .${p} .${p}-list[data-fit="contain"] .${p}-mark{padding:0 6px;}
     .${p} .${p}-list[data-fit="contain"] .${p}-row{gap:0 8px;}
     .${p} .${p}-list[data-fit="contain"] .${p}-name{font-size:14px;}
     .${p} .${p}-list[data-fit="contain"] .${p}-desc{font-size:12px;}
