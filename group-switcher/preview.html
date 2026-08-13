@@ -43,6 +43,9 @@
   <div class="panel wide"><h2>Wide host, images</h2><div id="g"></div></div>
   <div class="panel wide"><h2>Wide host, tiny images</h2><div id="j"></div></div>
   <div class="panel wide"><h2>Wide host, midsize images</h2><div id="m"></div></div>
+  <div class="panel wide"><h2>Wide host, full logos</h2><div id="n"></div></div>
+  <div class="panel narrow"><h2>Narrow, full logos</h2><div id="o"></div></div>
+  <div class="panel wide"><h2>Wide host, same logos cropped</h2><div id="q"></div></div>
   <div class="panel wide"><h2>Wide host, mixed</h2><div id="k"></div></div>
   <div class="panel narrow"><h2>Narrow, images</h2><div id="h"></div></div>
   <div class="panel"><h2>Light host</h2><div id="a"></div></div>
@@ -178,6 +181,22 @@ const IMAGE_GROUPS = JSON.stringify([
   { id: "6967000000000000000000d4", icon: shot(38, 54) },
 ]);
 
+// A wide logo on a transparent ground: cropping lops off the wordmark, and any
+// plate behind it shows through, so both faults are visible at a glance.
+const logo = (h, label) =>
+  "data:image/svg+xml;base64," + btoa(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="160">' +
+    '<circle cx="80" cy="80" r="52" fill="hsl(' + h + ',60%,50%)"/>' +
+    '<text x="160" y="98" font-family="Helvetica,Arial" font-size="54" ' +
+    'font-weight="700" fill="hsl(' + h + ',45%,35%)">' + label + '</text></svg>');
+
+const LOGO_GROUPS = JSON.stringify([
+  { id: "6967000000000000000000a1", icon: logo(14, "Retail") },
+  { id: "6967000000000000000000b2", icon: logo(212, "Makers") },
+  { id: "6967000000000000000000c3", icon: logo(160, "Health") },
+  { id: "6967000000000000000000d4", icon: logo(38, "Finance") },
+]);
+
 const base = { groups: GROUPS, accentcolor: "#1f6feb", usethemecolors: "false" };
 window.__mount(document.getElementById("a"), base);
 window.__mount(document.getElementById("b"), { ...base, accentcolor: "#5ea9ff" });
@@ -191,6 +210,10 @@ window.__mount(document.getElementById("h"), { ...base, groups: IMAGE_GROUPS });
 window.__mount(document.getElementById("j"), { ...base, groups: TINY_GROUPS });
 window.__mount(document.getElementById("k"), { ...base, groups: MIXED_GROUPS });
 window.__mount(document.getElementById("m"), { ...base, groups: MIDSIZE_GROUPS });
+const logos = { ...base, groups: LOGO_GROUPS, showfulllogos: "true" };
+window.__mount(document.getElementById("n"), logos);
+window.__mount(document.getElementById("o"), logos);
+window.__mount(document.getElementById("q"), { ...base, groups: LOGO_GROUPS });
 </script>
 </body>
 </html>

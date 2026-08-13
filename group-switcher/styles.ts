@@ -4,6 +4,48 @@
 // into a host page whose theme it can't know. A row list, not a card grid: one
 // option is live at a time, which is the shape of a workspace switcher.
 
+/**
+ * Card layout: artwork on top, name and cue beneath.
+ *
+ * Emitted three times over — inside a container query, inside its width-query
+ * fallback, and unconditionally for logo mode — so it lives in one place rather
+ * than being kept in sync by hand.
+ *
+ * `logo` shortens the frame to 16:9 and drops the width cap, since logo mode
+ * also runs on narrow screens where a 4:3 card would push the text off-screen.
+ */
+function cardRules(p: string, logo = false): string {
+  const on = logo ? `.${p} .${p}-list[data-fit="contain"]` : `.${p} .${p}-list[data-media="true"]`;
+  // Cap the columns, or a very wide host turns each card into a billboard.
+  const cap = logo ? "" : `${on}{max-width:900px;margin-inline:auto;}`;
+
+  return `
+    ${cap}
+    ${on} .${p}-row{
+      display:grid;
+      grid-template-columns:1fr auto;
+      grid-template-areas:"media media" "text cue";
+      align-items:center;
+      gap:0 12px;
+      padding:0 0 ${logo ? "12px" : "14px"};
+      overflow:hidden;
+    }
+    ${on} .${p}-mark{
+      grid-area:media;
+      width:100%;border-radius:0;
+      margin-bottom:${logo ? "10px" : "13px"};
+      ${logo
+        // A fixed band, not a ratio: a wide logo contained in a 16:9 box floats
+        // in dead space. The band hugs the artwork whatever shape it is.
+        ? `height:var(--${p}-logo-h);aspect-ratio:auto;`
+        : "height:auto;aspect-ratio:4/3;"}
+    }
+    /* Big enough to hold its own next to the artwork beside it. */
+    ${on} .${p}-mark svg{width:34px;height:34px;}
+    ${on} .${p}-text{grid-area:text;padding-left:${logo ? "13px" : "15px"};}
+    ${on} .${p}-cue{grid-area:cue;padding-right:${logo ? "13px" : "15px"};}`;
+}
+
 export function styles(p: string, accent: string, accentFallbackRgb: string): string {
   return `
   .${p}.${p}{
@@ -108,43 +150,61 @@ export function styles(p: string, accent: string, accentFallbackRgb: string): st
   /* Media mode: only when entries actually carry images. A large picture frame
      around a line icon is empty weight, so icon-only lists stay as rows. */
   @container (min-width:720px){
-    /* Cap the columns, or a very wide host turns each card into a billboard. */
-    .${p} .${p}-list[data-media="true"]{max-width:900px;margin-inline:auto;}
-    .${p} .${p}-list[data-media="true"] .${p}-row{
-      display:grid;
-      grid-template-columns:1fr auto;
-      grid-template-areas:"media media" "text cue";
-      align-items:center;
-      gap:0 12px;
-      padding:0 0 14px;
-      overflow:hidden;
-    }
-    .${p} .${p}-list[data-media="true"] .${p}-mark{
-      grid-area:media;
-      width:100%;height:auto;aspect-ratio:4/3;
-      margin-bottom:13px;border-radius:0;
-    }
-    /* Big enough to hold its own next to the photographs beside it. */
-    .${p} .${p}-list[data-media="true"] .${p}-mark svg{width:34px;height:34px;}
-    .${p} .${p}-list[data-media="true"] .${p}-text{grid-area:text;padding-left:15px;}
-    .${p} .${p}-list[data-media="true"] .${p}-cue{grid-area:cue;padding-right:15px;}
+${cardRules(p)}
   }
   @supports not (container-type:inline-size){
     @media (min-width:900px){
-      .${p} .${p}-list[data-media="true"]{max-width:900px;margin-inline:auto;}
-      .${p} .${p}-list[data-media="true"] .${p}-row{
-        display:grid;
-        grid-template-columns:1fr auto;
-        grid-template-areas:"media media" "text cue";
-        align-items:center;gap:0 12px;padding:0 0 14px;overflow:hidden;
-      }
-      .${p} .${p}-list[data-media="true"] .${p}-mark{
-        grid-area:media;width:100%;height:auto;aspect-ratio:4/3;
-        margin-bottom:13px;border-radius:0;
-      }
-      .${p} .${p}-list[data-media="true"] .${p}-mark svg{width:34px;height:34px;}
-      .${p} .${p}-list[data-media="true"] .${p}-text{grid-area:text;padding-left:15px;}
-      .${p} .${p}-list[data-media="true"] .${p}-cue{grid-area:cue;padding-right:15px;}
+${cardRules(p)}
+    }
+  }
+
+  /* Logo mode: images shown whole rather than cropped to fill. Opted into by
+     the editor, so it skips the size gate and builds cards at every width. */
+  .${p} .${p}-list[data-fit="contain"]{
+    --${p}-logo-h:74px;
+    grid-template-columns:1fr 1fr;
+  }
+  @container (min-width:560px){
+    .${p} .${p}-list[data-fit="contain"]{--${p}-logo-h:104px;}
+  }
+  @supports not (container-type:inline-size){
+    @media (min-width:700px){
+      .${p} .${p}-list[data-fit="contain"]{--${p}-logo-h:104px;}
+    }
+  }
+${cardRules(p, true)}
+  /* No tile behind a logo: the plate would read as a border the artwork lacks. */
+  .${p} .${p}-list[data-fit="contain"] .${p}-mark,
+  .${p} .${p}-list[data-fit="contain"] .${p}-row[aria-current="true"] .${p}-mark{
+    background:transparent;
+    color:inherit;
+  }
+  /* Two columns is tight, so cap the text and keep the cards level. */
+  .${p} .${p}-list[data-fit="contain"] .${p}-name,
+  .${p} .${p}-list[data-fit="contain"] .${p}-desc{
+    display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden;
+  }
+  .${p} .${p}-list[data-fit="contain"] .${p}-name{-webkit-line-clamp:2;}
+  .${p} .${p}-list[data-fit="contain"] .${p}-desc{-webkit-line-clamp:2;}
+  .${p} .${p}-list[data-fit="contain"] .${p}-mark img{
+    object-fit:contain;
+    /* Padding inside the frame, so a logo never touches the card edge. */
+    padding:12px 14px;
+  }
+  /* Two narrow columns leave no room to spell out the action, and every pixel
+     the cue keeps is one the name loses to a mid-word break. */
+  @container (max-width:560px){
+    .${p} .${p}-list[data-fit="contain"] .${p}-cue-label{display:none;}
+    .${p} .${p}-list[data-fit="contain"] .${p}-mark img{padding:9px 10px;}
+    .${p} .${p}-list[data-fit="contain"] .${p}-row{gap:0 8px;}
+    .${p} .${p}-list[data-fit="contain"] .${p}-name{font-size:14px;}
+    .${p} .${p}-list[data-fit="contain"] .${p}-desc{font-size:12px;}
+    .${p} .${p}-list[data-fit="contain"] .${p}-text{padding-left:11px;}
+    .${p} .${p}-list[data-fit="contain"] .${p}-cue{padding-right:11px;}
+  }
+  @supports not (container-type:inline-size){
+    @media (max-width:560px){
+      .${p} .${p}-list[data-fit="contain"] .${p}-cue-label{display:none;}
     }
   }
 
@@ -152,13 +212,13 @@ export function styles(p: string, accent: string, accentFallbackRgb: string): st
   .${p} .${p}-name{
     display:block;
     font-size:15px;font-weight:600;line-height:1.35;letter-spacing:-.006em;
-    overflow-wrap:anywhere;
+    overflow-wrap:break-word;
   }
   .${p} .${p}-desc{
     display:block;margin-top:3px;
     font-size:13px;line-height:1.45;
     color:var(--${p}-muted);
-    overflow-wrap:anywhere;
+    overflow-wrap:break-word;
   }
 
   .${p} .${p}-cue{

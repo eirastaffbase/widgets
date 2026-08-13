@@ -51,6 +51,7 @@ const PLACEHOLDER = `[
 const configurationSchema: JSONSchema7 = {
   properties: {
     groups: { type: "string", title: "Groups (JSON)", default: PLACEHOLDER },
+    showfulllogos: { type: "boolean", title: "Show Full Logos", default: false },
     usethemecolors: { type: "boolean", title: "Use Theme Colors", default: false },
   },
   // The token is only ever read for theming, so it appears only with theming on;
@@ -78,7 +79,7 @@ const configurationSchema: JSONSchema7 = {
 };
 
 const uiSchema: UiSchema = {
-  "ui:order": ["groups", "usethemecolors", "accentcolor", "apitoken", "baseurl"],
+  "ui:order": ["groups", "showfulllogos", "usethemecolors", "accentcolor", "apitoken", "baseurl"],
   groups: {
     "ui:widget": "textarea",
     "ui:options": { rows: 14 },
@@ -94,6 +95,13 @@ const uiSchema: UiSchema = {
       "Icon names: " +
       resolveIcon.names.join(", ") +
       ".",
+  },
+  showfulllogos: {
+    "ui:help":
+      "Show each picture whole instead of cropping it to fill, on a transparent background. " +
+      "Built for wide logos, which lose their edges when cropped. Cards are used at every " +
+      "screen size, two to a row, with the picture stacked above the name. " +
+      "Requires a picture on every entry.",
   },
   usethemecolors: {
     "ui:help":
@@ -535,6 +543,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
       let accent = this.getAttribute("accentcolor") || DEFAULT_ACCENT;
       const useTheme = this.getAttribute("usethemecolors") === "true";
+      const fullLogos = this.getAttribute("showfulllogos") === "true";
       const apiToken = this.getAttribute("apitoken") || "";
       const baseUrl = (this.getAttribute("baseurl") || DEFAULT_BASE_URL).replace(/\/$/, "");
       // Must run before any request: it decides whether calls go to the app's
@@ -625,8 +634,13 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       }
 
       // A configured icon wins; otherwise the group's own artwork stands in.
+      // A configured icon wins; otherwise the group's own artwork stands in.
       const artwork = groups.map((g, i) => g.icon || details[i].imageUrl || "");
-      const cardWorthy = await imagesAreCardWorthy(artwork);
+      // Logo mode is an explicit editor choice, so it skips the size gate. It
+      // still needs a picture everywhere, or the grid would sit half empty.
+      const everyEntryHasImage = artwork.every((a) => resolveIcon(a).kind === "image");
+      const logoMode = fullLogos && everyEntryHasImage;
+      const cardWorthy = logoMode || (await imagesAreCardWorthy(artwork));
 
       const memberOf = new Set(viewer.groupIDs || []);
       let busy = false;
@@ -634,6 +648,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const list = document.createElement("ul");
       list.className = `${p}-list`;
       if (cardWorthy) list.dataset.media = "true";
+      if (logoMode) list.dataset.fit = "contain";
 
       groups.forEach((group, index) => {
         // Config wins over the API, so an editor can override either field.
@@ -743,7 +758,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
     }
 
     static get observedAttributes() {
-      return ["groups", "usethemecolors", "accentcolor", "apitoken", "baseurl"];
+      return ["groups", "showfulllogos", "usethemecolors", "accentcolor", "apitoken", "baseurl"];
     }
   };
 };
@@ -753,7 +768,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 const blockDefinition: BlockDefinition = {
   name: "group-switcher",
   label: "Group Switcher",
-  attributes: ["groups", "usethemecolors", "accentcolor", "apitoken", "baseurl"],
+  attributes: ["groups", "showfulllogos", "usethemecolors", "accentcolor", "apitoken", "baseurl"],
   factory: factory,
   configurationSchema: configurationSchema,
   uiSchema: uiSchema,

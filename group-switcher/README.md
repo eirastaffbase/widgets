@@ -23,6 +23,7 @@ Memberships outside that list are left alone.
 | Field | Required | Notes |
 | --- | --- | --- |
 | Groups (JSON) | yes | The list of groups. See below. |
+| Show Full Logos | no | Shows pictures whole instead of cropping them. See below. |
 | Use Theme Colors | no | Reads the accent from the app's branding theme. |
 | Accent Color | no | Shown only when Use Theme Colors is off. Defaults to `#1f6feb`. |
 | API Token | with theming | Staffbase Basic auth token. Theme lookup only. |
@@ -107,12 +108,39 @@ So a favicon, a 200x200 logo, a 400x300 thumbnail, a 2400x400 banner or a list
 where one entry still uses `users` all stay as rows. This is deliberate: a small
 logo blown up across a card frame looks worse than the row it replaced.
 
-Measuring happens alongside the group lookups, so it costs no extra wait, and a
-slow or broken image times out after 3 seconds and falls back to rows.
+A slow or broken image times out after 3 seconds and falls back to rows.
 
 Images are cropped to fill (`object-fit:cover`), so keep the subject near the
 centre. Any URL the viewer can reach will do, though a Staffbase media URL is
 the safer choice since it is same-origin and behind the same auth.
+
+### Show Full Logos
+
+Cropping suits photographs, where the edges carry nothing. It ruins a logo: a
+wide wordmark cropped into a 4:3 frame loses its own name. Turn **Show Full
+Logos** on and pictures are contained rather than cropped, so every one shows
+whole, on a transparent ground with no plate behind it.
+
+This is an explicit decision by the editor, so it overrides the automatic
+behaviour above in two ways:
+
+- **The size gate is skipped.** Wide logos are usually far too wide, and often
+  too small, to pass it. A 600x160 wordmark stays a row on its own and becomes a
+  card here.
+- **Cards are used at every screen size**, two to a column, picture stacked
+  above the name. The picture sits in a fixed band, 104px on wider screens and
+  74px on narrow ones, rather than a fixed ratio: contain a 4:1 wordmark in a
+  16:9 box and it floats in dead space.
+
+The one rule it keeps is that **every entry still needs a picture**, since a
+missing one leaves a visible hole in the grid.
+
+Two columns is tight, so names and descriptions are capped at two lines each and
+the word "Switch" drops to just its arrow below 560px.
+
+Because the background is transparent, artwork is drawn against whatever the
+host page uses. A dark logo will disappear on a dark theme, so prefer a
+two-colour mark or a PNG with a light halo if both themes are in play.
 
 The card grid is capped at 900px so a very wide host doesn't turn each card into
 a billboard.
@@ -209,3 +237,7 @@ loading state open.
 - A group's own image from the API is used when no `icon` is configured, so
   groups that already have artwork in Staffbase get it for free. It still has to
   clear the size bar above before the list becomes cards.
+- The card layout is generated once by `cardRules()` in `styles.ts` and emitted
+  three times: inside a container query, inside its width-query fallback, and
+  unconditionally for logo mode. Editing it in one place keeps the three from
+  drifting apart.
