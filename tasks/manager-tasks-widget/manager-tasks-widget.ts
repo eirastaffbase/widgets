@@ -44,6 +44,7 @@ const configurationSchema: JSONSchema7 = {
     showdonetasks:      { type:"boolean", title:"Include Completed Tasks",  default: true },
     enablecomments:     { type:"boolean", title:"Enable Comments (experimental)", default: false },
     enableproofreview:  { type:"boolean", title:"Enable Photo Proof Review", default: false },
+    enablecampaigns:    { type:"boolean", title:"Enable Campaign Analytics", default: false },
     allowtaskcreation:  { type:"boolean", title:"Allow Task Creation", default: true },
     allowtaskassignment:{ type:"boolean", title:"Allow Task Reassignment", default: false },
     debugmode:          { type:"boolean", title:"Debug Mode (on-screen logs)", default: false },
@@ -95,6 +96,7 @@ const uiSchema: UiSchema = {
   showdonetasks:      { "ui:help":"When enabled, completed tasks are included in the view" },
   enablecomments:     { "ui:help":"Experimental: show a comments section in the task detail panel (uses the logged-in user's session)" },
   enableproofreview:  { "ui:help":"Adds a Proof Review tab for browsing photo proof submitted on tasks. Even when off, any task that has photo proof shows a Proof section in its detail panel." },
+  enablecampaigns:    { "ui:help":"Adds an Analytics tab with task progress per campaign, and an “Assign to campaign” control in the task detail panel. Campaigns are read from the app's Campaigns API; sample campaigns are shown if it isn't reachable." },
   allowtaskcreation:  { "ui:help":"Show a “New Task” button so managers can create and assign tasks from this widget" },
   allowtaskassignment:{ "ui:help":"Allow reassigning a task (to people and/or groups) from its detail panel" },
   debugmode:          { "ui:help":"Show an on-screen log panel with a copy button — useful for debugging inside the mobile app" },
@@ -137,15 +139,116 @@ const RECUR_REGEX = /\[recur:\s*[^\]]+\]/i;
 // Priority_1, so this distinguishes them). e.g. [lvl: critical]
 const LVL_REGEX = /\[lvl:\s*([^\]]+)\]/i;
 
+// Campaign assignment stamp written by this widget: [campaign: <campaignId>].
+// The id (not the title) is stored so a renamed campaign keeps its tasks; a
+// hand-written title still resolves via a case-insensitive title lookup.
+const CAMPAIGN_REGEX = /\[campaign:\s*([^\]]+)\]/i;
+
 function stripTypeTag(text: string): string {
   return text
     .replace(TYPE_REGEX,"")
     .replace(RRULE_REGEX,"")
     .replace(RECUR_REGEX,"")
     .replace(LVL_REGEX,"")
+    .replace(CAMPAIGN_REGEX,"")
     .replace(/\[by:\s*[^\]]+\]/i,"")   // hidden creator stamp
     .replace(/\s{2,}/g," ")
     .trim();
+}
+
+function parseCampaignRef(text: string): string|null {
+  const m=CAMPAIGN_REGEX.exec(text||"");
+  return m?m[1].trim():null;
+}
+
+// Insert/replace/remove the campaign tag while leaving every other hidden tag and
+// the body text untouched. Passing an empty ref removes the tag.
+function withCampaignTag(desc: string, ref: string): string {
+  const base=desc||"";
+  if(!ref) return base.replace(CAMPAIGN_REGEX,"").replace(/[ \t]{2,}/g," ").replace(/\n{3,}/g,"\n\n").trim();
+  if(CAMPAIGN_REGEX.test(base)) return base.replace(CAMPAIGN_REGEX,`[campaign: ${ref}]`);
+  return base.trim() ? `${base.replace(/\s+$/,"")}\n[campaign: ${ref}]` : `[campaign: ${ref}]`;
+}
+
+// ── Campaigns ─────────────────────────────────────────────────────────────────
+// Shape of GET {baseUrl}/campaigns (Staffbase Studio → Planning → Campaigns).
+type CampaignStats = {
+  referencesCount?: number; postsCount?: number; emailsCount?: number;
+  totalVisitsCount?: number; totalLikesCount?: number; totalCommentsCount?: number;
+};
+type Campaign = {
+  id: string; branchId?: string; title: string; goal?: string; authorId?: string;
+  stats?: CampaignStats; startAt?: string|null; endAt?: string|null;
+  color?: string; actions?: string[]; createdAt?: string; updatedAt?: string;
+};
+
+// Used verbatim when the live endpoint isn't reachable (no session, 401/403,
+// network error). Same shape as the API response so nothing downstream changes.
+const FALLBACK_CAMPAIGNS: Campaign[] = [
+  { id:"6a39f89847e1dc20444c56af", branchId:"6a34aa7861623d2b29c9a2c5", title:"Benefits & Wellbeing",
+    goal:"Promote wellbeing programs and employee benefits awareness.", authorId:"6a39f4c05e4f7d53e4f1870c",
+    stats:{referencesCount:7,postsCount:7,emailsCount:0,totalVisitsCount:1,totalLikesCount:9,totalCommentsCount:3},
+    startAt:null, endAt:null, color:"#d9380a", actions:["READ","MANAGE"],
+    createdAt:"2026-06-23T03:08:08.700Z", updatedAt:"2026-06-23T03:08:08.700Z" },
+  { id:"6a39f8975e4f7d53e4f187ea", branchId:"6a34aa7861623d2b29c9a2c5", title:"Company News",
+    goal:"Keep employees informed on organizational updates and milestones.", authorId:"6a39f4c05e4f7d53e4f1870c",
+    stats:{referencesCount:8,postsCount:8,emailsCount:0,totalVisitsCount:0,totalLikesCount:32,totalCommentsCount:3},
+    startAt:null, endAt:null, color:"#006cff", actions:["READ","MANAGE"],
+    createdAt:"2026-06-23T03:08:07.939Z", updatedAt:"2026-06-23T03:08:07.939Z" },
+  { id:"6a39f89947e1dc20444c56c2", branchId:"6a34aa7861623d2b29c9a2c5", title:"Culture & Events",
+    goal:"Highlight company culture, events, and community moments.", authorId:"6a39f4c05e4f7d53e4f1870c",
+    stats:{referencesCount:8,postsCount:8,emailsCount:0,totalVisitsCount:0,totalLikesCount:17,totalCommentsCount:4},
+    startAt:null, endAt:null, color:"#b22d5b", actions:["READ","MANAGE"],
+    createdAt:"2026-06-23T03:08:09.450Z", updatedAt:"2026-06-23T03:08:09.450Z" },
+  { id:"6a39f89847e1dc20444c56a2", branchId:"6a34aa7861623d2b29c9a2c5", title:"Employee Spotlight",
+    goal:"Celebrate team members and share their stories across the org.", authorId:"6a39f4c05e4f7d53e4f1870c",
+    stats:{referencesCount:5,postsCount:5,emailsCount:0,totalVisitsCount:0,totalLikesCount:10,totalCommentsCount:1},
+    startAt:null, endAt:null, color:"#1d8713", actions:["READ","MANAGE"],
+    createdAt:"2026-06-23T03:08:08.325Z", updatedAt:"2026-06-23T03:08:08.325Z" },
+  { id:"6a7bd6aa8abe0f761beb5146", branchId:"6a34aa7861623d2b29c9a2c5", title:"Evaluation and Research",
+    goal:"", authorId:"6a34aa82f30250411c4c6b37",
+    stats:{referencesCount:1,postsCount:1,emailsCount:0,totalVisitsCount:0,totalLikesCount:0,totalCommentsCount:0},
+    startAt:"2026-06-01T04:00:00.000Z", endAt:"2026-08-09T03:59:59.999Z", color:"#207D9F", actions:["READ","MANAGE"],
+    createdAt:"2026-08-12T02:12:58.256Z", updatedAt:"2026-08-13T03:00:01.097Z" },
+  { id:"6a7bd5e8ebf7ef718d725159", branchId:"6a34aa7861623d2b29c9a2c5", title:"Final Inspection",
+    goal:"Go over all stocks, audits, and store materials to ensure all pieces are put together for the grand launch.",
+    authorId:"6a34aa82f30250411c4c6b37",
+    stats:{referencesCount:0,postsCount:0,emailsCount:0,totalVisitsCount:0,totalLikesCount:0,totalCommentsCount:0},
+    startAt:"2026-11-01T04:00:00.000Z", endAt:"2026-11-14T04:59:59.999Z", color:"#974FE1", actions:["READ","MANAGE"],
+    createdAt:"2026-08-12T02:09:44.746Z", updatedAt:"2026-08-13T03:00:01.072Z" },
+  { id:"6a7bd62cebf7ef718d725162", branchId:"6a34aa7861623d2b29c9a2c5", title:"Grand Launch",
+    goal:"Store launches across the region - includes promotions, marketing, and operational functions",
+    authorId:"6a34aa82f30250411c4c6b37",
+    stats:{referencesCount:0,postsCount:0,emailsCount:0,totalVisitsCount:0,totalLikesCount:0,totalCommentsCount:0},
+    startAt:"2026-11-14T05:00:00.000Z", endAt:"2026-12-01T04:59:59.999Z", color:"#D9380A", actions:["READ","MANAGE"],
+    createdAt:"2026-08-12T02:10:52.845Z", updatedAt:"2026-08-12T02:10:53.092Z" },
+  { id:"6a39f89a421c9724ef4ed296", branchId:"6a34aa7861623d2b29c9a2c5", title:"HR Announcements",
+    goal:"Communicate important HR policies, deadlines, and updates.", authorId:"6a39f4c05e4f7d53e4f1870c",
+    stats:{referencesCount:9,postsCount:9,emailsCount:0,totalVisitsCount:0,totalLikesCount:6,totalCommentsCount:0},
+    startAt:null, endAt:null, color:"#974fe1", actions:["READ","MANAGE"],
+    createdAt:"2026-06-23T03:08:10.208Z", updatedAt:"2026-06-23T03:08:10.208Z" },
+  { id:"6a7bd4ee8abe0f761beb512e", branchId:"6a34aa7861623d2b29c9a2c5", title:"Kickoff Call",
+    goal:"", authorId:"6a34aa82f30250411c4c6b37",
+    stats:{referencesCount:0,postsCount:0,emailsCount:0,totalVisitsCount:0,totalLikesCount:0,totalCommentsCount:0},
+    startAt:"2026-08-01T04:00:00.000Z", endAt:"2026-09-01T03:59:59.999Z", color:"#1D8713", actions:["READ","MANAGE"],
+    createdAt:"2026-08-12T02:05:34.100Z", updatedAt:"2026-08-13T03:00:01.009Z" },
+  { id:"6a39f899421c9724ef4ed289", branchId:"6a34aa7861623d2b29c9a2c5", title:"Leadership Updates",
+    goal:"Deliver strategic messages and priorities from leadership.", authorId:"6a39f4c05e4f7d53e4f1870c",
+    stats:{referencesCount:8,postsCount:8,emailsCount:0,totalVisitsCount:2,totalLikesCount:33,totalCommentsCount:2},
+    startAt:null, endAt:null, color:"#207d9f", actions:["READ","MANAGE"],
+    createdAt:"2026-06-23T03:08:09.837Z", updatedAt:"2026-06-23T03:08:09.837Z" },
+];
+
+// Upcoming / Active / Completed from the campaign window. Campaigns with no
+// window at all are evergreen — treated as active, rendered without a pill.
+function campaignStatus(c: Campaign): "upcoming"|"active"|"completed"|"evergreen" {
+  const now=Date.now();
+  const s=c.startAt?Date.parse(c.startAt):NaN;
+  const e=c.endAt?Date.parse(c.endAt):NaN;
+  if(isNaN(s)&&isNaN(e)) return "evergreen";
+  if(!isNaN(s)&&now<s) return "upcoming";
+  if(!isNaN(e)&&now>e) return "completed";
+  return "active";
 }
 
 // ── Color palette for type badges ─────────────────────────────────────────────
@@ -221,6 +324,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const notifyOnAssign = this.getAttribute("notifyonassign")   !== "false";
       const enableComments = this.getAttribute("enablecomments")   === "true";
       const enableProofReview = this.getAttribute("enableproofreview") === "true";
+      const enableCampaigns   = this.getAttribute("enablecampaigns")   === "true";
       const allowCreate    = this.getAttribute("allowtaskcreation") === "true";
       const allowAssign    = this.getAttribute("allowtaskassignment") === "true";
       const storeSingular  = this.getAttribute("storelabelsingular") || "Store";
@@ -254,6 +358,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         listId: string; listName: string;
         groupIds: string[]; assigneeIds: string[];
         attachmentIds: string[];
+        campaignId?: string;    // resolved from the [campaign: …] description tag
         auditSeverity?: string; // "Critical" etc., parsed from audit description
         isRecurring?: boolean;  // generated by the recurring-tasks-widget scheduler
         createDate?: string; updateDate?: string;        // for the activity feed
@@ -338,6 +443,12 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const selectedMembers          = new Set<string>(); // empty = all team members
       let teamNote                   = "";   // e.g. "no direct reports found"
       let allUsersRaw: any[] | null  = null; // full /users objects (profile, avatar)
+      // ── Campaigns ──────────────────────────────────────────────────────
+      let campaigns: Campaign[]      = [];
+      let campaignsLoaded            = false;
+      let campaignsAreSample         = false; // true when the live API wasn't reachable
+      let campaignsPromise: Promise<Campaign[]>|null = null;
+      const selectedCampaigns        = new Set<string>(); // empty = all campaigns
 
       // ── Render skeleton ────────────────────────────────────────────────
       container.innerHTML = `
@@ -622,6 +733,37 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-dash-counts{font-size:11px;color:var(--gray);white-space:nowrap;text-align:end}
           .${p}-dash-over{color:var(--error);font-weight:600}
           .${p}-dash-more{font-size:11px;color:var(--gray-lt);text-align:center;margin-top:6px}
+          /* ── Campaign analytics ── */
+          .${p}-camp-note{font-size:11.5px;color:var(--gray);background:#fafafa;border:1px dashed var(--border);border-radius:var(--r-md);padding:8px 10px;margin-bottom:12px}
+          .${p}-camp-row{padding:10px 10px 11px;margin-inline:-6px;border-radius:var(--r-md);cursor:pointer;transition:background .12s}
+          .${p}-camp-row+.${p}-camp-row{margin-top:2px}
+          .${p}-camp-row:hover{background:rgba(var(--primary-rgb),.05)}
+          .${p}-camp-row.muted{cursor:default;opacity:.62}
+          .${p}-camp-row.muted:hover{background:none}
+          .${p}-camp-row:focus-visible{outline:2px solid var(--primary);outline-offset:1px}
+          .${p}-camp-head{display:flex;align-items:center;gap:8px;min-width:0}
+          .${p}-camp-title{font-size:13px;font-weight:700;color:var(--dark);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+          .${p}-camp-pct{margin-inline-start:auto;font-size:12px;font-weight:700;color:var(--gray);flex-shrink:0}
+          .${p}-camp-dot{width:9px;height:9px;border-radius:50%;background:var(--camp,#6b7280);flex-shrink:0}
+          .${p}-camp-goal{font-size:12px;color:var(--gray);margin:3px 0 0;line-height:1.4}
+          .${p}-camp-range{font-size:11px;color:var(--gray-lt);margin-top:2px}
+          .${p}-camp-row .${p}-dash-bar{margin-top:8px}
+          .${p}-camp-counts{display:flex;flex-wrap:wrap;gap:10px;font-size:11px;color:var(--gray);margin-top:6px}
+          .${p}-camp-counts b{color:var(--dark)}
+          .${p}-camp-total{margin-inline-start:auto;color:var(--gray-lt)}
+          .${p}-camp-empty{font-size:11.5px;color:var(--gray-lt);margin-top:6px}
+          .${p}-camp-emptyh{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gray-lt);margin:14px 0 8px}
+          .${p}-camp-pill{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;padding:2px 7px;border-radius:99px;border:1px solid;flex-shrink:0}
+          .${p}-camp-pill.upcoming{color:#4A90A4;border-color:#4A90A4;background:rgba(74,144,164,.08)}
+          .${p}-camp-pill.active{color:var(--success);border-color:var(--success);background:rgba(46,125,74,.08)}
+          .${p}-camp-pill.completed{color:var(--gray);border-color:var(--border);background:#f3f4f6}
+          .${p}-camp-badge{display:inline-flex;align-items:center;gap:6px;font-weight:600;color:var(--dark)}
+          .${p}-camp-none{color:var(--gray-lt)}
+          .${p}-campaign-assign .${p}-reassign-opt{align-items:flex-start}
+          .${p}-camp-opt-txt{display:flex;flex-direction:column;gap:1px;min-width:0;flex:1}
+          .${p}-camp-opt-title{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+          .${p}-camp-opt-goal{font-size:11px;color:var(--gray-lt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+          .${p}-camp-clear{color:var(--error);font-weight:600}
           /* ── Activity log ── */
           .${p}-activity{margin-bottom:16px;background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:12px 14px;box-shadow:var(--shadow-sm)}
           .${p}-act-item{display:flex;align-items:flex-start;gap:9px;padding:7px 0;border-top:1px solid var(--border)}
@@ -821,15 +963,19 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             </div>
           </div>
 
-          ${enableProofReview?`<div class="${p}-vtabs" id="${p}-vtabs" role="tablist">
+          ${(enableProofReview||enableCampaigns)?`<div class="${p}-vtabs" id="${p}-vtabs" role="tablist">
             <button type="button" class="${p}-vtab active" id="${p}-vtab-tasks" data-view="tasks">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
               ${tr("tasksTab")}
             </button>
-            <button type="button" class="${p}-vtab" id="${p}-vtab-proof" data-view="proof">
+            ${enableProofReview?`<button type="button" class="${p}-vtab" id="${p}-vtab-proof" data-view="proof">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
               ${tr("proofTab")}
-            </button>
+            </button>`:""}
+            ${enableCampaigns?`<button type="button" class="${p}-vtab" id="${p}-vtab-analytics" data-view="analytics">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              ${tr("analyticsTab")}
+            </button>`:""}
           </div>`:""}
 
           <div id="${p}-tasks-view">
@@ -853,6 +999,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               ${showDone?`<button type="button" class="${p}-status-opt" data-status="all">${tr("both")}</button>`:""}
             </div>
             <div id="${p}-prio-dd"></div>
+            ${enableCampaigns?`<div id="${p}-camp-dd"></div>`:""}
             <div id="${p}-sort-dd"></div>
             <button type="button" class="${p}-chip" id="${p}-overdue-chip" aria-pressed="false">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -889,6 +1036,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           </div><!-- /tasks-view -->
 
           ${enableProofReview?`<div class="${p}-proof-view" id="${p}-proof-view" style="display:none"></div>`:""}
+          ${enableCampaigns?`<div class="${p}-analytics-view" id="${p}-analytics-view" style="display:none"></div>`:""}
         </div>
       `;
       
@@ -922,6 +1070,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const vtabsEl       = container.querySelector(`#${p}-vtabs`) as HTMLElement | null;
       const tasksViewEl   = container.querySelector(`#${p}-tasks-view`) as HTMLElement | null;
       const proofViewEl   = container.querySelector(`#${p}-proof-view`) as HTMLElement | null;
+      const analyticsEl   = container.querySelector(`#${p}-analytics-view`) as HTMLElement | null;
+      const campDdEl      = container.querySelector(`#${p}-camp-dd`) as HTMLElement | null;
 
       // Detail panel — appended to body so position:fixed works in Staffbase.
       // Body-appended elements + document listeners don't get cleaned up on
@@ -1261,6 +1411,67 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       }
       const CMT_CREATE_CT="application/vnd.staffbase.tasks.comment-create.v1+json";
       const CMT_HTML_ACCEPT="application/vnd.staffbase.tasks.comment.html-content.v1+json";
+
+      // ── Campaigns API ──────────────────────────────────────────────────
+      // GET {baseUrl}/campaigns?limit=…&sort=title_ASC — the Studio "Planning →
+      // Campaigns" endpoint. In the browser it's session-authenticated (cookie +
+      // CSRF), so we try the Basic token first (consistent with every other read
+      // here) and fall back to the user's session. If neither works we serve the
+      // bundled sample campaigns so the tab still demos correctly.
+      const CAMPAIGN_PAGE=100;
+      const CAMPAIGN_MAX=300;
+      async function fetchCampaignPage(cursor:string, opts:RequestInit):Promise<any>{
+        const qs=`limit=${CAMPAIGN_PAGE}&sort=title_ASC${cursor?`&cursor=${encodeURIComponent(cursor)}`:""}`;
+        const url=`${baseUrl}/campaigns?${qs}`;
+        dlog("GET campaigns",url);
+        const r=await fetch(url,{...opts,headers:{Accept:"*/*",...((opts as any).headers||{})}});
+        const raw=await r.text();
+        dlog("GET campaigns ←",r.status,raw.slice(0,200));
+        if(!r.ok) throw new Error(`HTTP ${r.status}`);
+        const d=JSON.parse(raw);
+        if(!d||!Array.isArray(d.data)) throw new Error("unexpected payload");
+        return d;
+      }
+      // Walk cursor pagination with one auth mode; throws if the first page fails.
+      async function fetchCampaignsWith(makeOpts:(e?:RequestInit)=>RequestInit):Promise<Campaign[]>{
+        const out:Campaign[]=[];
+        let cursor="";
+        for(let page=0; page<Math.ceil(CAMPAIGN_MAX/CAMPAIGN_PAGE); page++){
+          const d=await fetchCampaignPage(cursor,makeOpts());
+          for(const c of d.data as any[]) if(c&&c.id) out.push(c as Campaign);
+          cursor=typeof d.cursor==="string"?d.cursor:"";
+          if(!cursor||d.data.length<CAMPAIGN_PAGE||out.length>=CAMPAIGN_MAX) break;
+        }
+        return out;
+      }
+      async function loadCampaigns():Promise<Campaign[]>{
+        if(campaignsPromise) return campaignsPromise;
+        campaignsPromise=(async()=>{
+          let list:Campaign[]|null=null;
+          try{ list=await fetchCampaignsWith(apiOpts); }
+          catch(e:any){
+            dlog("campaigns via token failed",e.message,"— retrying with session");
+            try{ list=await fetchCampaignsWith(sessionOpts); }
+            catch(e2:any){ dlog("campaigns via session failed",e2.message,"— using sample data"); }
+          }
+          campaignsAreSample=!list||!list.length;
+          campaigns=(campaignsAreSample?FALLBACK_CAMPAIGNS.slice():list!)
+            .sort((a,b)=>(a.title||"").localeCompare(b.title||""));
+          campaignsLoaded=true;
+          return campaigns;
+        })();
+        return campaignsPromise;
+      }
+      // Tag values are ids, but tolerate a hand-written title.
+      function resolveCampaign(ref:string|undefined):Campaign|null{
+        if(!ref) return null;
+        const byId=campaigns.find(c=>c.id===ref);
+        if(byId) return byId;
+        const rl=ref.trim().toLowerCase();
+        return campaigns.find(c=>(c.title||"").trim().toLowerCase()===rl)||null;
+      }
+      const campaignTitle=(ref:string|undefined):string=>resolveCampaign(ref)?.title||ref||"";
+      const campaignColor=(ref:string|undefined):string=>resolveCampaign(ref)?.color||"#6b7280";
       // Photo-proof comments carry this marker. It flags a comment (with an image
       // attachment) as proof; the token is stripped from the visible comment body.
       const PROOF_MARK="[proof]";
@@ -1467,6 +1678,75 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         search.addEventListener("input",()=>renderResults(search.value));
         saveBtn.addEventListener("click",apply);
         clearBtn.addEventListener("click",()=>{ selUsers.clear(); selGroups.clear(); renderResults(search.value); updateFoot(); });
+      }
+      // ── Assign a task to a campaign ────────────────────────────────────
+      // The campaign lives in the task description as a hidden [campaign: id]
+      // tag, so it round-trips through the normal task API with no extra store.
+      function wireCampaignAssign(task:Task){
+        const root=detailBody.querySelector(`#${p}-campaign-${instId}`) as HTMLElement|null;
+        if(!root) return;
+        const btn=root.querySelector(`.${p}-reassign-btn`) as HTMLButtonElement;
+        const pop=root.querySelector(`.${p}-reassign-pop`) as HTMLElement;
+        const search=root.querySelector(`.${p}-reassign-search`) as HTMLInputElement;
+        const results=root.querySelector(`.${p}-reassign-results`) as HTMLElement;
+        const ckIco=`<svg class="${p}-ck" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+        const current=()=>resolveCampaign(task.campaignId);
+
+        const renderResults=(q:string)=>{
+          if(!campaignsLoaded){ results.innerHTML=`<div class="${p}-reassign-empty">${tr("loading")}</div>`; return; }
+          const ql=q.trim().toLowerCase();
+          const list=campaigns.filter(c=>!ql||(c.title||"").toLowerCase().includes(ql)||(c.goal||"").toLowerCase().includes(ql));
+          const curId=current()?.id||task.campaignId||"";
+          let html="";
+          if(task.campaignId) html+=`<div class="${p}-reassign-opt ${p}-camp-clear" data-id="">${iXsmall}<span>${tr("removeFromCampaign")}</span></div>`;
+          html+=list.length?list.map(c=>{
+            const st=campaignStatus(c);
+            return `<div class="${p}-reassign-opt${c.id===curId?" sel":""}" data-id="${esc(c.id)}">
+              <span class="${p}-camp-dot" style="--camp:${esc(c.color||"#6b7280")}"></span>
+              <span class="${p}-camp-opt-txt">
+                <span class="${p}-camp-opt-title" dir="auto">${esc(c.title||c.id)}</span>
+                ${c.goal?`<span class="${p}-camp-opt-goal" dir="auto">${esc(c.goal)}</span>`:""}
+              </span>
+              ${st==="evergreen"?"":`<span class="${p}-camp-pill ${st}">${tr(st==="upcoming"?"campUpcoming":st==="completed"?"campCompleted":"campActive")}</span>`}
+              ${ckIco}
+            </div>`;
+          }).join(""):`<div class="${p}-reassign-empty">${tr("noMatches")}</div>`;
+          results.innerHTML=html;
+          results.querySelectorAll(`.${p}-reassign-opt`).forEach(o=>o.addEventListener("click",()=>{
+            const id=(o as HTMLElement).dataset.id||"";
+            apply(id===curId?"":id); // clicking the current campaign clears it
+          }));
+        };
+
+        const apply=async(campaignRef:string)=>{
+          const prev=task.description;
+          const next=withCampaignTag(prev,campaignRef);
+          if(next===prev){ pop.style.display="none"; return; }
+          results.innerHTML=`<div class="${p}-reassign-empty">${tr("saving")}</div>`;
+          try{
+            const r=await fetch(`${baseUrl}/tasks/${task.installationId}/task/${task.id}`,
+              {method:"PATCH",...apiOpts(),body:JSON.stringify({description:next})});
+            if(!r.ok) throw new Error(`HTTP ${r.status}`);
+            task.description=next;
+            task.campaignId=campaignRef||undefined;
+            const name=campaignRef?campaignTitle(campaignRef):"";
+            postEditComment(task, campaignRef
+              ? `assigned “${task.title}” to campaign ${name}`
+              : `removed “${task.title}” from its campaign`);
+            pop.style.display="none"; hideBanner();
+            renderDetailContent(task); renderList(); renderCharts(); renderAnalyticsView();
+          }catch(e:any){
+            showBanner("error",`${tr("campaignSaveFailed")} ${e.message}`);
+            renderResults(search.value);
+          }
+        };
+
+        btn.addEventListener("click",async()=>{
+          if(pop.style.display!=="none"){ pop.style.display="none"; return; }
+          pop.style.display="block"; search.value=""; renderResults(""); search.focus();
+          if(!campaignsLoaded){ await loadCampaigns(); if(detailTask===task){ renderResults(search.value); refreshDropdowns(); } }
+        });
+        search.addEventListener("input",()=>renderResults(search.value));
       }
       function initials(name:string):string{
         const parts=name.trim().split(/\s+/);
@@ -1943,12 +2223,19 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       }
 
       // ── Filtered tasks (normal mode) ──────────────────────────────────
+      // Campaign filter: empty set = all campaigns. "__none__" matches tasks with
+      // no campaign, so a manager can find unassigned work.
+      function matchesCampaign(t:Task):boolean{
+        if(!enableCampaigns||!selectedCampaigns.size) return true;
+        const c=resolveCampaign(t.campaignId);
+        return selectedCampaigns.has(c?c.id:"__none__");
+      }
       // Shared free-text + assigned-date-range predicate. "Assigned" date comes
       // from the task's createDate metadata (when it was created/assigned).
       function matchesSearchDate(t:Task):boolean{
         if(searchQuery){
           const q=searchQuery.toLowerCase();
-          const hay=`${t.title||""} ${t.description||""}`.toLowerCase();
+          const hay=`${t.title||""} ${stripTypeTag(t.description||"")} ${enableCampaigns?campaignTitle(t.campaignId):""}`.toLowerCase();
           if(hay.indexOf(q)<0) return false;
         }
         if(assignedFrom||assignedTo){
@@ -1969,6 +2256,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         if(activeTypeFilters.size>0){const key=t.taskType||"__none__";if(!activeTypeFilters.has(key)) return false;}
         if(prioritySet.size>0&&!prioritySet.has(t.priority)) return false;
         if(overdueOnly&&!isOverdue(t)) return false;
+        if(!matchesCampaign(t)) return false;
         if(!matchesSearchDate(t)) return false;
         const isDone=t.status==="DONE"||t.status==="done"||t.status==="CLOSED";
         if(activeStatusFilter==="open"&&isDone) return false;
@@ -1986,13 +2274,14 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       // filters (team, store, type, priority, search, assigned-date) so the summary
       // reflects the same filters as the list. Status toggle + overdue chip are
       // intentionally excluded — the stats visualise that split.
-      function chartBase():Task[]{
+      function chartBase(ignoreCampaign=false):Task[]{
         return allTasks.filter(t=>{
           if(t.taskType==="audit-result") return false;
           if(!inTeam(t)) return false;
           if(activeInstallFilter!=="all"&&t.installationId!==activeInstallFilter) return false;
           if(activeTypeFilters.size>0){const key=t.taskType||"__none__";if(!activeTypeFilters.has(key)) return false;}
           if(prioritySet.size>0&&!prioritySet.has(t.priority)) return false;
+          if(!ignoreCampaign&&!matchesCampaign(t)) return false;
           if(!matchesSearchDate(t)) return false;
           return true;
         });
@@ -2126,6 +2415,128 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         });
         const toggle=chartsEl.querySelector(`#${p}-members-toggle`);
         toggle?.addEventListener("click",()=>{ membersExpanded=!membersExpanded; renderCharts(); });
+      }
+
+      // ── Campaign analytics ─────────────────────────────────────────────
+      // Task progress per campaign. Campaign names/goals/dates come from the
+      // Campaigns API (or the bundled sample set); every number below is derived
+      // from the manager's real tasks tagged with that campaign.
+      function campaignRange(c:Campaign):string{
+        const f=(iso:string|null|undefined)=>iso?formatDate(iso).text:"";
+        const s=f(c.startAt), e=f(c.endAt);
+        if(s&&e) return `${s} – ${e}`;
+        if(s) return `${tr("campFrom")} ${s}`;
+        if(e) return `${tr("campUntil")} ${e}`;
+        return "";
+      }
+      function renderAnalyticsView(){
+        if(!analyticsEl||!enableCampaigns) return;
+        if(analyticsEl.style.display==="none") return;
+        if(!campaignsLoaded){
+          analyticsEl.innerHTML=`<div class="${p}-state"><span class="${p}-spin" style="width:24px;height:24px;border-width:3px;margin:0 auto 12px;display:block"></span>${tr("loading")}</div>`;
+          loadCampaigns().then(()=>{ refreshDropdowns(); renderAnalyticsView(); });
+          return;
+        }
+        // Campaign scoping is deliberately ignored here — this view *is* the
+        // per-campaign breakdown; the other filters still apply.
+        const base=chartBase(true);
+        const tagged=base.filter(t=>!!t.campaignId);
+        const unassigned=base.length-tagged.length;
+        const done=tagged.filter(isDoneStatus).length;
+        const overdue=tagged.filter(isOverdue).length;
+        const open=tagged.length-done;
+        const pct=tagged.length?done/tagged.length*100:0;
+
+        const rows=campaigns.map(c=>{
+          const mine=base.filter(t=>resolveCampaign(t.campaignId)?.id===c.id);
+          const cDone=mine.filter(isDoneStatus).length;
+          const cOver=mine.filter(isOverdue).length;
+          return {c, total:mine.length, done:cDone, open:mine.length-cDone, overdue:cOver,
+                  pct:mine.length?Math.round(cDone/mine.length*100):0};
+        });
+        // Unknown campaign refs (tag points at a campaign this user can't see) are
+        // still worth surfacing rather than silently dropping.
+        const orphanRefs=new Set<string>();
+        tagged.forEach(t=>{ if(!resolveCampaign(t.campaignId)) orphanRefs.add(t.campaignId!); });
+        orphanRefs.forEach(ref=>{
+          const mine=base.filter(t=>t.campaignId===ref);
+          const cDone=mine.filter(isDoneStatus).length;
+          rows.push({ c:{id:ref,title:ref,color:"#6b7280"} as Campaign, total:mine.length, done:cDone,
+                      open:mine.length-cDone, overdue:mine.filter(isOverdue).length,
+                      pct:mine.length?Math.round(cDone/mine.length*100):0 });
+        });
+        const active=rows.filter(r=>r.total>0).sort((a,b)=>b.total-a.total||(a.c.title||"").localeCompare(b.c.title||""));
+        const empty =rows.filter(r=>r.total===0).sort((a,b)=>(a.c.title||"").localeCompare(b.c.title||""));
+        const maxTotal=Math.max(1,...active.map(r=>r.total));
+
+        const row=(r:typeof rows[0],muted:boolean)=>{
+          const st=campaignStatus(r.c);
+          const onTrack=Math.max(0,r.open-r.overdue);
+          const w=(n:number)=>r.total?Math.round(n/maxTotal*100):0;
+          const range=campaignRange(r.c);
+          return `<div class="${p}-camp-row${muted?" muted":""}" data-cid="${esc(r.c.id)}" role="button" tabindex="0">
+            <div class="${p}-camp-head">
+              <span class="${p}-camp-dot" style="--camp:${esc(r.c.color||"#6b7280")}"></span>
+              <span class="${p}-camp-title" dir="auto">${esc(r.c.title||r.c.id)}</span>
+              ${st==="evergreen"?"":`<span class="${p}-camp-pill ${st}">${tr(st==="upcoming"?"campUpcoming":st==="completed"?"campCompleted":"campActive")}</span>`}
+              <span class="${p}-camp-pct">${muted?"":`${r.pct}%`}</span>
+            </div>
+            ${r.c.goal?`<div class="${p}-camp-goal" dir="auto">${esc(r.c.goal)}</div>`:""}
+            ${range?`<div class="${p}-camp-range">${esc(range)}</div>`:""}
+            ${muted?`<div class="${p}-camp-empty">${tr("noCampaignTasks")}</div>`:`
+            <div class="${p}-dash-bar">
+              <div class="${p}-dash-seg done" style="width:${w(r.done)}%" title="${tr("done")}: ${r.done}"></div>
+              <div class="${p}-dash-seg open" style="width:${w(onTrack)}%" title="${tr("open")}: ${onTrack}"></div>
+              <div class="${p}-dash-seg over" style="width:${w(r.overdue)}%" title="${tr("overdueLabel")}: ${r.overdue}"></div>
+            </div>
+            <div class="${p}-camp-counts">
+              <span><b>${r.done}</b> ${tr("done").toLowerCase()}</span>
+              <span><b>${onTrack}</b> ${tr("open").toLowerCase()}</span>
+              ${r.overdue?`<span class="${p}-dash-over"><b>${r.overdue}</b> ${tr("overdueLabel").toLowerCase()}</span>`:""}
+              <span class="${p}-camp-total">${r.total} ${tr("totalLabel")}</span>
+            </div>`}
+          </div>`;
+        };
+
+        analyticsEl.innerHTML=`
+          <div class="${p}-dash">
+            ${campaignsAreSample?`<div class="${p}-camp-note">${tr("campaignsSample")}</div>`:""}
+            <div class="${p}-stat-grid">
+              <div class="${p}-stat">
+                ${donut(pct, pct>=66?"var(--success)":pct>=33?"#D97706":"var(--error)")}
+                <div class="${p}-stat-meta"><div class="${p}-stat-lbl">${tr("completionRate")}</div><div class="${p}-stat-sub">${done}/${tagged.length} ${tr("done").toLowerCase()}</div></div>
+              </div>
+              <div class="${p}-stat">
+                <div class="${p}-stat-num ${overdue?"bad":""}">${overdue}</div>
+                <div class="${p}-stat-meta"><div class="${p}-stat-lbl">${tr("overdueStat")}</div><div class="${p}-stat-sub">${tr("ofNOpen").replace("{n}",String(open))}</div></div>
+              </div>
+              <div class="${p}-stat">
+                <div class="${p}-stat-num">${active.length}</div>
+                <div class="${p}-stat-meta"><div class="${p}-stat-lbl">${tr("campaignsWithTasks")}</div><div class="${p}-stat-sub">${campaigns.length} ${tr("totalLabel")}</div></div>
+              </div>
+              <div class="${p}-stat">
+                <div class="${p}-stat-num">${unassigned}</div>
+                <div class="${p}-stat-meta"><div class="${p}-stat-lbl">${tr("noCampaign")}</div><div class="${p}-stat-sub">${tr("ofNTasks").replace("{n}",String(base.length))}</div></div>
+              </div>
+            </div>
+            <div class="${p}-dash-members">
+              <div class="${p}-dash-h">${tr("progressByCampaign")}</div>
+              ${active.length?active.map(r=>row(r,false)).join(""):`<div class="${p}-dash-empty">${tr("noCampaignTasksAny")}</div>`}
+              ${empty.length?`<div class="${p}-camp-emptyh">${tr("campaignsNoTasks")}</div>${empty.map(r=>row(r,true)).join("")}`:""}
+            </div>
+          </div>`;
+
+        // Drill-down: a campaign row filters the Tasks view to that campaign.
+        analyticsEl.querySelectorAll(`.${p}-camp-row[data-cid]`).forEach(el=>{
+          const go=()=>{
+            const cid=(el as HTMLElement).dataset.cid||"";
+            selectedCampaigns.clear(); selectedCampaigns.add(cid);
+            refreshDropdowns(); renderList(); renderCharts();
+            switchView("tasks");
+          };
+          el.addEventListener("click",go);
+          el.addEventListener("keydown",(ev)=>{ const k=(ev as KeyboardEvent).key; if(k==="Enter"||k===" "){ ev.preventDefault(); go(); } });
+        });
       }
 
       // ── Activity feed ──────────────────────────────────────────────────
@@ -2660,6 +3071,17 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         selected:()=>prioritySet,
         onChange:(next)=>{ prioritySet.clear(); next.forEach(v=>prioritySet.add(v)); renderList(); },
       });
+      // Campaign filter — options are populated once loadCampaigns() resolves, so
+      // it's built eagerly and refreshed via refreshDropdowns().
+      if(campDdEl) makeDropdown({
+        wrap:campDdEl, multi:true, allLabel:tr("allCampaigns"),
+        options:()=>[
+          ...campaigns.map(c=>({value:c.id,label:c.title||c.id,color:c.color||"#6b7280"})),
+          {value:"__none__",label:tr("noCampaign")},
+        ],
+        selected:()=>selectedCampaigns,
+        onChange:(next)=>{ selectedCampaigns.clear(); next.forEach(v=>selectedCampaigns.add(v)); renderList(); renderCharts(); },
+      });
       if(sortDdEl) makeDropdown({
         wrap:sortDdEl, multi:false, allLabel:tr("sortDue"),
         options:()=>[
@@ -2852,6 +3274,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         const iList=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`;
         const iGroup=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
         const iUser=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
+        const iCampaign=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>`;
 
         // Assignee section: group vs person tabs (only shown when there are groups or assignees)
         const hasGroup=task.groupIds.length>0;
@@ -2888,6 +3311,22 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             ${task.installationTitle?`<div class="${p}-detail-meta-row">${iStore} ${esc(task.installationTitle)}</div>`:""}
             ${task.listName?`<div class="${p}-detail-meta-row">${iList} ${esc(task.listName)}</div>`:""}
             ${assigneeHtml}
+            ${enableCampaigns?(()=>{
+              const c=resolveCampaign(task.campaignId);
+              const cur=c
+                ?`<span class="${p}-camp-badge" style="--camp:${esc(c.color||"#6b7280")}"><span class="${p}-camp-dot"></span><span dir="auto">${esc(c.title||"")}</span></span>`
+                :(task.campaignId
+                  ?`<span class="${p}-camp-badge" style="--camp:#6b7280"><span class="${p}-camp-dot"></span><span dir="auto">${esc(task.campaignId)}</span></span>`
+                  :`<span class="${p}-camp-none">${tr("noCampaign")}</span>`);
+              return `<div class="${p}-detail-meta-row">${iCampaign} ${cur}</div>
+              <div class="${p}-reassign ${p}-campaign-assign" id="${p}-campaign-${instId}">
+                <button type="button" class="${p}-reassign-btn" data-act="open">${iCampaign} ${task.campaignId?tr("changeCampaign"):tr("assignToCampaign")}</button>
+                <div class="${p}-reassign-pop" style="display:none">
+                  <input type="text" class="${p}-reassign-search" placeholder="${tr("searchCampaigns")}">
+                  <div class="${p}-reassign-results"></div>
+                </div>
+              </div>`;
+            })():""}
             ${allowAssign?`<div class="${p}-reassign" id="${p}-reassign-${instId}">
               <button type="button" class="${p}-reassign-btn" data-act="open"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> ${(task.groupIds.length||task.assigneeIds.length)?tr("reassign"):tr("assign")}</button>
               <div class="${p}-reassign-pop" style="display:none">
@@ -2959,6 +3398,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
         // Reassign control (manager view: gated only by allowtaskassignment)
         if(allowAssign) wireReassign(task);
+        if(enableCampaigns) wireCampaignAssign(task);
 
         if(enableComments){
           renderComments(task);
@@ -3475,6 +3915,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
                     listName:lname,
                     groupIds:t.groupIds||[], assigneeIds:t.assigneeIds||[],
                     attachmentIds:t.attachmentIds||[],
+                    campaignId:parseCampaignRef(desc)||undefined,
                     auditSeverity:lvlCritical?"Critical":(sevM?sevM[1]:undefined),
                     isRecurring:RECUR_REGEX.test(desc),
                     createDate:t.createDate||undefined, updateDate:t.updateDate||undefined,
@@ -3518,21 +3959,25 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         refreshBtn.innerHTML=`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`;
         // Keep the proof gallery fresh if the manager is viewing it on refresh.
         if(proofViewEl && proofViewEl.style.display!=="none") renderProofView();
+        if(analyticsEl && analyticsEl.style.display!=="none") renderAnalyticsView();
       }
 
       refreshBtn.addEventListener("click",load);
 
-      // ── Proof Review view switching ────────────────────────────────────
+      // ── View switching (Tasks / Proof Review / Campaign Analytics) ─────
       const switchView = (view:string)=>{
-        const proof = view==="proof";
-        if(tasksViewEl) tasksViewEl.style.display = proof?"none":"";
-        if(proofViewEl) proofViewEl.style.display = proof?"":"none";
+        if(view==="proof"&&!proofViewEl) view="tasks";
+        if(view==="analytics"&&!analyticsEl) view="tasks";
+        if(tasksViewEl) tasksViewEl.style.display = view==="tasks"?"":"none";
+        if(proofViewEl) proofViewEl.style.display = view==="proof"?"":"none";
+        if(analyticsEl) analyticsEl.style.display = view==="analytics"?"":"none";
         vtabsEl?.querySelectorAll(`.${p}-vtab`).forEach(b=>{
           b.classList.toggle("active",(b as HTMLElement).dataset.view===view);
         });
         // Rebuild the gallery each time it's shown so its filter bar reflects the
         // current shared filter state (store / person / search / assigned date).
-        if(proof) renderProofView();
+        if(view==="proof") renderProofView();
+        if(view==="analytics") renderAnalyticsView();
       };
       vtabsEl?.querySelectorAll(`.${p}-vtab`).forEach(btn=>{
         btn.addEventListener("click",()=>switchView((btn as HTMLElement).dataset.view||"tasks"));
@@ -3694,6 +4139,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         overlayEl.addEventListener("click",closeCreate);
       }
 
+      // Campaigns power the filter dropdown and the detail-panel picker — fetch
+      // them alongside the initial task load so both are ready on first open.
+      if(enableCampaigns) loadCampaigns().then(()=>{ refreshDropdowns(); renderAnalyticsView(); });
+
       load();
     }
 
@@ -3715,7 +4164,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
     }
 
     static get observedAttributes(){
-      return ["apitoken","baseurl","usethemecolors","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","typecolors","teamsource","teamuserids","showcharts","notifyonassign","showdonetasks","enablecomments","allowtaskcreation","allowtaskassignment","debugmode"];
+      return ["apitoken","baseurl","usethemecolors","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","typecolors","teamsource","teamuserids","showcharts","notifyonassign","showdonetasks","enablecomments","enableproofreview","enablecampaigns","allowtaskcreation","allowtaskassignment","debugmode"];
     }
   };
 };
@@ -3724,7 +4173,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
 const blockDefinition: BlockDefinition = {
   name:"manager-tasks-widget", label:"Manager Tasks Widget",
-  attributes:["apitoken","baseurl","usethemecolors","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","typecolors","teamsource","teamuserids","showcharts","notifyonassign","showdonetasks","enablecomments","enableproofreview","allowtaskcreation","allowtaskassignment","debugmode","limitheight","maxheight"],
+  attributes:["apitoken","baseurl","usethemecolors","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","typecolors","teamsource","teamuserids","showcharts","notifyonassign","showdonetasks","enablecomments","enableproofreview","enablecampaigns","allowtaskcreation","allowtaskassignment","debugmode","limitheight","maxheight"],
   factory, configurationSchema, uiSchema, blockLevel:"block", iconUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNzEgMTcxIj48Y2lyY2xlIGN4PSI4NS41IiBjeT0iODUuNSIgcj0iODUuNSIgZmlsbD0iIzRGNDZFNSIvPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQzLjUgNDMuNSkgc2NhbGUoMy41KSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHJlY3Qgd2lkdGg9IjgiIGhlaWdodD0iNCIgeD0iOCIgeT0iMiIgcng9IjEiIHJ5PSIxIi8+PHBhdGggZD0iTTE2IDRoMmEyIDIgMCAwIDEgMiAydjE0YTIgMiAwIDAgMS0yIDJINmEyIDIgMCAwIDEtMi0yVjZhMiAyIDAgMCAxIDItMmgyIi8+PHBhdGggZD0ibTkgMTQgMiAyIDQtNCIvPjwvZz48L3N2Zz4=",
 };
 
