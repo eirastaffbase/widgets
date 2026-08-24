@@ -69,6 +69,14 @@ const configurationSchema: JSONSchema7 = {
         },
       ],
     },
+    // When "Enable Campaign Analytics" is on, expose the demo-alignment switch.
+    enablecampaigns: {
+      oneOf: [
+        { properties: { enablecampaigns: { const: false } } },
+        { properties: { enablecampaigns: { const: true },
+                        dummyalignment: { type:"boolean", title:"Use Sample Alignment Scores", default:false } } },
+      ],
+    },
     // When "Limit Height" is on, reveal the Max Height field.
     limitheight: {
       oneOf: [
@@ -97,6 +105,7 @@ const uiSchema: UiSchema = {
   enablecomments:     { "ui:help":"Experimental: show a comments section in the task detail panel (uses the logged-in user's session)" },
   enableproofreview:  { "ui:help":"Adds a Proof Review tab for browsing photo proof submitted on tasks. Even when off, any task that has photo proof shows a Proof section in its detail panel." },
   enablecampaigns:    { "ui:help":"Adds an Analytics tab with task progress per campaign, and an “Assign to campaign” control in the task detail panel. Campaigns are read from the app's Campaigns API; sample campaigns are shown if it isn't reachable." },
+  dummyalignment:     { "ui:help":"Demo only: show sample Alignment Survey scores in the Analytics tab, ignoring the real numbers. Use this in environments where no Alignment Surveys have responses yet. A note tells viewers the scores are sample data." },
   allowtaskcreation:  { "ui:help":"Show a “New Task” button so managers can create and assign tasks from this widget" },
   allowtaskassignment:{ "ui:help":"Allow reassigning a task (to people and/or groups) from its detail panel" },
   debugmode:          { "ui:help":"Show an on-screen log panel with a copy button — useful for debugging inside the mobile app" },
@@ -307,23 +316,34 @@ type CampaignRanking = {
 // Staffbase hides alignment results until enough people have answered.
 const ALIGN_MIN_PARTICIPANTS = 5;
 
-// Demo alignment data, keyed by the 7-Eleven demo campaign ids. That environment
-// has no Alignment Surveys enabled, so there's nothing real to show — this fills
-// the gap for the demo only. It is keyed by id on purpose: it can never invent
-// numbers for another tenant's campaigns, and any campaign the rankings endpoint
-// actually reports on always wins over the entry here.
+// Sample alignment for the 7-Eleven demo environment, keyed by campaign id. Those
+// campaigns have Alignment Surveys enabled but no responses, so there's nothing
+// real to display — these give the demo a realistic spread. Only used when the
+// "Use Sample Alignment Scores" config toggle is on; any campaign outside this
+// map falls back to synthAlignment().
 const DEMO_ALIGNMENT: Record<string, {score:number;participants:number;hasSurvey:boolean}> = {
   "6a39f89847e1dc20444c56af": { score:4.3636363636363635, participants:22, hasSurvey:true }, // Benefits & Wellbeing
   "6a39f8975e4f7d53e4f187ea": { score:3.8518518518518516, participants:31, hasSurvey:true }, // Company News
   "6a39f89947e1dc20444c56c2": { score:4.611111111111111,  participants:18, hasSurvey:true }, // Culture & Events
   "6a39f89847e1dc20444c56a2": { score:4.111111111111111,  participants:12, hasSurvey:true }, // Employee Spotlight
   "6a7bd6aa8abe0f761beb5146": { score:0,                  participants:0,  hasSurvey:false },// Evaluation and Research — no survey
-  "6a7bd5e8ebf7ef718d725159": { score:0,                  participants:0,  hasSurvey:true }, // Final Inspection — survey live, no answers yet
-  "6a7bd62cebf7ef718d725162": { score:4.0,                participants:3,  hasSurvey:true }, // Grand Launch — under the privacy floor
+  "6a7bd5e8ebf7ef718d725159": { score:4.0,                participants:3,  hasSurvey:true }, // Final Inspection — under the privacy floor
+  "6a7bd62cebf7ef718d725162": { score:4.235294117647059,  participants:17, hasSurvey:true }, // Grand Launch
   "6a39f89a421c9724ef4ed296": { score:3.2407407407407405, participants:27, hasSurvey:true }, // HR Announcements
   "6a7bd4ee8abe0f761beb512e": { score:2.7142857142857144, participants:9,  hasSurvey:true }, // Kickoff Call
   "6a39f899421c9724ef4ed289": { score:3.975609756097561,  participants:41, hasSurvey:true }, // Leadership Updates
 };
+
+// Deterministic sample alignment for any campaign not in DEMO_ALIGNMENT, derived
+// from the campaign id so a given campaign always shows the same numbers. These
+// always clear the privacy floor — the toggle exists to make scores visible, and
+// the seeded set above already covers the no-survey / below-floor states.
+function synthAlignment(id: string): {score:number;participants:number;hasSurvey:boolean} {
+  let h=0; for(let i=0;i<id.length;i++) h=(h*31+id.charCodeAt(i))>>>0;
+  const participants=ALIGN_MIN_PARTICIPANTS+3+(h>>3)%35;               // 8–42 responses
+  const score=2.4+((h>>11)%230)/100;                                   // 2.40–4.69
+  return {score,participants,hasSurvey:true};
+}
 
 // Reportable = survey exists AND enough answers to clear the privacy floor.
 function alignmentReportable(r: CampaignRanking|null|undefined): boolean {
@@ -367,6 +387,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const enableComments = this.getAttribute("enablecomments")   === "true";
       const enableProofReview = this.getAttribute("enableproofreview") === "true";
       const enableCampaigns   = this.getAttribute("enablecampaigns")   === "true";
+      const dummyAlignment    = this.getAttribute("dummyalignment")    === "true";
       const allowCreate    = this.getAttribute("allowtaskcreation") === "true";
       const allowAssign    = this.getAttribute("allowtaskassignment") === "true";
       const storeSingular  = this.getAttribute("storelabelsingular") || "Store";
@@ -1545,16 +1566,21 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         }
         rankings.clear();
         for(const r of rows||[]) if(r&&r.campaignId) rankings.set(r.campaignId,r);
-        // Demo fill-in: only for the known 7-Eleven campaign ids, and only where
-        // the live endpoint reported nothing at all for that campaign.
+        // Sample alignment is opt-in via config. Demo environments have surveys
+        // enabled but no responses, so there's nothing real to show — when the
+        // toggle is on we replace the alignment fields outright (the rest of the
+        // ranking row, e.g. visitors/emails, stays live).
         alignmentIsDemo=false;
-        for(const c of campaigns){
-          const demo=DEMO_ALIGNMENT[c.id];
-          if(!demo||rankings.has(c.id)) continue;
-          rankings.set(c.id,{ campaignId:c.id, campaignTitle:c.title,
-            alignmentScore:demo.score, alignmentParticipantsCount:demo.participants,
-            hasAlignmentSurvey:demo.hasSurvey });
-          alignmentIsDemo=true;
+        if(dummyAlignment){
+          for(const c of campaigns){
+            const demo=DEMO_ALIGNMENT[c.id]||synthAlignment(c.id);
+            const live=rankings.get(c.id);
+            rankings.set(c.id,{ ...(live||{campaignId:c.id,campaignTitle:c.title}),
+              campaignId:c.id,
+              alignmentScore:demo.score, alignmentParticipantsCount:demo.participants,
+              hasAlignmentSurvey:demo.hasSurvey });
+          }
+          alignmentIsDemo=campaigns.length>0;
         }
         rankingsLoaded=true;
       }
@@ -4295,7 +4321,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
     }
 
     static get observedAttributes(){
-      return ["apitoken","baseurl","usethemecolors","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","typecolors","teamsource","teamuserids","showcharts","notifyonassign","showdonetasks","enablecomments","enableproofreview","enablecampaigns","allowtaskcreation","allowtaskassignment","debugmode"];
+      return ["apitoken","baseurl","usethemecolors","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","typecolors","teamsource","teamuserids","showcharts","notifyonassign","showdonetasks","enablecomments","enableproofreview","enablecampaigns","dummyalignment","allowtaskcreation","allowtaskassignment","debugmode"];
     }
   };
 };
@@ -4304,7 +4330,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
 const blockDefinition: BlockDefinition = {
   name:"manager-tasks-widget", label:"Manager Tasks Widget",
-  attributes:["apitoken","baseurl","usethemecolors","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","typecolors","teamsource","teamuserids","showcharts","notifyonassign","showdonetasks","enablecomments","enableproofreview","enablecampaigns","allowtaskcreation","allowtaskassignment","debugmode","limitheight","maxheight"],
+  attributes:["apitoken","baseurl","usethemecolors","primarycolor","accentcolor","backgroundcolor","storelabelsingular","storelabelplural","typecolors","teamsource","teamuserids","showcharts","notifyonassign","showdonetasks","enablecomments","enableproofreview","enablecampaigns","dummyalignment","allowtaskcreation","allowtaskassignment","debugmode","limitheight","maxheight"],
   factory, configurationSchema, uiSchema, blockLevel:"block", iconUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNzEgMTcxIj48Y2lyY2xlIGN4PSI4NS41IiBjeT0iODUuNSIgcj0iODUuNSIgZmlsbD0iIzRGNDZFNSIvPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQzLjUgNDMuNSkgc2NhbGUoMy41KSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHJlY3Qgd2lkdGg9IjgiIGhlaWdodD0iNCIgeD0iOCIgeT0iMiIgcng9IjEiIHJ5PSIxIi8+PHBhdGggZD0iTTE2IDRoMmEyIDIgMCAwIDEgMiAydjE0YTIgMiAwIDAgMS0yIDJINmEyIDIgMCAwIDEtMi0yVjZhMiAyIDAgMCAxIDItMmgyIi8+PHBhdGggZD0ibTkgMTQgMiAyIDQtNCIvPjwvZz48L3N2Zz4=",
 };
 
