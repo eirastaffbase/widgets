@@ -1,0 +1,2 @@
+# Run manifests contain tenant task ids and are per-run state, not source.
+backfill-manifest-*.json

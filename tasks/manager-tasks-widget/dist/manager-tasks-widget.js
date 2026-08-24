@@ -1036,6 +1036,8 @@ const STRINGS = {
         noCampaignTasks: "No tasks assigned",
         noCampaignTasksAny: "No tasks have been assigned to a campaign yet.",
         ofNTasks: "of {n} tasks",
+        openInTasks: "Open in Tasks",
+        campMoreTasks: "+{n} more tasks",
         saving: "Saving…",
         alignmentScore: "Alignment",
         alignmentAcross: "{c} campaigns · {n} responses",
@@ -1172,6 +1174,8 @@ const STRINGS = {
         noCampaignTasks: "Keine Aufgaben zugewiesen",
         noCampaignTasksAny: "Bisher wurden keine Aufgaben einer Kampagne zugewiesen.",
         ofNTasks: "von {n} Aufgaben",
+        openInTasks: "In Aufgaben öffnen",
+        campMoreTasks: "+{n} weitere Aufgaben",
         saving: "Wird gespeichert…",
         alignmentScore: "Alignment",
         alignmentAcross: "{c} Kampagnen · {n} Antworten",
@@ -1307,6 +1311,8 @@ const STRINGS = {
         noCampaignTasks: "لا توجد مهام مسندة",
         noCampaignTasksAny: "لم يتم إسناد أي مهام إلى حملة بعد.",
         ofNTasks: "من {n} مهمة",
+        openInTasks: "فتح في المهام",
+        campMoreTasks: "+{n} مهام أخرى",
         saving: "جارٍ الحفظ…",
         alignmentScore: "التوافق",
         alignmentAcross: "{c} حملات · {n} استجابة",
@@ -2957,6 +2963,15 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const EDIT_MARK = "[tasks:edit]"; // hidden audit-comment marker
                 let activeTypeFilters = new Set();
                 let activeStatusFilter = "open";
+                // Single source of truth for the status toggle: assigns the filter AND
+                // syncs the button pills, so programmatic changes (e.g. the campaign
+                // drill-down) can't leave the UI showing a different state than the list.
+                function setStatusFilter(v) {
+                    activeStatusFilter = v;
+                    container.querySelectorAll(`.${p}-status-opt`).forEach((b) => {
+                        b.classList.toggle("active", b.dataset.status === v);
+                    });
+                }
                 let activeInstallFilter = "all";
                 // ── Manager filters / sort ─────────────────────────────────────────
                 const prioritySet = new Set(); // empty = all priorities
@@ -3029,6 +3044,9 @@ const factory = (BaseBlockClass, widgetApi) => {
                 let rankingsLoaded = false;
                 let alignmentIsDemo = false; // true when demo alignment filled a gap
                 const selectedCampaigns = new Set(); // empty = all campaigns
+                // Campaign rows expanded in the Analytics tab. Kept outside the render so
+                // a refresh/re-render doesn't collapse what the manager was reading.
+                const expandedCampaigns = new Set();
                 // ── Render skeleton ────────────────────────────────────────────────
                 container.innerHTML = `
         <style>
@@ -3314,13 +3332,37 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-dash-more{font-size:11px;color:var(--gray-lt);text-align:center;margin-top:6px}
           /* ── Campaign analytics ── */
           .${p}-camp-note{font-size:11.5px;color:var(--gray);background:#fafafa;border:1px dashed var(--border);border-radius:var(--r-md);padding:8px 10px;margin-bottom:12px}
-          .${p}-camp-row{padding:10px 10px 11px;margin-inline:-6px;border-radius:var(--r-md);cursor:pointer;transition:background .12s}
+          .${p}-camp-row{padding:10px 10px 11px;margin-inline:-6px;border-radius:var(--r-md);transition:background .12s}
           .${p}-camp-row+.${p}-camp-row{margin-top:2px}
           .${p}-camp-row:hover{background:rgba(var(--primary-rgb),.05)}
+          .${p}-camp-row.open{background:rgba(var(--primary-rgb),.05)}
           .${p}-camp-row.muted{cursor:default;opacity:.62}
           .${p}-camp-row.muted:hover{background:none}
           .${p}-camp-row:focus-visible{outline:2px solid var(--primary);outline-offset:1px}
           .${p}-camp-head{display:flex;align-items:center;gap:8px;min-width:0}
+          .${p}-camp-head[data-camp-toggle]{cursor:pointer}
+          .${p}-camp-head:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:var(--r-sm)}
+          .${p}-camp-caret{display:flex;align-items:center;color:var(--gray-lt);flex-shrink:0;transition:transform .15s}
+          [dir="rtl"] .${p}-camp-caret{transform:scaleX(-1)}
+          .${p}-camp-row.open .${p}-camp-caret{transform:rotate(90deg)}
+          [dir="rtl"] .${p}-camp-row.open .${p}-camp-caret{transform:scaleX(-1) rotate(90deg)}
+          .${p}-camp-open{flex-shrink:0;font:inherit;font-size:10.5px;font-weight:700;color:var(--primary);background:none;border:1px solid var(--border);border-radius:99px;padding:2px 9px;cursor:pointer;opacity:0;transition:opacity .12s,background .12s}
+          .${p}-camp-row:hover .${p}-camp-open,.${p}-camp-row.open .${p}-camp-open,.${p}-camp-open:focus-visible{opacity:1}
+          .${p}-camp-open:hover{background:rgba(var(--primary-rgb),.1)}
+          .${p}-camp-tasks{margin-top:8px;border-top:1px solid var(--border);padding-top:4px}
+          .${p}-camp-task{display:flex;align-items:center;gap:8px;padding:6px 4px;border-radius:var(--r-sm);cursor:pointer;min-width:0}
+          .${p}-camp-task:hover{background:rgba(var(--primary-rgb),.08)}
+          .${p}-camp-task:focus-visible{outline:2px solid var(--primary);outline-offset:-2px}
+          .${p}-camp-task.done .${p}-camp-task-title{text-decoration:line-through;color:var(--gray-lt)}
+          .${p}-camp-task-dot{width:7px;height:7px;border-radius:50%;background:var(--gray-lt);flex-shrink:0}
+          .${p}-camp-task-dot.done{background:var(--success)}
+          .${p}-camp-task-dot.over{background:var(--error)}
+          .${p}-camp-task-title{font-size:12px;color:var(--dark);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1}
+          .${p}-camp-task-meta{display:flex;gap:8px;font-size:10.5px;color:var(--gray-lt);flex-shrink:0;white-space:nowrap}
+          .${p}-camp-task-meta .over{color:var(--error);font-weight:700}
+          .${p}-camp-more{display:block;width:100%;margin-top:4px;font:inherit;font-size:11px;font-weight:700;color:var(--primary);background:none;border:none;padding:6px;cursor:pointer;border-radius:var(--r-sm)}
+          .${p}-camp-more:hover{background:rgba(var(--primary-rgb),.08)}
+          @media (max-width:520px){ .${p}-camp-task-meta{display:none} .${p}-camp-open{opacity:1} }
           .${p}-camp-title{font-size:13px;font-weight:700;color:var(--dark);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
           .${p}-camp-pct{margin-inline-start:auto;font-size:12px;font-weight:700;color:var(--gray);flex-shrink:0}
           .${p}-camp-dot{width:9px;height:9px;border-radius:50%;background:var(--camp,#6b7280);flex-shrink:0}
@@ -5537,7 +5579,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                         const mine = base.filter(t => { var _a; return ((_a = resolveCampaign(t.campaignId)) === null || _a === void 0 ? void 0 : _a.id) === c.id; });
                         const cDone = mine.filter(isDoneStatus).length;
                         const cOver = mine.filter(isOverdue).length;
-                        return { c, total: mine.length, done: cDone, open: mine.length - cDone, overdue: cOver,
+                        return { c, tasks: mine, total: mine.length, done: cDone, open: mine.length - cDone, overdue: cOver,
                             pct: mine.length ? Math.round(cDone / mine.length * 100) : 0 };
                     });
                     // Unknown campaign refs (tag points at a campaign this user can't see) are
@@ -5548,7 +5590,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     orphanRefs.forEach(ref => {
                         const mine = base.filter(t => t.campaignId === ref);
                         const cDone = mine.filter(isDoneStatus).length;
-                        rows.push({ c: { id: ref, title: ref, color: "#6b7280" }, total: mine.length, done: cDone,
+                        rows.push({ c: { id: ref, title: ref, color: "#6b7280" }, tasks: mine, total: mine.length, done: cDone,
                             open: mine.length - cDone, overdue: mine.filter(isOverdue).length,
                             pct: mine.length ? Math.round(cDone / mine.length * 100) : 0 });
                     });
@@ -5560,17 +5602,51 @@ const factory = (BaseBlockClass, widgetApi) => {
                     const scored = campaigns.map(c => rankingFor(c.id)).filter(alignmentReportable);
                     const partTotal = scored.reduce((s, r) => s + (r.alignmentParticipantsCount || 0), 0);
                     const avgAlign = partTotal ? scored.reduce((s, r) => s + (r.alignmentScore || 0) * (r.alignmentParticipantsCount || 0), 0) / partTotal : 0;
+                    const CAMP_TASK_CAP = 50;
+                    const campTaskLine = (t) => {
+                        const done = isDoneStatus(t);
+                        const over = isOverdue(t);
+                        const due = formatDate(t.dueDate);
+                        const who = ownerLabel(t);
+                        return `<div class="${p}-camp-task${done ? " done" : ""}" data-task-id="${esc(t.id)}" role="button" tabindex="0">
+            <span class="${p}-camp-task-dot${done ? " done" : over ? " over" : ""}"></span>
+            <span class="${p}-camp-task-title" dir="auto">${esc(stripTypeTag(t.title))}</span>
+            <span class="${p}-camp-task-meta">
+              ${t.installationTitle ? `<span>${esc(t.installationTitle)}</span>` : ""}
+              ${who ? `<span>${esc(who)}</span>` : ""}
+              ${due.text ? `<span class="${over && !done ? "over" : ""}">${esc(due.text)}</span>` : ""}
+            </span>
+          </div>`;
+                    };
                     const row = (r, muted) => {
                         const st = campaignStatus(r.c);
                         const onTrack = Math.max(0, r.open - r.overdue);
                         const w = (n) => r.total ? Math.round(n / maxTotal * 100) : 0;
                         const range = campaignRange(r.c);
-                        return `<div class="${p}-camp-row${muted ? " muted" : ""}" data-cid="${esc(r.c.id)}" role="button" tabindex="0">
-            <div class="${p}-camp-head">
+                        const open = !muted && expandedCampaigns.has(r.c.id);
+                        // Same ordering as the main list: open work first, then earliest due.
+                        const ordered = open ? r.tasks.slice().sort((a, b) => {
+                            const ad = isDoneStatus(a), bd = isDoneStatus(b);
+                            if (ad !== bd)
+                                return ad ? 1 : -1;
+                            if (a.dueDate && b.dueDate)
+                                return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+                            if (a.dueDate)
+                                return -1;
+                            if (b.dueDate)
+                                return 1;
+                            return 0;
+                        }) : [];
+                        const shown = ordered.slice(0, CAMP_TASK_CAP);
+                        const more = ordered.length - shown.length;
+                        return `<div class="${p}-camp-row${muted ? " muted" : ""}${open ? " open" : ""}" data-cid="${esc(r.c.id)}">
+            <div class="${p}-camp-head"${muted ? "" : ` role="button" tabindex="0" aria-expanded="${open}" data-camp-toggle="1"`}>
+              ${muted ? "" : `<span class="${p}-camp-caret" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>`}
               <span class="${p}-camp-dot" style="--camp:${esc(r.c.color || "#6b7280")}"></span>
               <span class="${p}-camp-title" dir="auto">${esc(r.c.title || r.c.id)}</span>
               ${st === "evergreen" ? "" : `<span class="${p}-camp-pill ${st}">${tr(st === "upcoming" ? "campUpcoming" : st === "completed" ? "campCompleted" : "campActive")}</span>`}
               <span class="${p}-camp-pct">${muted ? "" : `${r.pct}%`}</span>
+              ${muted ? "" : `<button type="button" class="${p}-camp-open" data-camp-open="${esc(r.c.id)}" title="${tr("openInTasks")}">${tr("openInTasks")}</button>`}
             </div>
             ${(() => { const a = alignmentChip(r.c.id); return a ? `<div class="${p}-camp-align">${a}</div>` : ""; })()}
             ${r.c.goal ? `<div class="${p}-camp-goal" dir="auto">${esc(r.c.goal)}</div>` : ""}
@@ -5587,6 +5663,10 @@ const factory = (BaseBlockClass, widgetApi) => {
               ${r.overdue ? `<span class="${p}-dash-over"><b>${r.overdue}</b> ${tr("overdueLabel").toLowerCase()}</span>` : ""}
               <span class="${p}-camp-total">${r.total} ${tr("totalLabel")}</span>
             </div>`}
+            ${open ? `<div class="${p}-camp-tasks">
+              ${shown.map(campTaskLine).join("")}
+              ${more > 0 ? `<button type="button" class="${p}-camp-more" data-camp-open="${esc(r.c.id)}">${tr("campMoreTasks").replace("{n}", String(more))}</button>` : ""}
+            </div>` : ""}
           </div>`;
                     };
                     analyticsEl.innerHTML = `
@@ -5621,23 +5701,70 @@ const factory = (BaseBlockClass, widgetApi) => {
               ${empty.length ? `<div class="${p}-camp-emptyh">${tr("campaignsNoTasks")}</div>${empty.map(r => row(r, true)).join("")}` : ""}
             </div>
           </div>`;
-                    // Drill-down: a campaign row filters the Tasks view to that campaign.
-                    analyticsEl.querySelectorAll(`.${p}-camp-row[data-cid]`).forEach(el => {
-                        const go = () => {
-                            const cid = el.dataset.cid || "";
-                            selectedCampaigns.clear();
-                            selectedCampaigns.add(cid);
-                            refreshDropdowns();
-                            renderList();
-                            renderCharts();
-                            switchView("tasks");
-                        };
-                        el.addEventListener("click", go);
-                        el.addEventListener("keydown", (ev) => { const k = ev.key; if (k === "Enter" || k === " ") {
-                            ev.preventDefault();
-                            go();
-                        } });
+                    // Row interactions:
+                    //  • head click / Enter / Space → expand-collapse the task list in place
+                    //  • "Open in Tasks" (or "+N more") → drill down to the filtered Tasks view
+                    //  • task line → the normal detail panel, same as anywhere else
+                    analyticsEl.querySelectorAll(`[data-camp-open]`).forEach(el => {
+                        el.addEventListener("click", ev => {
+                            ev.stopPropagation();
+                            drillIntoCampaign(el.dataset.campOpen || "");
+                        });
                     });
+                    analyticsEl.querySelectorAll(`.${p}-camp-head[data-camp-toggle]`).forEach(el => {
+                        var _a;
+                        const cid = ((_a = el.closest(`.${p}-camp-row`)) === null || _a === void 0 ? void 0 : _a.dataset.cid) || "";
+                        const toggle = () => {
+                            if (expandedCampaigns.has(cid))
+                                expandedCampaigns.delete(cid);
+                            else
+                                expandedCampaigns.add(cid);
+                            renderAnalyticsView();
+                        };
+                        el.addEventListener("click", toggle);
+                        el.addEventListener("keydown", ev => {
+                            const k = ev.key;
+                            if (k === "Enter" || k === " ") {
+                                ev.preventDefault();
+                                toggle();
+                            }
+                        });
+                    });
+                    analyticsEl.querySelectorAll(`.${p}-camp-task[data-task-id]`).forEach(el => {
+                        const openIt = (ev) => {
+                            ev.stopPropagation();
+                            const t = allTasks.find(x => x.id === el.dataset.taskId);
+                            if (t)
+                                openDetail(t);
+                        };
+                        el.addEventListener("click", openIt);
+                        el.addEventListener("keydown", ev => {
+                            const k = ev.key;
+                            if (k === "Enter" || k === " ") {
+                                ev.preventDefault();
+                                openIt(ev);
+                            }
+                        });
+                    });
+                }
+                // Drill-down from Analytics → Tasks, scoped to one campaign. Widens the
+                // status filter so completed work in that campaign is actually visible —
+                // the list defaults to "open", which would silently hide exactly the
+                // tasks the campaign's progress bar just counted as done.
+                function drillIntoCampaign(cid) {
+                    if (!cid)
+                        return;
+                    selectedCampaigns.clear();
+                    selectedCampaigns.add(cid);
+                    overdueOnly = false;
+                    overdueChip === null || overdueChip === void 0 ? void 0 : overdueChip.classList.remove("active");
+                    overdueChip === null || overdueChip === void 0 ? void 0 : overdueChip.setAttribute("aria-pressed", "false");
+                    // "all" only exists as a button when completed tasks are enabled.
+                    setStatusFilter(showDone ? "all" : "open");
+                    refreshDropdowns();
+                    renderList();
+                    renderCharts();
+                    switchView("tasks");
                 }
                 // ── Activity feed ──────────────────────────────────────────────────
                 const ordinal = (n) => { const v = n % 100, s = ["th", "st", "nd", "rd"]; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
@@ -6934,9 +7061,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                 // ── Status filter ─────────────────────────────────────────────────
                 container.querySelectorAll(`.${p}-status-opt`).forEach((btn) => {
                     btn.addEventListener("click", () => {
-                        container.querySelectorAll(`.${p}-status-opt`).forEach((b) => b.classList.remove("active"));
-                        btn.classList.add("active");
-                        activeStatusFilter = btn.dataset.status || "open";
+                        setStatusFilter(btn.dataset.status || "open");
                         renderList();
                     });
                 });
