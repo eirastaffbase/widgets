@@ -1622,7 +1622,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         const rl=ref.trim().toLowerCase();
         return campaigns.find(c=>(c.title||"").trim().toLowerCase()===rl)||null;
       }
-      const campaignTitle=(ref:string|undefined):string=>resolveCampaign(ref)?.title||ref||"";
+      // Unresolved refs (deleted campaign) render as nothing rather than leaking
+      // a raw id into the UI or into free-text search results.
+      const campaignTitle=(ref:string|undefined):string=>resolveCampaign(ref)?.title||"";
       const campaignColor=(ref:string|undefined):string=>resolveCampaign(ref)?.color||"#6b7280";
       // Photo-proof comments carry this marker. It flags a comment (with an image
       // attachment) as proof; the token is stripped from the visible comment body.
@@ -2614,7 +2616,12 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         // Campaign scoping is deliberately ignored here — this view *is* the
         // per-campaign breakdown; the other filters still apply.
         const base=chartBase(true);
-        const tagged=base.filter(t=>!!t.campaignId);
+        // Only tasks pointing at a campaign that still exists count as assigned.
+        // A deleted campaign leaves its [campaign: <id>] tag behind on the task;
+        // those refs can't be rendered as anything but a raw id, so they're
+        // treated as unassigned — same as matchesCampaign() maps them to
+        // "__none__", so the stat tiles and the Tasks filter agree.
+        const tagged=base.filter(t=>!!resolveCampaign(t.campaignId));
         const unassigned=base.length-tagged.length;
         const done=tagged.filter(isDoneStatus).length;
         const overdue=tagged.filter(isOverdue).length;
@@ -2627,17 +2634,6 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           const cOver=mine.filter(isOverdue).length;
           return {c, tasks:mine, total:mine.length, done:cDone, open:mine.length-cDone, overdue:cOver,
                   pct:mine.length?Math.round(cDone/mine.length*100):0};
-        });
-        // Unknown campaign refs (tag points at a campaign this user can't see) are
-        // still worth surfacing rather than silently dropping.
-        const orphanRefs=new Set<string>();
-        tagged.forEach(t=>{ if(!resolveCampaign(t.campaignId)) orphanRefs.add(t.campaignId!); });
-        orphanRefs.forEach(ref=>{
-          const mine=base.filter(t=>t.campaignId===ref);
-          const cDone=mine.filter(isDoneStatus).length;
-          rows.push({ c:{id:ref,title:ref,color:"#6b7280"} as Campaign, tasks:mine, total:mine.length, done:cDone,
-                      open:mine.length-cDone, overdue:mine.filter(isOverdue).length,
-                      pct:mine.length?Math.round(cDone/mine.length*100):0 });
         });
         const active=rows.filter(r=>r.total>0).sort((a,b)=>b.total-a.total||(a.c.title||"").localeCompare(b.c.title||""));
         const empty =rows.filter(r=>r.total===0).sort((a,b)=>(a.c.title||"").localeCompare(b.c.title||""));
@@ -3575,12 +3571,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               const c=resolveCampaign(task.campaignId);
               const cur=c
                 ?`<span class="${p}-camp-badge" style="--camp:${esc(c.color||"#6b7280")}"><span class="${p}-camp-dot"></span><span dir="auto">${esc(c.title||"")}</span></span>`
-                :(task.campaignId
-                  ?`<span class="${p}-camp-badge" style="--camp:#6b7280"><span class="${p}-camp-dot"></span><span dir="auto">${esc(task.campaignId)}</span></span>`
-                  :`<span class="${p}-camp-none">${tr("noCampaign")}</span>`);
+                :`<span class="${p}-camp-none">${tr("noCampaign")}</span>`;
               return `<div class="${p}-detail-meta-row">${iCampaign} ${cur}</div>
               <div class="${p}-reassign ${p}-campaign-assign" id="${p}-campaign-${instId}">
-                <button type="button" class="${p}-reassign-btn" data-act="open">${iCampaign} ${task.campaignId?tr("changeCampaign"):tr("assignToCampaign")}</button>
+                <button type="button" class="${p}-reassign-btn" data-act="open">${iCampaign} ${c?tr("changeCampaign"):tr("assignToCampaign")}</button>
                 <div class="${p}-reassign-pop" style="display:none">
                   <input type="text" class="${p}-reassign-search" placeholder="${tr("searchCampaigns")}">
                   <div class="${p}-reassign-results"></div>

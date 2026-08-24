@@ -14,6 +14,14 @@
  *   node backfill-campaign-tasks.mjs --apply
  *   node backfill-campaign-tasks.mjs --revert=<manifest>
  *
+ * Useful flags:
+ *   --limit=100          how many tasks to touch
+ *   --older-than=7       only tasks due more than N days ago
+ *   --newer-than=30      ...but no more than N days ago (a window)
+ *   --complete-ratio=1   complete all of them (default: a varied per-campaign mix)
+ *   --retag-orphans      re-point tasks whose campaign was deleted at a live one
+ *   --seed=123           deterministic plan; change it for a different draw
+ *
  * Requires Node 18+ (global fetch). No dependencies.
  */
 
@@ -40,10 +48,28 @@ const REVERT = args.get("revert");
 const CONC   = Math.max(1, num("concurrency", 4));
 const ONLY   = String(arg("campaigns", "")).split(",").map((s) => s.trim()).filter(Boolean);
 
+// Due-date window, as a number of days back from today. Defaults to "anything
+// already past due". --older-than=7 --newer-than=30 targets the band between
+// one week and one month ago, which is useful for topping up a demo without
+// re-touching the very oldest tasks a previous run already claimed.
+const OLDER_THAN = num("older-than", 0);   // due must be at least this many days ago
+const NEWER_THAN = num("newer-than", 0);   // 0 = no lower bound
+const daysAgo = (n) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
+
+// Deleting a campaign in Studio leaves its [campaign: <id>] tag behind on every
+// task that referenced it. The widget hides those (it can't show anything but a
+// raw id), so they silently drop out of the dashboard. This mode finds them and
+// re-points them at campaigns that still exist.
+const RETAG_ORPHANS = args.get("retag-orphans") === true;
+
 // How much of each campaign's batch gets completed. A dashboard where every bar
 // sits at the same percentage reads as fake, so campaigns are dealt from this
 // cycle to give the Analytics tab a believable spread of progress.
+// --complete-ratio=1 overrides the mix and completes everything.
 const COMPLETION_MIX = [0.9, 0.35, 0.7, 0.15, 0.55, 0.8, 0.25, 0.6];
+const RATIO = args.has("complete-ratio")
+  ? Math.min(1, Math.max(0, num("complete-ratio", 1)))
+  : null;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const log   = (...a) => console.log(...a);
@@ -162,7 +188,8 @@ async function loadTasks(installs) {
 
 // ── Selection ────────────────────────────────────────────────────────────────
 function selectCandidates(tasks) {
-  const today = new Date().toISOString().slice(0, 10);
+  const before = daysAgo(OLDER_THAN);                    // due must be < this
+  const after  = NEWER_THAN ? daysAgo(NEWER_THAN) : "";  // due must be >= this
   return tasks
     .filter((t) => {
       const d = t.description;
@@ -173,14 +200,32 @@ function selectCandidates(tasks) {
       if (CAMPAIGN_RE.test(d)) return false;           // never clobber a real assignment
       if (t.status !== "OPEN") return false;
       const due = (t.dueDate || "").slice(0, 10);
-      return !!due && due < today;                     // "older" == already past due
+      if (!due || due >= before) return false;         // "older" == already past due
+      return !after || due >= after;
+    })
+    .sort((a, b) => (a.dueDate || "").localeCompare(b.dueDate || "") || a.id.localeCompare(b.id))
+    .slice(0, LIMIT);
+}
+
+/** Tasks pointing at a campaign id that no longer exists. */
+function selectOrphans(tasks, campaigns) {
+  const liveIds = new Set(campaigns.map((c) => c.id));
+  const liveTitles = new Set(campaigns.map((c) => (c.title || "").trim().toLowerCase()));
+  return tasks
+    .filter((t) => {
+      if (/\[type:\s*recur-template\s*\]/i.test(t.description)) return false;
+      const m = CAMPAIGN_RE.exec(t.description || "");
+      if (!m) return false;
+      const ref = m[1].trim();
+      // The widget resolves by id first, then falls back to a title match.
+      return !liveIds.has(ref) && !liveTitles.has(ref.toLowerCase());
     })
     .sort((a, b) => (a.dueDate || "").localeCompare(b.dueDate || "") || a.id.localeCompare(b.id))
     .slice(0, LIMIT);
 }
 
 /** Deal candidates round-robin across campaigns, then pick who gets completed. */
-function buildPlan(candidates, campaigns) {
+function buildPlan(candidates, campaigns, ratioOverride = null) {
   const rand = rng(SEED);
   const buckets = campaigns.map((c) => ({ campaign: c, tasks: [] }));
   candidates.forEach((t, i) => buckets[i % buckets.length].tasks.push(t));
@@ -188,7 +233,9 @@ function buildPlan(candidates, campaigns) {
   const plan = [];
   buckets.forEach((b, bi) => {
     if (!b.tasks.length) return;
-    const ratio = COMPLETION_MIX[bi % COMPLETION_MIX.length];
+    const ratio = ratioOverride !== null ? ratioOverride
+      : RATIO !== null ? RATIO
+      : COMPLETION_MIX[bi % COMPLETION_MIX.length];
     // Shuffle first so "which ones are done" isn't just the oldest N.
     const shuffled = b.tasks.map((t) => ({ t, k: rand() })).sort((x, y) => x.k - y.k).map((x) => x.t);
     const nDone = Math.round(shuffled.length * ratio);
@@ -262,17 +309,32 @@ async function revert(file) {
   const tasks = await loadTasks(installs);
   log(`  ${installs.length} task installations · ${campaigns.length} campaigns · ${tasks.length} tasks`);
 
-  const candidates = selectCandidates(tasks);
-  if (!candidates.length) bail("No eligible tasks (recurring, open, past due, untagged).");
-  log(`  ${candidates.length} eligible task(s) selected (limit ${LIMIT})\n`);
+  const candidates = RETAG_ORPHANS
+    ? selectOrphans(tasks, campaigns)
+    : selectCandidates(tasks);
 
-  const plan = buildPlan(candidates, campaigns);
+  if (RETAG_ORPHANS) {
+    if (!candidates.length) bail("No orphaned tasks — every [campaign:] tag points at a live campaign.");
+    log(`  ${candidates.length} orphaned task(s) whose campaign was deleted (limit ${LIMIT})\n`);
+  } else {
+    const window = `due before ${daysAgo(OLDER_THAN)}${NEWER_THAN ? ` and on/after ${daysAgo(NEWER_THAN)}` : ""}`;
+    if (!candidates.length) bail(`No eligible tasks (recurring, open, untagged, ${window}).`);
+    log(`  ${candidates.length} eligible task(s) selected — ${window} (limit ${LIMIT})\n`);
+  }
+
+  // Re-tagging keeps whatever status the task already had; only the fresh
+  // backfill path decides who gets completed.
+  const plan = buildPlan(candidates, campaigns, RETAG_ORPHANS && RATIO === null ? 0 : null);
 
   log("Plan — tasks per campaign:");
   const byCampaign = new Map();
   for (const p of plan) {
     const e = byCampaign.get(p.campaign.id) || { title: p.campaign.title, total: 0, done: 0 };
-    e.total++; if (p.complete) e.done++;
+    e.total++;
+    // Count the state the task will END UP in: re-tagged tasks keep whatever
+    // status they already had, so counting only newly-closed ones would report
+    // a misleading 0%.
+    if (p.complete || p.task.status === "CLOSED" || p.task.status === "DONE") e.done++;
     byCampaign.set(p.campaign.id, e);
   }
   for (const e of byCampaign.values()) {
