@@ -293,6 +293,48 @@ function priorityColor(p: string): string {
   return "#6b7280";
 }
 
+// ── Campaign alignment (analytics rankings) ───────────────────────────────────
+// GET {baseUrl}/branch/analytics/campaigns/rankings — powers Studio → Analytics →
+// Campaigns. `alignmentScore` is the 1–5 average of the campaign's Alignment
+// Survey; `alignmentParticipantsCount` is how many people answered.
+type CampaignRanking = {
+  campaignId: string; campaignTitle?: string; campaignGoal?: string;
+  visitors?: number; engagedUsers?: number; posts?: number; emails?: number;
+  potentialVisitors?: number;
+  alignmentScore?: number; alignmentParticipantsCount?: number; hasAlignmentSurvey?: boolean;
+};
+
+// Staffbase hides alignment results until enough people have answered.
+const ALIGN_MIN_PARTICIPANTS = 5;
+
+// Demo alignment data, keyed by the 7-Eleven demo campaign ids. That environment
+// has no Alignment Surveys enabled, so there's nothing real to show — this fills
+// the gap for the demo only. It is keyed by id on purpose: it can never invent
+// numbers for another tenant's campaigns, and any campaign the rankings endpoint
+// actually reports on always wins over the entry here.
+const DEMO_ALIGNMENT: Record<string, {score:number;participants:number;hasSurvey:boolean}> = {
+  "6a39f89847e1dc20444c56af": { score:4.3636363636363635, participants:22, hasSurvey:true }, // Benefits & Wellbeing
+  "6a39f8975e4f7d53e4f187ea": { score:3.8518518518518516, participants:31, hasSurvey:true }, // Company News
+  "6a39f89947e1dc20444c56c2": { score:4.611111111111111,  participants:18, hasSurvey:true }, // Culture & Events
+  "6a39f89847e1dc20444c56a2": { score:4.111111111111111,  participants:12, hasSurvey:true }, // Employee Spotlight
+  "6a7bd6aa8abe0f761beb5146": { score:0,                  participants:0,  hasSurvey:false },// Evaluation and Research — no survey
+  "6a7bd5e8ebf7ef718d725159": { score:0,                  participants:0,  hasSurvey:true }, // Final Inspection — survey live, no answers yet
+  "6a7bd62cebf7ef718d725162": { score:4.0,                participants:3,  hasSurvey:true }, // Grand Launch — under the privacy floor
+  "6a39f89a421c9724ef4ed296": { score:3.2407407407407405, participants:27, hasSurvey:true }, // HR Announcements
+  "6a7bd4ee8abe0f761beb512e": { score:2.7142857142857144, participants:9,  hasSurvey:true }, // Kickoff Call
+  "6a39f899421c9724ef4ed289": { score:3.975609756097561,  participants:41, hasSurvey:true }, // Leadership Updates
+};
+
+// Reportable = survey exists AND enough answers to clear the privacy floor.
+function alignmentReportable(r: CampaignRanking|null|undefined): boolean {
+  return !!r && !!r.hasAlignmentSurvey && (r.alignmentParticipantsCount||0) >= ALIGN_MIN_PARTICIPANTS && (r.alignmentScore||0) > 0;
+}
+function alignmentColor(score: number): string {
+  if(score>=4) return "#2E7D4A";
+  if(score>=3) return "#D97706";
+  return "#C41E3A";
+}
+
 // ── Widget factory ────────────────────────────────────────────────────────────
 
 const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
@@ -448,6 +490,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       let campaignsLoaded            = false;
       let campaignsAreSample         = false; // true when the live API wasn't reachable
       let campaignsPromise: Promise<Campaign[]>|null = null;
+      const rankings                 = new Map<string,CampaignRanking>(); // campaignId → analytics row
+      let rankingsLoaded             = false;
+      let alignmentIsDemo            = false; // true when demo alignment filled a gap
       const selectedCampaigns        = new Set<string>(); // empty = all campaigns
 
       // ── Render skeleton ────────────────────────────────────────────────
@@ -764,6 +809,19 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-camp-opt-title{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
           .${p}-camp-opt-goal{font-size:11px;color:var(--gray-lt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
           .${p}-camp-clear{color:var(--error);font-weight:600}
+          /* ── Alignment score ── */
+          .${p}-camp-align{margin-top:6px}
+          .${p}-align{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--gray)}
+          .${p}-align b{font-size:13px;font-weight:700}
+          .${p}-align-max{font-size:10px;color:var(--gray-lt);margin-inline-start:-3px}
+          .${p}-align-meter{display:inline-flex;gap:2px}
+          .${p}-align-seg{width:12px;height:6px;border-radius:2px;background:var(--border);overflow:hidden;display:block}
+          [dir="rtl"] .${p}-align-seg-fill{float:right}
+          .${p}-align-seg-fill{display:block;height:100%;border-radius:2px}
+          .${p}-align-n{color:var(--gray-lt)}
+          .${p}-align-n::before{content:"·";margin-inline-end:4px}
+          .${p}-align-muted{color:var(--gray-lt);gap:4px}
+          .${p}-stat-align .${p}-stat-num{display:flex;align-items:baseline;gap:1px}
           /* ── Activity log ── */
           .${p}-activity{margin-bottom:16px;background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:12px 14px;box-shadow:var(--shadow-sm)}
           .${p}-act-item{display:flex;align-items:flex-start;gap:9px;padding:7px 0;border-top:1px solid var(--border)}
@@ -1458,10 +1516,49 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           campaigns=(campaignsAreSample?FALLBACK_CAMPAIGNS.slice():list!)
             .sort((a,b)=>(a.title||"").localeCompare(b.title||""));
           campaignsLoaded=true;
+          await loadRankings();
           return campaigns;
         })();
         return campaignsPromise;
       }
+
+      // ── Alignment scores ───────────────────────────────────────────────
+      // Studio's campaign analytics ranking. Same auth ladder as /campaigns.
+      async function fetchRankingsWith(makeOpts:(e?:RequestInit)=>RequestInit):Promise<CampaignRanking[]>{
+        const url=`${baseUrl}/branch/analytics/campaigns/rankings?orderBy=campaign_title_ASC&limit=100`;
+        dlog("GET campaign rankings",url);
+        const r=await fetch(url,{...makeOpts(),headers:{Accept:"*/*",...((makeOpts() as any).headers||{})}});
+        const raw=await r.text();
+        dlog("GET campaign rankings ←",r.status,raw.slice(0,200));
+        if(!r.ok) throw new Error(`HTTP ${r.status}`);
+        const d=JSON.parse(raw);
+        if(!d||!Array.isArray(d.ranking)) throw new Error("unexpected payload");
+        return d.ranking as CampaignRanking[];
+      }
+      async function loadRankings():Promise<void>{
+        let rows:CampaignRanking[]|null=null;
+        try{ rows=await fetchRankingsWith(apiOpts); }
+        catch(e:any){
+          dlog("rankings via token failed",e.message,"— retrying with session");
+          try{ rows=await fetchRankingsWith(sessionOpts); }
+          catch(e2:any){ dlog("rankings via session failed",e2.message); }
+        }
+        rankings.clear();
+        for(const r of rows||[]) if(r&&r.campaignId) rankings.set(r.campaignId,r);
+        // Demo fill-in: only for the known 7-Eleven campaign ids, and only where
+        // the live endpoint reported nothing at all for that campaign.
+        alignmentIsDemo=false;
+        for(const c of campaigns){
+          const demo=DEMO_ALIGNMENT[c.id];
+          if(!demo||rankings.has(c.id)) continue;
+          rankings.set(c.id,{ campaignId:c.id, campaignTitle:c.title,
+            alignmentScore:demo.score, alignmentParticipantsCount:demo.participants,
+            hasAlignmentSurvey:demo.hasSurvey });
+          alignmentIsDemo=true;
+        }
+        rankingsLoaded=true;
+      }
+      const rankingFor=(id:string):CampaignRanking|null=>rankings.get(id)||null;
       // Tag values are ids, but tolerate a hand-written title.
       function resolveCampaign(ref:string|undefined):Campaign|null{
         if(!ref) return null;
@@ -2429,6 +2526,28 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         if(e) return `${tr("campUntil")} ${e}`;
         return "";
       }
+      const iTarget=`<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`;
+      // Alignment chip: 1–5 survey average with a 5-segment meter. Respects the
+      // privacy floor — no survey / too few answers never shows a number.
+      function alignmentChip(id:string):string{
+        const r=rankingFor(id);
+        if(!r||!r.hasAlignmentSurvey) return "";
+        const n=r.alignmentParticipantsCount||0;
+        if(!alignmentReportable(r)){
+          return `<span class="${p}-align ${p}-align-muted" title="${tr("alignmentFloor").replace("{n}",String(ALIGN_MIN_PARTICIPANTS))}">${iTarget}${n?tr("alignmentPending"):tr("alignmentNoResponses")}</span>`;
+        }
+        const score=r.alignmentScore||0;
+        const col=alignmentColor(score);
+        const segs=[1,2,3,4,5].map(i=>{
+          const fill=Math.max(0,Math.min(1,score-(i-1)));
+          return `<span class="${p}-align-seg"><span class="${p}-align-seg-fill" style="width:${Math.round(fill*100)}%;background:${col}"></span></span>`;
+        }).join("");
+        return `<span class="${p}-align" title="${tr("alignmentTip").replace("{n}",String(n))}">
+          <span class="${p}-align-meter">${segs}</span>
+          <b style="color:${col}">${score.toFixed(1)}</b><span class="${p}-align-max">/5</span>
+          <span class="${p}-align-n">${n}</span>
+        </span>`;
+      }
       function renderAnalyticsView(){
         if(!analyticsEl||!enableCampaigns) return;
         if(analyticsEl.style.display==="none") return;
@@ -2469,6 +2588,12 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         const empty =rows.filter(r=>r.total===0).sort((a,b)=>(a.c.title||"").localeCompare(b.c.title||""));
         const maxTotal=Math.max(1,...active.map(r=>r.total));
 
+        // Alignment across every campaign with a reportable score — participant-
+        // weighted, so a 40-response campaign counts more than a 6-response one.
+        const scored=campaigns.map(c=>rankingFor(c.id)).filter(alignmentReportable) as CampaignRanking[];
+        const partTotal=scored.reduce((s,r)=>s+(r.alignmentParticipantsCount||0),0);
+        const avgAlign=partTotal?scored.reduce((s,r)=>s+(r.alignmentScore||0)*(r.alignmentParticipantsCount||0),0)/partTotal:0;
+
         const row=(r:typeof rows[0],muted:boolean)=>{
           const st=campaignStatus(r.c);
           const onTrack=Math.max(0,r.open-r.overdue);
@@ -2481,6 +2606,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               ${st==="evergreen"?"":`<span class="${p}-camp-pill ${st}">${tr(st==="upcoming"?"campUpcoming":st==="completed"?"campCompleted":"campActive")}</span>`}
               <span class="${p}-camp-pct">${muted?"":`${r.pct}%`}</span>
             </div>
+            ${(()=>{const a=alignmentChip(r.c.id);return a?`<div class="${p}-camp-align">${a}</div>`:"";})()}
             ${r.c.goal?`<div class="${p}-camp-goal" dir="auto">${esc(r.c.goal)}</div>`:""}
             ${range?`<div class="${p}-camp-range">${esc(range)}</div>`:""}
             ${muted?`<div class="${p}-camp-empty">${tr("noCampaignTasks")}</div>`:`
@@ -2501,6 +2627,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         analyticsEl.innerHTML=`
           <div class="${p}-dash">
             ${campaignsAreSample?`<div class="${p}-camp-note">${tr("campaignsSample")}</div>`:""}
+            ${alignmentIsDemo?`<div class="${p}-camp-note">${tr("alignmentSample")}</div>`:""}
             <div class="${p}-stat-grid">
               <div class="${p}-stat">
                 ${donut(pct, pct>=66?"var(--success)":pct>=33?"#D97706":"var(--error)")}
@@ -2518,6 +2645,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
                 <div class="${p}-stat-num">${unassigned}</div>
                 <div class="${p}-stat-meta"><div class="${p}-stat-lbl">${tr("noCampaign")}</div><div class="${p}-stat-sub">${tr("ofNTasks").replace("{n}",String(base.length))}</div></div>
               </div>
+              ${scored.length?`<div class="${p}-stat ${p}-stat-align">
+                <div class="${p}-stat-num" style="color:${alignmentColor(avgAlign)}">${avgAlign.toFixed(1)}<span class="${p}-align-max">/5</span></div>
+                <div class="${p}-stat-meta"><div class="${p}-stat-lbl">${tr("alignmentScore")}</div><div class="${p}-stat-sub">${tr(scored.length===1?"alignmentAcrossOne":"alignmentAcross").replace("{c}",String(scored.length)).replace("{n}",String(partTotal))}</div></div>
+              </div>`:""}
             </div>
             <div class="${p}-dash-members">
               <div class="${p}-dash-h">${tr("progressByCampaign")}</div>
