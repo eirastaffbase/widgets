@@ -45,6 +45,7 @@ const configurationSchema: JSONSchema7 = {
     enablecomments:     { type:"boolean", title:"Enable Comments (experimental)", default: false },
     enableproofreview:  { type:"boolean", title:"Enable Photo Proof Review", default: false },
     enablecampaigns:    { type:"boolean", title:"Enable Campaign Analytics", default: false },
+    dummyalignment:     { type:"boolean", title:"Use Sample Alignment Scores", default: false },
     allowtaskcreation:  { type:"boolean", title:"Allow Task Creation", default: true },
     allowtaskassignment:{ type:"boolean", title:"Allow Task Reassignment", default: false },
     debugmode:          { type:"boolean", title:"Debug Mode (on-screen logs)", default: false },
@@ -67,14 +68,6 @@ const configurationSchema: JSONSchema7 = {
             usethemecolors: { const: true },
           },
         },
-      ],
-    },
-    // When "Enable Campaign Analytics" is on, expose the demo-alignment switch.
-    enablecampaigns: {
-      oneOf: [
-        { properties: { enablecampaigns: { const: false } } },
-        { properties: { enablecampaigns: { const: true },
-                        dummyalignment: { type:"boolean", title:"Use Sample Alignment Scores", default:false } } },
       ],
     },
     // When "Limit Height" is on, reveal the Max Height field.
@@ -105,7 +98,7 @@ const uiSchema: UiSchema = {
   enablecomments:     { "ui:help":"Experimental: show a comments section in the task detail panel (uses the logged-in user's session)" },
   enableproofreview:  { "ui:help":"Adds a Proof Review tab for browsing photo proof submitted on tasks. Even when off, any task that has photo proof shows a Proof section in its detail panel." },
   enablecampaigns:    { "ui:help":"Adds an Analytics tab with task progress per campaign, and an “Assign to campaign” control in the task detail panel. Campaigns are read from the app's Campaigns API; sample campaigns are shown if it isn't reachable." },
-  dummyalignment:     { "ui:help":"Demo only: show sample Alignment Survey scores in the Analytics tab, ignoring the real numbers. Use this in environments where no Alignment Surveys have responses yet. A note tells viewers the scores are sample data." },
+  dummyalignment:     { "ui:help":"Demo only: show sample Alignment Survey scores in the Analytics tab instead of the real ones. Useful where no Alignment Survey has responses yet. Requires Enable Campaign Analytics. A note tells viewers the scores are sample data." },
   allowtaskcreation:  { "ui:help":"Show a “New Task” button so managers can create and assign tasks from this widget" },
   allowtaskassignment:{ "ui:help":"Allow reassigning a task (to people and/or groups) from its detail panel" },
   debugmode:          { "ui:help":"Show an on-screen log panel with a copy button — useful for debugging inside the mobile app" },
