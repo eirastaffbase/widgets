@@ -820,9 +820,6 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           [dir="rtl"] .${p}-camp-caret{transform:scaleX(-1)}
           .${p}-camp-row.open .${p}-camp-caret{transform:rotate(90deg)}
           [dir="rtl"] .${p}-camp-row.open .${p}-camp-caret{transform:scaleX(-1) rotate(90deg)}
-          .${p}-camp-open{flex-shrink:0;font:inherit;font-size:10.5px;font-weight:700;color:var(--primary);background:none;border:1px solid var(--border);border-radius:99px;padding:2px 9px;cursor:pointer;opacity:0;transition:opacity .12s,background .12s}
-          .${p}-camp-row:hover .${p}-camp-open,.${p}-camp-row.open .${p}-camp-open,.${p}-camp-open:focus-visible{opacity:1}
-          .${p}-camp-open:hover{background:rgba(var(--primary-rgb),.1)}
           .${p}-camp-tasks{margin-top:8px;border-top:1px solid var(--border);padding-top:4px}
           .${p}-camp-task{display:flex;align-items:center;gap:8px;padding:6px 4px;border-radius:var(--r-sm);cursor:pointer;min-width:0}
           .${p}-camp-task:hover{background:rgba(var(--primary-rgb),.08)}
@@ -834,11 +831,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           .${p}-camp-task-title{font-size:12px;color:var(--dark);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1}
           .${p}-camp-task-meta{display:flex;gap:8px;font-size:10.5px;color:var(--gray-lt);flex-shrink:0;white-space:nowrap}
           .${p}-camp-task-meta .over{color:var(--error);font-weight:700}
-          .${p}-camp-more{display:block;width:100%;margin-top:4px;font:inherit;font-size:11px;font-weight:700;color:var(--primary);background:none;border:none;padding:6px;cursor:pointer;border-radius:var(--r-sm)}
-          .${p}-camp-more:hover{background:rgba(var(--primary-rgb),.08)}
-          @media (max-width:520px){ .${p}-camp-task-meta{display:none} .${p}-camp-open{opacity:1} }
-          .${p}-camp-title{font-size:13px;font-weight:700;color:var(--dark);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-          .${p}-camp-pct{margin-inline-start:auto;font-size:12px;font-weight:700;color:var(--gray);flex-shrink:0}
+          .${p}-camp-more{font-size:11px;color:var(--gray-lt);padding:6px 4px}
+          @media (max-width:520px){ .${p}-camp-task-meta{display:none} }
+          .${p}-camp-title{font-size:13px;font-weight:700;color:var(--dark);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1 1 auto;min-width:60px}
+          .${p}-camp-pct{font-size:12px;font-weight:700;color:var(--gray);flex-shrink:0}
           .${p}-camp-dot{width:9px;height:9px;border-radius:50%;background:var(--camp,#6b7280);flex-shrink:0}
           .${p}-camp-goal{font-size:12px;color:var(--gray);margin:3px 0 0;line-height:1.4}
           .${p}-camp-range{font-size:11px;color:var(--gray-lt);margin-top:2px}
@@ -2685,7 +2681,6 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               <span class="${p}-camp-title" dir="auto">${esc(r.c.title||r.c.id)}</span>
               ${st==="evergreen"?"":`<span class="${p}-camp-pill ${st}">${tr(st==="upcoming"?"campUpcoming":st==="completed"?"campCompleted":"campActive")}</span>`}
               <span class="${p}-camp-pct">${muted?"":`${r.pct}%`}</span>
-              ${muted?"":`<button type="button" class="${p}-camp-open" data-camp-open="${esc(r.c.id)}" title="${tr("openInTasks")}">${tr("openInTasks")}</button>`}
             </div>
             ${(()=>{const a=alignmentChip(r.c.id);return a?`<div class="${p}-camp-align">${a}</div>`:"";})()}
             ${r.c.goal?`<div class="${p}-camp-goal" dir="auto">${esc(r.c.goal)}</div>`:""}
@@ -2704,7 +2699,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             </div>`}
             ${open?`<div class="${p}-camp-tasks">
               ${shown.map(campTaskLine).join("")}
-              ${more>0?`<button type="button" class="${p}-camp-more" data-camp-open="${esc(r.c.id)}">${tr("campMoreTasks").replace("{n}",String(more))}</button>`:""}
+              ${more>0?`<div class="${p}-camp-more">${tr("campMoreTasks").replace("{n}",String(more))}</div>`:""}
             </div>`:""}
           </div>`;
         };
@@ -2742,16 +2737,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             </div>
           </div>`;
 
-        // Row interactions:
-        //  • head click / Enter / Space → expand-collapse the task list in place
-        //  • "Open in Tasks" (or "+N more") → drill down to the filtered Tasks view
-        //  • task line → the normal detail panel, same as anywhere else
-        analyticsEl.querySelectorAll(`[data-camp-open]`).forEach(el=>{
-          el.addEventListener("click",ev=>{
-            ev.stopPropagation();
-            drillIntoCampaign((el as HTMLElement).dataset.campOpen||"");
-          });
-        });
+        // Row interactions: click the head to expand the campaign's task list,
+        // click a task to open the normal detail modal.
         analyticsEl.querySelectorAll(`.${p}-camp-head[data-camp-toggle]`).forEach(el=>{
           const cid=((el.closest(`.${p}-camp-row`) as HTMLElement|null)?.dataset.cid)||"";
           const toggle=()=>{
@@ -2777,22 +2764,6 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             if(k==="Enter"||k===" "){ ev.preventDefault(); openIt(ev); }
           });
         });
-      }
-
-      // Drill-down from Analytics → Tasks, scoped to one campaign. Widens the
-      // status filter so completed work in that campaign is actually visible —
-      // the list defaults to "open", which would silently hide exactly the
-      // tasks the campaign's progress bar just counted as done.
-      function drillIntoCampaign(cid:string){
-        if(!cid) return;
-        selectedCampaigns.clear(); selectedCampaigns.add(cid);
-        overdueOnly=false;
-        overdueChip?.classList.remove("active");
-        overdueChip?.setAttribute("aria-pressed","false");
-        // "all" only exists as a button when completed tasks are enabled.
-        setStatusFilter(showDone?"all":"open");
-        refreshDropdowns(); renderList(); renderCharts();
-        switchView("tasks");
       }
 
       // ── Activity feed ──────────────────────────────────────────────────
