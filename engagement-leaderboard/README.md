@@ -1,8 +1,16 @@
 # Engagement Leaderboard
 
-A Staffbase widget that renders a grid of engagement metric tiles — who
+A Staffbase widget that celebrates the people carrying your intranet — who
 comments, who reacts, who publishes, and which posts get shared — computed live
 from branch data.
+
+It presents as a **broadcast title card**: a dark stage lit by your tenant's own
+brand colour, one champion per slide, revealed with a single rehearsed
+animation and rotated like a scoreboard. Each metric is a chapter you can click
+to, swipe to, or arrow-key to; the deck also advances itself.
+
+A **Grid** layout is available for dashboards that want all metrics visible at
+once, and every metric can be switched off individually in the widget editor.
 
 
 
@@ -10,14 +18,19 @@ from branch data.
 
 | Tile | Definition | Chart |
 |---|---|---|
-| **Most active** | `comments + reactions given + posts authored` — raw volume | Podium |
-| **Most engaged** | Weighted for depth *and* breadth: `3·comments + 1·reactions + 5·posts + 2·distinct posts touched + 4·distinct channels touched` | Podium + composition bar |
-| **Top commenter** | Comments authored | Avatar bars |
-| **Top reactor** | Reactions given | Avatar bars, or a typed donut under session auth |
-| **Most appreciated** | Reactions received on their own posts | Avatar bars |
-| **Top contributor** | Posts published | Avatar bars |
+| **Most active** | `comments + reactions given + posts authored` — raw volume | Composition bar |
+| **Most engaged** | Weighted for depth *and* breadth: `3·comments + 1·reactions + 5·posts + 2·distinct posts touched + 4·distinct channels touched` | Composition bar |
+| **Top commenter** | Comments authored | Ranked field |
+| **Top reactor** | Reactions given | Ranked field, plus a typed reaction ring under session auth |
+| **Most appreciated** | Reactions received on their own posts | Ranked field |
+| **Top contributor** | Posts published | Ranked field |
 | **Rising star** | Biggest increase in activity vs. the immediately preceding equal-length period | Slope chart |
 | **Social advocacy** | Most-shared posts in the period, credited to their author | Two-tone share/click bars |
+
+Every slide shares one anatomy — **champion**, **field**, **flourish** — so the
+deck reads as a single broadcast rather than eight unrelated charts. The
+flourish is the only part that changes per metric, and a metric with nothing
+extra to say simply omits it.
 
 ## Setup
 
@@ -151,6 +164,96 @@ All charts carry `role="img"` and an `aria-label` spelling out the underlying
 numbers, respect `prefers-reduced-motion`, and degrade to a plain winner +
 number when a metric has fewer than two data points.
 
+## Motion
+
+There is **one** authored moment — the champion reveal — and it is replayed per
+slide, which is correct here because the deck is a rotation rather than a
+scroll. The avatar scales in out of a blur, the text rises staggered behind it,
+the headline number counts up on `requestAnimationFrame`, bars grow from zero
+and arcs draw themselves. The exit (200ms) is deliberately faster than the
+entrance (~620ms) so a rotation never feels like it is dragging its feet.
+
+Two rules the implementation holds to:
+
+- **Every animation starts from an already-visible resting state.** If the
+  script fails, the content is still there — motion is never load-bearing.
+- **Ambient motion is gated.** The slow brand-light drift only runs while the
+  widget is on screen (`IntersectionObserver`) and the tab is visible
+  (`visibilitychange`), and the whole system collapses under
+  `prefers-reduced-motion: reduce`.
+
+The deck stacks its slides in a single grid cell so one can cross-fade over
+another, and then **animates its own height to the active slide**. Stacking
+alone would leave the deck as tall as its tallest slide — several hundred pixels
+of void under the short ones — while sizing to content naively would make the
+page jump on every rotation. Measuring and easing avoids both.
+
+## Color schemes
+
+**Color Scheme** offers `dark` (the default broadcast stage), `light`, and
+`auto`, which follows the viewer's `prefers-color-scheme`.
+
+Both schemes come from one stylesheet. Every surface value is a custom
+property, and the pivot is `--tint`: the colour laid over the background at low
+alpha to build panels, bar tracks and hairlines. It is white on the dark stage
+and near-black on the light one, so a single `rgba(var(--tint), .08)` inverts
+correctly in both.
+
+The light scheme is deliberately **not** a straight inversion — the brand
+washes, ambient glow and the numeral's glow are all pulled right back or
+switched off, because the same intensity that reads as atmosphere on black
+reads as a stain on white.
+
+## Theming
+
+With **Use Theme Colors** on (the default) the widget reads the tenant palette
+from `/api/theming/themes/primary`, the same source the task widgets use, and
+then adapts it **to the active colour scheme**: on the dark stage it takes the
+most saturated brand colour and *lightens* it until it clears 4.5:1 against
+near-black; on the light stage it darkens instead. Getting this backwards is
+what makes a deep navy or maroon either vanish into the background or glare off
+it.
+
+Type is deliberately `font-family: inherit` — the widget adopts the tenant's own
+brand font rather than importing a display face, which would be heavy, a CSP
+risk, and foreign to the surrounding intranet. The display voice comes from
+scale, weight, tight tracking and tabular numerals instead.
+
+## Surviving Staffbase's global CSS
+
+Staffbase ships page-level rules that reach into widget markup — most
+destructively `button { width: 90%; margin: auto }`, a global button
+`background` on `:hover/:focus/:active`, `button { color: #fff }`, and default
+list, heading and `img { max-width }` rules. They carry no `!important`, but
+`button:hover` still out-specifies a single-class widget rule, so a widget that
+styles a `<button>` normally gets a 90%-wide button in a colour it never chose.
+
+The defence is a `HOST_RESET` block at the top of the stylesheet, split in two
+halves — and **the split is the whole trick**:
+
+1. **Base defaults**, stated once on `.sbel-root button`. Kept at low
+   specificity (one class + one element) precisely so the widget's own component
+   rules can override them normally.
+2. **Per-state neutralisation** on `:hover/:focus/:focus-visible/:active`,
+   carrying *only* `background`, `color`, `box-shadow` and `outline` — the
+   properties Staffbase genuinely re-declares per state.
+
+Geometry deliberately does not appear in (2). `width` and `margin` are set by
+the host on the base rule only, so neutralising them once in (1) is sufficient;
+repeating them per state pushes the reset above the widget's own component
+rules and collapses every round button into a tall sliver the instant it is
+hovered or pressed.
+
+The same specificity trap bites content, not just controls: `.sbel-root p` and
+`.sbel-root ul` zero out margins with `!important`, which silently killed the
+spacing under every caption and chart legend until those rules were re-stated
+as `.sbel-root .sbel-ssub` / `.sbel-root .sbel-legend`. **Any spacing rule on a
+`<p>`, `<ul>` or heading inside this widget must out-specify the reset or it is
+a no-op.**
+
+This mirrors and extends the fix documented in
+`tasks/my-tasks-widget/my-tasks-widget.ts`.
+
 ## Configuration reference
 
 | Setting | Default | Notes |
@@ -161,15 +264,19 @@ number when a metric has fewer than two data points.
 | Time Period | `90d` | `all` / `7d` / `30d` / `90d` / `12m` / `custom` |
 | Fall Back to All Time | on | Per-tile auto-widen |
 | Let Viewers Change the Period | on | Re-filters from cache, no requests |
-| Metrics | all 8 | Multi-select |
-| People Per Tile | 3 | 1–10 |
+| Layout | `slideshow` | `slideshow` / `grid` |
+| Color Scheme | `dark` | `dark` / `light` / `auto` (follows the viewer's device setting) |
+| Rotate Automatically | on | Slideshow only; pauses on hover, focus, touch-hold, offscreen and in a hidden tab |
+| Seconds Per Metric | 8 | Slideshow only |
+| Show Most Active … Show Social Advocacy | all on | One checkbox per metric |
+| People Per Metric | 5 | 2–10 |
 | Limit to Channel IDs | *(empty)* | Comma-separated |
 | Exclude User IDs | *(empty)* | Comma-separated |
 | Max Posts to Scan | 200 | One request each |
 | Cache Lifetime | 15 min | `sessionStorage` |
 | Show Engagement Map | off | Full-width breadth × volume scatter |
 | Animate Charts | on | Yields to `prefers-reduced-motion` |
-| Use Theme Colors | off | Otherwise Primary/Accent pickers |
+| Use Theme Colors | **on** | Pulls the brand palette from `/api/theming/themes/primary` and re-tunes it for the dark stage. Off falls back to the Primary/Accent pickers. |
 | Show Sample Data When Unconfigured | on | Badged as sample |
 | Debug Mode | off | On-screen log |
 
@@ -194,6 +301,7 @@ open preview.html    # local harness; blank config renders sample data
 | `engagement-leaderboard.ts` | Block definition, config schema, styles, render loop |
 | `api.ts` | Auth ladder, throttled HTTP, one full data pass |
 | `aggregate.ts` | Windowing, per-user stats, metric selectors, tile building |
-| `charts.ts` | Podium, bars, donut, slope, share bars, bubble map |
+| `charts.ts` | Champion, field, and the per-metric flourishes |
+| `icons.ts` | Authored SVG icon set — one distinct mark per metric, plus state and chrome icons. No emoji, no icon font. |
 | `types.ts` | Shared vocabulary |
 | `strings.ts` | i18n bundles (en, de, fr, fr-CA, es, es-MX, nl) |

@@ -216,6 +216,17 @@ export function buildTiles(o: BuildOptions): Tile[] {
     switch (id) {
       case "most_active": {
         const r = ranked(activityScore, s => s.comments);
+        const src = r.widened ? widenedStats() : primary;
+        // The headline number is a sum, so show what it is a sum of.
+        for (const e of r.entries) {
+          const s = src.get(e.person.id);
+          if (!s) continue;
+          e.parts = [
+            { label: o.t("part.comments"), value: s.comments, color: o.colors.comment },
+            { label: o.t("part.reactions"), value: s.reactionsGiven, color: o.colors.reaction },
+            { label: o.t("part.posts"), value: s.postsAuthored, color: o.colors.post },
+          ].filter(x => x.value > 0);
+        }
         tiles.push(tile(id, o.t("metric.mostActive"), o.t("metric.mostActive.sub"), "podium", r, o.t("unit.actions")));
         break;
       }

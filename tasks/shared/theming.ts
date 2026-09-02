@@ -23,6 +23,11 @@
 
 export type ThemeColors = { primary?: string; accent?: string };
 
+/** Which background the chosen colors have to survive on. Widgets that render
+ *  on a dark stage need the opposite treatment from the white-card widgets:
+ *  brand colors get *lightened* toward legibility instead of darkened. */
+export type ThemeSurface = "light" | "dark";
+
 const isHex = (s: string): boolean => /^#[0-9a-fA-F]{3,8}$/.test(s);
 
 // Pure white/black are useless as an accent (invisible on light UIs / harsh),
@@ -43,6 +48,11 @@ function relLuminance(hex: string): number {
 // Contrast ratio of a color against white (the widget's background).
 function contrastOnWhite(hex: string): number {
   return 1.05 / (relLuminance(hex) + 0.05);
+}
+
+// Contrast ratio against the near-black stage the leaderboard renders on.
+function contrastOnDark(hex: string): number {
+  return (relLuminance(hex) + 0.05) / (relLuminance("#0b0d12") + 0.05);
 }
 
 function hexToHsl(hex: string): { h: number; s: number; l: number } {
@@ -87,6 +97,30 @@ function darkenToContrast(hex: string, target = 4.5): string {
   return out;
 }
 
+// Lighten a color (keep hue/saturation) until it reads on the dark stage.
+function lightenToContrast(hex: string, target = 4.5): string {
+  let { h, s, l } = hexToHsl(hex);
+  let out = hex;
+  for (let i = 0; i < 60 && contrastOnDark(out) < target && l < 0.96; i++) {
+    l = Math.min(1, l + 0.02);
+    out = hslToHex(h, s, l);
+  }
+  return out;
+}
+
+// From a palette, pick the color to use ON A DARK STAGE (headlines, bars, glow):
+// the most saturated color, lightened only as far as legibility demands so the
+// brand hue survives. Returns "" if nothing usable.
+function pickOnDark(cands: string[]): string {
+  const scored = cands.filter(isHex).map(hex => ({ hex, ...hexToHsl(hex), contrast: contrastOnDark(hex) }));
+  let pool = scored.filter(c => c.s >= 0.35 && c.l >= 0.15 && c.l <= 0.92);
+  if (!pool.length) pool = scored.filter(c => c.s >= 0.2);
+  if (!pool.length) return "";
+  // Most saturated first, then whichever already reads best on dark.
+  pool.sort((a, b) => (b.s - a.s) || (b.contrast - a.contrast));
+  return lightenToContrast(pool[0].hex, 4.5);
+}
+
 // From a palette, pick the color to use ON WHITE (names, active states, borders):
 // the darkest one that's still clearly saturated, then darken further if it's
 // still too light to read. Returns "" if nothing usable (caller falls back).
@@ -114,7 +148,8 @@ function pickVivid(cands: string[], exclude = ""): string {
 export async function fetchThemeColors(
   baseUrl: string,
   apiToken: string,
-  themeId = "primary"
+  themeId = "primary",
+  surface: ThemeSurface = "light"
 ): Promise<ThemeColors> {
   try {
     const res = await fetch(`${baseUrl}/theming/themes/${themeId}`, {
@@ -154,19 +189,24 @@ export async function fetchThemeColors(
 
     // Primary: best on-white color from the palette; fall back to the older
     // brand-color resolution (darkened for contrast) if nothing was saturated.
-    let primary = pickOnWhite(palette);
+    let primary = surface === "dark" ? pickOnDark(palette) : pickOnWhite(palette);
     if (!primary) {
       primary =
         resolve("primary-brand-color") ||
         customs["legacy-background-color"] ||
         (typeof data?.globalTheme?.interfaceColor === "string" ? data.globalTheme.interfaceColor : "");
-      if (isHex(primary)) primary = darkenToContrast(primary, 4.5);
+      if (isHex(primary)) {
+        primary = surface === "dark" ? lightenToContrast(primary, 4.5) : darkenToContrast(primary, 4.5);
+      }
     }
     // Accent: most vivid palette color, else nav accent, else fall back to primary.
     let accent =
       pickVivid(palette, primary) ||
       resolve(data?.desktopTheme?.components?.navigation?.accentColor) ||
       String(primary);
+    // On the dark stage the accent is a real text/graphic color too, not just a
+    // gradient stop, so it has to clear contrast the same way primary does.
+    if (surface === "dark" && isHex(String(accent))) accent = lightenToContrast(String(accent), 3);
 
     return {
       primary: isHex(String(primary)) ? String(primary) : undefined,
