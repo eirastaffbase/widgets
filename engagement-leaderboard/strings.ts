@@ -72,6 +72,9 @@ export const BUNDLES: Bundles = {
     "map.label": "Engagement map: participation breadth against total actions",
     "map.axisX": "Breadth",
     "map.axisY": "Volume",
+    "window.from": "From",
+    "window.to": "To",
+    "state.partialN": "Partial data — {n} of {total} posts could not be read.",
     "a11y.rank": "Rank",
   },
 
@@ -140,6 +143,9 @@ export const BUNDLES: Bundles = {
     "map.label": "Engagement-Karte: Beteiligungsbreite gegenüber Gesamtaktionen",
     "map.axisX": "Breite",
     "map.axisY": "Menge",
+    "window.from": "Von",
+    "window.to": "Bis",
+    "state.partialN": "Unvollständige Daten – {n} von {total} Beiträgen konnten nicht gelesen werden.",
     "a11y.rank": "Rang",
   },
 
@@ -208,6 +214,9 @@ export const BUNDLES: Bundles = {
     "map.label": "Carte d'engagement : diversité de participation et actions totales",
     "map.axisX": "Diversité",
     "map.axisY": "Volume",
+    "window.from": "Du",
+    "window.to": "Au",
+    "state.partialN": "Données partielles — {n} publications sur {total} n'ont pas pu être lues.",
     "a11y.rank": "Rang",
   },
 
@@ -276,6 +285,9 @@ export const BUNDLES: Bundles = {
     "map.label": "Mapa de participación: amplitud frente a acciones totales",
     "map.axisX": "Amplitud",
     "map.axisY": "Volumen",
+    "window.from": "Desde",
+    "window.to": "Hasta",
+    "state.partialN": "Datos parciales: no se pudieron leer {n} de {total} publicaciones.",
     "a11y.rank": "Puesto",
   },
 
@@ -344,6 +356,9 @@ export const BUNDLES: Bundles = {
     "map.label": "Betrokkenheidskaart: breedte van deelname tegenover totaal aantal acties",
     "map.axisX": "Breedte",
     "map.axisY": "Volume",
+    "window.from": "Van",
+    "window.to": "Tot",
+    "state.partialN": "Onvolledige gegevens — {n} van {total} berichten konden niet worden gelezen.",
     "a11y.rank": "Positie",
   },
 };

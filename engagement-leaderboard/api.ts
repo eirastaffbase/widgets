@@ -22,7 +22,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import {
-  ApiUser, Avatar, EngagementEvent, OptsFactory, Person, Post, PostRanking, RawData,
+  ApiUser, Avatar, EngagementEvent, OptsFactory, Person, Post, PostRanking, RawData, SkippedPost,
 } from "./types";
 
 // ── Identities ───────────────────────────────────────────────────────────────
@@ -243,28 +243,71 @@ export async function fetchComments(
 export async function fetchPostReactions(
   http: Http, base: string, postId: string, sessionFirst: OptsFactory[], tokenOnly: OptsFactory[],
   inlineUsers?: ApiUser[],
-): Promise<{ userId: string; at: string; type?: string }[] | null> {
+): Promise<{ rows: { userId: string; at: string; type?: string }[] } | { skipped: string }> {
   if (sessionFirst.length) {
     try {
       const d = await http.getJson(
         `${base}/reactions?parentId=${postId}&parentType=post`, sessionFirst[0],
       );
       const rows: any[] = d?.data || [];
-      return rows
+      return { rows: rows
         .map(r => ({ userId: r.userId || r.userID || "", at: r.createdAt || r.created || "", type: r.type || "LIKE" }))
-        .filter(r => r.userId);
+        .filter(r => r.userId) };
     } catch (_) { /* fall through to /likes */ }
   }
   try {
     const d = await http.ladder(`${base}/posts/${postId}/likes?limit=${PAGE}`, tokenOnly, `likes ${postId}`);
     const rows: any[] = d?.data || [];
     if (inlineUsers) for (const r of rows) if (r?.user?.id) inlineUsers.push(r.user);
-    return rows
+    return { rows: rows
       .map(r => ({ userId: r.userID || r.userId || "", at: r.created || "" }))
-      .filter(r => r.userId);
+      .filter(r => r.userId) };
+  } catch (e: any) {
+    // Keep the reason. "Some channels were not readable" is useless on its own;
+    // the caller needs to be able to name the post and the HTTP status.
+    return { skipped: e?.message || String(e) };
+  }
+}
+
+/**
+ * Full-resolution profile photo for one user.
+ *
+ * `/users` only carries the 48px `icon` and 200px `thumb` derivatives, which are
+ * visibly soft behind the 132px champion avatar on a 2x display.
+ * `/profiles/public/{id}` returns a 200px square `avatarUrl` built from a
+ * Cloudinary-style transform chain, and that chain can be re-written to ask for
+ * a larger render.
+ *
+ * USER-authenticated (a bare request returns NotLoggedInException), so this is
+ * session-first and strictly optional — if it fails the existing avatar stands.
+ */
+export async function fetchPublicProfile(
+  http: Http, base: string, id: string, ladder: OptsFactory[],
+): Promise<{ avatar: string; position: string; department: string } | null> {
+  try {
+    const d = await http.ladder(`${base}/profiles/public/${id}`, ladder, `profile ${id}`);
+    if (!d || !d.id) return null;
+    return {
+      avatar: d.avatarUrl || "",
+      position: d.position || "",
+      department: d.department || "",
+    };
   } catch (_) {
     return null;
   }
+}
+
+/**
+ * Ask the media pipeline for a larger render of the same image.
+ *
+ * The URL ends in `.../c_fill,w_200,h_200/<hash>.png`. Raising those numbers is
+ * the documented way to get a sharper derivative, but it is a guess about a URL
+ * shape we do not own — so callers must keep the original as an onerror
+ * fallback rather than trusting this.
+ */
+export function hiResAvatar(url: string, px: number): string {
+  if (!url || !/\/c_fill,w_\d+,h_\d+\//.test(url)) return url;
+  return url.replace(/\/c_fill,w_\d+,h_\d+\//, `/c_fill,w_${px},h_${px}/`);
 }
 
 /**
@@ -381,19 +424,24 @@ export async function loadRawData(opts: LoadOptions): Promise<RawData> {
   // Fan-out: one reaction list per post.
   let done = 0;
   let skippedPosts = 0;
+  const skipped: SkippedPost[] = [];
   let typedReactions = false;
   const events: EngagementEvent[] = [];
 
   const results = await http.mapLimit(posts, async (post) => {
-    const rows = await fetchPostReactions(http, base, post.id, reactionSession, general, inlineUsers);
+    const res = await fetchPostReactions(http, base, post.id, reactionSession, general, inlineUsers);
     done++;
     opts.onProgress?.(done, posts.length);
-    return { post, rows };
+    return { post, res };
   });
 
-  for (const { post, rows } of results) {
-    if (rows === null) { skippedPosts++; continue; }
-    for (const r of rows) {
+  for (const { post, res } of results) {
+    if ("skipped" in res) {
+      skippedPosts++;
+      skipped.push({ postId: post.id, channelId: post.channelId || "", reason: res.skipped });
+      continue;
+    }
+    for (const r of res.rows) {
       if (r.type) typedReactions = true;
       events.push({
         kind: "reaction",
@@ -434,6 +482,13 @@ export async function loadRawData(opts: LoadOptions): Promise<RawData> {
   }
 
   log(`built ${events.length} events, skipped ${skippedPosts} restricted posts, typed reactions: ${typedReactions}`);
+  if (skipped.length) {
+    const byChannel = new Map<string, number>();
+    for (const sk of skipped) byChannel.set(sk.channelId, (byChannel.get(sk.channelId) || 0) + 1);
+    for (const [ch, n] of byChannel) log(`  unreadable: ${n} post(s) in channel ${ch || "(unknown)"}`);
+    for (const sk of skipped.slice(0, 5)) log(`  post ${sk.postId} -> ${sk.reason}`);
+    if (skipped.length > 5) log(`  ...and ${skipped.length - 5} more`);
+  }
 
-  return { events, posts, people, rankings, skippedPosts, typedReactions, fetchedAt: Date.now() };
+  return { events, posts, people, rankings, skippedPosts, skipped, typedReactions, fetchedAt: Date.now() };
 }

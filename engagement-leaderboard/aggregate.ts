@@ -37,7 +37,10 @@ export function resolveWindow(key: WindowKey, now: number, customSince?: string,
   const spans: { [k: string]: number } = { "7d": 7 * day, "30d": 30 * day, "90d": 90 * day, "12m": 365 * day };
   if (key === "custom") {
     const s = Date.parse(customSince || "");
-    const u = Date.parse(customUntil || "");
+    let u = Date.parse(customUntil || "");
+    // A bare YYYY-MM-DD parses to midnight, which would silently exclude the
+    // whole of the end day the viewer just picked. Run it to the last instant.
+    if (isFinite(u) && /^\d{4}-\d{2}-\d{2}$/.test((customUntil || "").trim())) u += day - 1;
     return { since: isFinite(s) ? s : 0, until: isFinite(u) ? u : now };
   }
   if (key === "all" || !spans[key]) return { since: 0, until: now };

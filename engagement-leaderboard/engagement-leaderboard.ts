@@ -23,12 +23,12 @@ import { JSONSchema7 } from "json-schema";
 import { detectLocale, isRtl, makeT } from "../tasks/shared/i18n";
 import { fetchThemeColors } from "../tasks/shared/theming";
 import { AVAILABLE_LOCALES, BUNDLES } from "./strings";
-import { Http, fetchPostRankings, loadRawData, makeApiOpts, sessionOpts } from "./api";
+import { Http, fetchPostRankings, fetchPublicProfile, hiResAvatar, loadRawData, makeApiOpts, sessionOpts } from "./api";
 import {
   DEFAULT_WEIGHTS, WindowKey, activityScore, aggregate, buildTiles, resolveWindow,
 } from "./aggregate";
-import { MetricId, PostRanking, RawData, Tile } from "./types";
-import { P, avatar, bubbleMap, champion, esc, field, flourish, fmt } from "./charts";
+import { MetricId, Person, PostRanking, RawData, Tile } from "./types";
+import { P, avatar, bubbleMap, champion, esc, field, flourish, fmt, initials } from "./charts";
 import { METRIC_ICON, icon } from "./icons";
 
 // ── Defaults ─────────────────────────────────────────────────────────────────
@@ -192,7 +192,7 @@ function sampleRaw(): RawData {
     postId: p.id, channelId: p.channelId, title: p.title,
     shares: 29 - i * 6, clicks: 18 - i * 4, comments: 4, likes: 12, visitors: 40 - i * 5,
   }));
-  return { events, posts, people, rankings, skippedPosts: 0, typedReactions: false, fetchedAt: now };
+  return { events, posts, people, rankings, skippedPosts: 0, skipped: [], typedReactions: false, fetchedAt: now };
 }
 
 // ── Styles ───────────────────────────────────────────────────────────────────
@@ -241,8 +241,18 @@ const HOST_RESET = `
   color:inherit!important;text-decoration:none!important;background:none!important}
 .${P}-root ol,.${P}-root ul{list-style:none!important;margin:0!important;padding:0!important}
 .${P}-root li{margin:0!important;padding:0!important;list-style:none!important}
-.${P}-root h1,.${P}-root h2,.${P}-root h3,.${P}-root h4,.${P}-root p,.${P}-root figure{
+.${P}-root h1,.${P}-root h2,.${P}-root h3,.${P}-root h4,.${P}-root h5,.${P}-root h6,
+.${P}-root p,.${P}-root figure{
   margin:0!important;padding:0!important;font-family:inherit!important}
+/* Staffbase's rich-text styling reaches in with a rule roughly six classes deep:
+   .css-<hash>-StyledRichText-getWowRichTextCss p:not(...):not(...)...
+   Out-specifying that is not practical, but it carries no !important, so pinning
+   the properties it sets wins outright. It is scoped to a bare p element, so
+   that is the entire blast radius — without it every paragraph in the widget
+   is forced to 16px/26px in #171719, invisible on the dark stage. */
+.${P}-root p{
+  color:inherit!important;font-size:inherit!important;font-weight:inherit!important;
+  font-style:normal!important;line-height:inherit!important}
 .${P}-root img{max-width:none!important;margin:0!important;border-radius:0}
 .${P}-root svg{display:block;overflow:visible}
 .${P}-root *,.${P}-root *::before,.${P}-root *::after{box-sizing:border-box}
@@ -360,6 +370,21 @@ ${HOST_RESET}
 .${P}-root select.${P}-sel:hover{color:var(--ink);border-color:rgba(var(--p-rgb),.6)}
 .${P}-root select.${P}-sel option{background:var(--opt-bg);color:var(--ink)}
 
+.${P}-root .${P}-range{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
+.${P}-root .${P}-range label{display:inline-flex;align-items:center;gap:6px;
+  font-size:11px;font-weight:600;color:var(--ink-2);letter-spacing:.02em}
+.${P}-root .${P}-range input[type="date"]{
+  font-family:inherit!important;font-size:12px;height:30px;padding:0 9px!important;
+  width:auto!important;margin:0!important;border-radius:99px;
+  border:1px solid var(--line)!important;background:var(--panel)!important;
+  color:var(--ink)!important;-webkit-appearance:none;appearance:none;
+  color-scheme:dark;cursor:pointer}
+.${P}-root.${P}-light .${P}-range input[type="date"]{color-scheme:light}
+.${P}-root .${P}-range input[type="date"]:hover{border-color:rgba(var(--p-rgb),.6)!important}
+.${P}-root .${P}-range input[type="date"]:focus-visible{
+  outline:none;box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--sbel-primary)!important}
+.${P}-range[hidden]{display:none}
+
 /* ── Chapter rail ───────────────────────────────────────────────────────── */
 /* The rail scrolls when the metrics outrun the width. The mask ends are driven
    from JS rather than hard-coded, so a rail that fits is never clipped and one
@@ -411,7 +436,8 @@ ${HOST_RESET}
 .${P}-stitle{font-size:19px;font-weight:700;letter-spacing:-.022em;color:var(--ink)}
 /* <p> and <ul> both get margin:0!important from the host reset above, so every
    spacing rule on a caption or legend must out-specify it or it is a no-op. */
-.${P}-root .${P}-ssub{font-size:12.5px;color:var(--ink-2);letter-spacing:-.003em;
+.${P}-root .${P}-ssub{letter-spacing:-.003em;
+  font-size:12.5px!important;color:var(--ink-2)!important;line-height:1.45!important;
   margin:0 0 22px!important;padding-bottom:2px!important}
 
 .${P}-body{display:grid;gap:26px;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);align-items:start}
@@ -459,6 +485,28 @@ a.${P}-champ-nm:hover{text-decoration:underline!important;text-underline-offset:
 .${P}-av-fb::after{content:attr(data-ini)}
 .${P}-av-hero{box-shadow:0 0 0 2px rgba(var(--p-rgb),.55),0 0 0 7px rgba(var(--p-rgb),.14),
   var(--hero-shadow)}
+/* Profile hovercard. Rendered on <body> so the deck's slide transforms cannot
+   re-base its position:fixed — it therefore inherits no scheme tokens and gets
+   them copied on at show time. */
+.${P}-hover{position:fixed;z-index:2147483000;display:flex;gap:11px;align-items:center;
+  max-width:290px;padding:12px 14px;border-radius:14px;pointer-events:auto;
+  background:linear-gradient(180deg,var(--bg-2,#12161F),var(--bg,#0B0D12));
+  border:1px solid var(--line,rgba(255,255,255,.10));
+  box-shadow:var(--drop,0 24px 60px -24px rgba(0,0,0,.7));
+  color:var(--ink,#F2F5FA);font-family:inherit;
+  opacity:0;transform:translateY(4px) scale(.97);transform-origin:50% 100%;
+  transition:opacity .16s ease,transform .16s cubic-bezier(.16,1,.3,1);
+  visibility:hidden}
+.${P}-hover.is-on{opacity:1;transform:none;visibility:visible}
+.${P}-hover-txt{min-width:0}
+.${P}-hover strong{display:block;font-size:14px;font-weight:700;line-height:1.25;
+  letter-spacing:-.01em;color:var(--ink,#F2F5FA)}
+.${P}-hover ul{list-style:none;margin:5px 0 0;padding:0;display:grid;gap:3px}
+.${P}-hover li{display:flex;gap:6px;align-items:center;font-size:11.5px;line-height:1.35;
+  color:var(--ink-2,#9AA6BD)}
+.${P}-hover li svg{flex:0 0 auto;opacity:.75}
+.${P}-hover li span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (prefers-reduced-motion:reduce){.${P}-hover{transition:none}}
 .${P}-avlink{display:inline-flex;border-radius:50%}
 .${P}-avlink:focus-visible{outline:2px solid var(--sbel-primary);outline-offset:3px}
 
@@ -500,7 +548,12 @@ a.${P}-frow-nm:hover{text-decoration:underline!important;text-underline-offset:3
   font-size:22px;font-weight:800;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
 .${P}-fl-ring .${P}-legend{flex-direction:column;gap:7px}
 
-.${P}-slope svg{width:100%;height:84px}
+.${P}-slope-plot{position:relative}
+.${P}-slope svg{width:100%;height:84px;display:block}
+.${P}-sdot{position:absolute;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none}
+.${P}-sdot-a{width:8px;height:8px;background:var(--sbel-accent)}
+.${P}-sdot-b{width:11px;height:11px;background:var(--sbel-primary);
+  box-shadow:0 0 0 4px rgba(var(--p-rgb),.20)}
 .${P}-sarea{fill:rgba(var(--p-rgb),.14)}
 .${P}-slope-ends{display:flex;justify-content:space-between;margin-top:8px;font-size:11px;
   color:var(--ink-2)}
@@ -556,6 +609,7 @@ a.${P}-frow-nm:hover{text-decoration:underline!important;text-underline-offset:3
 .${P}-empty{padding:44px 10px;text-align:center;color:var(--ink-2);font-size:13px;
   display:flex;flex-direction:column;align-items:center;gap:12px}
 .${P}-empty svg{opacity:.5}
+.${P}-root .${P}-empty p{font-size:13px!important;color:var(--ink-2)!important;line-height:1.5!important}
 .${P}-sk{border-radius:var(--r-sm);background:rgba(var(--tint),.05);position:relative;overflow:hidden}
 .${P}-sk::after{content:"";position:absolute;inset:0;transform:translateX(-100%);
   background:linear-gradient(90deg,transparent,rgba(var(--tint),.07),transparent);
@@ -585,7 +639,7 @@ a.${P}-frow-nm:hover{text-decoration:underline!important;text-underline-offset:3
 .${P}-anim .${P}-slide.is-on .${P}-arc{animation:${P}-arc .8s cubic-bezier(.16,1,.3,1) both;
   animation-delay:calc(360ms + var(--d))}
 .${P}-anim .${P}-slide.is-on .${P}-sline{animation:${P}-draw .9s cubic-bezier(.16,1,.3,1) .35s both}
-.${P}-anim .${P}-slide.is-on .${P}-sdot{animation:${P}-pop .5s cubic-bezier(.16,1,.3,1) 1s both}
+.${P}-anim .${P}-slide.is-on .${P}-sdot-b{animation:${P}-dotpop .5s cubic-bezier(.16,1,.3,1) 1s both}
 .${P}-anim .${P}-slide.is-on .${P}-bub{animation:${P}-pop .55s cubic-bezier(.16,1,.3,1) both;
   animation-delay:calc(200ms + var(--i)*35ms)}
 .${P}-anim .${P}-slide.is-off{animation:${P}-out .2s ease-in both}
@@ -598,6 +652,9 @@ a.${P}-frow-nm:hover{text-decoration:underline!important;text-underline-offset:3
 @keyframes ${P}-arc{from{stroke-dasharray:0 9999}}
 @keyframes ${P}-draw{from{stroke-dasharray:0 400}to{stroke-dasharray:400 0}}
 @keyframes ${P}-pop{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:none}}
+@keyframes ${P}-dotpop{
+  from{opacity:0;transform:translate(-50%,-50%) scale(.3)}
+  to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
 @keyframes ${P}-out{to{opacity:0;transform:translateY(-8px) scale(.985);filter:blur(4px)}}
 
 /* ── Responsive ─────────────────────────────────────────────────────────── */
@@ -632,6 +689,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       // timers and listeners running against a detached DOM.
       if (self._sbelCleanup) { try { self._sbelCleanup(); } catch (_) { /* ignore */ } }
       const cleanups: Array<() => void> = [];
+      const peopleIx = new Map<string, Person>();
       self._sbelCleanup = () => { for (const fn of cleanups.splice(0)) { try { fn(); } catch (_) { /* ignore */ } } };
 
       const attr = (k: string): string => this.getAttribute(k) || "";
@@ -707,11 +765,13 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       };
 
       let windowKey = (attr("timewindow") || "90d") as WindowKey;
-      const customSince = attr("customsince");
-      const customUntil = attr("customuntil");
+      let prevKey: WindowKey = windowKey === "custom" ? "90d" : windowKey;
+      let customSince = attr("customsince");
+      let customUntil = attr("customuntil");
+      const isoDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 
       // ── Shell ──────────────────────────────────────────────────────────────
-      const windowKeys: WindowKey[] = ["all", "7d", "30d", "90d", "12m"];
+      const windowKeys: WindowKey[] = ["all", "7d", "30d", "90d", "12m", "custom"];
       container.innerHTML = `<style>${CSS}</style>
         <div class="${P}-root${scheme === "light" ? ` ${P}-light` : ""}${animate ? ` ${P}-anim` : ""}"
           dir="${rtl ? "rtl" : "ltr"}" style="
@@ -730,7 +790,13 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
               <span class="${P}-chip ${P}-status" hidden></span>
               ${showPicker ? `<select class="${P}-sel ${P}-window" aria-label="${esc(t("window.custom"))}">
                 ${windowKeys.map(k => `<option value="${k}"${k === windowKey ? " selected" : ""}>${esc(t(`window.${k}`))}</option>`).join("")}
-              </select>` : ""}
+              </select>
+              <span class="${P}-range"${windowKey === "custom" ? "" : " hidden"}>
+                <label>${esc(t("window.from"))}
+                  <input class="${P}-since" type="date" value="${esc(customSince)}"></label>
+                <label>${esc(t("window.to"))}
+                  <input class="${P}-until" type="date" value="${esc(customUntil)}"></label>
+              </span>` : ""}
               <button class="${P}-ctl ${P}-refresh" type="button" aria-label="${esc(t("state.refresh"))}" title="${esc(t("state.refresh"))}">${icon("refresh", 15)}</button>
             </div>
             ${mode === "slideshow" ? `<div class="${P}-rail" role="tablist"></div>` : ""}
@@ -947,8 +1013,163 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         </section>`;
       };
 
+      // ── Hi-res avatars ─────────────────────────────────────────────────────
+      // `/users` only gives us a 48px icon, which is visibly soft behind the
+      // 132px champion portrait. `/profiles/public/{id}` has a 200px original we
+      // can ask to be rendered larger. It is USER-authenticated and entirely
+      // optional, so it runs *after* the deck is on screen and patches the
+      // existing <img> in place — re-rendering would replay every entrance
+      // animation for a cosmetic upgrade.
+      const cssq = (v: string) => v.replace(/["\\]/g, "\\$&");
+      const profileCache = new Map<string, string | null>();
+      let upgradeToken = 0;
+
+      const applyAvatar = (uid: string, url: string) => {
+        const want = hiResAvatar(url, 400);
+        root.querySelectorAll<HTMLImageElement>(`[data-uid="${cssq(uid)}"] img`).forEach(img => {
+          if (img.dataset.hires === "1") return;
+          img.dataset.hires = "1";
+          // The 400px render is a guess about a URL shape we do not own; step
+          // back to the URL the API actually handed us before giving up.
+          img.onerror = () => { img.onerror = null; img.src = url; };
+          img.src = want;
+        });
+      };
+
+      const upgradeAvatars = async () => {
+        const mine = ++upgradeToken;
+        const ids: string[] = [];
+        root.querySelectorAll<HTMLElement>("[data-uid]").forEach(el => {
+          const id = el.dataset.uid || "";
+          if (id && ids.indexOf(id) < 0) ids.push(id);
+        });
+        for (const id of ids) {
+          const hit = profileCache.get(id);
+          if (hit) applyAvatar(id, hit);
+        }
+        const missing = ids.filter(id => !profileCache.has(id));
+        if (!missing.length) return;
+        dlog(`upgrading ${missing.length} avatar(s) via /profiles/public`);
+        await Promise.all(missing.map(async id => {
+          const prof = await fetchPublicProfile(http, baseUrl, id, order);
+          profileCache.set(id, prof?.avatar || null);
+          if (mine !== upgradeToken) return;
+          const person = peopleIx.get(id);
+          if (person && prof) {
+            if (prof.avatar) person.avatar = prof.avatar;
+            if (!person.position && prof.position) person.position = prof.position;
+            if (!person.department && prof.department) person.department = prof.department;
+          }
+          if (prof?.avatar) applyAvatar(id, prof.avatar);
+        }));
+      };
+
+      // ── Profile hovercard ──────────────────────────────────────────────────
+      // Lives on <body>, not inside the widget: the deck uses transforms for its
+      // slide transitions, and a transformed ancestor re-bases position:fixed,
+      // which would drag the card around with the slide.
+      let hoverEl: HTMLElement | null = null;
+      let hoverFor: HTMLElement | null = null;
+      let hoverShow = 0;
+      let hoverHide = 0;
+
+      const placeHover = (anchorEl: HTMLElement) => {
+        if (!hoverEl) return;
+        const a = anchorEl.getBoundingClientRect();
+        const h = hoverEl.getBoundingClientRect();
+        const pad = 10;
+        let left = a.left + a.width / 2 - h.width / 2;
+        left = Math.max(pad, Math.min(left, window.innerWidth - h.width - pad));
+        // Prefer above; flip below only when there is genuinely no room.
+        let top = a.top - h.height - 10;
+        if (top < pad) top = a.bottom + 10;
+        hoverEl.style.left = `${Math.round(left)}px`;
+        hoverEl.style.top = `${Math.round(top)}px`;
+      };
+
+      const hideHover = () => {
+        window.clearTimeout(hoverShow);
+        window.clearTimeout(hoverHide);
+        hoverHide = window.setTimeout(() => {
+          hoverFor = null;
+          if (hoverEl) hoverEl.classList.remove("is-on");
+        }, 180);
+      };
+
+      const showHover = (anchorEl: HTMLElement) => {
+        const uid = anchorEl.dataset.uid || "";
+        const person = peopleIx.get(uid);
+        if (!person) return;
+        // The avatar and the name are two separate anchors for the same person,
+        // and each has children. Without this guard, crossing between them
+        // cancels and restarts the reveal, so the card visibly blinks.
+        window.clearTimeout(hoverHide);
+        if (hoverFor === anchorEl && hoverEl?.classList.contains("is-on")) return;
+        hoverFor = anchorEl;
+        window.clearTimeout(hoverShow);
+        hoverShow = window.setTimeout(() => {
+          if (!hoverEl) {
+            hoverEl = document.createElement("div");
+            hoverEl.className = `${P}-hover`;
+            document.body.appendChild(hoverEl);
+            hoverEl.addEventListener("mouseenter", () => window.clearTimeout(hoverHide));
+            hoverEl.addEventListener("mouseleave", hideHover);
+          }
+          // The card is outside .sbel-root, so it inherits none of the scheme
+          // tokens — carry the ones it needs across explicitly.
+          const cs = getComputedStyle(root);
+          for (const v of ["--tint", "--bg", "--bg-2", "--panel", "--line", "--ink", "--ink-2",
+            "--p-rgb", "--r-sm", "--drop", "--sbel-primary", "--sbel-accent", "--sbel-primary-text"]) {
+            hoverEl.style.setProperty(v, cs.getPropertyValue(v));
+          }
+          const rows: string[] = [];
+          if (person.position) rows.push(`${icon("badge", 13)}<span>${esc(person.position)}</span>`);
+          if (person.department) rows.push(`${icon("people", 13)}<span>${esc(person.department)}</span>`);
+          if (person.location) rows.push(`${icon("pin", 13)}<span>${esc(person.location)}</span>`);
+          const av = person.avatar
+            ? `<img src="${esc(person.avatar)}" alt="" onerror="this.parentElement.classList.add('${P}-av-fb');this.remove()">`
+            : "";
+          hoverEl.innerHTML = `
+            <span class="${P}-av${person.avatar ? "" : ` ${P}-av-fb`}" style="--av:46px"
+              data-ini="${esc(initials(person.name))}">${av}</span>
+            <div class="${P}-hover-txt">
+              <strong>${esc(person.name)}</strong>
+              ${rows.length ? `<ul>${rows.map(r => `<li>${r}</li>`).join("")}</ul>` : ""}
+            </div>`;
+          hoverEl.classList.add("is-on");
+          placeHover(anchorEl);
+        }, 220);
+      };
+
+      const onHoverOver = (ev: Event) => {
+        const el = (ev.target as HTMLElement)?.closest?.("[data-uid]") as HTMLElement | null;
+        if (el) showHover(el);
+      };
+      const onHoverOut = (ev: Event) => {
+        const el = (ev.target as HTMLElement)?.closest?.("[data-uid]") as HTMLElement | null;
+        if (!el) return;
+        const to = (ev as MouseEvent).relatedTarget as HTMLElement | null;
+        if (to && typeof to.closest === "function" && to.closest("[data-uid]") === el) return;
+        hideHover();
+      };
+      root.addEventListener("mouseover", onHoverOver);
+      root.addEventListener("mouseout", onHoverOut);
+      root.addEventListener("focusin", onHoverOver);
+      root.addEventListener("focusout", onHoverOut);
+      cleanups.push(() => {
+        window.clearTimeout(hoverShow);
+        window.clearTimeout(hoverHide);
+        root.removeEventListener("mouseover", onHoverOver);
+        root.removeEventListener("mouseout", onHoverOut);
+        root.removeEventListener("focusin", onHoverOver);
+        root.removeEventListener("focusout", onHoverOut);
+        if (hoverEl && hoverEl.parentNode) hoverEl.parentNode.removeChild(hoverEl);
+        hoverEl = null;
+      });
+
       const render = async () => {
         if (!raw) return;
+        for (const p of raw.people) peopleIx.set(p.id, p);
         const now = Date.now();
         const win = resolveWindow(windowKey, now, customSince, customUntil);
 
@@ -1002,10 +1223,15 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
         const parts: string[] = [];
         if (isSample) parts.push(t("state.sample"));
-        if (raw.skippedPosts) parts.push(t("state.partial"));
+        if (raw.skippedPosts) {
+          parts.push(t("state.partialN")
+            .replace("{n}", String(raw.skippedPosts))
+            .replace("{total}", String(raw.posts.length + raw.skippedPosts)));
+        }
         // Sample data is a caveat; skipped posts are a warning. Different mark.
         setStatus(parts.join(" · "), isSample ? "beaker" : "alert");
         dlog(`rendered ${tiles.length} tiles for window ${windowKey}`);
+        if (!isSample) void upgradeAvatars();
       };
 
       const bubbleCard = (d: RawData, win: { since: number; until: number }): string => {
@@ -1169,11 +1395,47 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         }
       };
 
+      const range = container.querySelector(`.${P}-range`) as HTMLElement | null;
+      const sinceInput = container.querySelector(`.${P}-since`) as HTMLInputElement | null;
+      const untilInput = container.querySelector(`.${P}-until`) as HTMLInputElement | null;
+
       picker?.addEventListener("change", () => {
         windowKey = picker.value as WindowKey;
+        if (range) range.hidden = windowKey !== "custom";
+        if (windowKey === "custom") {
+          // Seed the pickers from whatever period was on screen, so switching to
+          // a custom range starts from where the viewer already was rather than
+          // blank (which would silently mean "all time").
+          const w = resolveWindow(prevKey, Date.now(), customSince, customUntil);
+          if (sinceInput && !sinceInput.value) {
+            customSince = isoDay(w.since || Date.now() - 90 * 86400000);
+            sinceInput.value = customSince;
+          }
+          if (untilInput && !untilInput.value) {
+            customUntil = isoDay(w.until);
+            untilInput.value = customUntil;
+          }
+        }
+        prevKey = windowKey;
         index = 0;
         void render();
       });
+
+      const onRangeChange = () => {
+        customSince = sinceInput?.value || "";
+        customUntil = untilInput?.value || "";
+        // Guard the inverted range rather than rendering a confusing empty state.
+        if (customSince && customUntil && customSince > customUntil) {
+          if (sinceInput) sinceInput.value = customUntil;
+          customSince = customUntil;
+        }
+        if (sinceInput) sinceInput.max = customUntil || "";
+        if (untilInput) untilInput.min = customSince || "";
+        index = 0;
+        void render();
+      };
+      sinceInput?.addEventListener("change", onRangeChange);
+      untilInput?.addEventListener("change", onRangeChange);
       (container.querySelector(`.${P}-refresh`) as HTMLButtonElement | null)
         ?.addEventListener("click", () => {
           rankingCache.clear();

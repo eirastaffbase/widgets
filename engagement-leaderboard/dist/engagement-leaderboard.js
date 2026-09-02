@@ -467,6 +467,9 @@ const BUNDLES = {
         "map.label": "Engagement map: participation breadth against total actions",
         "map.axisX": "Breadth",
         "map.axisY": "Volume",
+        "window.from": "From",
+        "window.to": "To",
+        "state.partialN": "Partial data — {n} of {total} posts could not be read.",
         "a11y.rank": "Rank",
     },
     de_DE: {
@@ -529,6 +532,9 @@ const BUNDLES = {
         "map.label": "Engagement-Karte: Beteiligungsbreite gegenüber Gesamtaktionen",
         "map.axisX": "Breite",
         "map.axisY": "Menge",
+        "window.from": "Von",
+        "window.to": "Bis",
+        "state.partialN": "Unvollständige Daten – {n} von {total} Beiträgen konnten nicht gelesen werden.",
         "a11y.rank": "Rang",
     },
     fr_FR: {
@@ -591,6 +597,9 @@ const BUNDLES = {
         "map.label": "Carte d'engagement : diversité de participation et actions totales",
         "map.axisX": "Diversité",
         "map.axisY": "Volume",
+        "window.from": "Du",
+        "window.to": "Au",
+        "state.partialN": "Données partielles — {n} publications sur {total} n'ont pas pu être lues.",
         "a11y.rank": "Rang",
     },
     es_ES: {
@@ -653,6 +662,9 @@ const BUNDLES = {
         "map.label": "Mapa de participación: amplitud frente a acciones totales",
         "map.axisX": "Amplitud",
         "map.axisY": "Volumen",
+        "window.from": "Desde",
+        "window.to": "Hasta",
+        "state.partialN": "Datos parciales: no se pudieron leer {n} de {total} publicaciones.",
         "a11y.rank": "Puesto",
     },
     nl_NL: {
@@ -715,6 +727,9 @@ const BUNDLES = {
         "map.label": "Betrokkenheidskaart: breedte van deelname tegenover totaal aantal acties",
         "map.axisX": "Breedte",
         "map.axisY": "Volume",
+        "window.from": "Van",
+        "window.to": "Tot",
+        "state.partialN": "Onvolledige gegevens — {n} van {total} berichten konden niet worden gelezen.",
         "a11y.rank": "Positie",
     },
 };
@@ -982,9 +997,9 @@ function fetchPostReactions(http, base, postId, sessionFirst, tokenOnly, inlineU
             try {
                 const d = yield http.getJson(`${base}/reactions?parentId=${postId}&parentType=post`, sessionFirst[0]);
                 const rows = (d === null || d === void 0 ? void 0 : d.data) || [];
-                return rows
-                    .map(r => ({ userId: r.userId || r.userID || "", at: r.createdAt || r.created || "", type: r.type || "LIKE" }))
-                    .filter(r => r.userId);
+                return { rows: rows
+                        .map(r => ({ userId: r.userId || r.userID || "", at: r.createdAt || r.created || "", type: r.type || "LIKE" }))
+                        .filter(r => r.userId) };
             }
             catch (_) { /* fall through to /likes */ }
         }
@@ -995,14 +1010,58 @@ function fetchPostReactions(http, base, postId, sessionFirst, tokenOnly, inlineU
                 for (const r of rows)
                     if ((_a = r === null || r === void 0 ? void 0 : r.user) === null || _a === void 0 ? void 0 : _a.id)
                         inlineUsers.push(r.user);
-            return rows
-                .map(r => ({ userId: r.userID || r.userId || "", at: r.created || "" }))
-                .filter(r => r.userId);
+            return { rows: rows
+                    .map(r => ({ userId: r.userID || r.userId || "", at: r.created || "" }))
+                    .filter(r => r.userId) };
+        }
+        catch (e) {
+            // Keep the reason. "Some channels were not readable" is useless on its own;
+            // the caller needs to be able to name the post and the HTTP status.
+            return { skipped: (e === null || e === void 0 ? void 0 : e.message) || String(e) };
+        }
+    });
+}
+/**
+ * Full-resolution profile photo for one user.
+ *
+ * `/users` only carries the 48px `icon` and 200px `thumb` derivatives, which are
+ * visibly soft behind the 132px champion avatar on a 2x display.
+ * `/profiles/public/{id}` returns a 200px square `avatarUrl` built from a
+ * Cloudinary-style transform chain, and that chain can be re-written to ask for
+ * a larger render.
+ *
+ * USER-authenticated (a bare request returns NotLoggedInException), so this is
+ * session-first and strictly optional — if it fails the existing avatar stands.
+ */
+function fetchPublicProfile(http, base, id, ladder) {
+    return api_awaiter(this, void 0, void 0, function* () {
+        try {
+            const d = yield http.ladder(`${base}/profiles/public/${id}`, ladder, `profile ${id}`);
+            if (!d || !d.id)
+                return null;
+            return {
+                avatar: d.avatarUrl || "",
+                position: d.position || "",
+                department: d.department || "",
+            };
         }
         catch (_) {
             return null;
         }
     });
+}
+/**
+ * Ask the media pipeline for a larger render of the same image.
+ *
+ * The URL ends in `.../c_fill,w_200,h_200/<hash>.png`. Raising those numbers is
+ * the documented way to get a sharper derivative, but it is a guess about a URL
+ * shape we do not own — so callers must keep the original as an onerror
+ * fallback rather than trusting this.
+ */
+function hiResAvatar(url, px) {
+    if (!url || !/\/c_fill,w_\d+,h_\d+\//.test(url))
+        return url;
+    return url.replace(/\/c_fill,w_\d+,h_\d+\//, `/c_fill,w_${px},h_${px}/`);
 }
 /**
  * Post-level share/click analytics.
@@ -1104,21 +1163,23 @@ function loadRawData(opts) {
         // Fan-out: one reaction list per post.
         let done = 0;
         let skippedPosts = 0;
+        const skipped = [];
         let typedReactions = false;
         const events = [];
         const results = yield http.mapLimit(posts, (post) => api_awaiter(this, void 0, void 0, function* () {
             var _a;
-            const rows = yield fetchPostReactions(http, base, post.id, reactionSession, general, inlineUsers);
+            const res = yield fetchPostReactions(http, base, post.id, reactionSession, general, inlineUsers);
             done++;
             (_a = opts.onProgress) === null || _a === void 0 ? void 0 : _a.call(opts, done, posts.length);
-            return { post, rows };
+            return { post, res };
         }));
-        for (const { post, rows } of results) {
-            if (rows === null) {
+        for (const { post, res } of results) {
+            if ("skipped" in res) {
                 skippedPosts++;
+                skipped.push({ postId: post.id, channelId: post.channelId || "", reason: res.skipped });
                 continue;
             }
-            for (const r of rows) {
+            for (const r of res.rows) {
                 if (r.type)
                     typedReactions = true;
                 events.push({
@@ -1163,7 +1224,18 @@ function loadRawData(opts) {
             }
         }
         log(`built ${events.length} events, skipped ${skippedPosts} restricted posts, typed reactions: ${typedReactions}`);
-        return { events, posts, people, rankings, skippedPosts, typedReactions, fetchedAt: Date.now() };
+        if (skipped.length) {
+            const byChannel = new Map();
+            for (const sk of skipped)
+                byChannel.set(sk.channelId, (byChannel.get(sk.channelId) || 0) + 1);
+            for (const [ch, n] of byChannel)
+                log(`  unreadable: ${n} post(s) in channel ${ch || "(unknown)"}`);
+            for (const sk of skipped.slice(0, 5))
+                log(`  post ${sk.postId} -> ${sk.reason}`);
+            if (skipped.length > 5)
+                log(`  ...and ${skipped.length - 5} more`);
+        }
+        return { events, posts, people, rankings, skippedPosts, skipped, typedReactions, fetchedAt: Date.now() };
     });
 }
 
@@ -1191,7 +1263,11 @@ function resolveWindow(key, now, customSince, customUntil) {
     const spans = { "7d": 7 * day, "30d": 30 * day, "90d": 90 * day, "12m": 365 * day };
     if (key === "custom") {
         const s = Date.parse(customSince || "");
-        const u = Date.parse(customUntil || "");
+        let u = Date.parse(customUntil || "");
+        // A bare YYYY-MM-DD parses to midnight, which would silently exclude the
+        // whole of the end day the viewer just picked. Run it to the last instant.
+        if (isFinite(u) && /^\d{4}-\d{2}-\d{2}$/.test((customUntil || "").trim()))
+            u += day - 1;
         return { since: isFinite(s) ? s : 0, until: isFinite(u) ? u : now };
     }
     if (key === "all" || !spans[key])
@@ -1508,6 +1584,8 @@ const PATHS = {
     check: `<path d="m5 12.5 4.5 4.5L19 7.5"/>`,
     sun: `<circle cx="12" cy="12" r="4"/><path d="M12 2.5V5M12 19v2.5M2.5 12H5M19 12h2.5M5.2 5.2 7 7M17 17l1.8 1.8M18.8 5.2 17 7M7 17l-1.8 1.8"/>`,
     moon: `<path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/>`,
+    pin: `<path d="M12 21s6.5-6.1 6.5-10.5a6.5 6.5 0 1 0-13 0C5.5 14.9 12 21 12 21Z"/><circle cx="12" cy="10.5" r="2.4"/>`,
+    badge: `<path d="M6.5 3.5h11a1.5 1.5 0 0 1 1.5 1.5v15l-7-3.2L5 20V5a1.5 1.5 0 0 1 1.5-1.5Z"/><path d="M9 8h6"/>`,
 };
 function icon(name, size = 18) {
     return svg(PATHS[name] || PATHS.spark, size);
@@ -1704,6 +1782,7 @@ function slope(e, prevLabel, nowLabel) {
     const y = (v) => pad + (1 - v / max) * (H - pad * 2);
     return `<div class="${P}-fl">
     <div class="${P}-slope">
+      <div class="${P}-slope-plot">
       <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
         <defs><linearGradient id="${P}-sg" x1="0" y1="0" x2="1" y2="0">
           <stop offset="0" stop-color="var(--sbel-accent)"/><stop offset="1" stop-color="var(--sbel-primary)"/>
@@ -1711,9 +1790,14 @@ function slope(e, prevLabel, nowLabel) {
         <path class="${P}-sarea" d="M${pad},${y(before)} L${W - pad},${y(now)} L${W - pad},${H} L${pad},${H} Z"/>
         <line class="${P}-sline" x1="${pad}" y1="${y(before)}" x2="${W - pad}" y2="${y(now)}"
           stroke="url(#${P}-sg)" stroke-width="3" stroke-linecap="round"/>
-        <circle cx="${pad}" cy="${y(before)}" r="4" fill="var(--sbel-accent)"/>
-        <circle class="${P}-sdot" cx="${W - pad}" cy="${y(now)}" r="5" fill="var(--sbel-primary)"/>
       </svg>
+      <!-- The SVG is stretched with preserveAspectRatio="none" so the line always
+           spans the column, which turns any <circle> inside it into an ellipse.
+           The endpoint dots are therefore HTML, positioned in percentages over
+           the same box — the same reason avatars are never SVG <image> here. -->
+      <span class="${P}-sdot ${P}-sdot-a" style="left:${(pad / W) * 100}%;top:${(y(before) / H) * 100}%"></span>
+      <span class="${P}-sdot ${P}-sdot-b" style="left:${((W - pad) / W) * 100}%;top:${(y(now) / H) * 100}%"></span>
+      </div>
       <div class="${P}-slope-ends">
         <span>${esc(prevLabel)}<b>${fmt(before)}</b></span>
         <span class="${P}-slope-now">${esc(nowLabel)}<b>${fmt(now)}</b></span>
@@ -1939,7 +2023,7 @@ function sampleRaw() {
         postId: p.id, channelId: p.channelId, title: p.title,
         shares: 29 - i * 6, clicks: 18 - i * 4, comments: 4, likes: 12, visitors: 40 - i * 5,
     }));
-    return { events, posts, people, rankings, skippedPosts: 0, typedReactions: false, fetchedAt: now };
+    return { events, posts, people, rankings, skippedPosts: 0, skipped: [], typedReactions: false, fetchedAt: now };
 }
 // ── Styles ───────────────────────────────────────────────────────────────────
 /**
@@ -1986,8 +2070,18 @@ const HOST_RESET = `
   color:inherit!important;text-decoration:none!important;background:none!important}
 .${(/* inlined export .P */"sbel")}-root ol,.${(/* inlined export .P */"sbel")}-root ul{list-style:none!important;margin:0!important;padding:0!important}
 .${(/* inlined export .P */"sbel")}-root li{margin:0!important;padding:0!important;list-style:none!important}
-.${(/* inlined export .P */"sbel")}-root h1,.${(/* inlined export .P */"sbel")}-root h2,.${(/* inlined export .P */"sbel")}-root h3,.${(/* inlined export .P */"sbel")}-root h4,.${(/* inlined export .P */"sbel")}-root p,.${(/* inlined export .P */"sbel")}-root figure{
+.${(/* inlined export .P */"sbel")}-root h1,.${(/* inlined export .P */"sbel")}-root h2,.${(/* inlined export .P */"sbel")}-root h3,.${(/* inlined export .P */"sbel")}-root h4,.${(/* inlined export .P */"sbel")}-root h5,.${(/* inlined export .P */"sbel")}-root h6,
+.${(/* inlined export .P */"sbel")}-root p,.${(/* inlined export .P */"sbel")}-root figure{
   margin:0!important;padding:0!important;font-family:inherit!important}
+/* Staffbase's rich-text styling reaches in with a rule roughly six classes deep:
+   .css-<hash>-StyledRichText-getWowRichTextCss p:not(...):not(...)...
+   Out-specifying that is not practical, but it carries no !important, so pinning
+   the properties it sets wins outright. It is scoped to a bare p element, so
+   that is the entire blast radius — without it every paragraph in the widget
+   is forced to 16px/26px in #171719, invisible on the dark stage. */
+.${(/* inlined export .P */"sbel")}-root p{
+  color:inherit!important;font-size:inherit!important;font-weight:inherit!important;
+  font-style:normal!important;line-height:inherit!important}
 .${(/* inlined export .P */"sbel")}-root img{max-width:none!important;margin:0!important;border-radius:0}
 .${(/* inlined export .P */"sbel")}-root svg{display:block;overflow:visible}
 .${(/* inlined export .P */"sbel")}-root *,.${(/* inlined export .P */"sbel")}-root *::before,.${(/* inlined export .P */"sbel")}-root *::after{box-sizing:border-box}
@@ -2104,6 +2198,21 @@ ${HOST_RESET}
 .${(/* inlined export .P */"sbel")}-root select.${(/* inlined export .P */"sbel")}-sel:hover{color:var(--ink);border-color:rgba(var(--p-rgb),.6)}
 .${(/* inlined export .P */"sbel")}-root select.${(/* inlined export .P */"sbel")}-sel option{background:var(--opt-bg);color:var(--ink)}
 
+.${(/* inlined export .P */"sbel")}-root .${(/* inlined export .P */"sbel")}-range{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
+.${(/* inlined export .P */"sbel")}-root .${(/* inlined export .P */"sbel")}-range label{display:inline-flex;align-items:center;gap:6px;
+  font-size:11px;font-weight:600;color:var(--ink-2);letter-spacing:.02em}
+.${(/* inlined export .P */"sbel")}-root .${(/* inlined export .P */"sbel")}-range input[type="date"]{
+  font-family:inherit!important;font-size:12px;height:30px;padding:0 9px!important;
+  width:auto!important;margin:0!important;border-radius:99px;
+  border:1px solid var(--line)!important;background:var(--panel)!important;
+  color:var(--ink)!important;-webkit-appearance:none;appearance:none;
+  color-scheme:dark;cursor:pointer}
+.${(/* inlined export .P */"sbel")}-root.${(/* inlined export .P */"sbel")}-light .${(/* inlined export .P */"sbel")}-range input[type="date"]{color-scheme:light}
+.${(/* inlined export .P */"sbel")}-root .${(/* inlined export .P */"sbel")}-range input[type="date"]:hover{border-color:rgba(var(--p-rgb),.6)!important}
+.${(/* inlined export .P */"sbel")}-root .${(/* inlined export .P */"sbel")}-range input[type="date"]:focus-visible{
+  outline:none;box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--sbel-primary)!important}
+.${(/* inlined export .P */"sbel")}-range[hidden]{display:none}
+
 /* ── Chapter rail ───────────────────────────────────────────────────────── */
 /* The rail scrolls when the metrics outrun the width. The mask ends are driven
    from JS rather than hard-coded, so a rail that fits is never clipped and one
@@ -2155,7 +2264,8 @@ ${HOST_RESET}
 .${(/* inlined export .P */"sbel")}-stitle{font-size:19px;font-weight:700;letter-spacing:-.022em;color:var(--ink)}
 /* <p> and <ul> both get margin:0!important from the host reset above, so every
    spacing rule on a caption or legend must out-specify it or it is a no-op. */
-.${(/* inlined export .P */"sbel")}-root .${(/* inlined export .P */"sbel")}-ssub{font-size:12.5px;color:var(--ink-2);letter-spacing:-.003em;
+.${(/* inlined export .P */"sbel")}-root .${(/* inlined export .P */"sbel")}-ssub{letter-spacing:-.003em;
+  font-size:12.5px!important;color:var(--ink-2)!important;line-height:1.45!important;
   margin:0 0 22px!important;padding-bottom:2px!important}
 
 .${(/* inlined export .P */"sbel")}-body{display:grid;gap:26px;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);align-items:start}
@@ -2203,6 +2313,28 @@ a.${(/* inlined export .P */"sbel")}-champ-nm:hover{text-decoration:underline!im
 .${(/* inlined export .P */"sbel")}-av-fb::after{content:attr(data-ini)}
 .${(/* inlined export .P */"sbel")}-av-hero{box-shadow:0 0 0 2px rgba(var(--p-rgb),.55),0 0 0 7px rgba(var(--p-rgb),.14),
   var(--hero-shadow)}
+/* Profile hovercard. Rendered on <body> so the deck's slide transforms cannot
+   re-base its position:fixed — it therefore inherits no scheme tokens and gets
+   them copied on at show time. */
+.${(/* inlined export .P */"sbel")}-hover{position:fixed;z-index:2147483000;display:flex;gap:11px;align-items:center;
+  max-width:290px;padding:12px 14px;border-radius:14px;pointer-events:auto;
+  background:linear-gradient(180deg,var(--bg-2,#12161F),var(--bg,#0B0D12));
+  border:1px solid var(--line,rgba(255,255,255,.10));
+  box-shadow:var(--drop,0 24px 60px -24px rgba(0,0,0,.7));
+  color:var(--ink,#F2F5FA);font-family:inherit;
+  opacity:0;transform:translateY(4px) scale(.97);transform-origin:50% 100%;
+  transition:opacity .16s ease,transform .16s cubic-bezier(.16,1,.3,1);
+  visibility:hidden}
+.${(/* inlined export .P */"sbel")}-hover.is-on{opacity:1;transform:none;visibility:visible}
+.${(/* inlined export .P */"sbel")}-hover-txt{min-width:0}
+.${(/* inlined export .P */"sbel")}-hover strong{display:block;font-size:14px;font-weight:700;line-height:1.25;
+  letter-spacing:-.01em;color:var(--ink,#F2F5FA)}
+.${(/* inlined export .P */"sbel")}-hover ul{list-style:none;margin:5px 0 0;padding:0;display:grid;gap:3px}
+.${(/* inlined export .P */"sbel")}-hover li{display:flex;gap:6px;align-items:center;font-size:11.5px;line-height:1.35;
+  color:var(--ink-2,#9AA6BD)}
+.${(/* inlined export .P */"sbel")}-hover li svg{flex:0 0 auto;opacity:.75}
+.${(/* inlined export .P */"sbel")}-hover li span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (prefers-reduced-motion:reduce){.${(/* inlined export .P */"sbel")}-hover{transition:none}}
 .${(/* inlined export .P */"sbel")}-avlink{display:inline-flex;border-radius:50%}
 .${(/* inlined export .P */"sbel")}-avlink:focus-visible{outline:2px solid var(--sbel-primary);outline-offset:3px}
 
@@ -2244,7 +2376,12 @@ a.${(/* inlined export .P */"sbel")}-frow-nm:hover{text-decoration:underline!imp
   font-size:22px;font-weight:800;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
 .${(/* inlined export .P */"sbel")}-fl-ring .${(/* inlined export .P */"sbel")}-legend{flex-direction:column;gap:7px}
 
-.${(/* inlined export .P */"sbel")}-slope svg{width:100%;height:84px}
+.${(/* inlined export .P */"sbel")}-slope-plot{position:relative}
+.${(/* inlined export .P */"sbel")}-slope svg{width:100%;height:84px;display:block}
+.${(/* inlined export .P */"sbel")}-sdot{position:absolute;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none}
+.${(/* inlined export .P */"sbel")}-sdot-a{width:8px;height:8px;background:var(--sbel-accent)}
+.${(/* inlined export .P */"sbel")}-sdot-b{width:11px;height:11px;background:var(--sbel-primary);
+  box-shadow:0 0 0 4px rgba(var(--p-rgb),.20)}
 .${(/* inlined export .P */"sbel")}-sarea{fill:rgba(var(--p-rgb),.14)}
 .${(/* inlined export .P */"sbel")}-slope-ends{display:flex;justify-content:space-between;margin-top:8px;font-size:11px;
   color:var(--ink-2)}
@@ -2300,6 +2437,7 @@ a.${(/* inlined export .P */"sbel")}-frow-nm:hover{text-decoration:underline!imp
 .${(/* inlined export .P */"sbel")}-empty{padding:44px 10px;text-align:center;color:var(--ink-2);font-size:13px;
   display:flex;flex-direction:column;align-items:center;gap:12px}
 .${(/* inlined export .P */"sbel")}-empty svg{opacity:.5}
+.${(/* inlined export .P */"sbel")}-root .${(/* inlined export .P */"sbel")}-empty p{font-size:13px!important;color:var(--ink-2)!important;line-height:1.5!important}
 .${(/* inlined export .P */"sbel")}-sk{border-radius:var(--r-sm);background:rgba(var(--tint),.05);position:relative;overflow:hidden}
 .${(/* inlined export .P */"sbel")}-sk::after{content:"";position:absolute;inset:0;transform:translateX(-100%);
   background:linear-gradient(90deg,transparent,rgba(var(--tint),.07),transparent);
@@ -2329,7 +2467,7 @@ a.${(/* inlined export .P */"sbel")}-frow-nm:hover{text-decoration:underline!imp
 .${(/* inlined export .P */"sbel")}-anim .${(/* inlined export .P */"sbel")}-slide.is-on .${(/* inlined export .P */"sbel")}-arc{animation:${(/* inlined export .P */"sbel")}-arc .8s cubic-bezier(.16,1,.3,1) both;
   animation-delay:calc(360ms + var(--d))}
 .${(/* inlined export .P */"sbel")}-anim .${(/* inlined export .P */"sbel")}-slide.is-on .${(/* inlined export .P */"sbel")}-sline{animation:${(/* inlined export .P */"sbel")}-draw .9s cubic-bezier(.16,1,.3,1) .35s both}
-.${(/* inlined export .P */"sbel")}-anim .${(/* inlined export .P */"sbel")}-slide.is-on .${(/* inlined export .P */"sbel")}-sdot{animation:${(/* inlined export .P */"sbel")}-pop .5s cubic-bezier(.16,1,.3,1) 1s both}
+.${(/* inlined export .P */"sbel")}-anim .${(/* inlined export .P */"sbel")}-slide.is-on .${(/* inlined export .P */"sbel")}-sdot-b{animation:${(/* inlined export .P */"sbel")}-dotpop .5s cubic-bezier(.16,1,.3,1) 1s both}
 .${(/* inlined export .P */"sbel")}-anim .${(/* inlined export .P */"sbel")}-slide.is-on .${(/* inlined export .P */"sbel")}-bub{animation:${(/* inlined export .P */"sbel")}-pop .55s cubic-bezier(.16,1,.3,1) both;
   animation-delay:calc(200ms + var(--i)*35ms)}
 .${(/* inlined export .P */"sbel")}-anim .${(/* inlined export .P */"sbel")}-slide.is-off{animation:${(/* inlined export .P */"sbel")}-out .2s ease-in both}
@@ -2342,6 +2480,9 @@ a.${(/* inlined export .P */"sbel")}-frow-nm:hover{text-decoration:underline!imp
 @keyframes ${(/* inlined export .P */"sbel")}-arc{from{stroke-dasharray:0 9999}}
 @keyframes ${(/* inlined export .P */"sbel")}-draw{from{stroke-dasharray:0 400}to{stroke-dasharray:400 0}}
 @keyframes ${(/* inlined export .P */"sbel")}-pop{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:none}}
+@keyframes ${(/* inlined export .P */"sbel")}-dotpop{
+  from{opacity:0;transform:translate(-50%,-50%) scale(.3)}
+  to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
 @keyframes ${(/* inlined export .P */"sbel")}-out{to{opacity:0;transform:translateY(-8px) scale(.985);filter:blur(4px)}}
 
 /* ── Responsive ─────────────────────────────────────────────────────────── */
@@ -2380,6 +2521,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                     catch (_) { /* ignore */ }
                 }
                 const cleanups = [];
+                const peopleIx = new Map();
                 self._sbelCleanup = () => { for (const fn of cleanups.splice(0)) {
                     try {
                         fn();
@@ -2457,10 +2599,12 @@ const factory = (BaseBlockClass, widgetApi) => {
                     }
                 };
                 let windowKey = (attr("timewindow") || "90d");
-                const customSince = attr("customsince");
-                const customUntil = attr("customuntil");
+                let prevKey = windowKey === "custom" ? "90d" : windowKey;
+                let customSince = attr("customsince");
+                let customUntil = attr("customuntil");
+                const isoDay = (ms) => new Date(ms).toISOString().slice(0, 10);
                 // ── Shell ──────────────────────────────────────────────────────────────
-                const windowKeys = ["all", "7d", "30d", "90d", "12m"];
+                const windowKeys = ["all", "7d", "30d", "90d", "12m", "custom"];
                 container.innerHTML = `<style>${CSS}</style>
         <div class="${(/* inlined export .P */"sbel")}-root${scheme === "light" ? ` ${(/* inlined export .P */"sbel")}-light` : ""}${animate ? ` ${(/* inlined export .P */"sbel")}-anim` : ""}"
           dir="${rtl ? "rtl" : "ltr"}" style="
@@ -2479,7 +2623,13 @@ const factory = (BaseBlockClass, widgetApi) => {
               <span class="${(/* inlined export .P */"sbel")}-chip ${(/* inlined export .P */"sbel")}-status" hidden></span>
               ${showPicker ? `<select class="${(/* inlined export .P */"sbel")}-sel ${(/* inlined export .P */"sbel")}-window" aria-label="${esc(t("window.custom"))}">
                 ${windowKeys.map(k => `<option value="${k}"${k === windowKey ? " selected" : ""}>${esc(t(`window.${k}`))}</option>`).join("")}
-              </select>` : ""}
+              </select>
+              <span class="${(/* inlined export .P */"sbel")}-range"${windowKey === "custom" ? "" : " hidden"}>
+                <label>${esc(t("window.from"))}
+                  <input class="${(/* inlined export .P */"sbel")}-since" type="date" value="${esc(customSince)}"></label>
+                <label>${esc(t("window.to"))}
+                  <input class="${(/* inlined export .P */"sbel")}-until" type="date" value="${esc(customUntil)}"></label>
+              </span>` : ""}
               <button class="${(/* inlined export .P */"sbel")}-ctl ${(/* inlined export .P */"sbel")}-refresh" type="button" aria-label="${esc(t("state.refresh"))}" title="${esc(t("state.refresh"))}">${icon("refresh", 15)}</button>
             </div>
             ${mode === "slideshow" ? `<div class="${(/* inlined export .P */"sbel")}-rail" role="tablist"></div>` : ""}
@@ -2701,9 +2851,180 @@ const factory = (BaseBlockClass, widgetApi) => {
                </div>`}
         </section>`;
                 };
+                // ── Hi-res avatars ─────────────────────────────────────────────────────
+                // `/users` only gives us a 48px icon, which is visibly soft behind the
+                // 132px champion portrait. `/profiles/public/{id}` has a 200px original we
+                // can ask to be rendered larger. It is USER-authenticated and entirely
+                // optional, so it runs *after* the deck is on screen and patches the
+                // existing <img> in place — re-rendering would replay every entrance
+                // animation for a cosmetic upgrade.
+                const cssq = (v) => v.replace(/["\\]/g, "\\$&");
+                const profileCache = new Map();
+                let upgradeToken = 0;
+                const applyAvatar = (uid, url) => {
+                    const want = hiResAvatar(url, 400);
+                    root.querySelectorAll(`[data-uid="${cssq(uid)}"] img`).forEach(img => {
+                        if (img.dataset.hires === "1")
+                            return;
+                        img.dataset.hires = "1";
+                        // The 400px render is a guess about a URL shape we do not own; step
+                        // back to the URL the API actually handed us before giving up.
+                        img.onerror = () => { img.onerror = null; img.src = url; };
+                        img.src = want;
+                    });
+                };
+                const upgradeAvatars = () => engagement_leaderboard_awaiter(this, void 0, void 0, function* () {
+                    const mine = ++upgradeToken;
+                    const ids = [];
+                    root.querySelectorAll("[data-uid]").forEach(el => {
+                        const id = el.dataset.uid || "";
+                        if (id && ids.indexOf(id) < 0)
+                            ids.push(id);
+                    });
+                    for (const id of ids) {
+                        const hit = profileCache.get(id);
+                        if (hit)
+                            applyAvatar(id, hit);
+                    }
+                    const missing = ids.filter(id => !profileCache.has(id));
+                    if (!missing.length)
+                        return;
+                    dlog(`upgrading ${missing.length} avatar(s) via /profiles/public`);
+                    yield Promise.all(missing.map((id) => engagement_leaderboard_awaiter(this, void 0, void 0, function* () {
+                        const prof = yield fetchPublicProfile(http, baseUrl, id, order);
+                        profileCache.set(id, (prof === null || prof === void 0 ? void 0 : prof.avatar) || null);
+                        if (mine !== upgradeToken)
+                            return;
+                        const person = peopleIx.get(id);
+                        if (person && prof) {
+                            if (prof.avatar)
+                                person.avatar = prof.avatar;
+                            if (!person.position && prof.position)
+                                person.position = prof.position;
+                            if (!person.department && prof.department)
+                                person.department = prof.department;
+                        }
+                        if (prof === null || prof === void 0 ? void 0 : prof.avatar)
+                            applyAvatar(id, prof.avatar);
+                    })));
+                });
+                // ── Profile hovercard ──────────────────────────────────────────────────
+                // Lives on <body>, not inside the widget: the deck uses transforms for its
+                // slide transitions, and a transformed ancestor re-bases position:fixed,
+                // which would drag the card around with the slide.
+                let hoverEl = null;
+                let hoverFor = null;
+                let hoverShow = 0;
+                let hoverHide = 0;
+                const placeHover = (anchorEl) => {
+                    if (!hoverEl)
+                        return;
+                    const a = anchorEl.getBoundingClientRect();
+                    const h = hoverEl.getBoundingClientRect();
+                    const pad = 10;
+                    let left = a.left + a.width / 2 - h.width / 2;
+                    left = Math.max(pad, Math.min(left, window.innerWidth - h.width - pad));
+                    // Prefer above; flip below only when there is genuinely no room.
+                    let top = a.top - h.height - 10;
+                    if (top < pad)
+                        top = a.bottom + 10;
+                    hoverEl.style.left = `${Math.round(left)}px`;
+                    hoverEl.style.top = `${Math.round(top)}px`;
+                };
+                const hideHover = () => {
+                    window.clearTimeout(hoverShow);
+                    window.clearTimeout(hoverHide);
+                    hoverHide = window.setTimeout(() => {
+                        hoverFor = null;
+                        if (hoverEl)
+                            hoverEl.classList.remove("is-on");
+                    }, 180);
+                };
+                const showHover = (anchorEl) => {
+                    const uid = anchorEl.dataset.uid || "";
+                    const person = peopleIx.get(uid);
+                    if (!person)
+                        return;
+                    // The avatar and the name are two separate anchors for the same person,
+                    // and each has children. Without this guard, crossing between them
+                    // cancels and restarts the reveal, so the card visibly blinks.
+                    window.clearTimeout(hoverHide);
+                    if (hoverFor === anchorEl && (hoverEl === null || hoverEl === void 0 ? void 0 : hoverEl.classList.contains("is-on")))
+                        return;
+                    hoverFor = anchorEl;
+                    window.clearTimeout(hoverShow);
+                    hoverShow = window.setTimeout(() => {
+                        if (!hoverEl) {
+                            hoverEl = document.createElement("div");
+                            hoverEl.className = `${(/* inlined export .P */"sbel")}-hover`;
+                            document.body.appendChild(hoverEl);
+                            hoverEl.addEventListener("mouseenter", () => window.clearTimeout(hoverHide));
+                            hoverEl.addEventListener("mouseleave", hideHover);
+                        }
+                        // The card is outside .sbel-root, so it inherits none of the scheme
+                        // tokens — carry the ones it needs across explicitly.
+                        const cs = getComputedStyle(root);
+                        for (const v of ["--tint", "--bg", "--bg-2", "--panel", "--line", "--ink", "--ink-2",
+                            "--p-rgb", "--r-sm", "--drop", "--sbel-primary", "--sbel-accent", "--sbel-primary-text"]) {
+                            hoverEl.style.setProperty(v, cs.getPropertyValue(v));
+                        }
+                        const rows = [];
+                        if (person.position)
+                            rows.push(`${icon("badge", 13)}<span>${esc(person.position)}</span>`);
+                        if (person.department)
+                            rows.push(`${icon("people", 13)}<span>${esc(person.department)}</span>`);
+                        if (person.location)
+                            rows.push(`${icon("pin", 13)}<span>${esc(person.location)}</span>`);
+                        const av = person.avatar
+                            ? `<img src="${esc(person.avatar)}" alt="" onerror="this.parentElement.classList.add('${(/* inlined export .P */"sbel")}-av-fb');this.remove()">`
+                            : "";
+                        hoverEl.innerHTML = `
+            <span class="${(/* inlined export .P */"sbel")}-av${person.avatar ? "" : ` ${(/* inlined export .P */"sbel")}-av-fb`}" style="--av:46px"
+              data-ini="${esc(initials(person.name))}">${av}</span>
+            <div class="${(/* inlined export .P */"sbel")}-hover-txt">
+              <strong>${esc(person.name)}</strong>
+              ${rows.length ? `<ul>${rows.map(r => `<li>${r}</li>`).join("")}</ul>` : ""}
+            </div>`;
+                        hoverEl.classList.add("is-on");
+                        placeHover(anchorEl);
+                    }, 220);
+                };
+                const onHoverOver = (ev) => {
+                    var _a, _b;
+                    const el = (_b = (_a = ev.target) === null || _a === void 0 ? void 0 : _a.closest) === null || _b === void 0 ? void 0 : _b.call(_a, "[data-uid]");
+                    if (el)
+                        showHover(el);
+                };
+                const onHoverOut = (ev) => {
+                    var _a, _b;
+                    const el = (_b = (_a = ev.target) === null || _a === void 0 ? void 0 : _a.closest) === null || _b === void 0 ? void 0 : _b.call(_a, "[data-uid]");
+                    if (!el)
+                        return;
+                    const to = ev.relatedTarget;
+                    if (to && typeof to.closest === "function" && to.closest("[data-uid]") === el)
+                        return;
+                    hideHover();
+                };
+                root.addEventListener("mouseover", onHoverOver);
+                root.addEventListener("mouseout", onHoverOut);
+                root.addEventListener("focusin", onHoverOver);
+                root.addEventListener("focusout", onHoverOut);
+                cleanups.push(() => {
+                    window.clearTimeout(hoverShow);
+                    window.clearTimeout(hoverHide);
+                    root.removeEventListener("mouseover", onHoverOver);
+                    root.removeEventListener("mouseout", onHoverOut);
+                    root.removeEventListener("focusin", onHoverOver);
+                    root.removeEventListener("focusout", onHoverOut);
+                    if (hoverEl && hoverEl.parentNode)
+                        hoverEl.parentNode.removeChild(hoverEl);
+                    hoverEl = null;
+                });
                 const render = () => engagement_leaderboard_awaiter(this, void 0, void 0, function* () {
                     if (!raw)
                         return;
+                    for (const p of raw.people)
+                        peopleIx.set(p.id, p);
                     const now = Date.now();
                     const win = resolveWindow(windowKey, now, customSince, customUntil);
                     const wantsAdvocacy = metrics.indexOf("advocacy") >= 0;
@@ -2752,11 +3073,16 @@ const factory = (BaseBlockClass, widgetApi) => {
                     const parts = [];
                     if (isSample)
                         parts.push(t("state.sample"));
-                    if (raw.skippedPosts)
-                        parts.push(t("state.partial"));
+                    if (raw.skippedPosts) {
+                        parts.push(t("state.partialN")
+                            .replace("{n}", String(raw.skippedPosts))
+                            .replace("{total}", String(raw.posts.length + raw.skippedPosts)));
+                    }
                     // Sample data is a caveat; skipped posts are a warning. Different mark.
                     setStatus(parts.join(" · "), isSample ? "beaker" : "alert");
                     dlog(`rendered ${tiles.length} tiles for window ${windowKey}`);
+                    if (!isSample)
+                        void upgradeAvatars();
                 });
                 const bubbleCard = (d, win) => {
                     const stats = aggregate(d.events, win, exclude);
@@ -2936,11 +3262,49 @@ const factory = (BaseBlockClass, widgetApi) => {
                         }
                     }
                 });
+                const range = container.querySelector(`.${(/* inlined export .P */"sbel")}-range`);
+                const sinceInput = container.querySelector(`.${(/* inlined export .P */"sbel")}-since`);
+                const untilInput = container.querySelector(`.${(/* inlined export .P */"sbel")}-until`);
                 picker === null || picker === void 0 ? void 0 : picker.addEventListener("change", () => {
                     windowKey = picker.value;
+                    if (range)
+                        range.hidden = windowKey !== "custom";
+                    if (windowKey === "custom") {
+                        // Seed the pickers from whatever period was on screen, so switching to
+                        // a custom range starts from where the viewer already was rather than
+                        // blank (which would silently mean "all time").
+                        const w = resolveWindow(prevKey, Date.now(), customSince, customUntil);
+                        if (sinceInput && !sinceInput.value) {
+                            customSince = isoDay(w.since || Date.now() - 90 * 86400000);
+                            sinceInput.value = customSince;
+                        }
+                        if (untilInput && !untilInput.value) {
+                            customUntil = isoDay(w.until);
+                            untilInput.value = customUntil;
+                        }
+                    }
+                    prevKey = windowKey;
                     index = 0;
                     void render();
                 });
+                const onRangeChange = () => {
+                    customSince = (sinceInput === null || sinceInput === void 0 ? void 0 : sinceInput.value) || "";
+                    customUntil = (untilInput === null || untilInput === void 0 ? void 0 : untilInput.value) || "";
+                    // Guard the inverted range rather than rendering a confusing empty state.
+                    if (customSince && customUntil && customSince > customUntil) {
+                        if (sinceInput)
+                            sinceInput.value = customUntil;
+                        customSince = customUntil;
+                    }
+                    if (sinceInput)
+                        sinceInput.max = customUntil || "";
+                    if (untilInput)
+                        untilInput.min = customSince || "";
+                    index = 0;
+                    void render();
+                };
+                sinceInput === null || sinceInput === void 0 ? void 0 : sinceInput.addEventListener("change", onRangeChange);
+                untilInput === null || untilInput === void 0 ? void 0 : untilInput.addEventListener("change", onRangeChange);
                 (_b = container.querySelector(`.${(/* inlined export .P */"sbel")}-refresh`)) === null || _b === void 0 ? void 0 : _b.addEventListener("click", () => {
                     rankingCache.clear();
                     try {

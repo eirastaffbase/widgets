@@ -43,6 +43,8 @@ const PATHS: { [k: string]: string } = {
   check: `<path d="m5 12.5 4.5 4.5L19 7.5"/>`,
   sun: `<circle cx="12" cy="12" r="4"/><path d="M12 2.5V5M12 19v2.5M2.5 12H5M19 12h2.5M5.2 5.2 7 7M17 17l1.8 1.8M18.8 5.2 17 7M7 17l-1.8 1.8"/>`,
   moon: `<path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/>`,
+  pin: `<path d="M12 21s6.5-6.1 6.5-10.5a6.5 6.5 0 1 0-13 0C5.5 14.9 12 21 12 21Z"/><circle cx="12" cy="10.5" r="2.4"/>`,
+  badge: `<path d="M6.5 3.5h11a1.5 1.5 0 0 1 1.5 1.5v15l-7-3.2L5 20V5a1.5 1.5 0 0 1 1.5-1.5Z"/><path d="M9 8h6"/>`,
 };
 
 export function icon(name: keyof typeof PATHS | string, size = 18): string {

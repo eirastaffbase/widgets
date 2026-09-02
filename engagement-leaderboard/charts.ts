@@ -191,6 +191,7 @@ function slope(e: Entry, prevLabel: string, nowLabel: string): string {
   const y = (v: number) => pad + (1 - v / max) * (H - pad * 2);
   return `<div class="${P}-fl">
     <div class="${P}-slope">
+      <div class="${P}-slope-plot">
       <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
         <defs><linearGradient id="${P}-sg" x1="0" y1="0" x2="1" y2="0">
           <stop offset="0" stop-color="var(--sbel-accent)"/><stop offset="1" stop-color="var(--sbel-primary)"/>
@@ -198,9 +199,14 @@ function slope(e: Entry, prevLabel: string, nowLabel: string): string {
         <path class="${P}-sarea" d="M${pad},${y(before)} L${W - pad},${y(now)} L${W - pad},${H} L${pad},${H} Z"/>
         <line class="${P}-sline" x1="${pad}" y1="${y(before)}" x2="${W - pad}" y2="${y(now)}"
           stroke="url(#${P}-sg)" stroke-width="3" stroke-linecap="round"/>
-        <circle cx="${pad}" cy="${y(before)}" r="4" fill="var(--sbel-accent)"/>
-        <circle class="${P}-sdot" cx="${W - pad}" cy="${y(now)}" r="5" fill="var(--sbel-primary)"/>
       </svg>
+      <!-- The SVG is stretched with preserveAspectRatio="none" so the line always
+           spans the column, which turns any <circle> inside it into an ellipse.
+           The endpoint dots are therefore HTML, positioned in percentages over
+           the same box — the same reason avatars are never SVG <image> here. -->
+      <span class="${P}-sdot ${P}-sdot-a" style="left:${(pad / W) * 100}%;top:${(y(before) / H) * 100}%"></span>
+      <span class="${P}-sdot ${P}-sdot-b" style="left:${((W - pad) / W) * 100}%;top:${(y(now) / H) * 100}%"></span>
+      </div>
       <div class="${P}-slope-ends">
         <span>${esc(prevLabel)}<b>${fmt(before)}</b></span>
         <span class="${P}-slope-now">${esc(nowLabel)}<b>${fmt(now)}</b></span>

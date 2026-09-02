@@ -79,7 +79,36 @@ Two rules are carried over from the task widgets and matter:
   viewer.
 
 Enable **Debug Mode** to see the ladder's decisions on screen — the console is
-not reachable in the mobile app.
+not reachable in the mobile app. It also reports **exactly which channels and
+posts were skipped** and why, which is what turns the "partial data" note from a
+shrug into something diagnosable.
+
+### Portraits
+
+`GET /users` only carries a 48px `icon` and a 200px `thumb` derivative, and the
+48px one is visibly soft behind the 132px champion portrait on a retina display.
+`GET /profiles/public/{id}` returns a larger `avatarUrl`, and because that URL is
+a transform chain the widget rewrites its `c_fill,w_200,h_200` segment to ask for
+a 400px render — with the API's own URL kept as an `onerror` fallback, since the
+URL shape is not ours to depend on.
+
+That endpoint is **USER-authenticated** (an unauthenticated call returns
+`NotLoggedInException`), so it only resolves under a session. It is therefore a
+pure enhancement: it runs *after* the deck is on screen, patches the existing
+`<img>` in place rather than re-rendering — a re-render would replay every
+entrance animation for a cosmetic change — and leaves the `/users` avatar
+standing if it fails.
+
+### Profile hovercards
+
+Every avatar and name is a `/profile/<id>` link carrying `data-uid`, so
+Staffbase's own profile affordances attach. The widget adds its own hovercard on
+top, showing position, department and location after a 220 ms dwell.
+
+The card is appended to `<body>`, not to the widget: the deck animates slides
+with `transform`, and a transformed ancestor re-bases `position: fixed`, which
+would drag the card along with the slide. Living outside `.sbel-root` means it
+inherits none of the scheme tokens, so they are copied onto it at show time.
 
 ## Time periods
 
@@ -101,6 +130,24 @@ Because reactions cannot be narrowed server-side, the widget caches the **raw,
 un-windowed** event set and applies the period in memory. Changing the period
 therefore costs **zero requests**, which is what makes the viewer-facing period
 picker cheap.
+
+### Custom ranges
+
+**Custom range** turns the period picker into a pair of native date fields.
+They are honoured everywhere a preset is: the same `since`/`until` pair is
+threaded into the SCIM2 comment filter and the analytics call, and applied in
+memory to reactions and posts. The end date is extended to the **last instant**
+of the day chosen, so picking the same day for both bounds returns that whole
+day rather than nothing.
+
+Each field constrains the other (`from` sets the other's `min`, `to` sets its
+`max`), so an inverted range cannot be entered. Switching to `custom` seeds the
+fields from whichever preset was showing, so the first render after switching is
+never empty.
+
+Because the raw event set is cached un-windowed, dragging the range around costs
+**zero requests** for everything except the share analytics, which is cached per
+range instead.
 
 ### Auto-widen is per tile, not global
 
@@ -250,6 +297,25 @@ spacing under every caption and chart legend until those rules were re-stated
 as `.sbel-root .sbel-ssub` / `.sbel-root .sbel-legend`. **Any spacing rule on a
 `<p>`, `<ul>` or heading inside this widget must out-specify the reset or it is
 a no-op.**
+
+### `StyledRichText` and the `!important` escape hatch
+
+Inside a news article the widget is wrapped in Staffbase's rich-text container,
+whose generated rule is roughly:
+
+```
+.css-<hash>-StyledRichText-getWowRichTextCss p:not(blockquote > p):not(…)×4 { color; font-size; font-weight; line-height; margin }
+```
+
+That is specificity ~(0,6,7) — out-specifying it with plain selectors is not
+realistic. It carries **no `!important`**, though, so the widget wins by pinning
+the properties: `.sbel-root p` re-declares `color`, `font-size`, `font-weight`,
+`font-style` and `line-height` as `inherit !important`.
+
+The narrow scope is deliberate. The host rule targets a **bare `p`**, so the
+blast radius is only the widget's two `<p>` elements — the slide caption and the
+empty state. An earlier, broader reset across every text element was reverted:
+it fixed nothing extra and made the widget's own typography unoverridable.
 
 This mirrors and extends the fix documented in
 `tasks/my-tasks-widget/my-tasks-widget.ts`.

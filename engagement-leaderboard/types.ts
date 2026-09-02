@@ -82,6 +82,13 @@ export type PostRanking = {
 /** The raw, un-windowed result of one full data pass. Cached; the time window
  *  is applied on top of this in memory, so changing the window costs no
  *  requests. */
+/** Why a post's reactions could not be read, so "partial data" can name names. */
+export type SkippedPost = {
+  postId: string;
+  channelId: string;
+  reason: string;
+};
+
 export type RawData = {
   events: EngagementEvent[];
   posts: Post[];
@@ -89,6 +96,8 @@ export type RawData = {
   rankings: PostRanking[];
   /** Posts whose like list could not be read (restricted channels). */
   skippedPosts: number;
+  /** Why each skipped post was skipped, so "partial data" can name names. */
+  skipped: SkippedPost[];
   /** True when reaction *types* were resolved (session auth succeeded). */
   typedReactions: boolean;
   fetchedAt: number;
