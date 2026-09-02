@@ -1,0 +1,26 @@
+{
+  "name": "engagement-leaderboard",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "build": "webpack",
+    "type-check": "tsc --pretty --noEmit",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "Staffbase engagement leaderboard widget — metric tiles with avatar-based charts.",
+  "dependencies": {
+    "@staffbase/widget-sdk": "^3.15.6",
+    "webpack": "^5.103.0"
+  },
+  "devDependencies": {
+    "@rjsf/utils": "^5.24.12",
+    "@types/json-schema": "^7.0.15",
+    "@types/react": "^19.2.7",
+    "ts-loader": "^9.5.4",
+    "typescript": "^5.9.3",
+    "webpack-cli": "^6.0.1"
+  }
+}
