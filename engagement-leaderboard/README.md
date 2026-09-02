@@ -63,11 +63,13 @@ identity. The two identities reach different data.
 `Authentication: auto` (the default) tries the token first and upgrades to the
 session where that unlocks more:
 
-- `GET /reactions?parentId=…&parentType=post` is declared `@Authenticated(types=[USER])`
-  on the backend, so a token identity gets **403**. Under a session it returns
-  each reaction's **type**, which upgrades Top Reactor from a flat like count to
-  a typed donut. Without a session the widget falls back to
-  `GET /posts/{id}/likes`, which works with a token but is untyped.
+- `GET /reactions` is `@Authenticated(types=[USER])`, so a token gets **403**.
+  A session gets past the door and is then rejected with **400** — because
+  `userId` is a *required* parameter. See "Reaction types" below; this endpoint
+  is not what it looks like.
+- `GET /profiles/public/{id}` is USER-only and supplies the full-resolution
+  portrait. Skipped entirely when no session is present, rather than firing a
+  request per person that is certain to 403.
 
 Two rules are carried over from the task widgets and matter:
 
@@ -82,6 +84,41 @@ Enable **Debug Mode** to see the ladder's decisions on screen — the console is
 not reachable in the mobile app. It also reports **exactly which channels and
 posts were skipped** and why, which is what turns the "partial data" note from a
 shrug into something diagnosable.
+
+### Reaction types
+
+`/api/reactions` looks like "who reacted", and is not. `userId` is required and
+the response holds **at most one row** — it answers *"did this one person
+react?"*. Calling it without `userId` is a 400 for every post, which is easy to
+mistake for a broken endpoint. No endpoint lists reactors together with their
+reaction type: `EyoLike.type` is `@JsonIgnore`, and Staffbase's own reactor
+modal has the same limitation — it lists users from `/posts/{id}/likes` and
+gets type totals separately from `/reactions-count`, never joining them.
+
+The widget reconstructs the join from the two endpoints that do work, cheapest
+first:
+
+1. **`/reactions-count?parentId=…&parentType=post`** returns the type totals for
+   a post. **When a post has exactly one type, every reactor on it provably used
+   that type** — no further requests. On the reference branch this settled
+   **158 of 193 reactions** outright.
+2. Only where a post genuinely mixes types is a per-reactor lookup needed, and
+   only for the reactors of those posts — **35 reactions across 6 posts**.
+   `/reactions?parentId=…&parentType=post&userId=…` accepts an *arbitrary*
+   `userId`, not just the caller's, which is what makes this exact.
+
+Step 2 is USER-only, so under a token the mixed posts stay untyped rather than
+the whole feature disappearing. Turn the whole thing off with **Resolve
+Reaction Types** on very large branches.
+
+> There is no batch variant for news posts. `parentId` takes exactly one id;
+> `parentIds`, a comma list and a repeated parameter are all rejected. The
+> batch `POST /api/reactions/count` that exists in the codebase reads a
+> different collection (plugin entities, not news) and will not serve these.
+
+The donut's slice colours are derived from the tenant's own primary via a hue
+walk, not a stock categorical palette — an off-the-shelf ramp drops saturated
+web-safe hues onto a brand-tinted stage and reads as a foreign object.
 
 ### Portraits
 
@@ -339,6 +376,7 @@ This mirrors and extends the fix documented in
 | Limit to Channel IDs | *(empty)* | Comma-separated |
 | Exclude User IDs | *(empty)* | Comma-separated |
 | Max Posts to Scan | 200 | One request each |
+| Resolve Reaction Types | on | Adds roughly one request per post that has reactions |
 | Cache Lifetime | 15 min | `sessionStorage` |
 | Show Engagement Map | off | Full-width breadth × volume scatter |
 | Animate Charts | on | Yields to `prefers-reduced-motion` |

@@ -99,6 +99,10 @@ export type RawData = {
   /** Why each skipped post was skipped, so "partial data" can name names. */
   skipped: SkippedPost[];
   /** True when reaction *types* were resolved (session auth succeeded). */
+  /** Whether a real user session answered the probe. `/profiles/public` and
+   *  per-user reaction lookups are USER-only. */
+  sessionAvailable: boolean;
+  /** Whether reaction *types* were resolved (see `fetchReactionTypes`). */
   typedReactions: boolean;
   fetchedAt: number;
 };

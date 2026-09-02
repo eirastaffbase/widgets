@@ -400,6 +400,35 @@ function fetchThemeColors(baseUrl_1, apiToken_1) {
         }
     });
 }
+/**
+ * A categorical ramp anchored to the tenant's own brand.
+ *
+ * Categorical palettes are usually picked off the shelf, which drops saturated
+ * web-safe hues (#0EA5E9, #EF4444) onto a brand-tinted surface and makes the
+ * chart read as a foreign object. This walks the hue wheel from the primary
+ * instead, holding saturation and lightness at the values that survive the
+ * given surface, so every slice is distinguishable *and* clearly related.
+ */
+function reactionRamp(primary, surface, n = 6) {
+    const { h, s, l } = hexToHsl(primary);
+    // hexToHsl/hslToHex work in 0-1 fractions, not percentages. Passing 0-100
+    // here silently produces malformed hex, which paints nothing at all.
+    const sat = Math.min(0.85, Math.max(0.52, s));
+    const lit = surface === "dark"
+        ? Math.min(0.68, Math.max(0.52, l))
+        : Math.min(0.50, Math.max(0.38, l));
+    const out = [];
+    for (let i = 0; i < n; i++) {
+        // 47 degrees is coprime enough with 360 to avoid repeats over a short ramp
+        // while keeping neighbouring slices clearly apart.
+        const hue = (h + i * 47) % 360;
+        // Alternate a small lightness step so adjacent slices differ even for
+        // viewers who cannot separate the hues.
+        const step = i % 2 === 0 ? 0 : (surface === "dark" ? 0.10 : -0.08);
+        out.push(hslToHex(hue, sat, Math.min(0.78, Math.max(0.30, lit + step))));
+    }
+    return out;
+}
 
 ;// ./strings.ts
 // i18n bundles. `en_US` is the source of truth; the branch's
@@ -452,6 +481,11 @@ const BUNDLES = {
         "unit.points": "points",
         "unit.comments": "comments",
         "unit.reactions": "reactions",
+        "reaction.LIKE": "Like",
+        "reaction.CELEBRATE": "Celebrate",
+        "reaction.SUPPORT": "Support",
+        "reaction.THANKS": "Thanks",
+        "reaction.INSIGHTFUL": "Insightful",
         "unit.received": "reactions received",
         "unit.posts": "posts",
         "unit.shares": "shares",
@@ -517,6 +551,11 @@ const BUNDLES = {
         "unit.points": "Punkte",
         "unit.comments": "Kommentare",
         "unit.reactions": "Reaktionen",
+        "reaction.LIKE": "Gefällt mir",
+        "reaction.CELEBRATE": "Glückwunsch",
+        "reaction.SUPPORT": "Unterstützung",
+        "reaction.THANKS": "Danke",
+        "reaction.INSIGHTFUL": "Aufschlussreich",
         "unit.received": "Reaktionen erhalten",
         "unit.posts": "Beiträge",
         "unit.shares": "Mal geteilt",
@@ -582,6 +621,11 @@ const BUNDLES = {
         "unit.points": "points",
         "unit.comments": "commentaires",
         "unit.reactions": "réactions",
+        "reaction.LIKE": "J’aime",
+        "reaction.CELEBRATE": "Bravo",
+        "reaction.SUPPORT": "Soutien",
+        "reaction.THANKS": "Merci",
+        "reaction.INSIGHTFUL": "Instructif",
         "unit.received": "réactions reçues",
         "unit.posts": "publications",
         "unit.shares": "partages",
@@ -647,6 +691,11 @@ const BUNDLES = {
         "unit.points": "puntos",
         "unit.comments": "comentarios",
         "unit.reactions": "reacciones",
+        "reaction.LIKE": "Me gusta",
+        "reaction.CELEBRATE": "Enhorabuena",
+        "reaction.SUPPORT": "Apoyo",
+        "reaction.THANKS": "Gracias",
+        "reaction.INSIGHTFUL": "Revelador",
         "unit.received": "reacciones recibidas",
         "unit.posts": "publicaciones",
         "unit.shares": "veces compartido",
@@ -712,6 +761,11 @@ const BUNDLES = {
         "unit.points": "punten",
         "unit.comments": "reacties",
         "unit.reactions": "likes",
+        "reaction.LIKE": "Leuk",
+        "reaction.CELEBRATE": "Gefeliciteerd",
+        "reaction.SUPPORT": "Steun",
+        "reaction.THANKS": "Bedankt",
+        "reaction.INSIGHTFUL": "Verhelderend",
         "unit.received": "likes ontvangen",
         "unit.posts": "berichten",
         "unit.shares": "keer gedeeld",
@@ -983,33 +1037,29 @@ function fetchComments(http, base, order, cap, since, until) {
 /**
  * Who reacted to a post.
  *
- * `/reactions` is USER-only, so it is tried under session first — success adds
- * the reaction *type*. `/posts/{id}/likes` is the token-friendly fallback and
- * yields untyped likes.
+ * `/posts/{id}/likes` is the only endpoint that lists reactors, and it is
+ * untyped. `/reactions` looks like the typed alternative and is not:
  *
- * Returns `null` when the post is unreadable (restricted channel), so the
- * caller can count it as skipped rather than failing the whole load.
+ *   - It requires a `userId` and returns **at most one** row — it answers
+ *     "did this one person react?", not "who reacted?". Omitting `userId`
+ *     is what produced the 400s; a token gets a 403 first and never sees it.
+ *   - `EyoLike.type` is annotated `@JsonIgnore`, so no post-facing endpoint
+ *     serialises a per-user reaction type at all. Staffbase's own reactor
+ *     modal has the same limitation: it lists users from this same `/likes`
+ *     route and gets type totals separately from `/reactions-count`, never
+ *     joining the two.
+ *
+ * So there is no session upgrade to be had here, and no batch variant for news
+ * posts — one request per post is the floor.
+ *
+ * Returns `{ skipped }` when the post is unreadable (restricted channel), so
+ * the caller can count it rather than failing the whole load.
  */
-function fetchTypedReactions(http, base, postId, opts) {
-    return api_awaiter(this, void 0, void 0, function* () {
-        const d = yield http.getJson(`${base}/reactions?parentId=${postId}&parentType=post`, opts);
-        const rows = (d === null || d === void 0 ? void 0 : d.data) || [];
-        return rows
-            .map(r => ({ userId: r.userId || r.userID || "", at: r.createdAt || r.created || "", type: r.type || "LIKE" }))
-            .filter(r => r.userId);
-    });
-}
-function fetchPostReactions(http, base, postId, sessionFirst, tokenOnly, inlineUsers) {
+function fetchPostReactions(http, base, postId, ladder, inlineUsers) {
     return api_awaiter(this, void 0, void 0, function* () {
         var _a;
-        if (sessionFirst.length) {
-            try {
-                return { rows: yield fetchTypedReactions(http, base, postId, sessionFirst[0]) };
-            }
-            catch (_) { /* fall through to /likes */ }
-        }
         try {
-            const d = yield http.ladder(`${base}/posts/${postId}/likes?limit=${PAGE}`, tokenOnly, `likes ${postId}`);
+            const d = yield http.ladder(`${base}/posts/${postId}/likes?limit=${PAGE}`, ladder, `likes ${postId}`);
             const rows = (d === null || d === void 0 ? void 0 : d.data) || [];
             if (inlineUsers)
                 for (const r of rows)
@@ -1024,6 +1074,40 @@ function fetchPostReactions(http, base, postId, sessionFirst, tokenOnly, inlineU
             // the caller needs to be able to name the post and the HTTP status.
             return { skipped: (e === null || e === void 0 ? void 0 : e.message) || String(e) };
         }
+    });
+}
+/**
+ * Reaction *type* totals for one post, e.g. `[{type:"CELEBRATE",count:1}]`.
+ *
+ * Aggregate only — no user attribution. Works under a token as well as a
+ * session. There is no batch variant for news posts: `parentId` takes exactly
+ * one id, and `parentIds`, a comma list, or a repeated parameter are all
+ * rejected or silently ignored.
+ */
+function fetchReactionTypes(http, base, postId, ladder) {
+    return api_awaiter(this, void 0, void 0, function* () {
+        const d = yield http.ladder(`${base}/reactions-count?parentId=${postId}&parentType=post`, ladder, `types ${postId}`);
+        return ((d === null || d === void 0 ? void 0 : d.data) || []).filter((r) => r === null || r === void 0 ? void 0 : r.type).map((r) => ({
+            type: String(r.type), count: Number(r.count) || 0,
+        }));
+    });
+}
+/**
+ * One named person's reaction to one post, or `null` if they did not react.
+ *
+ * This is what `/reactions` actually is: `userId` is required and the response
+ * holds at most one row. Omitting `userId` is a 400, which is why it looks
+ * broken if you expect it to list reactors.
+ *
+ * It accepts an *arbitrary* `userId`, not just the caller's — verified live —
+ * which is what makes exact attribution possible. It is USER-authenticated, so
+ * a token gets a 403 and this degrades to the aggregate path.
+ */
+function fetchUserReaction(http, base, postId, userId, opts) {
+    return api_awaiter(this, void 0, void 0, function* () {
+        const d = yield http.getJson(`${base}/reactions?parentId=${postId}&parentType=post&userId=${userId}`, opts);
+        const row = ((d === null || d === void 0 ? void 0 : d.data) || [])[0];
+        return (row === null || row === void 0 ? void 0 : row.type) ? String(row.type) : null;
     });
 }
 /**
@@ -1147,8 +1231,6 @@ function loadRawData(opts) {
             general.push(sessionOpts);
         if (!general.length)
             general.push(sessionOpts);
-        // /reactions is USER-only, so session leads; /likes covers the token case.
-        let reactionSession = (authMode !== "token" && useSession) ? [sessionOpts] : [];
         // Directory pages can miss people who are deactivated or beyond the cap, so
         // inline author/user objects are collected as a backfill source.
         const inlineUsers = [];
@@ -1165,37 +1247,14 @@ function loadRawData(opts) {
         const rankings = yield fetchPostRankings(http, base, general)
             .catch(e => { log("post rankings failed —", e.message); return []; });
         log(`loaded ${rankings.length} ranking rows`);
-        // Probe /reactions ONCE before fanning out.
-        //
-        // A session gets past authentication on this route and can still be rejected
-        // on the request itself, which is not something the token probe can see (a
-        // token is refused at the door with a 403). Without this gate every post pays
-        // for the same failure: ~50 doomed requests, ~50 console errors, and a
-        // fallback to /likes anyway. The outcome is uniform across posts, so one
-        // request settles it.
-        const probed = new Map();
-        if (reactionSession.length && posts.length) {
-            try {
-                probed.set(posts[0].id, yield fetchTypedReactions(http, base, posts[0].id, reactionSession[0]));
-                log("typed reactions available via /reactions");
-            }
-            catch (e) {
-                log(`/reactions unavailable (${(e === null || e === void 0 ? void 0 : e.message) || String(e)}) — using untyped /likes`);
-                reactionSession = [];
-            }
-        }
         // Fan-out: one reaction list per post.
         let done = 0;
         let skippedPosts = 0;
         const skipped = [];
-        let typedReactions = false;
         const events = [];
         const results = yield http.mapLimit(posts, (post) => api_awaiter(this, void 0, void 0, function* () {
             var _a;
-            const hit = probed.get(post.id);
-            const res = hit
-                ? { rows: hit }
-                : yield fetchPostReactions(http, base, post.id, reactionSession, general, inlineUsers);
+            const res = yield fetchPostReactions(http, base, post.id, general, inlineUsers);
             done++;
             (_a = opts.onProgress) === null || _a === void 0 ? void 0 : _a.call(opts, done, posts.length);
             return { post, res };
@@ -1207,8 +1266,6 @@ function loadRawData(opts) {
                 continue;
             }
             for (const r of res.rows) {
-                if (r.type)
-                    typedReactions = true;
                 events.push({
                     kind: "reaction",
                     userId: r.userId,
@@ -1218,6 +1275,72 @@ function loadRawData(opts) {
                     reactionType: r.type,
                 });
             }
+        }
+        // ── Reaction types ───────────────────────────────────────────────────────
+        // No endpoint lists reactors *with* their reaction type, so this reconstructs
+        // it from two that do exist, cheapest first:
+        //
+        //   1. `/reactions-count` gives the type totals for a post. When a post has
+        //      exactly one type, every reactor on it provably used that type — no
+        //      further requests needed. On this branch that settled 158 of 193
+        //      reactions outright.
+        //   2. Only where a post genuinely mixes types is a per-reactor lookup
+        //      needed, and only for the reactors of those few posts (35 here, over
+        //      6 posts).
+        //
+        // Step 2 is USER-only, so under a token the mixed posts stay untyped rather
+        // than the whole feature disappearing.
+        let typedReactions = false;
+        if (opts.reactionTypes !== false) {
+            const withReactors = new Map();
+            for (const e of events) {
+                if (e.kind !== "reaction")
+                    continue;
+                const list = withReactors.get(e.postId) || [];
+                list.push(e.userId);
+                withReactors.set(e.postId, list);
+            }
+            const ids = Array.from(withReactors.keys());
+            const typesByPost = new Map();
+            yield http.mapLimit(ids, (id) => api_awaiter(this, void 0, void 0, function* () {
+                try {
+                    typesByPost.set(id, yield fetchReactionTypes(http, base, id, general));
+                }
+                catch (_) { /* leave untyped */ }
+            }));
+            const single = new Map();
+            const mixed = [];
+            for (const id of ids) {
+                const types = typesByPost.get(id) || [];
+                if (types.length === 1)
+                    single.set(id, types[0].type);
+                else if (types.length > 1)
+                    for (const uid of withReactors.get(id) || [])
+                        mixed.push({ postId: id, userId: uid });
+            }
+            const exact = new Map();
+            if (mixed.length && useSession && authMode !== "token") {
+                yield http.mapLimit(mixed, (_a) => api_awaiter(this, [_a], void 0, function* ({ postId, userId }) {
+                    try {
+                        const ty = yield fetchUserReaction(http, base, postId, userId, sessionOpts);
+                        if (ty)
+                            exact.set(`${postId}|${userId}`, ty);
+                    }
+                    catch (_) { /* leave untyped */ }
+                }));
+            }
+            for (const e of events) {
+                if (e.kind !== "reaction")
+                    continue;
+                const ty = exact.get(`${e.postId}|${e.userId}`) || single.get(e.postId);
+                if (ty) {
+                    e.reactionType = ty;
+                    typedReactions = true;
+                }
+            }
+            const n = events.filter(e => e.kind === "reaction" && e.reactionType).length;
+            const total = events.filter(e => e.kind === "reaction").length;
+            log(`typed ${n}/${total} reactions (${single.size} posts single-type, ${mixed.length} looked up individually)`);
         }
         const postById = new Map(posts.map(p => [p.id, p]));
         for (const c of commentRows) {
@@ -1250,7 +1373,7 @@ function loadRawData(opts) {
                 people.push(toPerson(a));
             }
         }
-        log(`built ${events.length} events, skipped ${skippedPosts} restricted posts, typed reactions: ${typedReactions}`);
+        log(`built ${events.length} events, skipped ${skippedPosts} restricted posts`);
         if (skipped.length) {
             const byChannel = new Map();
             for (const sk of skipped)
@@ -1262,7 +1385,10 @@ function loadRawData(opts) {
             if (skipped.length > 5)
                 log(`  ...and ${skipped.length - 5} more`);
         }
-        return { events, posts, people, rankings, skippedPosts, skipped, typedReactions, fetchedAt: Date.now() };
+        return {
+            events, posts, people, rankings, skippedPosts, skipped,
+            sessionAvailable: useSession, typedReactions, fetchedAt: Date.now(),
+        };
     });
 }
 
@@ -1420,6 +1546,20 @@ function rank(stats, people, value, secondary, topN) {
  * so a single global widen would either discard good share data or leave most
  * tiles blank. Each tile therefore reports the window it actually used.
  */
+/**
+ * Human label for a reaction type.
+ *
+ * The API returns screaming enum values (`CELEBRATE`). Known types are
+ * translated; anything new is title-cased rather than shown raw, so a reaction
+ * type added server-side degrades to "Applaud" instead of "APPLAUD".
+ */
+function reactionLabel(type, t) {
+    const key = `reaction.${type}`;
+    const s = t(key);
+    if (s && s !== key)
+        return s;
+    return type.charAt(0) + type.slice(1).toLowerCase();
+}
 function buildTiles(o) {
     var _a;
     const people = new Map(o.raw.people.map(p => [p.id, p]));
@@ -1487,8 +1627,9 @@ function buildTiles(o) {
             case "top_reactor": {
                 const r = ranked(s => s.reactionsGiven, s => s.comments);
                 const src = r.widened ? widenedStats() : primary;
-                // A typed donut is only meaningful when session auth resolved reaction
-                // types; under token auth every reaction is an untyped LIKE.
+                // The donut only earns its place when the winner actually used more
+                // than one reaction type; a single-slice ring says less than a bar.
+                const ramp = (o.colors.reactionRamp || []).length ? o.colors.reactionRamp : REACTION_COLORS;
                 const typed = o.raw.typedReactions && r.entries.length > 0 &&
                     Object.keys(((_a = src.get(r.entries[0].person.id)) === null || _a === void 0 ? void 0 : _a.reactionTypes) || {}).length > 1;
                 if (typed) {
@@ -1496,8 +1637,12 @@ function buildTiles(o) {
                         const s = src.get(e.person.id);
                         if (!s)
                             continue;
-                        e.parts = Object.keys(s.reactionTypes).map((k, i) => ({
-                            label: k, value: s.reactionTypes[k], color: REACTION_COLORS[i % REACTION_COLORS.length],
+                        e.parts = Object.keys(s.reactionTypes)
+                            .sort((a, b) => s.reactionTypes[b] - s.reactionTypes[a])
+                            .map((k, i) => ({
+                            label: reactionLabel(k, o.t),
+                            value: s.reactionTypes[k],
+                            color: ramp[i % ramp.length],
                         }));
                     }
                 }
@@ -1565,6 +1710,8 @@ function buildTiles(o) {
     }
     return tiles;
 }
+/** Last-resort ramp. Normally `colors.reactionRamp` supplies a brand-anchored
+ *  one so the donut belongs to the same visual world as the rest of the deck. */
 const REACTION_COLORS = ["#0EA5E9", "#F59E0B", "#EF4444", "#10B981", "#8B5CF6", "#EC4899"];
 function tile(id, title, subtitle, chart, r, unit) {
     return { id, title, subtitle, chart, entries: r.entries, unit, widened: r.widened };
@@ -1791,7 +1938,7 @@ function ring(e, label) {
     <span class="${P}-fl-h">${esc(label)}</span>
     <div class="${P}-ringwrap">
       <svg viewBox="0 0 120 120" width="120" height="120" aria-hidden="true">
-        <circle cx="60" cy="60" r="${r}" fill="none" stroke="rgba(255,255,255,.09)" stroke-width="13"/>
+        <circle cx="60" cy="60" r="${r}" fill="none" stroke="rgba(var(--tint),.12)" stroke-width="13"/>
         ${arcs}
       </svg>
       <span class="${P}-ring-mid">${fmt(total)}</span>
@@ -1949,7 +2096,7 @@ const configurationSchema = {
     properties: Object.assign(Object.assign({ apitoken: { type: "string", title: "API Token", default: DEFAULT_API_TOKEN }, baseurl: { type: "string", title: "Base URL (e.g. https://acme.staffbase.com/api)", default: DEFAULT_BASE_URL }, authmode: { type: "string", title: "Authentication", enum: ["auto", "token", "session"], default: "auto" }, displaymode: { type: "string", title: "Layout", enum: ["slideshow", "grid"], default: "slideshow" }, colorscheme: { type: "string", title: "Color Scheme", enum: ["dark", "light", "auto"], default: "dark" }, timewindow: {
             type: "string", title: "Time Period",
             enum: ["all", "7d", "30d", "90d", "12m", "custom"], default: "90d",
-        }, autowiden: { type: "boolean", title: "Fall Back to All Time When a Period Is Empty", default: true }, showwindowpicker: { type: "boolean", title: "Let Viewers Change the Period", default: true } }, metricProps), { topn: { type: "number", title: "People Per Metric", default: 5 }, channels: { type: "string", title: "Limit to Channel IDs (comma-separated)", default: "" }, excludeuserids: { type: "string", title: "Exclude User IDs (comma-separated)", default: "" }, maxposts: { type: "number", title: "Max Posts to Scan", default: 200 }, cachettl: { type: "number", title: "Cache Lifetime (minutes)", default: 15 }, showbubblemap: { type: "boolean", title: "Show Engagement Map", default: false }, animate: { type: "boolean", title: "Animate", default: true }, usethemecolors: { type: "boolean", title: "Use Theme Colors", default: true }, showsample: { type: "boolean", title: "Show Sample Data When Unconfigured", default: true }, debugmode: { type: "boolean", title: "Debug Mode (on-screen logs)", default: false } }),
+        }, autowiden: { type: "boolean", title: "Fall Back to All Time When a Period Is Empty", default: true }, showwindowpicker: { type: "boolean", title: "Let Viewers Change the Period", default: true } }, metricProps), { topn: { type: "number", title: "People Per Metric", default: 5 }, channels: { type: "string", title: "Limit to Channel IDs (comma-separated)", default: "" }, excludeuserids: { type: "string", title: "Exclude User IDs (comma-separated)", default: "" }, maxposts: { type: "number", title: "Max Posts to Scan", default: 200 }, reactiontypes: { type: "boolean", title: "Resolve Reaction Types", default: true }, cachettl: { type: "number", title: "Cache Lifetime (minutes)", default: 15 }, showbubblemap: { type: "boolean", title: "Show Engagement Map", default: false }, animate: { type: "boolean", title: "Animate", default: true }, usethemecolors: { type: "boolean", title: "Use Theme Colors", default: true }, showsample: { type: "boolean", title: "Show Sample Data When Unconfigured", default: true }, debugmode: { type: "boolean", title: "Debug Mode (on-screen logs)", default: false } }),
     dependencies: {
         usethemecolors: {
             oneOf: [
@@ -2000,6 +2147,7 @@ const uiSchema = {
     displaymode: { "ui:help": "Slideshow rotates one metric at a time. Grid shows them all at once." },
     colorscheme: { "ui:help": "Auto follows the viewer's device setting." },
     maxposts: { "ui:help": "Each post costs one extra request for its reaction list. Lower this on large branches." },
+    reactiontypes: { "ui:help": "Breaks reactions down by type (Like, Celebrate, Support …) instead of one flat count. Costs about one more request per post that has reactions. Turn off on very large branches." },
     usethemecolors: { "ui:help": "Pulls your brand colors from the branding theme." },
 };
 // ── Color helpers ────────────────────────────────────────────────────────────
@@ -2041,7 +2189,9 @@ function sampleRaw() {
             if ((u * 7 + p * 3) % 5 === 0)
                 continue;
             const t = new Date(now - (p * 3 + (u % 4)) * 86400000).toISOString();
-            events.push({ kind: "reaction", userId: people[u].id, postId: `p${p}`, channelId: `c${p % 3}`, at: t });
+            const mix = ["LIKE", "LIKE", "LIKE", "CELEBRATE", "SUPPORT", "LIKE", "THANKS", "LIKE", "INSIGHTFUL"];
+            events.push({ kind: "reaction", userId: people[u].id, postId: `p${p}`, channelId: `c${p % 3}`, at: t,
+                reactionType: mix[(u * 3 + p) % mix.length] });
             if ((u + p) % 4 === 0)
                 events.push({ kind: "comment", userId: people[u].id, postId: `p${p}`, channelId: `c${p % 3}`, at: t });
         }
@@ -2050,7 +2200,10 @@ function sampleRaw() {
         postId: p.id, channelId: p.channelId, title: p.title,
         shares: 29 - i * 6, clicks: 18 - i * 4, comments: 4, likes: 12, visitors: 40 - i * 5,
     }));
-    return { events, posts, people, rankings, skippedPosts: 0, skipped: [], typedReactions: false, fetchedAt: now };
+    return {
+        events, posts, people, rankings, skippedPosts: 0, skipped: [],
+        sessionAvailable: false, typedReactions: true, fetchedAt: now,
+    };
 }
 // ── Styles ───────────────────────────────────────────────────────────────────
 /**
@@ -2941,6 +3094,13 @@ const factory = (BaseBlockClass, widgetApi) => {
                     const missing = ids.filter(id => !profileCache.has(id));
                     if (!missing.length)
                         return;
+                    // /profiles/public is USER-only; without a session these all 403.
+                    if (raw && !raw.sessionAvailable) {
+                        dlog("skipping avatar upgrade — no user session, /profiles/public needs one");
+                        for (const id of missing)
+                            profileCache.set(id, null);
+                        return;
+                    }
                     dlog(`upgrading ${missing.length} avatar(s) via /profiles/public`);
                     yield Promise.all(missing.map((id) => engagement_leaderboard_awaiter(this, void 0, void 0, function* () {
                         const prof = yield fetchPublicProfile(http, baseUrl, id, order);
@@ -3090,7 +3250,10 @@ const factory = (BaseBlockClass, widgetApi) => {
                     tiles = buildTiles({
                         raw, window: win, weights: DEFAULT_WEIGHTS, topN, metrics, exclude,
                         autoWiden, rankings, rankingsAllTime: rankingsAll, t,
-                        colors: { comment: primary, reaction: accent, post: "#FFB43C", breadth: "#3DDC97" },
+                        colors: {
+                            comment: primary, reaction: accent, post: "#FFB43C", breadth: "#3DDC97",
+                            reactionRamp: reactionRamp(primary, scheme),
+                        },
                     });
                     if (!tiles.length) {
                         host.innerHTML = `<div class="${(/* inlined export .P */"sbel")}-empty">${icon("inbox", 26)}<p>${esc(t("state.empty"))}</p></div>`;
@@ -3294,7 +3457,10 @@ const factory = (BaseBlockClass, widgetApi) => {
                         }
                     }
                     try {
-                        raw = yield loadRawData({ baseUrl, apiToken, authMode, maxPosts, concurrency: 4, log: dlog });
+                        raw = yield loadRawData({
+                            baseUrl, apiToken, authMode, maxPosts, concurrency: 4,
+                            reactionTypes: bool("reactiontypes", true), log: dlog,
+                        });
                         isSample = false;
                         writeCache(raw);
                         yield render();
@@ -3385,7 +3551,7 @@ const factory = (BaseBlockClass, widgetApi) => {
 };
 const ATTRS = [
     "apitoken", "baseurl", "authmode", "displaymode", "colorscheme", "timewindow", "customsince", "customuntil",
-    "autowiden", "showwindowpicker", "topn", "channels", "excludeuserids", "maxposts", "cachettl",
+    "autowiden", "showwindowpicker", "topn", "channels", "excludeuserids", "maxposts", "reactiontypes", "cachettl",
     "showbubblemap", "animate", "autoplay", "autoplayseconds", "usethemecolors",
     "primarycolor", "accentcolor", "showsample", "debugmode",
 ].concat(METRIC_ATTRS.map(m => m.attr));

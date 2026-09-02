@@ -179,7 +179,7 @@ export type BuildOptions = {
   /** All-time rankings, used when the advocacy tile has to widen. */
   rankingsAllTime: PostRanking[];
   t: (key: string) => string;
-  colors: { comment: string; reaction: string; post: string; breadth: string };
+  colors: { comment: string; reaction: string; post: string; breadth: string; reactionRamp?: string[] };
 };
 
 /**
@@ -190,6 +190,20 @@ export type BuildOptions = {
  * so a single global widen would either discard good share data or leave most
  * tiles blank. Each tile therefore reports the window it actually used.
  */
+/**
+ * Human label for a reaction type.
+ *
+ * The API returns screaming enum values (`CELEBRATE`). Known types are
+ * translated; anything new is title-cased rather than shown raw, so a reaction
+ * type added server-side degrades to "Applaud" instead of "APPLAUD".
+ */
+export function reactionLabel(type: string, t: (k: string) => string): string {
+  const key = `reaction.${type}`;
+  const s = t(key);
+  if (s && s !== key) return s;
+  return type.charAt(0) + type.slice(1).toLowerCase();
+}
+
 export function buildTiles(o: BuildOptions): Tile[] {
   const people = new Map(o.raw.people.map(p => [p.id, p]));
   const all: Window = { since: 0, until: Date.now() };
@@ -259,17 +273,22 @@ export function buildTiles(o: BuildOptions): Tile[] {
       case "top_reactor": {
         const r = ranked(s => s.reactionsGiven, s => s.comments);
         const src = r.widened ? widenedStats() : primary;
-        // A typed donut is only meaningful when session auth resolved reaction
-        // types; under token auth every reaction is an untyped LIKE.
+        // The donut only earns its place when the winner actually used more
+        // than one reaction type; a single-slice ring says less than a bar.
+        const ramp = (o.colors.reactionRamp || []).length ? o.colors.reactionRamp! : REACTION_COLORS;
         const typed = o.raw.typedReactions && r.entries.length > 0 &&
           Object.keys(src.get(r.entries[0].person.id)?.reactionTypes || {}).length > 1;
         if (typed) {
           for (const e of r.entries) {
             const s = src.get(e.person.id);
             if (!s) continue;
-            e.parts = Object.keys(s.reactionTypes).map((k, i) => ({
-              label: k, value: s.reactionTypes[k], color: REACTION_COLORS[i % REACTION_COLORS.length],
-            }));
+            e.parts = Object.keys(s.reactionTypes)
+              .sort((a, b) => s.reactionTypes[b] - s.reactionTypes[a])
+              .map((k, i) => ({
+                label: reactionLabel(k, o.t),
+                value: s.reactionTypes[k],
+                color: ramp[i % ramp.length],
+              }));
           }
         }
         tiles.push(tile(id, o.t("metric.topReactor"), o.t("metric.topReactor.sub"), typed ? "donut" : "bars", r, o.t("unit.reactions")));
@@ -335,6 +354,8 @@ export function buildTiles(o: BuildOptions): Tile[] {
   return tiles;
 }
 
+/** Last-resort ramp. Normally `colors.reactionRamp` supplies a brand-anchored
+ *  one so the donut belongs to the same visual world as the rest of the deck. */
 const REACTION_COLORS = ["#0EA5E9", "#F59E0B", "#EF4444", "#10B981", "#8B5CF6", "#EC4899"];
 
 function tile(

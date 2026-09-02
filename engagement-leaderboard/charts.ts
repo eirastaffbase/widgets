@@ -172,7 +172,7 @@ function ring(e: Entry, label: string): string {
     <span class="${P}-fl-h">${esc(label)}</span>
     <div class="${P}-ringwrap">
       <svg viewBox="0 0 120 120" width="120" height="120" aria-hidden="true">
-        <circle cx="60" cy="60" r="${r}" fill="none" stroke="rgba(255,255,255,.09)" stroke-width="13"/>
+        <circle cx="60" cy="60" r="${r}" fill="none" stroke="rgba(var(--tint),.12)" stroke-width="13"/>
         ${arcs}
       </svg>
       <span class="${P}-ring-mid">${fmt(total)}</span>

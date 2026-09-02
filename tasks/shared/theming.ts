@@ -216,3 +216,33 @@ export async function fetchThemeColors(
     return {};
   }
 }
+
+/**
+ * A categorical ramp anchored to the tenant's own brand.
+ *
+ * Categorical palettes are usually picked off the shelf, which drops saturated
+ * web-safe hues (#0EA5E9, #EF4444) onto a brand-tinted surface and makes the
+ * chart read as a foreign object. This walks the hue wheel from the primary
+ * instead, holding saturation and lightness at the values that survive the
+ * given surface, so every slice is distinguishable *and* clearly related.
+ */
+export function reactionRamp(primary: string, surface: "light" | "dark", n = 6): string[] {
+  const { h, s, l } = hexToHsl(primary);
+  // hexToHsl/hslToHex work in 0-1 fractions, not percentages. Passing 0-100
+  // here silently produces malformed hex, which paints nothing at all.
+  const sat = Math.min(0.85, Math.max(0.52, s));
+  const lit = surface === "dark"
+    ? Math.min(0.68, Math.max(0.52, l))
+    : Math.min(0.50, Math.max(0.38, l));
+  const out: string[] = [];
+  for (let i = 0; i < n; i++) {
+    // 47 degrees is coprime enough with 360 to avoid repeats over a short ramp
+    // while keeping neighbouring slices clearly apart.
+    const hue = (h + i * 47) % 360;
+    // Alternate a small lightness step so adjacent slices differ even for
+    // viewers who cannot separate the hues.
+    const step = i % 2 === 0 ? 0 : (surface === "dark" ? 0.10 : -0.08);
+    out.push(hslToHex(hue, sat, Math.min(0.78, Math.max(0.30, lit + step))));
+  }
+  return out;
+}

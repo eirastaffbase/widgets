@@ -235,34 +235,30 @@ export type ReactionRow = { userId: string; at: string; type?: string };
 /**
  * Who reacted to a post.
  *
- * `/reactions` is USER-only, so it is tried under session first — success adds
- * the reaction *type*. `/posts/{id}/likes` is the token-friendly fallback and
- * yields untyped likes.
+ * `/posts/{id}/likes` is the only endpoint that lists reactors, and it is
+ * untyped. `/reactions` looks like the typed alternative and is not:
  *
- * Returns `null` when the post is unreadable (restricted channel), so the
- * caller can count it as skipped rather than failing the whole load.
+ *   - It requires a `userId` and returns **at most one** row — it answers
+ *     "did this one person react?", not "who reacted?". Omitting `userId`
+ *     is what produced the 400s; a token gets a 403 first and never sees it.
+ *   - `EyoLike.type` is annotated `@JsonIgnore`, so no post-facing endpoint
+ *     serialises a per-user reaction type at all. Staffbase's own reactor
+ *     modal has the same limitation: it lists users from this same `/likes`
+ *     route and gets type totals separately from `/reactions-count`, never
+ *     joining the two.
+ *
+ * So there is no session upgrade to be had here, and no batch variant for news
+ * posts — one request per post is the floor.
+ *
+ * Returns `{ skipped }` when the post is unreadable (restricted channel), so
+ * the caller can count it rather than failing the whole load.
  */
-export async function fetchTypedReactions(
-  http: Http, base: string, postId: string, opts: OptsFactory,
-): Promise<ReactionRow[]> {
-  const d = await http.getJson(`${base}/reactions?parentId=${postId}&parentType=post`, opts);
-  const rows: any[] = d?.data || [];
-  return rows
-    .map(r => ({ userId: r.userId || r.userID || "", at: r.createdAt || r.created || "", type: r.type || "LIKE" }))
-    .filter(r => r.userId);
-}
-
 export async function fetchPostReactions(
-  http: Http, base: string, postId: string, sessionFirst: OptsFactory[], tokenOnly: OptsFactory[],
+  http: Http, base: string, postId: string, ladder: OptsFactory[],
   inlineUsers?: ApiUser[],
 ): Promise<{ rows: ReactionRow[] } | { skipped: string }> {
-  if (sessionFirst.length) {
-    try {
-      return { rows: await fetchTypedReactions(http, base, postId, sessionFirst[0]) };
-    } catch (_) { /* fall through to /likes */ }
-  }
   try {
-    const d = await http.ladder(`${base}/posts/${postId}/likes?limit=${PAGE}`, tokenOnly, `likes ${postId}`);
+    const d = await http.ladder(`${base}/posts/${postId}/likes?limit=${PAGE}`, ladder, `likes ${postId}`);
     const rows: any[] = d?.data || [];
     if (inlineUsers) for (const r of rows) if (r?.user?.id) inlineUsers.push(r.user);
     return { rows: rows
@@ -273,6 +269,46 @@ export async function fetchPostReactions(
     // the caller needs to be able to name the post and the HTTP status.
     return { skipped: e?.message || String(e) };
   }
+}
+
+/**
+ * Reaction *type* totals for one post, e.g. `[{type:"CELEBRATE",count:1}]`.
+ *
+ * Aggregate only — no user attribution. Works under a token as well as a
+ * session. There is no batch variant for news posts: `parentId` takes exactly
+ * one id, and `parentIds`, a comma list, or a repeated parameter are all
+ * rejected or silently ignored.
+ */
+export async function fetchReactionTypes(
+  http: Http, base: string, postId: string, ladder: OptsFactory[],
+): Promise<Array<{ type: string; count: number }>> {
+  const d = await http.ladder(
+    `${base}/reactions-count?parentId=${postId}&parentType=post`, ladder, `types ${postId}`,
+  );
+  return (d?.data || []).filter((r: any) => r?.type).map((r: any) => ({
+    type: String(r.type), count: Number(r.count) || 0,
+  }));
+}
+
+/**
+ * One named person's reaction to one post, or `null` if they did not react.
+ *
+ * This is what `/reactions` actually is: `userId` is required and the response
+ * holds at most one row. Omitting `userId` is a 400, which is why it looks
+ * broken if you expect it to list reactors.
+ *
+ * It accepts an *arbitrary* `userId`, not just the caller's — verified live —
+ * which is what makes exact attribution possible. It is USER-authenticated, so
+ * a token gets a 403 and this degrades to the aggregate path.
+ */
+export async function fetchUserReaction(
+  http: Http, base: string, postId: string, userId: string, opts: OptsFactory,
+): Promise<string | null> {
+  const d = await http.getJson(
+    `${base}/reactions?parentId=${postId}&parentType=post&userId=${userId}`, opts,
+  );
+  const row = (d?.data || [])[0];
+  return row?.type ? String(row.type) : null;
 }
 
 /**
@@ -376,6 +412,9 @@ export type LoadOptions = {
   authMode: "auto" | "token" | "session";
   maxPosts: number;
   concurrency: number;
+  /** Resolve reaction types. Costs roughly one extra request per post that has
+   *  any reactions; off falls back to untyped likes. */
+  reactionTypes?: boolean;
   log: Logger;
   onProgress?: (done: number, total: number) => void;
 };
@@ -404,9 +443,6 @@ export async function loadRawData(opts: LoadOptions): Promise<RawData> {
   if (authMode !== "token") general.push(sessionOpts);
   if (!general.length) general.push(sessionOpts);
 
-  // /reactions is USER-only, so session leads; /likes covers the token case.
-  let reactionSession: OptsFactory[] = (authMode !== "token" && useSession) ? [sessionOpts] : [];
-
   // Directory pages can miss people who are deactivated or beyond the cap, so
   // inline author/user objects are collected as a backfill source.
   const inlineUsers: ApiUser[] = [];
@@ -427,37 +463,14 @@ export async function loadRawData(opts: LoadOptions): Promise<RawData> {
     .catch(e => { log("post rankings failed —", e.message); return [] as PostRanking[]; });
   log(`loaded ${rankings.length} ranking rows`);
 
-  // Probe /reactions ONCE before fanning out.
-  //
-  // A session gets past authentication on this route and can still be rejected
-  // on the request itself, which is not something the token probe can see (a
-  // token is refused at the door with a 403). Without this gate every post pays
-  // for the same failure: ~50 doomed requests, ~50 console errors, and a
-  // fallback to /likes anyway. The outcome is uniform across posts, so one
-  // request settles it.
-  const probed = new Map<string, ReactionRow[]>();
-  if (reactionSession.length && posts.length) {
-    try {
-      probed.set(posts[0].id, await fetchTypedReactions(http, base, posts[0].id, reactionSession[0]));
-      log("typed reactions available via /reactions");
-    } catch (e: any) {
-      log(`/reactions unavailable (${e?.message || String(e)}) — using untyped /likes`);
-      reactionSession = [];
-    }
-  }
-
   // Fan-out: one reaction list per post.
   let done = 0;
   let skippedPosts = 0;
   const skipped: SkippedPost[] = [];
-  let typedReactions = false;
   const events: EngagementEvent[] = [];
 
   const results = await http.mapLimit(posts, async (post) => {
-    const hit = probed.get(post.id);
-    const res = hit
-      ? { rows: hit }
-      : await fetchPostReactions(http, base, post.id, reactionSession, general, inlineUsers);
+    const res = await fetchPostReactions(http, base, post.id, general, inlineUsers);
     done++;
     opts.onProgress?.(done, posts.length);
     return { post, res };
@@ -470,7 +483,6 @@ export async function loadRawData(opts: LoadOptions): Promise<RawData> {
       continue;
     }
     for (const r of res.rows) {
-      if (r.type) typedReactions = true;
       events.push({
         kind: "reaction",
         userId: r.userId,
@@ -480,6 +492,63 @@ export async function loadRawData(opts: LoadOptions): Promise<RawData> {
         reactionType: r.type,
       });
     }
+  }
+
+  // ── Reaction types ───────────────────────────────────────────────────────
+  // No endpoint lists reactors *with* their reaction type, so this reconstructs
+  // it from two that do exist, cheapest first:
+  //
+  //   1. `/reactions-count` gives the type totals for a post. When a post has
+  //      exactly one type, every reactor on it provably used that type — no
+  //      further requests needed. On this branch that settled 158 of 193
+  //      reactions outright.
+  //   2. Only where a post genuinely mixes types is a per-reactor lookup
+  //      needed, and only for the reactors of those few posts (35 here, over
+  //      6 posts).
+  //
+  // Step 2 is USER-only, so under a token the mixed posts stay untyped rather
+  // than the whole feature disappearing.
+  let typedReactions = false;
+  if (opts.reactionTypes !== false) {
+    const withReactors = new Map<string, string[]>();
+    for (const e of events) {
+      if (e.kind !== "reaction") continue;
+      const list = withReactors.get(e.postId) || [];
+      list.push(e.userId);
+      withReactors.set(e.postId, list);
+    }
+    const ids = Array.from(withReactors.keys());
+    const typesByPost = new Map<string, Array<{ type: string; count: number }>>();
+    await http.mapLimit(ids, async (id) => {
+      try { typesByPost.set(id, await fetchReactionTypes(http, base, id, general)); } catch (_) { /* leave untyped */ }
+    });
+
+    const single = new Map<string, string>();
+    const mixed: Array<{ postId: string; userId: string }> = [];
+    for (const id of ids) {
+      const types = typesByPost.get(id) || [];
+      if (types.length === 1) single.set(id, types[0].type);
+      else if (types.length > 1) for (const uid of withReactors.get(id) || []) mixed.push({ postId: id, userId: uid });
+    }
+
+    const exact = new Map<string, string>();
+    if (mixed.length && useSession && authMode !== "token") {
+      await http.mapLimit(mixed, async ({ postId, userId }) => {
+        try {
+          const ty = await fetchUserReaction(http, base, postId, userId, sessionOpts);
+          if (ty) exact.set(`${postId}|${userId}`, ty);
+        } catch (_) { /* leave untyped */ }
+      });
+    }
+
+    for (const e of events) {
+      if (e.kind !== "reaction") continue;
+      const ty = exact.get(`${e.postId}|${e.userId}`) || single.get(e.postId);
+      if (ty) { e.reactionType = ty; typedReactions = true; }
+    }
+    const n = events.filter(e => e.kind === "reaction" && e.reactionType).length;
+    const total = events.filter(e => e.kind === "reaction").length;
+    log(`typed ${n}/${total} reactions (${single.size} posts single-type, ${mixed.length} looked up individually)`);
   }
 
   const postById = new Map(posts.map(p => [p.id, p]));
@@ -509,7 +578,7 @@ export async function loadRawData(opts: LoadOptions): Promise<RawData> {
     if (a.id && !known.has(a.id)) { known.add(a.id); people.push(toPerson(a)); }
   }
 
-  log(`built ${events.length} events, skipped ${skippedPosts} restricted posts, typed reactions: ${typedReactions}`);
+  log(`built ${events.length} events, skipped ${skippedPosts} restricted posts`);
   if (skipped.length) {
     const byChannel = new Map<string, number>();
     for (const sk of skipped) byChannel.set(sk.channelId, (byChannel.get(sk.channelId) || 0) + 1);
@@ -518,5 +587,8 @@ export async function loadRawData(opts: LoadOptions): Promise<RawData> {
     if (skipped.length > 5) log(`  ...and ${skipped.length - 5} more`);
   }
 
-  return { events, posts, people, rankings, skippedPosts, skipped, typedReactions, fetchedAt: Date.now() };
+  return {
+    events, posts, people, rankings, skippedPosts, skipped,
+    sessionAvailable: useSession, typedReactions, fetchedAt: Date.now(),
+  };
 }

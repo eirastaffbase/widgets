@@ -21,7 +21,7 @@ import {
 import { JSONSchema7 } from "json-schema";
 
 import { detectLocale, isRtl, makeT } from "../tasks/shared/i18n";
-import { fetchThemeColors } from "../tasks/shared/theming";
+import { fetchThemeColors, reactionRamp } from "../tasks/shared/theming";
 import { AVAILABLE_LOCALES, BUNDLES } from "./strings";
 import { Http, fetchPostRankings, fetchPublicProfile, hiResAvatar, loadRawData, makeApiOpts, sessionOpts } from "./api";
 import {
@@ -81,6 +81,7 @@ const configurationSchema: JSONSchema7 = {
     channels: { type: "string", title: "Limit to Channel IDs (comma-separated)", default: "" },
     excludeuserids: { type: "string", title: "Exclude User IDs (comma-separated)", default: "" },
     maxposts: { type: "number", title: "Max Posts to Scan", default: 200 },
+    reactiontypes: { type: "boolean", title: "Resolve Reaction Types", default: true },
     cachettl: { type: "number", title: "Cache Lifetime (minutes)", default: 15 },
     showbubblemap: { type: "boolean", title: "Show Engagement Map", default: false },
     animate: { type: "boolean", title: "Animate", default: true },
@@ -139,6 +140,7 @@ const uiSchema = {
   displaymode: { "ui:help": "Slideshow rotates one metric at a time. Grid shows them all at once." },
   colorscheme: { "ui:help": "Auto follows the viewer's device setting." },
   maxposts: { "ui:help": "Each post costs one extra request for its reaction list. Lower this on large branches." },
+  reactiontypes: { "ui:help": "Breaks reactions down by type (Like, Celebrate, Support …) instead of one flat count. Costs about one more request per post that has reactions. Turn off on very large branches." },
   usethemecolors: { "ui:help": "Pulls your brand colors from the branding theme." },
 };
 
@@ -184,7 +186,9 @@ function sampleRaw(): RawData {
     for (let u = 0; u < people.length; u++) {
       if ((u * 7 + p * 3) % 5 === 0) continue;
       const t = new Date(now - (p * 3 + (u % 4)) * 86400000).toISOString();
-      events.push({ kind: "reaction", userId: people[u].id, postId: `p${p}`, channelId: `c${p % 3}`, at: t });
+      const mix = ["LIKE", "LIKE", "LIKE", "CELEBRATE", "SUPPORT", "LIKE", "THANKS", "LIKE", "INSIGHTFUL"];
+      events.push({ kind: "reaction", userId: people[u].id, postId: `p${p}`, channelId: `c${p % 3}`, at: t,
+        reactionType: mix[(u * 3 + p) % mix.length] });
       if ((u + p) % 4 === 0) events.push({ kind: "comment", userId: people[u].id, postId: `p${p}`, channelId: `c${p % 3}`, at: t });
     }
   }
@@ -192,7 +196,10 @@ function sampleRaw(): RawData {
     postId: p.id, channelId: p.channelId, title: p.title,
     shares: 29 - i * 6, clicks: 18 - i * 4, comments: 4, likes: 12, visitors: 40 - i * 5,
   }));
-  return { events, posts, people, rankings, skippedPosts: 0, skipped: [], typedReactions: false, fetchedAt: now };
+  return {
+    events, posts, people, rankings, skippedPosts: 0, skipped: [],
+    sessionAvailable: false, typedReactions: true, fetchedAt: now,
+  };
 }
 
 // ── Styles ───────────────────────────────────────────────────────────────────
@@ -1068,6 +1075,12 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         }
         const missing = ids.filter(id => !profileCache.has(id));
         if (!missing.length) return;
+        // /profiles/public is USER-only; without a session these all 403.
+        if (raw && !raw.sessionAvailable) {
+          dlog("skipping avatar upgrade — no user session, /profiles/public needs one");
+          for (const id of missing) profileCache.set(id, null);
+          return;
+        }
         dlog(`upgrading ${missing.length} avatar(s) via /profiles/public`);
         await Promise.all(missing.map(async id => {
           const prof = await fetchPublicProfile(http, baseUrl, id, order);
@@ -1204,7 +1217,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         tiles = buildTiles({
           raw, window: win, weights: DEFAULT_WEIGHTS, topN, metrics, exclude,
           autoWiden, rankings, rankingsAllTime: rankingsAll, t,
-          colors: { comment: primary, reaction: accent, post: "#FFB43C", breadth: "#3DDC97" },
+          colors: {
+            comment: primary, reaction: accent, post: "#FFB43C", breadth: "#3DDC97",
+            reactionRamp: reactionRamp(primary, scheme),
+          },
         });
 
         if (!tiles.length) {
@@ -1396,7 +1412,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         }
 
         try {
-          raw = await loadRawData({ baseUrl, apiToken, authMode, maxPosts, concurrency: 4, log: dlog });
+          raw = await loadRawData({
+            baseUrl, apiToken, authMode, maxPosts, concurrency: 4,
+            reactionTypes: bool("reactiontypes", true), log: dlog,
+          });
           isSample = false;
           writeCache(raw);
           await render();
@@ -1479,7 +1498,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
 const ATTRS = [
   "apitoken", "baseurl", "authmode", "displaymode", "colorscheme", "timewindow", "customsince", "customuntil",
-  "autowiden", "showwindowpicker", "topn", "channels", "excludeuserids", "maxposts", "cachettl",
+  "autowiden", "showwindowpicker", "topn", "channels", "excludeuserids", "maxposts", "reactiontypes", "cachettl",
   "showbubblemap", "animate", "autoplay", "autoplayseconds", "usethemecolors",
   "primarycolor", "accentcolor", "showsample", "debugmode",
 ].concat(METRIC_ATTRS.map(m => m.attr));

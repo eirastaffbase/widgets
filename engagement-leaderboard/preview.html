@@ -41,6 +41,8 @@
       <select id="showbubblemap"><option value="false" selected>Off</option><option value="true">On</option></select></div>
     <div><label for="colorscheme">Color scheme</label>
       <select id="colorscheme"><option value="dark" selected>Dark</option><option value="light">Light</option><option value="auto">Auto</option></select></div>
+    <div><label for="reactiontypes">Reaction types</label>
+      <select id="reactiontypes"><option value="true" selected>On</option><option value="false">Off</option></select></div>
     <div><label for="debugmode">Debug mode</label>
       <select id="debugmode"><option value="false" selected>Off</option><option value="true">On</option></select></div>
     <div><button id="go">Render</button></div>
@@ -74,7 +76,7 @@ document.getElementById("go").addEventListener("click", function () {
   const stage = document.getElementById("stage");
   stage.innerHTML = "";
   const el = document.createElement(window.__blockName);
-  ["baseurl", "apitoken", "timewindow", "topn", "displaymode", "showbubblemap", "colorscheme", "debugmode"].forEach(function (k) {
+  ["baseurl", "apitoken", "timewindow", "topn", "displaymode", "showbubblemap", "colorscheme", "reactiontypes", "debugmode"].forEach(function (k) {
     const v = document.getElementById(k).value;
     if (v) el.setAttribute(k, v);
   });
