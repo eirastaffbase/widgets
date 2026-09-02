@@ -990,16 +990,21 @@ function fetchComments(http, base, order, cap, since, until) {
  * Returns `null` when the post is unreadable (restricted channel), so the
  * caller can count it as skipped rather than failing the whole load.
  */
+function fetchTypedReactions(http, base, postId, opts) {
+    return api_awaiter(this, void 0, void 0, function* () {
+        const d = yield http.getJson(`${base}/reactions?parentId=${postId}&parentType=post`, opts);
+        const rows = (d === null || d === void 0 ? void 0 : d.data) || [];
+        return rows
+            .map(r => ({ userId: r.userId || r.userID || "", at: r.createdAt || r.created || "", type: r.type || "LIKE" }))
+            .filter(r => r.userId);
+    });
+}
 function fetchPostReactions(http, base, postId, sessionFirst, tokenOnly, inlineUsers) {
     return api_awaiter(this, void 0, void 0, function* () {
         var _a;
         if (sessionFirst.length) {
             try {
-                const d = yield http.getJson(`${base}/reactions?parentId=${postId}&parentType=post`, sessionFirst[0]);
-                const rows = (d === null || d === void 0 ? void 0 : d.data) || [];
-                return { rows: rows
-                        .map(r => ({ userId: r.userId || r.userID || "", at: r.createdAt || r.created || "", type: r.type || "LIKE" }))
-                        .filter(r => r.userId) };
+                return { rows: yield fetchTypedReactions(http, base, postId, sessionFirst[0]) };
             }
             catch (_) { /* fall through to /likes */ }
         }
@@ -1143,7 +1148,7 @@ function loadRawData(opts) {
         if (!general.length)
             general.push(sessionOpts);
         // /reactions is USER-only, so session leads; /likes covers the token case.
-        const reactionSession = (authMode !== "token" && useSession) ? [sessionOpts] : [];
+        let reactionSession = (authMode !== "token" && useSession) ? [sessionOpts] : [];
         // Directory pages can miss people who are deactivated or beyond the cap, so
         // inline author/user objects are collected as a backfill source.
         const inlineUsers = [];
@@ -1160,6 +1165,25 @@ function loadRawData(opts) {
         const rankings = yield fetchPostRankings(http, base, general)
             .catch(e => { log("post rankings failed —", e.message); return []; });
         log(`loaded ${rankings.length} ranking rows`);
+        // Probe /reactions ONCE before fanning out.
+        //
+        // A session gets past authentication on this route and can still be rejected
+        // on the request itself, which is not something the token probe can see (a
+        // token is refused at the door with a 403). Without this gate every post pays
+        // for the same failure: ~50 doomed requests, ~50 console errors, and a
+        // fallback to /likes anyway. The outcome is uniform across posts, so one
+        // request settles it.
+        const probed = new Map();
+        if (reactionSession.length && posts.length) {
+            try {
+                probed.set(posts[0].id, yield fetchTypedReactions(http, base, posts[0].id, reactionSession[0]));
+                log("typed reactions available via /reactions");
+            }
+            catch (e) {
+                log(`/reactions unavailable (${(e === null || e === void 0 ? void 0 : e.message) || String(e)}) — using untyped /likes`);
+                reactionSession = [];
+            }
+        }
         // Fan-out: one reaction list per post.
         let done = 0;
         let skippedPosts = 0;
@@ -1168,7 +1192,10 @@ function loadRawData(opts) {
         const events = [];
         const results = yield http.mapLimit(posts, (post) => api_awaiter(this, void 0, void 0, function* () {
             var _a;
-            const res = yield fetchPostReactions(http, base, post.id, reactionSession, general, inlineUsers);
+            const hit = probed.get(post.id);
+            const res = hit
+                ? { rows: hit }
+                : yield fetchPostReactions(http, base, post.id, reactionSession, general, inlineUsers);
             done++;
             (_a = opts.onProgress) === null || _a === void 0 ? void 0 : _a.call(opts, done, posts.length);
             return { post, res };
@@ -2666,25 +2693,50 @@ const factory = (BaseBlockClass, widgetApi) => {
                 let isSample = false;
                 let tiles = [];
                 let index = 0;
+                // A cache miss costs ~50 requests, so the reason for one is worth saying
+                // out loud — "why did it refetch?" is otherwise unanswerable in the app.
                 const readCache = () => {
+                    let s = null;
                     try {
-                        const s = sessionStorage.getItem(cacheKey);
-                        if (!s)
-                            return null;
+                        s = sessionStorage.getItem(cacheKey);
+                    }
+                    catch (e) {
+                        dlog("cache unreadable —", (e === null || e === void 0 ? void 0 : e.message) || String(e));
+                        return null;
+                    }
+                    if (!s) {
+                        dlog("cache miss — nothing stored for this base URL and channel set");
+                        return null;
+                    }
+                    try {
                         const d = JSON.parse(s);
-                        if (!d || Date.now() - d.fetchedAt > cacheTtl)
+                        if (!d || !d.fetchedAt) {
+                            dlog("cache miss — stored entry was unusable");
                             return null;
+                        }
+                        const age = Date.now() - d.fetchedAt;
+                        if (age > cacheTtl) {
+                            dlog(`cache miss — entry is ${Math.round(age / 60000)} min old, limit is ${Math.round(cacheTtl / 60000)}`);
+                            return null;
+                        }
                         return d;
                     }
-                    catch (_) {
+                    catch (e) {
+                        dlog("cache miss —", (e === null || e === void 0 ? void 0 : e.message) || String(e));
                         return null;
                     }
                 };
                 const writeCache = (d) => {
                     try {
-                        sessionStorage.setItem(cacheKey, JSON.stringify(d));
+                        const body = JSON.stringify(d);
+                        sessionStorage.setItem(cacheKey, body);
+                        dlog(`cached ${Math.round(body.length / 1024)} KB for ${Math.round(cacheTtl / 60000)} min`);
                     }
-                    catch (_) { /* quota — non-fatal */ }
+                    catch (e) {
+                        // Quota is the usual cause and it is not fatal — but silently losing
+                        // the cache means every mount re-runs the whole fan-out.
+                        dlog("cache write failed —", (e === null || e === void 0 ? void 0 : e.message) || String(e));
+                    }
                 };
                 const http = new Http(4, dlog);
                 const tokenOrder = apiToken && authMode !== "session" ? [makeApiOpts(apiToken)] : [];

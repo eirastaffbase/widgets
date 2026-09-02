@@ -838,17 +838,36 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       let tiles: Tile[] = [];
       let index = 0;
 
+      // A cache miss costs ~50 requests, so the reason for one is worth saying
+      // out loud — "why did it refetch?" is otherwise unanswerable in the app.
       const readCache = (): RawData | null => {
+        let s: string | null = null;
+        try { s = sessionStorage.getItem(cacheKey); } catch (e: any) {
+          dlog("cache unreadable —", e?.message || String(e));
+          return null;
+        }
+        if (!s) { dlog("cache miss — nothing stored for this base URL and channel set"); return null; }
         try {
-          const s = sessionStorage.getItem(cacheKey);
-          if (!s) return null;
           const d = JSON.parse(s) as RawData;
-          if (!d || Date.now() - d.fetchedAt > cacheTtl) return null;
+          if (!d || !d.fetchedAt) { dlog("cache miss — stored entry was unusable"); return null; }
+          const age = Date.now() - d.fetchedAt;
+          if (age > cacheTtl) {
+            dlog(`cache miss — entry is ${Math.round(age / 60000)} min old, limit is ${Math.round(cacheTtl / 60000)}`);
+            return null;
+          }
           return d;
-        } catch (_) { return null; }
+        } catch (e: any) { dlog("cache miss —", e?.message || String(e)); return null; }
       };
       const writeCache = (d: RawData) => {
-        try { sessionStorage.setItem(cacheKey, JSON.stringify(d)); } catch (_) { /* quota — non-fatal */ }
+        try {
+          const body = JSON.stringify(d);
+          sessionStorage.setItem(cacheKey, body);
+          dlog(`cached ${Math.round(body.length / 1024)} KB for ${Math.round(cacheTtl / 60000)} min`);
+        } catch (e: any) {
+          // Quota is the usual cause and it is not fatal — but silently losing
+          // the cache means every mount re-runs the whole fan-out.
+          dlog("cache write failed —", e?.message || String(e));
+        }
       };
 
       const http = new Http(4, dlog);

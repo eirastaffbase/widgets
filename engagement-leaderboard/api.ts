@@ -230,6 +230,8 @@ export async function fetchComments(
   return pageAll(http, base, `/comments${q}`, order, "comments", cap);
 }
 
+export type ReactionRow = { userId: string; at: string; type?: string };
+
 /**
  * Who reacted to a post.
  *
@@ -240,19 +242,23 @@ export async function fetchComments(
  * Returns `null` when the post is unreadable (restricted channel), so the
  * caller can count it as skipped rather than failing the whole load.
  */
+export async function fetchTypedReactions(
+  http: Http, base: string, postId: string, opts: OptsFactory,
+): Promise<ReactionRow[]> {
+  const d = await http.getJson(`${base}/reactions?parentId=${postId}&parentType=post`, opts);
+  const rows: any[] = d?.data || [];
+  return rows
+    .map(r => ({ userId: r.userId || r.userID || "", at: r.createdAt || r.created || "", type: r.type || "LIKE" }))
+    .filter(r => r.userId);
+}
+
 export async function fetchPostReactions(
   http: Http, base: string, postId: string, sessionFirst: OptsFactory[], tokenOnly: OptsFactory[],
   inlineUsers?: ApiUser[],
-): Promise<{ rows: { userId: string; at: string; type?: string }[] } | { skipped: string }> {
+): Promise<{ rows: ReactionRow[] } | { skipped: string }> {
   if (sessionFirst.length) {
     try {
-      const d = await http.getJson(
-        `${base}/reactions?parentId=${postId}&parentType=post`, sessionFirst[0],
-      );
-      const rows: any[] = d?.data || [];
-      return { rows: rows
-        .map(r => ({ userId: r.userId || r.userID || "", at: r.createdAt || r.created || "", type: r.type || "LIKE" }))
-        .filter(r => r.userId) };
+      return { rows: await fetchTypedReactions(http, base, postId, sessionFirst[0]) };
     } catch (_) { /* fall through to /likes */ }
   }
   try {
@@ -399,7 +405,7 @@ export async function loadRawData(opts: LoadOptions): Promise<RawData> {
   if (!general.length) general.push(sessionOpts);
 
   // /reactions is USER-only, so session leads; /likes covers the token case.
-  const reactionSession: OptsFactory[] = (authMode !== "token" && useSession) ? [sessionOpts] : [];
+  let reactionSession: OptsFactory[] = (authMode !== "token" && useSession) ? [sessionOpts] : [];
 
   // Directory pages can miss people who are deactivated or beyond the cap, so
   // inline author/user objects are collected as a backfill source.
@@ -421,6 +427,25 @@ export async function loadRawData(opts: LoadOptions): Promise<RawData> {
     .catch(e => { log("post rankings failed —", e.message); return [] as PostRanking[]; });
   log(`loaded ${rankings.length} ranking rows`);
 
+  // Probe /reactions ONCE before fanning out.
+  //
+  // A session gets past authentication on this route and can still be rejected
+  // on the request itself, which is not something the token probe can see (a
+  // token is refused at the door with a 403). Without this gate every post pays
+  // for the same failure: ~50 doomed requests, ~50 console errors, and a
+  // fallback to /likes anyway. The outcome is uniform across posts, so one
+  // request settles it.
+  const probed = new Map<string, ReactionRow[]>();
+  if (reactionSession.length && posts.length) {
+    try {
+      probed.set(posts[0].id, await fetchTypedReactions(http, base, posts[0].id, reactionSession[0]));
+      log("typed reactions available via /reactions");
+    } catch (e: any) {
+      log(`/reactions unavailable (${e?.message || String(e)}) — using untyped /likes`);
+      reactionSession = [];
+    }
+  }
+
   // Fan-out: one reaction list per post.
   let done = 0;
   let skippedPosts = 0;
@@ -429,7 +454,10 @@ export async function loadRawData(opts: LoadOptions): Promise<RawData> {
   const events: EngagementEvent[] = [];
 
   const results = await http.mapLimit(posts, async (post) => {
-    const res = await fetchPostReactions(http, base, post.id, reactionSession, general, inlineUsers);
+    const hit = probed.get(post.id);
+    const res = hit
+      ? { rows: hit }
+      : await fetchPostReactions(http, base, post.id, reactionSession, general, inlineUsers);
     done++;
     opts.onProgress?.(done, posts.length);
     return { post, res };
