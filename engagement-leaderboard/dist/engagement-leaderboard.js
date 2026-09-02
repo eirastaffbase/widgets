@@ -3288,7 +3288,12 @@ const factory = (BaseBlockClass, widgetApi) => {
                     const parts = [];
                     if (isSample)
                         parts.push(t("state.sample"));
-                    if (raw.skippedPosts) {
+                    // Unreadable posts are an operator concern, not a viewer one: a
+                    // restricted channel is usually intentional, and the numbers are still
+                    // correct for everything the widget could see. Showing it on the stage
+                    // reads as a fault. It stays in the debug log either way, with the
+                    // channel and status spelled out.
+                    if (raw.skippedPosts && debug) {
                         parts.push(t("state.partialN")
                             .replace("{n}", String(raw.skippedPosts))
                             .replace("{total}", String(raw.posts.length + raw.skippedPosts)));

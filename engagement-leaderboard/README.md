@@ -81,9 +81,8 @@ Two rules are carried over from the task widgets and matter:
   viewer.
 
 Enable **Debug Mode** to see the ladder's decisions on screen — the console is
-not reachable in the mobile app. It also reports **exactly which channels and
-posts were skipped** and why, which is what turns the "partial data" note from a
-shrug into something diagnosable.
+not reachable in the mobile app. It also reports **exactly which channels and posts were
+skipped** and why — and that report is debug-only, so viewers never see it.
 
 ### Reaction types
 
@@ -214,7 +213,11 @@ Researched against the product source; worth knowing before someone asks for it:
 - `/posts/{id}/comments` returns 403 for a token; the branch-level `/comments`
   is the working substitute.
 - Access-restricted channels return 403 on their reaction lists. Those posts are
-  skipped and surfaced as a "partial data" badge, never as a failure.
+  skipped, never fatal. The count is reported **only in Debug Mode** — a
+  restricted channel is normally intentional, the figures are still correct for
+  everything that was readable, and a permanent warning on the stage reads as a
+  fault to viewers who cannot act on it. The debug log names the channel and the
+  HTTP status for each one.
 
 ## Performance
 
