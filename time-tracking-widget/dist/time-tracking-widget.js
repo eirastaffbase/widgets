@@ -304,9 +304,9 @@ const configurationSchema = {
         backgroundcolor: { type: "string", title: "Background Color", default: "" },
         debugmode: { type: "boolean", title: "Debug Mode (on-screen logs)", default: false },
     },
-    // When "Use Theme Colors" is off, expose the manual Primary/Accent pickers.
-    // When on, they're hidden (colors are pulled from the branding theme instead).
     dependencies: {
+        // When "Use Theme Colors" is off, expose the manual Primary/Accent pickers.
+        // When on, they're hidden (colors are pulled from the branding theme instead).
         usethemecolors: {
             oneOf: [
                 {
@@ -317,6 +317,20 @@ const configurationSchema = {
                     },
                 },
                 { properties: { usethemecolors: { const: true } } },
+            ],
+        },
+        // The destination and the desktop opt-in are meaningless unless the refresh
+        // is on, so they only appear once it is.
+        refreshafterclock: {
+            oneOf: [
+                { properties: { refreshafterclock: { const: false } } },
+                {
+                    properties: {
+                        refreshafterclock: { const: true },
+                        refreshpath: { type: "string", title: "Refresh Destination", default: "" },
+                        refreshondesktop: { type: "boolean", title: "Also Refresh On Desktop", default: false },
+                    },
+                },
             ],
         },
     },
@@ -336,6 +350,8 @@ const uiSchema = {
     workedtodaybaseline: { "ui:help": "Minutes to add on top of what the widget has actually recorded today. Demo seed — leave at 0 for real tracking." },
     lastsessionminutes: { "ui:help": "Fallback “last session” length, shown only until a real session has been completed and recorded. Demo seed." },
     refreshafterclock: { "ui:help": "After clocking in or out, also refresh the surrounding app view. Uses the app's own router, so it is not a full page reload. The widget always refreshes itself regardless of this setting." },
+    refreshpath: { "ui:help": "Where to send the user after clocking — a page path like /content/page/123abc, or a full URL. Leave blank to reload the page they're already on." },
+    refreshondesktop: { "ui:help": "By default the refresh only runs in the mobile app, where returning to a landing page is the useful behaviour. Turn this on to do it in the desktop browser too." },
     usethemecolors: { "ui:help": "Pull Primary & Accent from the app's branding theme (uses the API Token). Hides the color pickers below." },
     primarycolor: { "ui:widget": "color", "ui:help": "Primary brand color" },
     accentcolor: { "ui:widget": "color", "ui:help": "Accent / secondary color" },
@@ -530,25 +546,72 @@ function writeClockState(cfg, userId, clockIn, value) {
     });
 }
 // ── In-app refresh ────────────────────────────────────────────────────────────
+/** True inside the Staffbase mobile app, false in a desktop browser. */
+function isNativeApp() {
+    const w = window;
+    return !!(w.we && w.we.native);
+}
+/**
+ * Work out where the refresh should land.
+ *
+ * Blank means "wherever we already are". A leading-slash path is used as-is. A
+ * full URL on this origin is reduced to its path so the router can handle it
+ * in-app; a URL on a *different* origin can't be routed and is flagged external,
+ * so the caller does a real navigation instead of handing the router something
+ * it would choke on.
+ */
+function resolveRefreshTarget(raw) {
+    const here = location.pathname + location.search;
+    const dest = (raw || "").trim();
+    if (!dest)
+        return { path: here, external: false };
+    if (/^https?:\/\//i.test(dest)) {
+        try {
+            const u = new URL(dest);
+            if (u.origin === location.origin)
+                return { path: u.pathname + u.search + u.hash, external: false };
+            return { path: dest, external: true };
+        }
+        catch (_a) {
+            return { path: here, external: false }; // unparseable — don't strand them
+        }
+    }
+    return { path: dest.startsWith("/") ? dest : "/" + dest, external: false };
+}
 /**
  * Refresh the surrounding app *without* a full document load.
  *
  * `window.NavigationMgr` is the platform router exposed for custom code; routing
- * to the current path re-boots the view in place on both web and mobile. Only if
- * it isn't there do we fall back to a real reload — which in the mobile app
- * costs the user their place.
+ * to a path re-boots the view in place on both web and mobile. Only if it isn't
+ * there do we fall back to a real navigation — which in the mobile app costs the
+ * user their place.
+ *
+ * Gated on platform: a refresh is genuinely useful in the mobile app, but in a
+ * desktop browser it yanks the page out from under someone who may be mid-scroll,
+ * so desktop is opt-in.
  */
-function refreshApp(log) {
+function refreshApp(dest, onDesktop, log) {
+    if (!isNativeApp() && !onDesktop) {
+        if (log)
+            log("refresh · skipped on desktop (enable “Also Refresh On Desktop”)");
+        return;
+    }
     const w = window;
     const nav = w.NavigationMgr;
-    const here = location.pathname + location.search;
+    const { path, external } = resolveRefreshTarget(dest);
+    if (external) {
+        if (log)
+            log("refresh · external URL · location.assign", path);
+        window.location.assign(path);
+        return;
+    }
     if (nav && typeof nav.goTo === "function") {
         try {
-            if (w.we && w.we.native && typeof nav.hideAllTabs === "function")
+            if (isNativeApp() && typeof nav.hideAllTabs === "function")
                 nav.hideAllTabs();
             if (log)
-                log("refresh · NavigationMgr.goTo", here);
-            nav.goTo(here);
+                log("refresh · NavigationMgr.goTo", path);
+            nav.goTo(path);
             return;
         }
         catch (e) {
@@ -557,9 +620,14 @@ function refreshApp(log) {
         }
     }
     else if (log) {
-        log("refresh · NavigationMgr unavailable · falling back to reload");
+        log("refresh · NavigationMgr unavailable · falling back to a full load");
     }
-    window.location.reload();
+    // Without the router, going somewhere new needs assign(); staying put needs
+    // reload() — assign() to the current URL wouldn't re-run anything.
+    if (path === location.pathname + location.search)
+        window.location.reload();
+    else
+        window.location.assign(path);
 }
 // ── Styles ────────────────────────────────────────────────────────────────────
 //
@@ -674,6 +742,8 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const baselineMins = num("workedtodaybaseline", 0);
                 const seedLastMins = num("lastsessionminutes", 0);
                 const doAppRefresh = bool("refreshafterclock");
+                const refreshPath = attr("refreshpath").trim();
+                const refreshDeskt = bool("refreshondesktop");
                 const bgColor = attr("backgroundcolor");
                 // ── Debug log ──
                 const logLines = [];
@@ -952,7 +1022,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                         render();
                         showToast(goingIn ? "Clocked in." : "Clocked out.", true);
                         if (doAppRefresh)
-                            refreshApp(dlog);
+                            refreshApp(refreshPath, refreshDeskt, dlog);
                     }
                     catch (e) {
                         const msg = (e && e.message) || "Something went wrong.";
@@ -987,7 +1057,7 @@ const factory = (BaseBlockClass, widgetApi) => {
             return [
                 "apitoken", "baseurl", "statusfield", "clockedinvalue", "clockedoutvalue",
                 "timefield", "targethours", "breakminutes", "workedtodaybaseline", "lastsessionminutes",
-                "refreshafterclock", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor", "debugmode",
+                "refreshafterclock", "refreshpath", "refreshondesktop", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor", "debugmode",
             ];
         }
     };
@@ -998,7 +1068,7 @@ const blockDefinition = {
     attributes: [
         "apitoken", "baseurl", "statusfield", "clockedinvalue", "clockedoutvalue",
         "timefield", "targethours", "breakminutes", "workedtodaybaseline", "lastsessionminutes",
-        "refreshafterclock", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor", "debugmode",
+        "refreshafterclock", "refreshpath", "refreshondesktop", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor", "debugmode",
     ],
     factory,
     configurationSchema,

@@ -72,6 +72,8 @@ reads and writes only that id. There's no user setting, and no acting-admin
 | Worked Today Baseline (minutes) | `0` | added on top of what's recorded; demo seed |
 | Last Session (minutes) | `0` | fallback only, until a real session is recorded |
 | Refresh App After Clocking | off | see below |
+| Refresh Destination | *(blank)* | page to land on; blank = stay put |
+| Also Refresh On Desktop | off | refresh is mobile-only unless this is on |
 | Use Theme Colors | off | pulls Primary/Accent from the branding theme |
 | Primary / Accent / Background Color | `#0EA5E9` / `#0EA5E9` / transparent | |
 | Debug Mode | off | on-screen log with a copy button |
@@ -85,8 +87,24 @@ re-read is the only real confirmation the write landed.
 
 **Refresh App After Clocking** additionally refreshes the surrounding app view.
 It routes through the app's own router (`NavigationMgr`), so it is *not* a page
-reload — on mobile the user keeps their place. It only falls back to
-`location.reload()` if the router isn't available.
+reload — on mobile the user keeps their place. It only falls back to a real page
+load if the router isn't available.
+
+Two settings appear once it's on:
+
+**Refresh Destination** — where to land. Leave it blank to stay on the current
+page. Otherwise give a page path (`/content/page/123abc`); a bare path picks up
+its leading slash, and a full URL on your own domain is reduced to its path so
+the router can handle it in-app. A URL pointing at *another* host can't be
+routed, so it becomes a real navigation instead — and an unparseable one falls
+back to the current page rather than stranding the user.
+
+**Also Refresh On Desktop** — off by default. The refresh earns its keep in the
+mobile app, where sending someone back to a landing page after clocking in is
+the point. In a desktop browser the same move yanks the page out from under
+someone who may be mid-scroll, so it's opt-in. "Mobile app" means
+`window.we.native` is present — the real native shell, not a narrow browser
+window.
 
 ## Behaviour notes
 

@@ -43,6 +43,9 @@
   .warn{font-size:12px;font-weight:600;color:#b45309;background:#fffbeb;border:1px solid #fde68a;
         border-radius:8px;padding:8px 11px;margin-top:10px;display:none}
   .warn.show{display:block}
+  .routed{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:10px 14px;margin-top:16px;
+          font:12px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;color:#9ca3af}
+  .routed.on{border-color:#6ee7b7;background:#ecfdf5;color:#047857;font-weight:700}
   .state{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;margin-top:20px;
          font:12px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all}
   .state b{color:#0EA5E9}
@@ -63,6 +66,11 @@
       <select id="user" onchange="pickUser()"><option value="">— enter a token to load users —</option></select>
     </label>
     <button class="plain" onclick="loadUsers()">Reload users</button>
+    <label class="fld">
+      <span>Refresh destination (blank = stay put)</span>
+      <input id="refreshPath" type="text" placeholder="/content/page/123abc" oninput="remount()">
+    </label>
+    <label class="chk"><input id="native" type="checkbox" onchange="remount()"> Pretend to be the mobile app</label>
     <label class="chk"><input id="forceMock" type="checkbox" onchange="toggleMock()"> Use mock data instead</label>
   </div>
 
@@ -105,6 +113,7 @@
   </div>
 </div>
 
+<div class="routed" id="routed">router · no navigation requested</div>
 <div class="state" id="state"></div>
 </div>
 
@@ -310,6 +319,25 @@ async function paintState() {
 }
 
 // ── SDK stub ──────────────────────────────────────────────────────────────────
+
+// Stand in for the platform router. A real goTo() would navigate away from this
+// harness, so we only record where the widget asked to go. The "pretend to be
+// the mobile app" checkbox drives the desktop-vs-native gate in refreshApp().
+let ROUTED = null;
+window.NavigationMgr = {
+  goTo: (p) => { ROUTED = p; paintRouted(); },
+  hideAllTabs: () => { ROUTED = (ROUTED || "") + " (tabs hidden)"; },
+};
+Object.defineProperty(window, "we", { get: () => (document.getElementById("native").checked ? { native: { platform: "ios" } } : undefined) });
+
+function paintRouted() {
+  const el = document.getElementById("routed");
+  el.textContent = ROUTED
+    ? "router · would navigate to " + ROUTED
+    : "router · no navigation requested";
+  el.className = ROUTED ? "routed on" : "routed";
+}
+
 const widgetApi = {
   getUserInformation: async () => ({ id: isLive() ? liveUser() : MOCK_ID, groupIDs: [] }),
   getBranchInformation: () => ({ webUrl: location.origin, slug: "preview", branchId: "b1", flags: [] }),
@@ -346,11 +374,17 @@ function baseAttrs() {
     baseurl: isLive() ? LIVE_BASE : "/api",
     statusfield: STATUS_FIELD,
     timefield: TIME_FIELD,
-    refreshafterclock: "false",   // a real refresh would reload this harness
+    // Refresh is on so it can be exercised; the stubbed router records the
+    // destination instead of actually navigating away from this page.
+    refreshafterclock: "true",
+    refreshondesktop: "true",
+    refreshpath: document.getElementById("refreshPath").value.trim(),
   };
 }
 
 function remount() {
+  ROUTED = null;
+  paintRouted();
   paintBanner();
   paintState();
   const a = document.getElementById("a"), b = document.getElementById("b");
