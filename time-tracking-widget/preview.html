@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Time Tracking — Preview</title>
+<style>
+  body{margin:0;background:#eef0f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+       min-height:100vh;padding:24px 16px;box-sizing:border-box;color:#374151}
+  .wrap{max-width:900px;margin:0 auto}
+  .row{display:flex;gap:24px;justify-content:center;align-items:flex-start;flex-wrap:wrap}
+  .col{width:100%;max-width:420px}
+  .label{font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:#9ca3af;
+         text-align:center;margin-bottom:10px}
+  .shell{background:#fff;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.10);overflow:hidden}
+  /* Approximates the host CSS that Staffbase injects over widgets, so the
+     preview surfaces the same overrides the real app would. */
+  .shell button{width:90%;margin:8px auto;display:block;line-height:3;background:#ddd;color:#333}
+  .shell ul{list-style:disc;padding-left:2em}
+  .shell img{max-width:100%}
+
+  .panel{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;margin-bottom:20px}
+  .banner{font-size:13px;font-weight:700;border-radius:9px;padding:10px 13px;margin-bottom:13px;
+          display:flex;align-items:center;gap:9px}
+  .banner::before{content:"";width:9px;height:9px;border-radius:50%;flex:none}
+  .banner.live{background:#ecfdf5;border:1px solid #6ee7b7;color:#047857}
+  .banner.live::before{background:#10b981;box-shadow:0 0 0 3px rgba(16,185,129,.22)}
+  .banner.mock{background:#f3f4f6;border:1px solid #e5e7eb;color:#6b7280}
+  .banner.mock::before{background:#9ca3af}
+  .grid{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+  .chk{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#6b7280;
+       padding-bottom:8px;cursor:pointer;user-select:none}
+  .fld{display:flex;flex-direction:column;gap:4px}
+  .fld span{font-size:11px;font-weight:700;color:#6b7280}
+  .fld input,.fld select{font:inherit;font-size:13px;padding:7px 9px;border:1px solid #d6d9e0;
+                         border-radius:8px;background:#fff;min-width:230px}
+  .bar{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .bar button,button.plain{font:inherit;font-size:12px;font-weight:600;padding:7px 13px;border-radius:8px;
+              border:1px solid #d6d9e0;background:#fff;color:#374151;cursor:pointer}
+  .bar button:hover:not(:disabled),button.plain:hover{border-color:#0EA5E9;color:#0EA5E9}
+  .bar button:disabled{opacity:.45;cursor:not-allowed}
+  .note{font-size:11px;color:#9ca3af;margin-top:11px;line-height:1.6}
+  .warn{font-size:12px;font-weight:600;color:#b45309;background:#fffbeb;border:1px solid #fde68a;
+        border-radius:8px;padding:8px 11px;margin-top:10px;display:none}
+  .warn.show{display:block}
+  .state{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;margin-top:20px;
+         font:12px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all}
+  .state b{color:#0EA5E9}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="panel">
+  <div id="banner" class="banner">…</div>
+  <div class="grid">
+    <label class="fld">
+      <span>API token for q1eira26</span>
+      <input id="token" type="password" placeholder="Basic token" oninput="onTokenInput()">
+    </label>
+    <label class="fld">
+      <span>User whose profile to clock</span>
+      <select id="user" onchange="pickUser()"><option value="">— enter a token to load users —</option></select>
+    </label>
+    <button class="plain" onclick="loadUsers()">Reload users</button>
+    <label class="chk"><input id="forceMock" type="checkbox" onchange="toggleMock()"> Use mock data instead</label>
+  </div>
+
+  <div class="bar">
+    <button onclick="seedReset()">Reset: never clocked</button>
+    <button onclick="seedIn(3*3600+12*60)">Clocked in 3h12m ago</button>
+    <button onclick="seedIn(45)">Clocked in 45s ago</button>
+    <button onclick="seedOut(90*60, 30*60)">30m session, out 90m ago</button>
+    <button onclick="seedOut(90*60, 30*60, 120)">…with 2h already banked today</button>
+    <button onclick="seedStaleDay()">Yesterday's session (DAY must reset)</button>
+    <button onclick="seedLegacy()">Legacy bare ISO</button>
+    <button id="failBtn" onclick="FAIL_NEXT=true">Fail the next write (400)</button>
+    <button onclick="remount()">Remount</button>
+  </div>
+
+  <div class="warn" id="warn"></div>
+  <div class="note">
+    Enter a token and pick a user and the preview goes <b>live</b> automatically: it talks to
+    <code>https://q1eira26.staffbase.com/api</code> using the profile fields <code>clocked-in</code>
+    and <code>clocked-time</code>, and <b>really writes to that person's profile</b> — the seed
+    buttons included, so you can stage a state and then clock against it. Finish with
+    <i>Reset: never clocked</i> to leave the tenant clean.
+    With no token, everything runs against an in-memory fake instead.
+    The token lives in this browser's localStorage only; it is never stored in this file.
+    Forcing a write failure is mock-only — live, the API decides its own errors.
+  </div>
+</div>
+
+<div class="row">
+  <div class="col">
+    <div class="label">Default — break 30min, baseline 0</div>
+    <div class="shell" id="a"></div>
+  </div>
+  <div class="col">
+    <div class="label">Break 0 (card hidden) · baseline 245min · purple</div>
+    <div class="shell" id="b"></div>
+  </div>
+</div>
+
+<div class="state" id="state"></div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// Harness. Runs the real built bundle against either an in-memory profile store
+// (mock) or the real q1eira26 tenant (live).
+// ─────────────────────────────────────────────────────────────────────────────
+
+const LIVE_BASE    = "https://q1eira26.staffbase.com/api";
+const STATUS_FIELD = "clocked-in";
+const TIME_FIELD   = "clocked-time";
+
+let FAIL_NEXT = false;
+
+// localStorage throws on opaque origins (some browsers when opened via file://),
+// so fall back to memory rather than taking the whole harness down.
+const mem = {};
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return mem[k] || null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) { mem[k] = v; } },
+};
+
+let MODE_FORCED_MOCK = store.get("ttw-forcemock") === "1";
+
+const tokenEl = document.getElementById("token");
+const userEl  = document.getElementById("user");
+const mockEl  = document.getElementById("forceMock");
+tokenEl.value = store.get("ttw-token") || "";
+mockEl.checked = MODE_FORCED_MOCK;
+
+const token    = () => tokenEl.value.trim();
+const liveUser = () => userEl.value;
+// Live is derived, not toggled: having a token and a user *is* the switch.
+// There's no third control to forget to press.
+const isLive   = () => !MODE_FORCED_MOCK && !!token() && !!liveUser();
+
+function warn(msg) {
+  const w = document.getElementById("warn");
+  w.textContent = msg || "";
+  w.className = msg ? "warn show" : "warn";
+}
+
+function pickUser() { store.set("ttw-user", userEl.value); remount(); }
+
+function toggleMock() {
+  MODE_FORCED_MOCK = mockEl.checked;
+  store.set("ttw-forcemock", MODE_FORCED_MOCK ? "1" : "0");
+  remount();
+}
+
+let tokenTimer = null;
+function onTokenInput() {
+  store.set("ttw-token", token());
+  // Fetching the user list is the only way to get live, so do it for them
+  // once the token looks complete instead of waiting for a button press.
+  clearTimeout(tokenTimer);
+  tokenTimer = setTimeout(() => { if (token().length > 20) loadUsers(); else remount(); }, 500);
+}
+
+function paintBanner() {
+  const b = document.getElementById("banner");
+  document.getElementById("failBtn").disabled = isLive();
+  if (isLive()) {
+    const who = (userEl.options[userEl.selectedIndex] || {}).text || liveUser();
+    b.className = "banner live";
+    b.textContent = "LIVE — reading and writing " + who.split(" — ")[0] + "'s real profile on q1eira26";
+    return;
+  }
+  b.className = "banner mock";
+  b.textContent = MODE_FORCED_MOCK ? "MOCK — forced by the checkbox. Untick it to go live."
+    : !token() ? "MOCK — in-memory data. Paste a token above to go live."
+    : "MOCK — token set. Now pick a user to go live.";
+}
+
+// ── Mock profile store ────────────────────────────────────────────────────────
+// Reproduces the behaviours verified against the real API: the PUT merges,
+// unknown slugs 400, and the PUT response omits custom profile fields.
+const MOCK_ID = "u-preview-1";
+const MOCK = {
+  firstName: "Eira", lastName: "Topé", points: "50",
+  [STATUS_FIELD]: "", [TIME_FIELD]: "",
+};
+const KNOWN_FIELDS = Object.keys(MOCK);
+
+const json = (o, status) => new Response(JSON.stringify(o), {
+  status: status || 200, headers: { "Content-Type": "application/json" },
+});
+const badField = (slug) => json({
+  type: "InvalidParameterException", statusCode: 400,
+  message: "Parameter '" + slug + "' is invalid.",
+  devMessage: "Unknown profile field", extended: { parameterName: slug },
+}, 400);
+
+const realFetch = window.fetch.bind(window);
+window.fetch = async (url, opts) => {
+  const u = String(url);
+  opts = opts || {};
+  if (isLive()) return realFetch(url, opts);          // straight through to the tenant
+
+  if (u.includes("/theming/")) return json({}, 404);
+  if (u.includes("/users/" + MOCK_ID)) {
+    if ((opts.method || "GET").toUpperCase() === "PUT") {
+      if (FAIL_NEXT) { FAIL_NEXT = false; return badField(STATUS_FIELD); }
+      const patch = (JSON.parse(opts.body || "{}") || {}).profile || {};
+      for (const k of Object.keys(patch)) {
+        if (KNOWN_FIELDS.indexOf(k) === -1) return badField(k);
+      }
+      Object.assign(MOCK, patch);                     // merge, never replace
+      paintState();
+      return json({ id: MOCK_ID, profile: { firstName: MOCK.firstName, lastName: MOCK.lastName } });
+    }
+    return json({ id: MOCK_ID, profile: Object.assign({}, MOCK) });
+  }
+  return realFetch(url, opts);
+};
+
+// ── Seeding — writes to whichever store is active ──────────────────────────────
+const isoAgo = (secondsAgo) => new Date(Date.now() - secondsAgo * 1000).toISOString();
+
+async function seed(status, time) {
+  if (isLive()) {
+    if (!liveReady()) return warn("Enter a token and pick a user first.");
+    warn("");
+    try {
+      const r = await realFetch(LIVE_BASE + "/users/" + liveUser(), {
+        method: "PUT",
+        headers: { Authorization: "Basic " + token(), "Content-Type": "application/json" },
+        body: JSON.stringify({ profile: { [STATUS_FIELD]: status, [TIME_FIELD]: time } }),
+      });
+      if (!r.ok) {
+        const e = await r.json().catch(() => ({}));
+        return warn("Seed failed: " + (e.message || "HTTP " + r.status));
+      }
+    } catch (e) { return warn("Seed failed: " + e.message); }
+  } else {
+    MOCK[STATUS_FIELD] = status;
+    MOCK[TIME_FIELD] = time;
+  }
+  remount();
+}
+
+const seedReset  = () => seed("", "");
+const seedIn     = (secondsAgo, bankedMins) => seed("true", "IN:" + isoAgo(secondsAgo) + " | DAY:" + (bankedMins || 0));
+const seedLegacy = () => seed("false", isoAgo(90 * 60));   // the bare-ISO form older builds wrote
+// endedSecondsAgo: when the session finished; lengthSeconds: how long it ran.
+function seedOut(endedSecondsAgo, lengthSeconds, bankedMins) {
+  const day = (bankedMins || 0) + Math.round(lengthSeconds / 60);
+  seed("false", "IN:" + isoAgo(endedSecondsAgo + lengthSeconds) +
+                " | OUT:" + isoAgo(endedSecondsAgo) + " | DAY:" + day);
+}
+// A completed session from a previous day: the banked DAY total must be ignored
+// today, and reset to 0 on the next clock-in.
+const seedStaleDay = () => seed("false",
+  "IN:" + isoAgo(30 * 3600) + " | OUT:" + isoAgo(27 * 3600) + " | DAY:420");
+
+// ── User picker ───────────────────────────────────────────────────────────────
+async function loadUsers() {
+  if (!token()) return warn("Enter an API token first.");
+  warn("");
+  try {
+    const r = await realFetch(LIVE_BASE + "/users?limit=100", {
+      headers: { Authorization: "Basic " + token() },
+    });
+    if (!r.ok) return warn("Couldn't load users: HTTP " + r.status);
+    const saved = store.get("ttw-user") || "";
+    const users = (await r.json()).data || [];
+    userEl.innerHTML = '<option value="">— pick a user —</option>' + users.map(function (u) {
+      const name = ((u.firstName || "") + " " + (u.lastName || "")).trim() || u.id;
+      return '<option value="' + u.id + '"' + (u.id === saved ? " selected" : "") +
+             ">" + name + " — " + u.id + "</option>";
+    }).join("");
+    if (saved && userEl.value === saved) remount();
+  } catch (e) { warn("Couldn't load users: " + e.message); }
+}
+
+// ── Stored-value readout ──────────────────────────────────────────────────────
+async function paintState() {
+  const el = document.getElementById("state");
+  let profile = MOCK;
+  let src = "mock profile";
+  if (isLive()) {
+    if (!liveReady()) { el.innerHTML = "<i>Live mode — enter a token and pick a user.</i>"; return; }
+    src = "live profile · q1eira26 · " + liveUser();
+    try {
+      const r = await realFetch(LIVE_BASE + "/users/" + liveUser(), {
+        headers: { Authorization: "Basic " + token() },
+      });
+      profile = (await r.json()).profile || {};
+    } catch (e) { el.textContent = "Couldn't read profile: " + e.message; return; }
+  }
+  const show = (v) => JSON.stringify(v === undefined ? null : v);
+  el.innerHTML =
+    src +
+    "<br><b>" + STATUS_FIELD + "</b> = " + show(profile[STATUS_FIELD]) +
+    "<br><b>" + TIME_FIELD + "</b> = " + show(profile[TIME_FIELD]) +
+    "<br><b>points</b> = " + show(profile.points) +
+    "  <i>(must survive every write — the PUT merges)</i>";
+}
+
+// ── SDK stub ──────────────────────────────────────────────────────────────────
+const widgetApi = {
+  getUserInformation: async () => ({ id: isLive() ? liveUser() : MOCK_ID, groupIDs: [] }),
+  getBranchInformation: () => ({ webUrl: location.origin, slug: "preview", branchId: "b1", flags: [] }),
+};
+
+let Widget = null;
+window.defineBlock = (external) => {
+  class Base {
+    getAttribute(name) {
+      return Object.prototype.hasOwnProperty.call(this._attrs || {}, name) ? this._attrs[name] : null;
+    }
+  }
+  Widget = external.blockDefinition.factory(Base, widgetApi);
+  window.dispatchEvent(new Event("widget-ready"));
+};
+
+function mount(el, attrs) {
+  el.innerHTML = "";
+  const instance = new Widget();
+  instance._attrs = attrs;
+  Promise.resolve(instance.renderBlock(el)).catch((e) => {
+    el.textContent = "renderBlock failed: " + e.message;
+    console.error(e);
+  });
+}
+</script>
+
+<script src="./dist/time-tracking-widget.js"></script>
+
+<script>
+function baseAttrs() {
+  return {
+    apitoken: isLive() ? token() : "preview-token",
+    baseurl: isLive() ? LIVE_BASE : "/api",
+    statusfield: STATUS_FIELD,
+    timefield: TIME_FIELD,
+    refreshafterclock: "false",   // a real refresh would reload this harness
+  };
+}
+
+function remount() {
+  paintState();
+  const a = document.getElementById("a"), b = document.getElementById("b");
+  if (!liveReady()) { a.innerHTML = ""; b.innerHTML = ""; return; }
+  mount(a, Object.assign(baseAttrs(), {
+    primarycolor: "#0EA5E9", accentcolor: "#0EA5E9",
+    breakminutes: "30", targethours: "8", lastsessionminutes: "0",
+  }));
+  mount(b, Object.assign(baseAttrs(), {
+    primarycolor: "#7C3AED", accentcolor: "#DB2777",
+    breakminutes: "0", targethours: "7.5",
+    workedtodaybaseline: "245", lastsessionminutes: "95",
+  }));
+}
+
+setMode(MODE);
+</script>
+</body>
+</html>
