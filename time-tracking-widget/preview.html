@@ -59,7 +59,7 @@
       <input id="token" type="password" placeholder="Basic token" oninput="onTokenInput()">
     </label>
     <label class="fld">
-      <span>User whose profile to clock</span>
+      <span>Stands in for the signed-in user</span>
       <select id="user" onchange="pickUser()"><option value="">— enter a token to load users —</option></select>
     </label>
     <button class="plain" onclick="loadUsers()">Reload users</button>
@@ -88,6 +88,9 @@
     With no token, everything runs against an in-memory fake instead.
     The token lives in this browser's localStorage only; it is never stored in this file.
     Forcing a write failure is mock-only — live, the API decides its own errors.
+    <br>The user dropdown exists only because this page has no Staffbase SDK to ask.
+    In the real widget there is no such setting: it clocks whoever is viewing it, via
+    <code>widgetApi.getUserInformation()</code>.
   </div>
 </div>
 
@@ -156,6 +159,7 @@ function toggleMock() {
 let tokenTimer = null;
 function onTokenInput() {
   store.set("ttw-token", token());
+  paintBanner();               // tell them what's still missing straight away
   // Fetching the user list is the only way to get live, so do it for them
   // once the token looks complete instead of waiting for a button press.
   clearTimeout(tokenTimer);
@@ -200,8 +204,13 @@ const realFetch = window.fetch.bind(window);
 window.fetch = async (url, opts) => {
   const u = String(url);
   opts = opts || {};
-  if (isLive()) return realFetch(url, opts);          // straight through to the tenant
-
+  if (isLive()) {
+    const res = await realFetch(url, opts);           // straight through to the tenant
+    // The widget just wrote; refresh the readout so it isn't showing stale
+    // values. Mock mode gets this for free inside the fake PUT handler.
+    if ((opts.method || "GET").toUpperCase() === "PUT") setTimeout(paintState, 0);
+    return res;
+  }
   if (u.includes("/theming/")) return json({}, 404);
   if (u.includes("/users/" + MOCK_ID)) {
     if ((opts.method || "GET").toUpperCase() === "PUT") {
@@ -224,7 +233,6 @@ const isoAgo = (secondsAgo) => new Date(Date.now() - secondsAgo * 1000).toISOStr
 
 async function seed(status, time) {
   if (isLive()) {
-    if (!liveReady()) return warn("Enter a token and pick a user first.");
     warn("");
     try {
       const r = await realFetch(LIVE_BASE + "/users/" + liveUser(), {
@@ -274,7 +282,7 @@ async function loadUsers() {
       return '<option value="' + u.id + '"' + (u.id === saved ? " selected" : "") +
              ">" + name + " — " + u.id + "</option>";
     }).join("");
-    if (saved && userEl.value === saved) remount();
+    remount();   // picks the banner up either way: a restored user goes live, none stays mock
   } catch (e) { warn("Couldn't load users: " + e.message); }
 }
 
@@ -284,7 +292,6 @@ async function paintState() {
   let profile = MOCK;
   let src = "mock profile";
   if (isLive()) {
-    if (!liveReady()) { el.innerHTML = "<i>Live mode — enter a token and pick a user.</i>"; return; }
     src = "live profile · q1eira26 · " + liveUser();
     try {
       const r = await realFetch(LIVE_BASE + "/users/" + liveUser(), {
@@ -344,9 +351,9 @@ function baseAttrs() {
 }
 
 function remount() {
+  paintBanner();
   paintState();
   const a = document.getElementById("a"), b = document.getElementById("b");
-  if (!liveReady()) { a.innerHTML = ""; b.innerHTML = ""; return; }
   mount(a, Object.assign(baseAttrs(), {
     primarycolor: "#0EA5E9", accentcolor: "#0EA5E9",
     breakminutes: "30", targethours: "8", lastsessionminutes: "0",
@@ -358,7 +365,8 @@ function remount() {
   }));
 }
 
-setMode(MODE);
+remount();
+if (token()) loadUsers();   // restores the saved user, which flips it live
 </script>
 </body>
 </html>

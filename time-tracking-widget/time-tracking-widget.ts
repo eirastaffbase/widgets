@@ -9,8 +9,8 @@
 // so it survives a reload, a different device, or the app being backgrounded.
 //
 // Verified against the Staffbase API (see notes at readClockState/writeClockState):
-// the PUT merges into the profile rather than replacing it, the USERID admin
-// header is optional, and an unknown field slug fails with a descriptive 400.
+// the PUT merges into the profile rather than replacing it, no acting-admin
+// header is needed, and an unknown field slug fails with a descriptive 400.
 
 import {
   BlockFactory,
@@ -39,7 +39,6 @@ const configurationSchema: JSONSchema7 = {
   properties: {
     apitoken:            { type:"string",  title:"API Token",                     default:"" },
     baseurl:             { type:"string",  title:"Base URL",                      default: DEFAULT_BASE_URL },
-    adminuserid:         { type:"string",  title:"Admin User ID (optional)",      default:"" },
     statusfield:         { type:"string",  title:"Status Profile Field Slug",     default: DEFAULT_STATUS_FIELD },
     clockedinvalue:      { type:"string",  title:"Clocked-In Value",              default: DEFAULT_IN_VALUE },
     clockedoutvalue:     { type:"string",  title:"Clocked-Out Value",             default: DEFAULT_OUT_VALUE },
@@ -77,7 +76,6 @@ const configurationSchema: JSONSchema7 = {
 const uiSchema = {
   apitoken:            { "ui:widget":"password", "ui:help":"Staffbase Basic auth token" },
   baseurl:             { "ui:help":"Staffbase API base URL, e.g. https://yourorg.staffbase.com/api" },
-  adminuserid:         { "ui:help":"Sent as the USERID header on profile writes. Usually not needed — leave blank unless your token requires an acting admin. Must be a real user id, not the token's own id." },
   statusfield:         { "ui:help":"Profile field slug holding the clocked-in flag. Must already exist in Admin → Profile Fields, or saving fails with “Unknown profile field”." },
   clockedinvalue:      { "ui:help":"Value written to the status field when clocked in. Matching is case-insensitive." },
   clockedoutvalue:     { "ui:help":"Value written to the status field when clocked out." },
@@ -269,15 +267,14 @@ interface ClockState {
   rawTime: string;
 }
 
-function authHeaders(token: string, adminId: string): Record<string,string> {
-  const h: Record<string,string> = {
+// The widget only ever writes the profile of the viewer resolved by
+// widgetApi.getUserInformation(), and the service token was verified to do that
+// without an acting-admin USERID header — so there's nothing else to configure.
+function authHeaders(token: string): Record<string,string> {
+  return {
     Authorization: `Basic ${token}`,
     "Content-Type": "application/json",
   };
-  // Verified optional: the write succeeds without it on a service token. Only
-  // send it when configured, and never send a blank header.
-  if (adminId) h["USERID"] = adminId;
-  return h;
 }
 
 /** Pull the API's own error message out of a failed response.
@@ -297,7 +294,6 @@ async function apiError(res: Response, fallback: string): Promise<string> {
 export interface ProfileConfig {
   baseUrl: string;
   token: string;
-  adminId: string;
   statusField: string;
   timeField: string;
   inValue: string;
@@ -328,7 +324,7 @@ async function writeClockState(cfg: ProfileConfig, userId: string, clockIn: bool
   const res = await fetch(`${cfg.baseUrl}/users/${encodeURIComponent(userId)}`, {
     method: "PUT",
     credentials: "omit",
-    headers: authHeaders(cfg.token, cfg.adminId),
+    headers: authHeaders(cfg.token),
     body: JSON.stringify({
       profile: {
         [cfg.statusField]: clockIn ? cfg.inValue : cfg.outValue,
@@ -472,7 +468,6 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const cfg: ProfileConfig = {
         baseUrl,
         token,
-        adminId:     attr("adminuserid").trim(),
         statusField: attr("statusfield").trim() || DEFAULT_STATUS_FIELD,
         timeField:   attr("timefield").trim()   || DEFAULT_TIME_FIELD,
         inValue:     attr("clockedinvalue")     || DEFAULT_IN_VALUE,
@@ -787,7 +782,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
     static get observedAttributes(): string[] {
       return [
-        "apitoken","baseurl","adminuserid","statusfield","clockedinvalue","clockedoutvalue",
+        "apitoken","baseurl","statusfield","clockedinvalue","clockedoutvalue",
         "timefield","targethours","breakminutes","workedtodaybaseline","lastsessionminutes",
         "refreshafterclock","usethemecolors","primarycolor","accentcolor","backgroundcolor","debugmode",
       ];
@@ -799,7 +794,7 @@ const blockDefinition: BlockDefinition = {
   name: "time-tracking-widget",
   label: "Time Tracking",
   attributes: [
-    "apitoken","baseurl","adminuserid","statusfield","clockedinvalue","clockedoutvalue",
+    "apitoken","baseurl","statusfield","clockedinvalue","clockedoutvalue",
     "timefield","targethours","breakminutes","workedtodaybaseline","lastsessionminutes",
     "refreshafterclock","usethemecolors","primarycolor","accentcolor","backgroundcolor","debugmode",
   ],

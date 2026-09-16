@@ -51,14 +51,12 @@ is still understood and is treated as the single clock event.
 > *"Parameter 'x' is invalid."* — shown directly in the widget. That's the
 > fastest way to spot a typo.
 
-### Admin User ID
+### Whose profile gets clocked
 
-Optional, and usually unnecessary. It's sent as the `USERID` header on profile
-writes for tokens that require an acting admin. Verified against a standard
-service token, the write succeeds without it.
-
-It must be a **real user id**. The id embedded in an API token is a service
-identity, not a user — `GET /users/<that id>` returns 404.
+Always the viewer's. The widget resolves them with
+`widgetApi.getUserInformation()` — the same call `tasks/audit-widget` uses — and
+reads and writes only that id. There's no user setting, and no acting-admin
+`USERID` header: the service token was verified to write a profile without one.
 
 ## Settings
 
@@ -66,7 +64,6 @@ identity, not a user — `GET /users/<that id>` returns 404.
 |---|---|---|
 | API Token | — | required |
 | Base URL | `https://app.staffbase.com/api` | |
-| Admin User ID | *(blank)* | optional `USERID` header |
 | Status Profile Field Slug | `clocked-in` | |
 | Clocked-In / Clocked-Out Value | `true` / `false` | matching is case-insensitive |
 | Clock Time Profile Field Slug | `clocked-time` | |
