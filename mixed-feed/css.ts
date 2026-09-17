@@ -131,17 +131,34 @@ ${HOST_RESET}
   background:linear-gradient(135deg,rgba(var(--c-rgb),.95),rgba(var(--c-rgb),.62))!important;
   box-shadow:0 12px 32px rgba(16,22,34,.13),0 2px 6px rgba(16,22,34,.06);
   isolation:isolate;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.${P}-hero-img{
-  position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+/* Cover images are pinned with !important and an extra class of specificity on
+   purpose. The host wraps the widget in ".widget-card .css-...-Widget", and a
+   single host rule like "img{height:auto}" (0,1,1) outranks a lone
+   ".mfd-hero-img" (0,1,0) — the image then letterboxes to its intrinsic ratio
+   and the empty band under it reads as broken layout behind the scrim. Geometry
+   here must not be negotiable. */
+.${P}-root .${P}-hero-img{
+  position:absolute!important;inset:0!important;
+  width:100%!important;height:100%!important;
+  max-width:none!important;max-height:none!important;min-width:0!important;min-height:0!important;
+  object-fit:cover!important;object-position:center!important;display:block!important;
   transform:scale(1.01);transition:transform .7s cubic-bezier(.22,.61,.36,1)}
 @media (hover:hover){.${P}-hero:hover .${P}-hero-img{transform:scale(1.05)}}
-/* Two stops rather than one: a soft wash over the whole frame keeps the pinned
-   chip legible on a bright sky, and a steep foot anchors the headline. */
+/* One continuous ramp, not two overlapping gradients. The old version reached
+   rgba(8,11,16,.92) at the foot, which is close enough to solid black that the
+   bottom of the photo looked like unfilled space rather than a darkened image.
+   This tops out lower and eases in, so the text still has its dark backing but
+   the photograph stays visibly a photograph all the way down. */
 .${P}-hero-scrim{
-  position:absolute;inset:0;
+  position:absolute;inset:0;pointer-events:none;
   background:
-    linear-gradient(180deg,rgba(8,11,16,.42) 0%,rgba(8,11,16,0) 42%),
-    linear-gradient(180deg,rgba(8,11,16,0) 38%,rgba(8,11,16,.62) 72%,rgba(8,11,16,.92) 100%)}
+    linear-gradient(180deg,rgba(8,11,16,.34) 0%,rgba(8,11,16,0) 38%),
+    linear-gradient(180deg,
+      rgba(8,11,16,0) 30%,
+      rgba(8,11,16,.14) 48%,
+      rgba(8,11,16,.38) 64%,
+      rgba(8,11,16,.60) 80%,
+      rgba(8,11,16,.74) 100%)}
 .${P}-hero-body{
   position:absolute;inset-inline:0;bottom:0;padding:28px 28px 26px;
   display:flex;flex-direction:column;gap:10px;color:#fff}
@@ -223,8 +240,12 @@ ${HOST_RESET}
    buttons can still sit on top and take their own taps. */
 .${P}-stretch{position:absolute;inset:0;z-index:1}
 .${P}-card-body{padding:14px 16px 12px;display:flex;flex-direction:column;gap:8px;flex:1}
-.${P}-card-media{
-  width:100%;aspect-ratio:16/9;object-fit:cover;background:var(--surface-2);
+/* Same reasoning as the hero image: a host "img{height:auto}" must not be able
+   to collapse the card's cover crop. */
+.${P}-root .${P}-card-media{
+  width:100%!important;max-width:none!important;
+  aspect-ratio:16/9;object-fit:cover!important;object-position:center!important;
+  display:block!important;background:var(--surface-2);
   transition:transform .4s cubic-bezier(.22,.61,.36,1)}
 @media (hover:hover){.${P}-card:hover .${P}-card-media{transform:scale(1.03)}}
 .${P}-card-media-wrap{overflow:hidden;position:relative}
@@ -250,9 +271,11 @@ ${HOST_RESET}
    the body stays its natural height and the photo absorbs the slack instead. */
 .${P}-card[data-kind="social"] .${P}-card-body{flex:0 0 auto}
 .${P}-card[data-kind="social"] .${P}-card-media-wrap{flex:1 1 auto;min-height:180px;display:flex}
-.${P}-card[data-kind="social"] .${P}-card-media{aspect-ratio:auto;height:100%;min-height:180px}
-.${P}-av{
-  width:34px;height:34px;flex:0 0 34px;border-radius:50%;object-fit:cover;
+.${P}-root .${P}-card[data-kind="social"] .${P}-card-media{
+  aspect-ratio:auto;height:100%!important;min-height:180px}
+.${P}-root .${P}-av{
+  width:34px!important;height:34px!important;flex:0 0 34px;
+  max-width:none!important;border-radius:50%;object-fit:cover!important;
   background:var(--surface-2)}
 .${P}-av-fb{
   display:flex;align-items:center;justify-content:center;

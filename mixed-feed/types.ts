@@ -125,7 +125,12 @@ export interface Viewer {
 /** One entry of the `brandoverrides` config array. The first entry whose
  *  `groupId` appears in the viewer's groups wins. */
 export interface BrandOverride {
-  groupId: string;
+  /** Group ID(s) or group name(s) this rule applies to. A rule may list several
+   *  so one brand can cover duplicate groups — this tenant has two distinct
+   *  groups both named "El Globo". */
+  group?: string | string[];
+  /** Legacy single-ID form, still honoured. */
+  groupId?: string;
   label?: string;
   color?: string;
   radius?: string;

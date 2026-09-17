@@ -61,12 +61,14 @@
 6a42efade5bbcf5cb7b3c75f
 6a42efa517470228967cf2e2</textarea></div>
 
-    <div class="wide"><label for="brandoverrides">Brand overrides (JSON)</label><textarea id="brandoverrides">[{"groupId":"6a42ed4319053625a91b37c2","label":"El Globo","color":"#8B374A","radius":"5px","pinnedPostId":"6a42efaf17470228967cf4e6"}]</textarea></div>
+    <div class="wide"><label for="brandoverrides">Brand overrides (JSON)</label><textarea id="brandoverrides">[{"group":["6aaa7d70a742e5436549bc91","6a42ed4319053625a91b37c2","El Globo"],"label":"El Globo","color":"#8B374A","radius":"5px","pinnedPostId":"6a42efaf17470228967cf4e6"}]</textarea></div>
 
     <div><label for="fakegroups">Simulate viewer groups</label>
       <select id="fakegroups">
         <option value="">None (theme color)</option>
-        <option value="6a42ed4319053625a91b37c2">El Globo</option>
+        <option value="6aaa7d70a742e5436549bc91">El Globo (production group)</option>
+        <option value="6a42ed4319053625a91b37c2">El Globo (group listed in /groups)</option>
+        <option value="dom:6aaa7d70a742e5436549bc91">El Globo via host DOM class only</option>
       </select></div>
     <div><label for="viewport">Viewport</label>
       <select id="viewport"><option value="desktop" selected>Desktop</option><option value="phone">Phone (390px)</option></select></div>
@@ -95,8 +97,12 @@ window.defineBlock = function (def) {
   };
   const widgetApi = {
     getContentLanguage: () => "es_MX",
+    // A non-empty id is required for the like/comment/compose paths to run at
+    // all; writes themselves still fail here because CORS blocks the
+    // credentialed session call from localhost, which exercises the revert.
     getUserInformation: () => Promise.resolve({
-      id: "", firstName: "", lastName: "", language: "", groupIDs: fakeGroups,
+      id: "6a42e9e5a742e5436549bd0f", firstName: "Preview", lastName: "User",
+      language: "", groupIDs: fakeGroups,
     }),
   };
   customElements.define(d.name, d.factory(Base, widgetApi));
@@ -111,7 +117,13 @@ var KEYS = ["baseurl","apitoken","channelids","language","pinnedpostid","postlim
 
 document.getElementById("go").addEventListener("click", function () {
   var g = document.getElementById("fakegroups").value;
-  fakeGroups = g ? [g] : [];
+  // "dom:<id>" simulates how Staffbase really signals multibranding: a
+  // group-<id> class on an ancestor, with the profile call returning nothing.
+  var domGroup = g.indexOf("dom:") === 0 ? g.slice(4) : "";
+  fakeGroups = g && !domGroup ? [g] : [];
+  document.body.className = document.body.className
+    .replace(/\bgroup-[0-9a-f]{24}\b/g, "").trim();
+  if (domGroup) document.body.className += " group-" + domGroup;
 
   document.getElementById("frame").className =
     "frame" + (document.getElementById("viewport").value === "phone" ? " phone" : "");

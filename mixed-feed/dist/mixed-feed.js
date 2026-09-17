@@ -454,6 +454,32 @@ function fetchUser(base, userId, ladder, log) {
         };
     });
 }
+/**
+ * Resolve group IDs to names, one request per ID.
+ *
+ * Deliberately not built from `GET /groups`: on this tenant that listing
+ * reports `total: 18` and omits `6aaa7d70a742e5436549bc91` — the very group the
+ * production branding CSS targets — even though `GET /groups/{id}` resolves it
+ * fine. Building an id→name map from the listing would therefore silently fail
+ * to match exactly the groups that matter. Failures are skipped rather than
+ * fatal: a missing name costs a brand rule, not the feed.
+ */
+function fetchGroupNames(base, groupIds, ladder, log) {
+    return api_awaiter(this, void 0, void 0, function* () {
+        const out = new Map();
+        const unique = Array.from(new Set((groupIds || []).filter(Boolean)));
+        if (!unique.length)
+            return out;
+        yield Promise.all(unique.map((id) => api_awaiter(this, void 0, void 0, function* () {
+            const g = yield getJsonAny(`${base}/groups/${encodeURIComponent(id)}`, ladder, log);
+            const name = g && (g.name || g.title);
+            if (name)
+                out.set(id, String(name));
+        })));
+        log(`resolved ${out.size}/${unique.length} group name(s)`);
+        return out;
+    });
+}
 // ── Shared escaping ──────────────────────────────────────────────────────────
 function escapeHtml(s) {
     return String(s == null ? "" : s)
@@ -719,13 +745,21 @@ function reactionRamp(primary, surface, n = 6) {
 // Multibranding: resolve the viewer's brand color, corner radius and pinned post.
 //
 // Resolution order, first match wins:
-//   1. A `brandoverrides` entry whose `groupId` is one of the viewer's groups.
+//   1. A `brandoverrides` rule matching one of the viewer's groups, by ID or by
+//      group name.
 //   2. The tenant's own branding theme, via the shared theming API helper.
 //   3. The widget's neutral defaults.
 //
 // Only accents are branded — buttons, chips, active states, the like heart. Card
 // chrome deliberately stays neutral so the feed reads modern and generic on any
 // tenant rather than looking like a skinned brand page.
+//
+// Why a rule may name several groups, and why names are matched at all: this
+// tenant has TWO distinct groups both called "El Globo"
+// (6aaa7d70a742e5436549bc91 and 6a42ed4319053625a91b37c2). Targeting the wrong
+// one produced no error and no brand — the widget just quietly fell back to the
+// theming colour. Matching by name, and allowing a rule to list several IDs,
+// removes that failure mode.
 // ─────────────────────────────────────────────────────────────────────────────
 var branding_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
@@ -739,6 +773,8 @@ var branding_awaiter = (undefined && undefined.__awaiter) || function (thisArg, 
 
 const NEUTRAL_COLOR = "#1F6FEB";
 const DEFAULT_RADIUS = "14px";
+/** Staffbase IDs are 24-char hex (ObjectId-style); anything else is a name. */
+const OBJECT_ID = /^[0-9a-f]{24}$/i;
 const HEX = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
 function branding_isHex(s) {
     return HEX.test(String(s || "").trim());
@@ -779,29 +815,88 @@ function parseOverrides(raw, log) {
         const parsed = JSON.parse(text);
         if (!Array.isArray(parsed))
             return [];
-        return parsed.filter((o) => o && typeof o.groupId === "string" && o.groupId);
+        return parsed.filter((o) => o && ruleTargets(o).length);
     }
     catch (e) {
         log("brandoverrides is not valid JSON —", e && e.message);
         return [];
     }
 }
+/** The group IDs or names a rule applies to. Accepts `group` as a string or an
+ *  array, and the legacy single `groupId`. */
+function ruleTargets(rule) {
+    const raw = Array.isArray(rule.group)
+        ? rule.group
+        : [rule.group, rule.groupId];
+    return raw.map(v => String(v == null ? "" : v).trim()).filter(Boolean);
+}
+/** Case- and accent-insensitive key, so a rule saying "El Globo" matches a
+ *  group stored as "el globo" or "EL GLOBO". */
+const norm = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+/**
+ * Collect the viewer's branding groups from the host DOM.
+ *
+ * Staffbase's own multibranding puts a `group-<id>` class on an ancestor (the
+ * body/html element), which is exactly what tenant custom CSS keys off —
+ * `.group-6aaa7d70a742e5436549bc91 .header-title { … }`. Reading it costs
+ * nothing and reflects what the host actually believes about this viewer, which
+ * makes it a better signal than the profile call alone.
+ */
+function groupsFromDom(start) {
+    const found = [];
+    for (let el = start; el; el = el.parentElement) {
+        // `className` is not a string on SVG elements, so read the attribute.
+        const cls = el.getAttribute && el.getAttribute("class");
+        if (!cls)
+            continue;
+        for (const token of cls.split(/\s+/)) {
+            const m = /^group-([0-9a-f]{24})$/i.exec(token);
+            if (m)
+                found.push(m[1]);
+        }
+    }
+    return Array.from(new Set(found));
+}
+/** True when any rule targets something other than a 24-hex ID, which is the
+ *  only case where group names have to be fetched. Pure-ID configs stay free. */
+const needsGroupNames = (overrides) => overrides.some(o => ruleTargets(o).some(g => !OBJECT_ID.test(g)));
 function resolveBrand(opts) {
     return branding_awaiter(this, void 0, void 0, function* () {
-        const { baseUrl, apiToken, overrides, viewerGroupIds, useThemeColor, fallbackColor, fallbackRadius, fallbackPinnedPostId, log, } = opts;
-        const groups = new Set(viewerGroupIds || []);
-        const match = overrides.find(o => groups.has(o.groupId));
+        const { baseUrl, apiToken, overrides, viewerGroupIds, groupNames, useThemeColor, fallbackColor, fallbackRadius, fallbackPinnedPostId, log, } = opts;
+        const ids = new Set(viewerGroupIds || []);
+        const names = new Set((viewerGroupIds || [])
+            .map(id => norm((groupNames && groupNames.get(id)) || ""))
+            .filter(Boolean));
+        log(`brand: viewer in ${ids.size} group(s)`, Array.from(ids).join(",") || "(none)");
+        if (names.size)
+            log("brand: group names", Array.from(names).join(" | "));
+        let match;
+        let matchedVia = "";
+        for (const rule of overrides) {
+            const targets = ruleTargets(rule);
+            const hitId = targets.find(g => ids.has(g));
+            const hitName = hitId ? "" : targets.find(g => !OBJECT_ID.test(g) && names.has(norm(g)));
+            if (hitId || hitName) {
+                match = rule;
+                matchedVia = hitId ? `group id ${hitId}` : `group name "${hitName}"`;
+                break;
+            }
+            log(`brand: no match for rule ${rule.label || targets.join("/")} (${targets.join(", ")})`);
+        }
         let color = "";
         let radius = "";
         let pinnedPostId = "";
         let matchedLabel = "";
         if (match) {
-            matchedLabel = match.label || match.groupId;
+            matchedLabel = match.label || ruleTargets(match)[0] || "";
             if (branding_isHex(match.color || ""))
                 color = String(match.color).trim();
             radius = normalizeRadius(match.radius, "");
             pinnedPostId = String(match.pinnedPostId || "").trim();
-            log(`brand override matched: ${matchedLabel}`);
+            log(`brand: matched "${matchedLabel}" via ${matchedVia} — color ${color || "(none)"}, radius ${radius || "(default)"}`);
+        }
+        else if (overrides.length) {
+            log(`brand: viewer matched none of ${overrides.length} rule(s) — using theme/defaults`);
         }
         // Only reach for the theming API when no override supplied a color — an
         // override is an explicit decision and must not be second-guessed.
@@ -957,17 +1052,34 @@ ${HOST_RESET}
   background:linear-gradient(135deg,rgba(var(--c-rgb),.95),rgba(var(--c-rgb),.62))!important;
   box-shadow:0 12px 32px rgba(16,22,34,.13),0 2px 6px rgba(16,22,34,.06);
   isolation:isolate;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.${P}-hero-img{
-  position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+/* Cover images are pinned with !important and an extra class of specificity on
+   purpose. The host wraps the widget in ".widget-card .css-...-Widget", and a
+   single host rule like "img{height:auto}" (0,1,1) outranks a lone
+   ".mfd-hero-img" (0,1,0) — the image then letterboxes to its intrinsic ratio
+   and the empty band under it reads as broken layout behind the scrim. Geometry
+   here must not be negotiable. */
+.${P}-root .${P}-hero-img{
+  position:absolute!important;inset:0!important;
+  width:100%!important;height:100%!important;
+  max-width:none!important;max-height:none!important;min-width:0!important;min-height:0!important;
+  object-fit:cover!important;object-position:center!important;display:block!important;
   transform:scale(1.01);transition:transform .7s cubic-bezier(.22,.61,.36,1)}
 @media (hover:hover){.${P}-hero:hover .${P}-hero-img{transform:scale(1.05)}}
-/* Two stops rather than one: a soft wash over the whole frame keeps the pinned
-   chip legible on a bright sky, and a steep foot anchors the headline. */
+/* One continuous ramp, not two overlapping gradients. The old version reached
+   rgba(8,11,16,.92) at the foot, which is close enough to solid black that the
+   bottom of the photo looked like unfilled space rather than a darkened image.
+   This tops out lower and eases in, so the text still has its dark backing but
+   the photograph stays visibly a photograph all the way down. */
 .${P}-hero-scrim{
-  position:absolute;inset:0;
+  position:absolute;inset:0;pointer-events:none;
   background:
-    linear-gradient(180deg,rgba(8,11,16,.42) 0%,rgba(8,11,16,0) 42%),
-    linear-gradient(180deg,rgba(8,11,16,0) 38%,rgba(8,11,16,.62) 72%,rgba(8,11,16,.92) 100%)}
+    linear-gradient(180deg,rgba(8,11,16,.34) 0%,rgba(8,11,16,0) 38%),
+    linear-gradient(180deg,
+      rgba(8,11,16,0) 30%,
+      rgba(8,11,16,.14) 48%,
+      rgba(8,11,16,.38) 64%,
+      rgba(8,11,16,.60) 80%,
+      rgba(8,11,16,.74) 100%)}
 .${P}-hero-body{
   position:absolute;inset-inline:0;bottom:0;padding:28px 28px 26px;
   display:flex;flex-direction:column;gap:10px;color:#fff}
@@ -1049,8 +1161,12 @@ ${HOST_RESET}
    buttons can still sit on top and take their own taps. */
 .${P}-stretch{position:absolute;inset:0;z-index:1}
 .${P}-card-body{padding:14px 16px 12px;display:flex;flex-direction:column;gap:8px;flex:1}
-.${P}-card-media{
-  width:100%;aspect-ratio:16/9;object-fit:cover;background:var(--surface-2);
+/* Same reasoning as the hero image: a host "img{height:auto}" must not be able
+   to collapse the card's cover crop. */
+.${P}-root .${P}-card-media{
+  width:100%!important;max-width:none!important;
+  aspect-ratio:16/9;object-fit:cover!important;object-position:center!important;
+  display:block!important;background:var(--surface-2);
   transition:transform .4s cubic-bezier(.22,.61,.36,1)}
 @media (hover:hover){.${P}-card:hover .${P}-card-media{transform:scale(1.03)}}
 .${P}-card-media-wrap{overflow:hidden;position:relative}
@@ -1076,9 +1192,11 @@ ${HOST_RESET}
    the body stays its natural height and the photo absorbs the slack instead. */
 .${P}-card[data-kind="social"] .${P}-card-body{flex:0 0 auto}
 .${P}-card[data-kind="social"] .${P}-card-media-wrap{flex:1 1 auto;min-height:180px;display:flex}
-.${P}-card[data-kind="social"] .${P}-card-media{aspect-ratio:auto;height:100%;min-height:180px}
-.${P}-av{
-  width:34px;height:34px;flex:0 0 34px;border-radius:50%;object-fit:cover;
+.${P}-root .${P}-card[data-kind="social"] .${P}-card-media{
+  aspect-ratio:auto;height:100%!important;min-height:180px}
+.${P}-root .${P}-av{
+  width:34px!important;height:34px!important;flex:0 0 34px;
+  max-width:none!important;border-radius:50%;object-fit:cover!important;
   background:var(--surface-2)}
 .${P}-av-fb{
   display:flex;align-items:center;justify-content:center;
@@ -1861,10 +1979,16 @@ const DEFAULT_BASE_URL = "https://app.staffbase.com/api";
 const DEFAULT_PINNED_POST = "6a8ca3f089ac527b38d85714";
 /** Shipped as the default so the multibrand behaviour is demonstrable out of the
  *  box: El Globo staff get the maroon brand, 5px corners and a Globo pin;
- *  everyone else falls through to the theming API. */
+ *  everyone else falls through to the theming API.
+ *
+ *  Both IDs are listed because this tenant has two distinct groups named
+ *  "El Globo". `6aaa7d70…` is the one the production branding CSS and the
+ *  cornerstone widget target, and the one real members belong to; `6a42ed43…`
+ *  is the one that appears in `GET /groups`. Targeting only the latter matched
+ *  nobody and silently fell back to the theme colour. */
 const DEFAULT_BRAND_OVERRIDES = [
     {
-        groupId: "6a42ed4319053625a91b37c2",
+        group: ["6aaa7d70a742e5436549bc91", "6a42ed4319053625a91b37c2", "El Globo"],
         label: "El Globo",
         color: "#8B374A",
         radius: "5px",
@@ -1963,13 +2087,27 @@ const factory = (BaseBlockClass, widgetApi) => {
                 log("locale", locale);
                 // ── Brand ─────────────────────────────────────────────────────────
                 const overridesRaw = attr("brandoverrides");
+                const overrides = overridesRaw
+                    ? parseOverrides(overridesRaw, log)
+                    : DEFAULT_BRAND_OVERRIDES;
+                // Staffbase tags an ancestor with `group-<id>` for every group the viewer
+                // belongs to — the same hook tenant multibranding CSS uses. It reflects
+                // what the host itself believes about this viewer, so it is unioned with
+                // the profile call rather than trusting either one alone.
+                const domGroups = groupsFromDom(container);
+                if (domGroups.length)
+                    log("groups from DOM", domGroups.join(","));
+                const viewerGroupIds = Array.from(new Set([...viewer.groupIds, ...domGroups]));
+                // Only pay for name lookups when a rule is actually written as a name.
+                const groupNames = needsGroupNames(overrides)
+                    ? yield fetchGroupNames(baseUrl, viewerGroupIds, readLadder, log)
+                    : new Map();
                 const brand = yield resolveBrand({
                     baseUrl,
                     apiToken: token,
-                    overrides: overridesRaw
-                        ? parseOverrides(overridesRaw, log)
-                        : DEFAULT_BRAND_OVERRIDES,
-                    viewerGroupIds: viewer.groupIds,
+                    overrides,
+                    viewerGroupIds,
+                    groupNames,
                     useThemeColor: bool("usethemecolors", true),
                     fallbackColor: attr("primarycolor"),
                     fallbackRadius: attr("defaultradius"),
@@ -2492,7 +2630,7 @@ const uiSchema = {
     pinnedpostid: { "ui:help": "Post shown in the large hero card. Overridden per group below. Leave blank to pin the newest highlighted post." },
     brandoverrides: {
         "ui:widget": "textarea",
-        "ui:help": 'JSON array of {"groupId","label","color","radius","pinnedPostId"}. The first entry matching one of the viewer\'s groups wins; everyone else gets the theme color and the defaults below.',
+        "ui:help": 'JSON array of {"group","label","color","radius","pinnedPostId"}. "group" is a group ID, a group name, or an array of either — useful when two groups share a name. The first entry matching one of the viewer\'s groups wins; everyone else gets the theme color and the defaults below.',
     },
     usethemecolors: { "ui:help": "Pull the accent color from the app's branding theme (uses the API Token) when no group override matches." },
     primarycolor: { "ui:widget": "color", "ui:help": "Accent color used for chips, buttons and the like heart." },

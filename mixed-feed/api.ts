@@ -263,6 +263,33 @@ export async function fetchUser(
   };
 }
 
+/**
+ * Resolve group IDs to names, one request per ID.
+ *
+ * Deliberately not built from `GET /groups`: on this tenant that listing
+ * reports `total: 18` and omits `6aaa7d70a742e5436549bc91` — the very group the
+ * production branding CSS targets — even though `GET /groups/{id}` resolves it
+ * fine. Building an id→name map from the listing would therefore silently fail
+ * to match exactly the groups that matter. Failures are skipped rather than
+ * fatal: a missing name costs a brand rule, not the feed.
+ */
+export async function fetchGroupNames(
+  base: string, groupIds: string[], ladder: OptsFactory[], log: Logger,
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const unique = Array.from(new Set((groupIds || []).filter(Boolean)));
+  if (!unique.length) return out;
+
+  await Promise.all(unique.map(async id => {
+    const g = await getJsonAny<any>(`${base}/groups/${encodeURIComponent(id)}`, ladder, log);
+    const name = g && (g.name || g.title);
+    if (name) out.set(id, String(name));
+  }));
+
+  log(`resolved ${out.size}/${unique.length} group name(s)`);
+  return out;
+}
+
 // ── Shared escaping ──────────────────────────────────────────────────────────
 
 export function escapeHtml(s: string): string {

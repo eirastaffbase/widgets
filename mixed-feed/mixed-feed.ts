@@ -22,10 +22,10 @@ import { JSONSchema7 } from "json-schema";
 
 import { isRtl, makeT } from "../tasks/shared/i18n";
 import {
-  createPost, escapeHtml, fetchChannels, fetchComments, fetchLikeState, fetchPost,
-  fetchUser, makeApiOpts, postComment, sessionOpts, setLike,
+  createPost, escapeHtml, fetchChannels, fetchComments, fetchGroupNames, fetchLikeState,
+  fetchPost, fetchUser, makeApiOpts, postComment, sessionOpts, setLike,
 } from "./api";
-import { parseOverrides, resolveBrand } from "./branding";
+import { groupsFromDom, needsGroupNames, parseOverrides, resolveBrand } from "./branding";
 import { P, buildCss } from "./css";
 import {
   loadFeed, parseChannelIds, pickLocalized, resolveUiLocale, sanitizeHtml, toChannel, toFeedPost, toPlainText,
@@ -47,10 +47,16 @@ const DEFAULT_PINNED_POST = "6a8ca3f089ac527b38d85714";
 
 /** Shipped as the default so the multibrand behaviour is demonstrable out of the
  *  box: El Globo staff get the maroon brand, 5px corners and a Globo pin;
- *  everyone else falls through to the theming API. */
+ *  everyone else falls through to the theming API.
+ *
+ *  Both IDs are listed because this tenant has two distinct groups named
+ *  "El Globo". `6aaa7d70…` is the one the production branding CSS and the
+ *  cornerstone widget target, and the one real members belong to; `6a42ed43…`
+ *  is the one that appears in `GET /groups`. Targeting only the latter matched
+ *  nobody and silently fell back to the theme colour. */
 const DEFAULT_BRAND_OVERRIDES = [
   {
-    groupId: "6a42ed4319053625a91b37c2",
+    group: ["6aaa7d70a742e5436549bc91", "6a42ed4319053625a91b37c2", "El Globo"],
     label: "El Globo",
     color: "#8B374A",
     radius: "5px",
@@ -154,13 +160,29 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
 
       // ── Brand ─────────────────────────────────────────────────────────
       const overridesRaw = attr("brandoverrides");
+      const overrides = overridesRaw
+        ? parseOverrides(overridesRaw, log)
+        : DEFAULT_BRAND_OVERRIDES;
+
+      // Staffbase tags an ancestor with `group-<id>` for every group the viewer
+      // belongs to — the same hook tenant multibranding CSS uses. It reflects
+      // what the host itself believes about this viewer, so it is unioned with
+      // the profile call rather than trusting either one alone.
+      const domGroups = groupsFromDom(container);
+      if (domGroups.length) log("groups from DOM", domGroups.join(","));
+      const viewerGroupIds = Array.from(new Set([...viewer.groupIds, ...domGroups]));
+
+      // Only pay for name lookups when a rule is actually written as a name.
+      const groupNames = needsGroupNames(overrides)
+        ? await fetchGroupNames(baseUrl, viewerGroupIds, readLadder, log)
+        : new Map<string, string>();
+
       const brand: Brand = await resolveBrand({
         baseUrl,
         apiToken: token,
-        overrides: overridesRaw
-          ? parseOverrides(overridesRaw, log)
-          : DEFAULT_BRAND_OVERRIDES,
-        viewerGroupIds: viewer.groupIds,
+        overrides,
+        viewerGroupIds,
+        groupNames,
         useThemeColor: bool("usethemecolors", true),
         fallbackColor: attr("primarycolor"),
         fallbackRadius: attr("defaultradius"),
@@ -662,7 +684,7 @@ const uiSchema = {
   pinnedpostid: { "ui:help": "Post shown in the large hero card. Overridden per group below. Leave blank to pin the newest highlighted post." },
   brandoverrides: {
     "ui:widget": "textarea",
-    "ui:help": 'JSON array of {"groupId","label","color","radius","pinnedPostId"}. The first entry matching one of the viewer\'s groups wins; everyone else gets the theme color and the defaults below.',
+    "ui:help": 'JSON array of {"group","label","color","radius","pinnedPostId"}. "group" is a group ID, a group name, or an array of either — useful when two groups share a name. The first entry matching one of the viewer\'s groups wins; everyone else gets the theme color and the defaults below.',
   },
   usethemecolors: { "ui:help": "Pull the accent color from the app's branding theme (uses the API Token) when no group override matches." },
   primarycolor: { "ui:widget": "color", "ui:help": "Accent color used for chips, buttons and the like heart." },
