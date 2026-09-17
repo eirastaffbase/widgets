@@ -154,9 +154,7 @@ const CSS = `
 ${HOST_RESET}
 
 .${P}-root{
-  background:#fff;
-  border-radius:16px;
-  box-shadow:0 2px 12px rgba(0,0,0,.08);
+  background:transparent;
   padding:20px 22px;
   font-family:inherit;
   color:#111827;
@@ -166,9 +164,9 @@ ${HOST_RESET}
 .${P}-header{
   display:flex;align-items:center;gap:10px;margin-bottom:16px;
 }
-.${P}-mark{
-  width:4px;height:22px;border-radius:99px;flex:0 0 auto;
-  background:var(--sbbd-primary,${DEFAULT_PRIMARY});
+.${P}-balloon{
+  flex:0 0 auto;color:var(--sbbd-primary,${DEFAULT_PRIMARY});
+  display:inline-flex;align-items:center;
 }
 .${P}-title{
   font-size:16px;font-weight:700;color:#111827;flex:1 1 auto;min-width:0;
@@ -315,7 +313,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           --sbbd-primary-rgb:${hexToRgb(primary)};
           --sbbd-primary-text:${readableOn(primary)}">
           <div class="${P}-header">
-            <span class="${P}-mark"></span>
+            <span class="${P}-balloon" aria-hidden="true"><svg width="18" height="24" viewBox="0 0 18 24" fill="none" xmlns="http://www.w3.org/2000/svg"><ellipse cx="9" cy="8.5" rx="7.5" ry="8.5" fill="currentColor"/><path d="M9 17 L8.5 19.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M7 20 Q9 23 11 20" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/><ellipse cx="6.5" cy="5.5" rx="1.8" ry="2.5" fill="white" opacity="0.25" transform="rotate(-30 6.5 5.5)"/></svg></span>
             <span class="${P}-title">${esc(heading)}</span>
             ${people.length ? `<span class="${P}-count">${esc(String(people.length))}</span>` : ""}
           </div>
