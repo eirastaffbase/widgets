@@ -3,41 +3,23 @@ import {
 } from "@staffbase/widget-sdk";
 import { JSONSchema7 } from "json-schema";
 import { detectLocale, isRtl, makeT } from "../tasks/shared/i18n";
-import { fetchThemeColors } from "../tasks/shared/theming";
 import { AVAILABLE_LOCALES, BUNDLES } from "./strings";
 
 const P = "sbbd";
-const DEFAULT_PRIMARY = "#3DDC97";
-const DEFAULT_ACCENT  = "#7C5CFF";
 
 // ── Config schema ─────────────────────────────────────────────────────────────
 
 const configurationSchema: JSONSchema7 = {
   properties: {
-    apitoken:      { type: "string", title: "API Token", default: "" },
-    baseurl:       { type: "string", title: "Base URL (e.g. https://acme.staffbase.com/api)", default: "" },
-    people:        { type: "string", title: "People (semicolon-separated: Name, +N; Name, +N)", default: "" },
-    widgettitle:   { type: "string", title: "Widget Title (optional override)", default: "" },
-    usethemecolors:{ type: "boolean", title: "Use Theme Colors", default: true },
-  },
-  dependencies: {
-    usethemecolors: {
-      oneOf: [
-        {
-          properties: {
-            usethemecolors: { const: false },
-            primarycolor: { type: "string", title: "Primary Color", default: DEFAULT_PRIMARY },
-            accentcolor:  { type: "string", title: "Accent Color",  default: DEFAULT_ACCENT  },
-          },
-        },
-        { properties: { usethemecolors: { const: true } } },
-      ],
-    },
+    apitoken:    { type: "string", title: "API Token", default: "" },
+    baseurl:     { type: "string", title: "Base URL (e.g. https://acme.staffbase.com/api)", default: "" },
+    people:      { type: "string", title: "People (semicolon-separated: Name, +N; Name, +N)", default: "" },
+    widgettitle: { type: "string", title: "Widget Title (optional override)", default: "" },
   },
 };
 
 const uiSchema = {
-  apitoken: { "ui:help": "Used to load profile photos and brand colors from the API." },
+  apitoken: { "ui:help": "Used to load profile photos from the API." },
   baseurl:  { "ui:help": "Must include /api, e.g. https://acme.staffbase.com/api" },
   people:   { "ui:help": "Semicolon-separated. Format: Name, +N; Name, +N (N = days from today)" },
 };
@@ -54,20 +36,6 @@ function initials(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean);
   if (!words.length) return "?";
   return ((words[0][0] || "") + (words.length > 1 ? words[words.length - 1][0] || "" : "")).toUpperCase();
-}
-
-function hexToRgb(hex: string): string {
-  const h = (String(hex).replace("#", "") + "000000").slice(0, 6);
-  return `${parseInt(h.slice(0, 2), 16)},${parseInt(h.slice(2, 4), 16)},${parseInt(h.slice(4, 6), 16)}`;
-}
-
-function readableOn(hex: string): string {
-  const h = (String(hex).replace("#", "") + "000000").slice(0, 6);
-  const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
-  const l = 0.2126 * lin(parseInt(h.slice(0, 2), 16) / 255)
-    + 0.7152 * lin(parseInt(h.slice(2, 4), 16) / 255)
-    + 0.0722 * lin(parseInt(h.slice(4, 6), 16) / 255);
-  return l > 0.45 ? "#111827" : "#FFFFFF";
 }
 
 interface BirthdayPerson {
@@ -165,8 +133,7 @@ ${HOST_RESET}
   display:flex;align-items:center;gap:10px;margin-bottom:16px;
 }
 .${P}-balloon{
-  flex:0 0 auto;color:var(--sbbd-primary,${DEFAULT_PRIMARY});
-  display:inline-flex;align-items:center;
+  flex:0 0 auto;color:#9ca3af;display:inline-flex;align-items:center;
 }
 .${P}-title{
   font-size:16px;font-weight:700;color:#111827;flex:1 1 auto;min-width:0;
@@ -175,7 +142,7 @@ ${HOST_RESET}
 .${P}-count{
   display:inline-flex;align-items:center;padding:3px 10px;border-radius:99px;flex:0 0 auto;
   font-size:11.5px;font-weight:600;letter-spacing:.01em;
-  background:rgba(var(--sbbd-primary-rgb),.10);color:var(--sbbd-primary,${DEFAULT_PRIMARY});
+  background:#f3f4f6;color:#6b7280;
 }
 
 .${P}-list{display:flex;flex-direction:column;gap:4px}
@@ -189,14 +156,13 @@ ${HOST_RESET}
 }
 .${P}-card:hover{background:#f9fafb;transform:translateX(3px)}
 
-/* Avatar circle */
+/* Avatar circle — neutral gray gradient, white initials */
 .${P}-av{
   width:44px;height:44px;border-radius:50%;flex:0 0 auto;
   display:inline-flex;align-items:center;justify-content:center;overflow:hidden;
-  background:linear-gradient(140deg,var(--sbbd-primary,${DEFAULT_PRIMARY}),var(--sbbd-accent,${DEFAULT_ACCENT}));
-  color:var(--sbbd-primary-text,#fff);font-weight:700;font-size:16px;letter-spacing:-.01em;
+  background:linear-gradient(140deg,#d1d5db,#9ca3af);
+  color:#fff;font-weight:700;font-size:16px;letter-spacing:-.01em;
 }
-/* Shows initials only when the image is absent */
 .${P}-av-fb::after{content:attr(data-ini)}
 .${P}-av img{width:100%;height:100%;object-fit:cover;display:block}
 
@@ -212,12 +178,10 @@ ${HOST_RESET}
 .${P}-pill{
   flex:0 0 auto;padding:4px 11px;border-radius:99px;
   font-size:12px;font-weight:600;white-space:nowrap;
-  background:rgba(var(--sbbd-primary-rgb),.10);
-  color:var(--sbbd-primary,${DEFAULT_PRIMARY});
+  background:#f3f4f6;color:#374151;
 }
 .${P}-pill.is-today{
-  background:rgba(var(--sbbd-primary-rgb),.18);
-  box-shadow:0 0 10px rgba(var(--sbbd-primary-rgb),.25);
+  background:#e5e7eb;color:#111827;
 }
 
 .${P}-root .${P}-empty{
@@ -249,28 +213,13 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
     async renderBlock(container: HTMLElement) {
       const attr = (k: string): string => this.getAttribute(k) || "";
-      const bool = (k: string, dflt: boolean): boolean => {
-        const v = this.getAttribute(k);
-        return v == null || v === "" ? dflt : v !== "false";
-      };
 
       const apiToken = attr("apitoken");
       const baseUrl  = attr("baseurl").replace(/\/+$/, "");
 
-      let primary = attr("primarycolor") || DEFAULT_PRIMARY;
-      let accent  = attr("accentcolor")  || DEFAULT_ACCENT;
-
-      // Kick off avatar + theme fetches concurrently when credentials are available.
-      const [avatarMap] = await Promise.all([
-        (apiToken && baseUrl) ? fetchUserAvatars(baseUrl, apiToken) : Promise.resolve(new Map<string, string>()),
-        (bool("usethemecolors", true) && apiToken && baseUrl)
-          ? fetchThemeColors(baseUrl, apiToken, "primary", "light").then(themed => {
-              if (themed.primary) primary = themed.primary;
-              if (themed.accent)  accent  = themed.accent;
-            }).catch(() => { /* leave defaults */ })
-          : Promise.resolve(),
-      ]);
-      if (accent.toLowerCase() === primary.toLowerCase()) accent = DEFAULT_ACCENT;
+      const avatarMap = (apiToken && baseUrl)
+        ? await fetchUserAvatars(baseUrl, apiToken)
+        : new Map<string, string>();
 
       const locale = detectLocale({
         configLocale: (widgetApi as any)?.getContentLanguage?.() || null,
@@ -307,11 +256,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         : `<p class="${P}-empty">${esc(t("state.empty"))}</p>`;
 
       container.innerHTML = `<style>${CSS}</style>
-        <div class="${P}-root" dir="${rtl ? "rtl" : "ltr"}" style="
-          --sbbd-primary:${esc(primary)};
-          --sbbd-accent:${esc(accent)};
-          --sbbd-primary-rgb:${hexToRgb(primary)};
-          --sbbd-primary-text:${readableOn(primary)}">
+        <div class="${P}-root" dir="${rtl ? "rtl" : "ltr"}">
           <div class="${P}-header">
             <span class="${P}-balloon" aria-hidden="true"><svg width="18" height="24" viewBox="0 0 18 24" fill="none" xmlns="http://www.w3.org/2000/svg"><ellipse cx="9" cy="8.5" rx="7.5" ry="8.5" fill="currentColor"/><path d="M9 17 L8.5 19.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M7 20 Q9 23 11 20" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/><ellipse cx="6.5" cy="5.5" rx="1.8" ry="2.5" fill="white" opacity="0.25" transform="rotate(-30 6.5 5.5)"/></svg></span>
             <span class="${P}-title">${esc(heading)}</span>
@@ -331,10 +276,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
   };
 };
 
-const ATTRS = [
-  "apitoken", "baseurl", "people", "widgettitle",
-  "usethemecolors", "primarycolor", "accentcolor",
-];
+const ATTRS = ["apitoken", "baseurl", "people", "widgettitle"];
 
 // ── Block registration ────────────────────────────────────────────────────────
 
