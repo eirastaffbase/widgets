@@ -211,13 +211,35 @@ export async function loadFeed(opts: {
   return merged.slice(0, totalLimit);
 }
 
+/** Staffbase ids are fixed-length hex (24 chars, ObjectId-style). */
+const ID_LEN = 24;
+const HEX_ONLY = /^[0-9a-f]+$/i;
+
 /** Parse the `channelids` config value. Accepts commas, whitespace or newlines
- *  so pasting a column of IDs out of a spreadsheet just works. */
+ *  so pasting a column of IDs out of a spreadsheet just works.
+ *
+ *  It also repairs run-together input: Staffbase's config editor strips the
+ *  newlines out of a textarea value, so "id\nid\nid" reaches the widget as one
+ *  72-character token. That parsed as a single unresolvable channel and the
+ *  feed silently came up empty. Ids are fixed-length hex, so an over-long
+ *  pure-hex token is unambiguously several ids glued together and is split
+ *  back apart rather than being dropped. */
 export function parseChannelIds(raw: string): string[] {
-  return String(raw || "")
-    .split(/[\s,;]+/)
-    .map(s => s.trim())
-    .filter(Boolean);
+  const out: string[] = [];
+
+  for (const token of String(raw || "").split(/[\s,;]+/)) {
+    const t = token.trim();
+    if (!t) continue;
+
+    if (t.length > ID_LEN && t.length % ID_LEN === 0 && HEX_ONLY.test(t)) {
+      for (let i = 0; i < t.length; i += ID_LEN) out.push(t.slice(i, i + ID_LEN));
+    } else {
+      out.push(t);
+    }
+  }
+
+  // A duplicated id would fetch and merge the same channel twice.
+  return Array.from(new Set(out));
 }
 
 // ── Sanitizing ───────────────────────────────────────────────────────────────

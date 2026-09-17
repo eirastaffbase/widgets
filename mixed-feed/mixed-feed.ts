@@ -653,7 +653,7 @@ const uiSchema = {
   baseurl: { "ui:help": "API base URL e.g. https://yourorg.staffbase.com/api" },
   channelids: {
     "ui:widget": "textarea",
-    "ui:help": "Channel IDs to merge into the feed — one per line, or comma-separated. News vs. Social is detected automatically from each channel's content type (articles → News, updates & pictures → Social).",
+    "ui:help": "Channel IDs to merge into the feed — comma-separated (recommended) or one per line. News vs. Social is detected automatically from each channel's content type (articles → News, updates & pictures → Social).",
   },
   title: { "ui:help": "Heading shown above the feed. Leave blank to use the translated default." },
   postlimit: { "ui:help": "How many posts to pull from each channel before merging (1–100)." },

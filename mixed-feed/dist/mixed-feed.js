@@ -1549,13 +1549,34 @@ function loadFeed(opts) {
         return merged.slice(0, totalLimit);
     });
 }
+/** Staffbase ids are fixed-length hex (24 chars, ObjectId-style). */
+const ID_LEN = 24;
+const HEX_ONLY = /^[0-9a-f]+$/i;
 /** Parse the `channelids` config value. Accepts commas, whitespace or newlines
- *  so pasting a column of IDs out of a spreadsheet just works. */
+ *  so pasting a column of IDs out of a spreadsheet just works.
+ *
+ *  It also repairs run-together input: Staffbase's config editor strips the
+ *  newlines out of a textarea value, so "id\nid\nid" reaches the widget as one
+ *  72-character token. That parsed as a single unresolvable channel and the
+ *  feed silently came up empty. Ids are fixed-length hex, so an over-long
+ *  pure-hex token is unambiguously several ids glued together and is split
+ *  back apart rather than being dropped. */
 function parseChannelIds(raw) {
-    return String(raw || "")
-        .split(/[\s,;]+/)
-        .map(s => s.trim())
-        .filter(Boolean);
+    const out = [];
+    for (const token of String(raw || "").split(/[\s,;]+/)) {
+        const t = token.trim();
+        if (!t)
+            continue;
+        if (t.length > ID_LEN && t.length % ID_LEN === 0 && HEX_ONLY.test(t)) {
+            for (let i = 0; i < t.length; i += ID_LEN)
+                out.push(t.slice(i, i + ID_LEN));
+        }
+        else {
+            out.push(t);
+        }
+    }
+    // A duplicated id would fetch and merge the same channel twice.
+    return Array.from(new Set(out));
 }
 // ── Sanitizing ───────────────────────────────────────────────────────────────
 const ALLOWED_TAGS = ["P", "BR", "B", "STRONG", "I", "EM", "U", "A", "SPAN"];
@@ -2462,7 +2483,7 @@ const uiSchema = {
     baseurl: { "ui:help": "API base URL e.g. https://yourorg.staffbase.com/api" },
     channelids: {
         "ui:widget": "textarea",
-        "ui:help": "Channel IDs to merge into the feed — one per line, or comma-separated. News vs. Social is detected automatically from each channel's content type (articles → News, updates & pictures → Social).",
+        "ui:help": "Channel IDs to merge into the feed — comma-separated (recommended) or one per line. News vs. Social is detected automatically from each channel's content type (articles → News, updates & pictures → Social).",
     },
     title: { "ui:help": "Heading shown above the feed. Leave blank to use the translated default." },
     postlimit: { "ui:help": "How many posts to pull from each channel before merging (1–100)." },

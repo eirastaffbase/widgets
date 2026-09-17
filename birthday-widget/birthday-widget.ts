@@ -16,7 +16,7 @@ const configurationSchema: JSONSchema7 = {
   properties: {
     apitoken:      { type: "string", title: "API Token", default: "" },
     baseurl:       { type: "string", title: "Base URL (e.g. https://acme.staffbase.com/api)", default: "" },
-    people:        { type: "string", title: "People — one per line: Name, +N days", default: "" },
+    people:        { type: "string", title: "People (semicolon-separated: Name, +N; Name, +N)", default: "" },
     widgettitle:   { type: "string", title: "Widget Title (optional override)", default: "" },
     usethemecolors:{ type: "boolean", title: "Use Theme Colors", default: true },
   },
@@ -39,7 +39,7 @@ const configurationSchema: JSONSchema7 = {
 const uiSchema = {
   apitoken: { "ui:help": "Used to load profile photos and brand colors from the API." },
   baseurl:  { "ui:help": "Must include /api, e.g. https://acme.staffbase.com/api" },
-  people:   { "ui:widget": "textarea", "ui:help": "One person per line. Format: Name, +N (N = days from today when their birthday is)" },
+  people:   { "ui:help": "Semicolon-separated. Format: Name, +N; Name, +N (N = days from today)" },
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -76,11 +76,11 @@ interface BirthdayPerson {
 }
 
 function parsePeople(raw: string): BirthdayPerson[] {
-  return raw.split("\n")
-    .map(line => line.trim())
+  return raw.split(";")
+    .map(entry => entry.trim())
     .filter(Boolean)
-    .map(line => {
-      const m = line.match(/^(.+?),\s*\+?(\d+)\s*$/);
+    .map(entry => {
+      const m = entry.match(/^(.+?),\s*\+?(\d+)\s*$/);
       if (!m) return null;
       const days = parseInt(m[2], 10);
       return isFinite(days) && days >= 0 ? { name: m[1].trim(), daysUntil: days } : null;
