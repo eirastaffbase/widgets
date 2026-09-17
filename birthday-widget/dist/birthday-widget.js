@@ -343,7 +343,7 @@ ${HOST_RESET}
   background:#f3f4f6;color:#6b7280;
 }
 
-.${P}-list{display:flex;flex-direction:column;gap:4px}
+.${P}-list{display:flex;flex-direction:column;gap:10px}
 
 .${P}-card{
   display:flex;align-items:center;gap:14px;padding:12px 14px;
