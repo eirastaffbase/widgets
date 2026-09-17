@@ -490,7 +490,7 @@ const configurationSchema = {
     },
 };
 const uiSchema = {
-    apitoken: { "ui:help": "Used only to load brand colors from the theming endpoint." },
+    apitoken: { "ui:help": "Used to load profile photos and brand colors from the API." },
     baseurl: { "ui:help": "Must include /api, e.g. https://acme.staffbase.com/api" },
     people: { "ui:widget": "textarea", "ui:help": "One person per line. Format: Name, +N (N = days from today when their birthday is)" },
 };
@@ -548,6 +548,39 @@ function countdownLabel(days, t) {
         return t("countdown.tomorrow");
     return t("countdown.days").replace("{n}", String(days));
 }
+/** Fetch all users and return a lowercase-name → avatar URL map. */
+function fetchUserAvatars(baseUrl, apiToken) {
+    return birthday_widget_awaiter(this, void 0, void 0, function* () {
+        var _a, _b, _c, _d, _e, _f, _g;
+        const map = new Map();
+        try {
+            const headers = { Accept: "application/json" };
+            if (apiToken)
+                headers.Authorization = `Basic ${apiToken}`;
+            let offset = 0;
+            const limit = 100;
+            while (true) {
+                const res = yield fetch(`${baseUrl}/users?limit=${limit}&offset=${offset}`, { headers, credentials: "omit" });
+                if (!res.ok)
+                    break;
+                const data = yield res.json();
+                const rows = (data === null || data === void 0 ? void 0 : data.data) || [];
+                for (const u of rows) {
+                    const name = ([u.firstName, u.lastName].filter(Boolean).join(" ") || u.displayName || u.userName || "").trim();
+                    const avatar = ((_b = (_a = u.avatar) === null || _a === void 0 ? void 0 : _a.thumb) === null || _b === void 0 ? void 0 : _b.url) || ((_d = (_c = u.avatar) === null || _c === void 0 ? void 0 : _c.icon) === null || _d === void 0 ? void 0 : _d.url) || ((_f = (_e = u.avatar) === null || _e === void 0 ? void 0 : _e.original) === null || _f === void 0 ? void 0 : _f.url) || "";
+                    if (name && avatar)
+                        map.set(name.toLowerCase(), avatar);
+                }
+                const total = Number((_g = data === null || data === void 0 ? void 0 : data.total) !== null && _g !== void 0 ? _g : 0);
+                offset += rows.length;
+                if (rows.length < limit || offset >= total)
+                    break;
+            }
+        }
+        catch (_) { /* leave empty — initials fallback */ }
+        return map;
+    });
+}
 // ── CSS ───────────────────────────────────────────────────────────────────────
 const HOST_RESET = `
 .${P}-root button{
@@ -580,7 +613,7 @@ ${HOST_RESET}
 }
 
 .${P}-header{
-  display:flex;align-items:center;gap:10px;margin-bottom:18px;
+  display:flex;align-items:center;gap:10px;margin-bottom:16px;
 }
 .${P}-mark{
   width:4px;height:22px;border-radius:99px;flex:0 0 auto;
@@ -596,28 +629,31 @@ ${HOST_RESET}
   background:rgba(var(--sbbd-primary-rgb),.10);color:var(--sbbd-primary,${DEFAULT_PRIMARY});
 }
 
-.${P}-list{display:flex;flex-direction:column;gap:8px}
+.${P}-list{display:flex;flex-direction:column;gap:4px}
 
 .${P}-card{
-  display:flex;align-items:center;gap:14px;padding:14px 16px;
-  border:1px solid #e5e7eb;border-radius:12px;background:#fff;
-  transition:transform .2s ease,box-shadow .2s ease;
+  display:flex;align-items:center;gap:14px;padding:12px 14px;
+  border-radius:12px;background:transparent;
+  transition:background .18s ease,transform .18s ease;
   animation:${P}-rise .45s cubic-bezier(.16,1,.3,1) both;
   animation-delay:calc(var(--i,0)*60ms);
 }
-.${P}-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.10)}
+.${P}-card:hover{background:#f9fafb;transform:translateX(3px)}
 
+/* Avatar circle */
 .${P}-av{
   width:44px;height:44px;border-radius:50%;flex:0 0 auto;
-  display:inline-flex;align-items:center;justify-content:center;
+  display:inline-flex;align-items:center;justify-content:center;overflow:hidden;
   background:linear-gradient(140deg,var(--sbbd-primary,${DEFAULT_PRIMARY}),var(--sbbd-accent,${DEFAULT_ACCENT}));
   color:var(--sbbd-primary-text,#fff);font-weight:700;font-size:16px;letter-spacing:-.01em;
 }
-.${P}-av::after{content:attr(data-ini)}
+/* Shows initials only when the image is absent */
+.${P}-av-fb::after{content:attr(data-ini)}
+.${P}-av img{width:100%;height:100%;object-fit:cover;display:block}
 
 .${P}-info{flex:1 1 auto;min-width:0}
 .${P}-root .${P}-name{
-  font-size:14px!important;font-weight:700!important;color:#111827!important;
+  font-size:14px!important;font-weight:600!important;color:#111827!important;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3!important;
 }
 .${P}-root .${P}-date{
@@ -625,7 +661,7 @@ ${HOST_RESET}
 }
 
 .${P}-pill{
-  flex:0 0 auto;padding:4px 12px;border-radius:99px;
+  flex:0 0 auto;padding:4px 11px;border-radius:99px;
   font-size:12px;font-weight:600;white-space:nowrap;
   background:rgba(var(--sbbd-primary-rgb),.10);
   color:var(--sbbd-primary,${DEFAULT_PRIMARY});
@@ -641,11 +677,11 @@ ${HOST_RESET}
 }
 
 @keyframes ${P}-rise{
-  from{opacity:0;transform:translateY(10px)}
+  from{opacity:0;transform:translateY(8px)}
   to{opacity:1;transform:none}
 }
 
-@media(max-width:400px){
+@media(max-width:380px){
   .${P}-card{flex-wrap:wrap}
   .${P}-pill{margin-top:4px;margin-left:calc(44px + 14px)}
 }
@@ -671,16 +707,18 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const baseUrl = attr("baseurl").replace(/\/+$/, "");
                 let primary = attr("primarycolor") || DEFAULT_PRIMARY;
                 let accent = attr("accentcolor") || DEFAULT_ACCENT;
-                if (bool("usethemecolors", true) && apiToken && baseUrl) {
-                    try {
-                        const themed = yield fetchThemeColors(baseUrl, apiToken, "primary", "light");
-                        if (themed.primary)
-                            primary = themed.primary;
-                        if (themed.accent)
-                            accent = themed.accent;
-                    }
-                    catch (_) { /* leave defaults */ }
-                }
+                // Kick off avatar + theme fetches concurrently when credentials are available.
+                const [avatarMap] = yield Promise.all([
+                    (apiToken && baseUrl) ? fetchUserAvatars(baseUrl, apiToken) : Promise.resolve(new Map()),
+                    (bool("usethemecolors", true) && apiToken && baseUrl)
+                        ? fetchThemeColors(baseUrl, apiToken, "primary", "light").then(themed => {
+                            if (themed.primary)
+                                primary = themed.primary;
+                            if (themed.accent)
+                                accent = themed.accent;
+                        }).catch(() => { })
+                        : Promise.resolve(),
+                ]);
                 if (accent.toLowerCase() === primary.toLowerCase())
                     accent = DEFAULT_ACCENT;
                 const locale = detectLocale({
@@ -692,20 +730,25 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const people = parsePeople(attr("people"));
                 people.sort((a, b) => a.daysUntil - b.daysUntil);
                 const heading = attr("widgettitle") || t("widget.title");
+                const cardHtml = (p, i) => {
+                    const avatarUrl = avatarMap.get(p.name.toLowerCase()) || "";
+                    const ini = initials(p.name);
+                    const imgHtml = avatarUrl
+                        ? `<img src="${esc(avatarUrl)}" alt="" onerror="this.parentElement.setAttribute('data-ini','${esc(ini)}');this.parentElement.classList.add('${P}-av-fb');this.remove()">`
+                        : "";
+                    const avClass = `${P}-av${avatarUrl ? "" : ` ${P}-av-fb`}`;
+                    const isToday = p.daysUntil === 0;
+                    return `<li class="${P}-card" style="--i:${i}">
+          <span class="${avClass}" data-ini="${esc(ini)}" aria-hidden="true">${imgHtml}</span>
+          <div class="${P}-info">
+            <p class="${P}-name">${esc(p.name)}</p>
+            <p class="${P}-date">${esc(birthdayDateLabel(p.daysUntil, locale))}</p>
+          </div>
+          <span class="${P}-pill${isToday ? " is-today" : ""}">${esc(countdownLabel(p.daysUntil, t))}</span>
+        </li>`;
+                };
                 const cardsHtml = people.length
-                    ? `<ul class="${P}-list">${people.map((p, i) => {
-                        const dateStr = birthdayDateLabel(p.daysUntil, locale);
-                        const countdown = countdownLabel(p.daysUntil, t);
-                        const isToday = p.daysUntil === 0;
-                        return `<li class="${P}-card" style="--i:${i}">
-              <span class="${P}-av" data-ini="${esc(initials(p.name))}" aria-hidden="true"></span>
-              <div class="${P}-info">
-                <p class="${P}-name">${esc(p.name)}</p>
-                <p class="${P}-date">${esc(dateStr)}</p>
-              </div>
-              <span class="${P}-pill${isToday ? " is-today" : ""}">${esc(countdown)}</span>
-            </li>`;
-                    }).join("")}</ul>`
+                    ? `<ul class="${P}-list">${people.map(cardHtml).join("")}</ul>`
                     : `<p class="${P}-empty">${esc(t("state.empty"))}</p>`;
                 container.innerHTML = `<style>${CSS}</style>
         <div class="${P}-root" dir="${rtl ? "rtl" : "ltr"}" style="
@@ -723,7 +766,7 @@ const factory = (BaseBlockClass, widgetApi) => {
             });
         }
         disconnectedCallback() {
-            // No async timers or listeners to clean up.
+            // No timers or listeners to tear down.
         }
         static get observedAttributes() {
             return ATTRS;
