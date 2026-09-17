@@ -28,7 +28,17 @@
   <div class="cfg">
     <div><label for="baseurl">Base URL</label><input id="baseurl" placeholder="https://acme.staffbase.com/api"></div>
     <div><label for="apitoken">API Token</label><input id="apitoken" type="password" placeholder="Basic token"></div>
-    <div><label for="topuserids">Top 3 user IDs</label><input id="topuserids" placeholder="id1, id2, id3"></div>
+    <div><label for="topuserids">User IDs (any number)</label><input id="topuserids" placeholder="id1, id2, id3, id4, id5…"></div>
+    <div><label for="podiumdraw">Top 3 drawn by</label>
+      <select id="podiumdraw">
+        <option value="shuffle" selected>Shuffle (fixed)</option>
+        <option value="typed">Typed order</option>
+        <option value="daily">Daily</option>
+        <option value="weekly">Weekly</option>
+      </select></div>
+    <div><label for="drawseed">Draw seed</label><input id="drawseed" placeholder="change to re-roll"></div>
+    <div><label for="showviewer">Add “Tú” row</label>
+      <select id="showviewer"><option value="true" selected>On</option><option value="false">Off</option></select></div>
     <div><label for="fillercount">Demo peers</label><input id="fillercount" type="number" value="5" min="0" max="12"></div>
     <div><label for="defaultmetric">Starting metric</label>
       <select id="defaultmetric">
@@ -41,6 +51,9 @@
       <select id="colorscheme"><option value="dark" selected>Dark</option><option value="light">Light</option><option value="auto">Auto</option></select></div>
     <div><label for="showpodium">Podium</label>
       <select id="showpodium"><option value="true" selected>On</option><option value="false">Off</option></select></div>
+    <div><label for="showcta">Catch-up button</label>
+      <select id="showcta"><option value="true" selected>On</option><option value="false">Off</option></select></div>
+    <div><label for="ctaurl">Catch-up link</label><input id="ctaurl" placeholder="(empty = event only)"></div>
     <div><label for="animate">Animate</label>
       <select id="animate"><option value="true" selected>On</option><option value="false">Off</option></select></div>
     <div><label for="debugmode">Debug mode</label>
@@ -78,6 +91,8 @@
     </p>
   </div>
   <div class="stage" id="stage"></div>
+  <pre id="evt" hidden style="margin-top:14px;padding:10px 12px;border-radius:8px;
+    background:#fff;border:1px solid rgba(0,0,0,.1);font-size:12px;overflow:auto"></pre>
 </div>
 
 <script>
@@ -107,11 +122,20 @@ window.defineBlock = function (def) {
 <script src="./dist/cornerstone-learning.js"></script>
 <script>
 var KEYS = [
-  "baseurl", "apitoken", "topuserids", "fillercount", "defaultmetric", "colorscheme",
-  "showpodium", "animate", "debugmode", "multibranding", "brandpreview",
+  "baseurl", "apitoken", "topuserids", "podiumdraw", "drawseed", "showviewer",
+  "fillercount", "defaultmetric", "colorscheme",
+  "showpodium", "showcta", "ctaurl", "animate", "debugmode", "multibranding", "brandpreview",
   "brand1group", "brand1primary", "brand1accent", "brand1label",
   "brand2group", "brand2primary", "brand2accent", "brand2label"
 ];
+// The widget emits this whether or not a link is configured, so a host page can
+// scroll to its own course grid instead of navigating away.
+document.addEventListener("cornerstone-learning:catchup", function (ev) {
+  var d = ev.detail || {};
+  var el = document.getElementById("evt");
+  el.hidden = false;
+  el.textContent = "cornerstone-learning:catchup → " + JSON.stringify(d);
+});
 document.getElementById("go").addEventListener("click", function () {
   window.__viewerGroups = document.getElementById("viewergroups").value
     .split(",").map(function (s) { return s.trim(); }).filter(Boolean);

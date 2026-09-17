@@ -16,7 +16,8 @@
 import { BADGE_ICON, METRIC_ICON, icon } from "./icons";
 import { S, plural } from "./strings";
 import { metricValue } from "./demo";
-import { Completion, Learner, MetricId, Person } from "./types";
+import { SPARK_WEEKS } from "./catalogue";
+import { ChartKind, Completion, Learner, MetricId, Person } from "./types";
 
 export const P = "csl"; // class prefix
 
@@ -50,6 +51,35 @@ export const METRIC_LABEL: { [K in MetricId]: string } = {
   xp: S.metricXp,
   streak: S.metricStreak,
 };
+
+/**
+ * Each metric is drawn as the thing it actually is.
+ *
+ * Four bar charts with different numbers in them would make the switcher a
+ * relabelling exercise. A count is a ranking (bars); hours are a composition
+ * (one segment per course, so you can see *what* the time went into); XP is an
+ * accumulation over time, and the only metric where the interesting question is
+ * "how do I compare" rather than "who won" (lines, with the viewer's own line
+ * picked out); a streak is a calendar (a grid of weeks).
+ */
+export const CHART_KIND: { [K in MetricId]: ChartKind } = {
+  courses: "race",
+  hours: "stack",
+  xp: "lines",
+  streak: "heat",
+};
+
+export const CAPTION: { [K in MetricId]: string } = {
+  courses: S.capCourses,
+  hours: S.capHours,
+  xp: S.capXp,
+  streak: S.capStreak,
+};
+
+/** `race`, `stack` and `heat` are the same `<li data-key>` rows with different
+ *  middles, so switching between them can move nodes instead of replacing them.
+ *  `lines` has no rows, so it is the one transition that rebuilds. */
+export const isRowChart = (m: MetricId): boolean => CHART_KIND[m] !== "lines";
 
 /** Hours are the only fractional metric, so formatting is metric-dependent. */
 export const formatMetric = (l: Learner, m: MetricId): string =>
@@ -163,12 +193,12 @@ export function podium(top: Learner[], metric: MetricId, showTier: boolean, show
     const rank = i + 1;
     const av = rank === 1 ? 92 : 68;
     const meta = [l.person.position, l.person.department].filter(Boolean).join(" · ");
-    return `<div class="${P}-pod ${P}-pod-${rank}" data-key="${esc(keyOf(l))}" style="--i:${i}">
+    return `<div class="${P}-pod ${P}-pod-${rank}" data-key="${esc(keyOf(l))}" style="--i:${i}"${l.person.isViewer ? ` data-you="1"` : ""}>
       <div class="${P}-pod-avwrap">
         ${avatar(l.person, av, `${P}-av-hero`)}
         <span class="${P}-pod-rank">${rank === 1 ? icon("crown", 14) : rank}</span>
       </div>
-      <div class="${P}-pod-nm">${personName(l.person, `${P}-pod-nmlink`)}</div>
+      <div class="${P}-pod-nm">${personName(l.person, `${P}-pod-nmlink`)}${l.person.isViewer ? ` <span class="${P}-you">${esc(S.you)}</span>` : ""}</div>
       ${meta ? `<div class="${P}-pod-meta">${esc(meta)}</div>` : ""}
       <div class="${P}-pod-num">
         <span class="${P}-num" data-count="${metricValue(l, metric)}" data-dec="${metric === "hours" ? 1 : 0}">${formatMetric(l, metric)}</span>
@@ -181,44 +211,119 @@ export function podium(top: Learner[], metric: MetricId, showTier: boolean, show
   return `<div class="${P}-podium">${cards}</div>`;
 }
 
-// ── Bar race ─────────────────────────────────────────────────────────────────
+// ── Row charts: race, stack, heat ────────────────────────────────────────────
+
+/** A week's label, counting back from this one. Used by both the stacked bar
+ *  tooltips and the heatmap cells. */
+const weekTitle = (i: number): string => S.weekLabel(SPARK_WEEKS - 1 - i);
+
+/** Bars are scaled against the leader with a floor, so a runaway winner does not
+ *  flatten everyone else into invisible slivers. */
+const barWidth = (v: number, max: number): number =>
+  Math.max(6, max > 0 ? (v / max) * 100 : 0);
+
+/** Courses view: one solid bar per person, length = rank position. */
+function plainBar(l: Learner, metric: MetricId, max: number): string {
+  const w = barWidth(metricValue(l, metric), max);
+  return `<div class="${P}-bar"><span class="${P}-bar-fill" style="--w:${w.toFixed(2)}%"></span></div>`;
+}
 
 /**
- * One row. Bars are scaled against the leader with a floor, so a runaway winner
- * does not flatten everyone else into invisible slivers.
+ * Hours view: the same bar, cut into one segment per course.
  *
- * `data-key` and `data-w` are what the shell's FLIP + bar update read; the row
- * renders its final width and value inline so a dead script still shows a
- * correct, static chart.
+ * The total length still ranks people, so nothing is lost — but the segments
+ * answer the question a raw hour count cannot, which is where the time went.
+ * Segments are ordered longest-first so the bar reads as a composition rather
+ * than as a jagged history, and required courses get the accent so compliance
+ * is visible at a glance.
+ */
+function stackedBar(l: Learner, max: number): string {
+  const totalHours = l.minutes / 60;
+  const w = barWidth(totalHours, max);
+  const segs = l.completions
+    .slice()
+    .sort((a, b) => b.course.minutes - a.course.minutes)
+    .map((c, i) => {
+      const share = l.minutes > 0 ? (c.course.minutes / l.minutes) * 100 : 0;
+      const dur = c.course.minutes >= 60
+        ? `${fmt(c.course.minutes / 60, c.course.minutes % 60 ? 1 : 0)} ${S.unitHours}`
+        : `${c.course.minutes} min`;
+      return `<span class="${P}-seg" style="--s:${share.toFixed(2)}%;--i:${i}"`
+        + ` data-req="${c.course.required}" data-type="${esc(c.course.type)}"`
+        + ` title="${esc(c.course.title)} · ${esc(dur)}"></span>`;
+    }).join("");
+  return `<div class="${P}-bar"><div class="${P}-bar-stack" style="--w:${w.toFixed(2)}%">${segs}</div></div>`;
+}
+
+/**
+ * Streak view: six weekly cells per person.
+ *
+ * A streak is a statement about a calendar, and the number alone ("4 semanas")
+ * hides whether those weeks were recent. The grid shows the run itself — and
+ * shows the gaps, which is what makes a broken streak legible.
+ *
+ * Levels are absolute (1 / 2 / 3+ courses), not scaled to each person's own
+ * busiest week. Per-row normalisation would make the darkest cell mean "two
+ * courses" on one line and "five" on the next, which is exactly the comparison
+ * a grid of identical squares invites you to make.
+ */
+function heatCells(l: Learner): string {
+  const cells = l.spark.map((v, i) => {
+    const lvl = v === 0 ? 0 : v === 1 ? 1 : v === 2 ? 2 : 3;
+    return `<span class="${P}-heat-c" data-lvl="${lvl}" style="--i:${i}"`
+      + ` title="${esc(weekTitle(i))} · ${v} ${esc(plural(v, S.unitCoursesOne, S.unitCourses))}"></span>`;
+  }).join("");
+  return `<div class="${P}-heat">${cells}</div>`;
+}
+
+/** The middle of a row — the only part that differs between the three row
+ *  charts. Kept separate so a metric switch can swap it in place and leave the
+ *  row node (and any open drilldown) exactly where it is. */
+export function rowBody(
+  l: Learner, metric: MetricId, max: number,
+  opts: { badges: boolean; streak: boolean },
+): string {
+  const kind = CHART_KIND[metric];
+  const v = metricValue(l, metric);
+  const middle = kind === "stack" ? stackedBar(l, max)
+    : kind === "heat" ? heatCells(l)
+      : plainBar(l, metric, max);
+  return `<div class="${P}-row-top">
+      ${personName(l.person, `${P}-row-nm`)}
+      ${l.person.isViewer ? `<span class="${P}-you">${esc(S.you)}</span>` : ""}
+      <span class="${P}-row-val">
+        <span class="${P}-num" data-count="${v}" data-dec="${metric === "hours" ? 1 : 0}">${formatMetric(l, metric)}</span>
+        <span class="${P}-unit">${esc(metricUnit(l, metric))}</span>
+      </span>
+    </div>
+    ${middle}
+    <div class="${P}-row-sub">
+      ${opts.streak && l.streak > 0 ? `<span class="${P}-streak">${icon("flame", 12)}${l.streak}</span>` : ""}
+      ${opts.badges ? badgeChips(l, true) : ""}
+    </div>`;
+}
+
+/**
+ * One row.
+ *
+ * `data-key` is what the shell's FLIP and drilldown read; the row renders its
+ * final width and value inline so a dead script still shows a correct, static
+ * chart.
  */
 export function raceRow(
   l: Learner, rank: number, max: number, metric: MetricId,
   opts: { drilldown: boolean; badges: boolean; streak: boolean },
 ): string {
-  const v = metricValue(l, metric);
-  const w = Math.max(6, max > 0 ? (v / max) * 100 : 0);
   const key = esc(keyOf(l));
-  return `<li class="${P}-row" data-key="${key}" style="--i:${rank - 1}">
-    <div class="${P}-row-main"${opts.drilldown ? ` role="button" tabindex="0" aria-expanded="false" aria-controls="${P}-dd-${key.replace(/[^\w-]/g, "_")}"` : ""}>
+  const ddId = `${P}-dd-${key.replace(/[^\w-]/g, "_")}`;
+  return `<li class="${P}-row" data-key="${key}" style="--i:${rank - 1}"${l.person.isViewer ? ` data-you="1"` : ""}>
+    <div class="${P}-row-main"${opts.drilldown ? ` role="button" tabindex="0" aria-expanded="false" aria-controls="${ddId}"` : ""}>
       <span class="${P}-rank">${rank}</span>
       ${avatar(l.person, 34)}
-      <div class="${P}-row-body">
-        <div class="${P}-row-top">
-          ${personName(l.person, `${P}-row-nm`)}
-          <span class="${P}-row-val">
-            <span class="${P}-num" data-count="${v}" data-dec="${metric === "hours" ? 1 : 0}">${formatMetric(l, metric)}</span>
-            <span class="${P}-unit">${esc(metricUnit(l, metric))}</span>
-          </span>
-        </div>
-        <div class="${P}-bar"><span class="${P}-bar-fill" style="--w:${w.toFixed(2)}%"></span></div>
-        <div class="${P}-row-sub">
-          ${opts.streak && l.streak > 0 ? `<span class="${P}-streak">${icon("flame", 12)}${l.streak}</span>` : ""}
-          ${opts.badges ? badgeChips(l, true) : ""}
-        </div>
-      </div>
+      <div class="${P}-row-body">${rowBody(l, metric, max, opts)}</div>
       ${opts.drilldown ? `<span class="${P}-row-chev" aria-hidden="true">${icon("chevron", 16)}</span>` : ""}
     </div>
-    ${opts.drilldown ? `<div class="${P}-dd" id="${P}-dd-${key.replace(/[^\w-]/g, "_")}" hidden></div>` : ""}
+    ${opts.drilldown ? `<div class="${P}-dd" id="${ddId}" hidden></div>` : ""}
   </li>`;
 }
 
@@ -229,7 +334,152 @@ export function race(
   if (!learners.length) return "";
   const max = Math.max(...learners.map(l => metricValue(l, metric)), 0);
   const rows = learners.map((l, i) => raceRow(l, i + 1, max, metric, opts)).join("");
-  return `<ol class="${P}-race" aria-label="${esc(S.field)}">${rows}</ol>`;
+  return `<ol class="${P}-race" data-kind="${CHART_KIND[metric]}" aria-label="${esc(S.field)}">${rows}</ol>`;
+}
+
+// ── XP: cumulative lines, you against the field ──────────────────────────────
+
+const LW = 640, LH = 210;           // viewBox; scaled to the container by CSS
+const PAD = { l: 38, r: 74, t: 16, b: 26 };
+
+/** Round a maximum up to something a person would choose for an axis, so the
+ *  top gridline reads 400 rather than 387. */
+function niceMax(v: number): number {
+  if (v <= 0) return 10;
+  const mag = Math.pow(10, Math.floor(Math.log10(v)));
+  const n = v / mag;
+  const step = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10;
+  return step * mag;
+}
+
+/**
+ * The XP view: every learner's cumulative XP over the last six weeks, drawn as
+ * lines on shared axes.
+ *
+ * This is the one view that is not about the podium. Bars answer "who is
+ * winning"; the question people actually have about their own XP is "where am
+ * I against everyone else, and am I gaining or falling behind" — which is a
+ * slope, and needs a shared time axis to be visible at all.
+ *
+ * So the viewer's line is the subject: drawn last (on top), thicker, in the
+ * accent colour, with points and an end label. The leaders are drawn in the
+ * primary colour so there is something to measure against, and everyone else is
+ * deliberately faint — context, not clutter. Hovering any line brings it
+ * forward; clicking opens that person's courses underneath.
+ */
+export function lines(learners: Learner[], viewerKey: string): string {
+  if (!learners.length) return "";
+  const weeks = Math.max(2, learners[0].series.length);
+  const top = niceMax(Math.max(...learners.map(l => l.series[l.series.length - 1] || 0), 1));
+
+  const x = (i: number) => PAD.l + (i / (weeks - 1)) * (LW - PAD.l - PAD.r);
+  const y = (v: number) => LH - PAD.b - (Math.min(v, top) / top) * (LH - PAD.t - PAD.b);
+
+  const grid = [0, 0.5, 1].map(f => {
+    const gy = y(top * f).toFixed(1);
+    return `<line class="${P}-grid" x1="${PAD.l}" y1="${gy}" x2="${LW - PAD.r}" y2="${gy}"/>`
+      + `<text class="${P}-ytick" x="${PAD.l - 8}" y="${gy}" text-anchor="end" dominant-baseline="middle">${fmt(Math.round(top * f))}</text>`;
+  }).join("");
+
+  const xticks = learners[0].series.map((_, i) =>
+    `<text class="${P}-xtick" x="${x(i).toFixed(1)}" y="${LH - PAD.b + 15}" text-anchor="middle">${esc(weekTitle(i))}</text>`
+  ).join("");
+
+  // Leaders by final XP, so "the lines you are chasing" are the ones drawn
+  // solidly rather than an arbitrary three.
+  const byXp = learners.slice().sort((a, b) =>
+    (b.series[b.series.length - 1] || 0) - (a.series[a.series.length - 1] || 0));
+  const leaders = new Set(byXp.slice(0, 3).map(l => keyOf(l)));
+
+  const draw = (l: Learner): string => {
+    const key = keyOf(l);
+    const you = key === viewerKey;
+    const role = you ? "you" : leaders.has(key) ? "top" : "peer";
+    const pts = l.series.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`);
+    const d = `M${pts.join("L")}`;
+    const last = l.series[l.series.length - 1] || 0;
+    const dots = you || role === "top"
+      ? l.series.map((v, i) =>
+        `<circle class="${P}-ln-dot" cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="${you ? 3.4 : 2.6}"/>`).join("")
+      : "";
+    const label = you || role === "top"
+      ? `<text class="${P}-ln-lbl" x="${(LW - PAD.r + 8).toFixed(1)}" y="${y(last).toFixed(1)}" dominant-baseline="middle">`
+        + `${esc(you ? S.you : l.person.name.split(" ")[0])} · ${fmt(last)}</text>`
+      : "";
+    return `<g class="${P}-lngrp" data-key="${esc(key)}" data-role="${role}" tabindex="0"
+      role="button" aria-label="${esc(l.person.name)} · ${fmt(last)} ${esc(S.unitXp)}">
+      <title>${esc(l.person.name)} · ${fmt(last)} ${esc(S.unitXp)}</title>
+      <path class="${P}-ln-hit" d="${d}"/>
+      <path class="${P}-ln" d="${d}"/>
+      ${dots}${label}
+    </g>`;
+  };
+
+  // Painter's order: faint peers first, leaders over them, the viewer on top —
+  // SVG has no z-index, so the order *is* the stacking.
+  const ordered = learners.slice().sort((a, b) => {
+    const score = (l: Learner) => keyOf(l) === viewerKey ? 2 : leaders.has(keyOf(l)) ? 1 : 0;
+    return score(a) - score(b);
+  });
+
+  const legend = `<div class="${P}-lgd">
+    ${viewerKey ? `<span class="${P}-lgd-i" data-role="you">${esc(S.lineYou)}</span>` : ""}
+    <span class="${P}-lgd-i" data-role="top">${esc(S.lineLeader)}</span>
+    <span class="${P}-lgd-i" data-role="peer">${esc(S.lineOthers)}</span>
+    <span class="${P}-lgd-hint">${esc(S.lineHint)}</span>
+  </div>`;
+
+  return `<div class="${P}-lines">
+    <svg viewBox="0 0 ${LW} ${LH}" class="${P}-lines-svg" role="img"
+         aria-label="${esc(S.capXp)}" preserveAspectRatio="xMidYMid meet">
+      ${grid}${xticks}
+      ${ordered.map(draw).join("")}
+    </svg>
+    ${legend}
+    <div class="${P}-lines-dd" hidden></div>
+  </div>`;
+}
+
+// ── Catch-up ─────────────────────────────────────────────────────────────────
+
+export type Gap = { target: Learner; gap: number; rank: number; total: number } | null;
+
+/** The gap sentence, in the units of the metric being shown. Recomputed on
+ *  every metric switch, because "te faltan 2" means nothing without knowing two
+ *  of what. */
+export function gapText(info: Gap, metric: MetricId): string {
+  if (!info) return S.ctaGeneric;
+  if (info.gap <= 0 || info.rank === 1) return S.ctaLeading;
+  const name = info.target.person.name.split(" ")[0];
+  return metric === "hours" ? S.ctaGapHours(fmt(info.gap, 1), name)
+    : metric === "xp" ? S.ctaGapXp(Math.ceil(info.gap), name)
+      : metric === "streak" ? S.ctaGapStreak(Math.ceil(info.gap), name)
+        : S.ctaGapCourses(Math.ceil(info.gap), name);
+}
+
+/**
+ * The call to action.
+ *
+ * A leaderboard that only ranks people is a scoreboard; the point of gamifying
+ * learning is the next action, so the widget ends on one. The sentence above
+ * the button is specific — it names the person directly ahead of the viewer and
+ * the exact gap in the current metric — because "haz más cursos" is advice,
+ * while "te faltan 2 cursos para alcanzar a Lucía" is a target.
+ */
+export function catchUp(info: Gap, metric: MetricId, label: string, href: string): string {
+  const rankChip = info ? `<span class="${P}-cta-rank">${esc(S.ctaRankOf(info.rank, info.total))}</span>` : "";
+  const btn = href
+    ? `<a class="${P}-cta-btn" href="${esc(href)}" data-cta="1">`
+    : `<button type="button" class="${P}-cta-btn" data-cta="1">`;
+  const btnEnd = href ? `</a>` : `</button>`;
+  return `<div class="${P}-cta" data-done="${info && info.rank === 1 ? "1" : "0"}">
+    <span class="${P}-cta-ico">${icon("rocket", 20)}</span>
+    <div class="${P}-cta-txt">
+      <div class="${P}-cta-title">${esc(S.ctaTitle)} ${rankChip}</div>
+      <div class="${P}-cta-gap">${esc(gapText(info, metric))}</div>
+    </div>
+    ${btn}<span>${esc(label || S.ctaAction)}</span>${icon("arrow", 15)}${btnEnd}
+  </div>`;
 }
 
 // ── Drilldown ────────────────────────────────────────────────────────────────
@@ -291,4 +541,14 @@ export function header(brandLabel: string, metric: MetricId, showSwitcher: boole
 
 export function footnote(): string {
   return `<div class="${P}-note">${icon("star", 11)} ${esc(S.demoNote)}</div>`;
+}
+
+/** A one-line label above each chart. The shapes change between metrics, so the
+ *  view says what it is showing rather than leaving the viewer to infer it from
+ *  a switch they may not have noticed pressing. */
+export function caption(metric: MetricId): string {
+  const glyph = CHART_KIND[metric] === "lines" ? "trend"
+    : CHART_KIND[metric] === "heat" ? "grid"
+      : CHART_KIND[metric] === "stack" ? "layers" : "book";
+  return `<div class="${P}-cap">${icon(glyph, 12)} ${esc(CAPTION[metric])}</div>`;
 }

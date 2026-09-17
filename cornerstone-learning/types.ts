@@ -37,6 +37,9 @@ export type Person = {
   department: string;
   /** True when this row is a generated demo peer rather than a real API user. */
   synthetic: boolean;
+  /** The person looking at the widget. Drives the "Tú" chip, the highlighted
+   *  line in the XP chart and the gap the catch-up button measures. */
+  isViewer?: boolean;
 };
 
 /** Course delivery format. Drives the XP weight and the meta chips. */
@@ -102,6 +105,18 @@ export type TierProgress = {
 
 export type MetricId = "courses" | "hours" | "xp" | "streak";
 
+/**
+ * How a metric is drawn. Each metric gets the shape that actually suits it —
+ * a ranking is bars, a composition is segments, an accumulation over time is
+ * lines, and week-by-week activity is a grid.
+ *
+ * `race`, `stack` and `heat` share one row skeleton on purpose: the same
+ * `<li data-key>` nodes survive the switch, so rows can FLIP to their new rank
+ * and an open drilldown travels with its person. `lines` is the deliberate
+ * exception — it has no per-person row to move.
+ */
+export type ChartKind = "race" | "stack" | "lines" | "heat";
+
 /** One person plus every derived number. All metrics come from `completions`,
  *  so they can never disagree with each other. */
 export type Learner = {
@@ -119,9 +134,17 @@ export type Learner = {
   streak: number;
   /** Completions per week over the last `SPARK_WEEKS`, oldest first. */
   spark: number[];
+  /** Cumulative XP at the end of each of the last `SPARK_WEEKS` weeks, oldest
+   *  first. The last entry equals `xp`. This is what the line chart plots, and
+   *  it is derived from the same completions as everything else so a line can
+   *  never end somewhere other than the person's XP total. */
+  series: number[];
   tier: TierProgress;
   badges: Badge[];
 };
+
+/** How the three podium slots were drawn out of the configured pool. */
+export type DrawMode = "shuffle" | "typed" | "daily" | "weekly";
 
 /** A group-driven brand: two reference colors and an optional label. */
 export type Brand = {

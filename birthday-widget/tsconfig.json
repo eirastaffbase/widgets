@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES2015",
+    "module": "ES2015",
+    "lib": ["ES2015", "DOM"],
+    "outDir": "./dist",
+    "strict": true,
+    "esModuleInterop": true,
+    "jsx": "react-jsx",
+    "moduleResolution": "node"
+  },
+  "include": ["*.ts", "../tasks/shared/*.ts"],
+  "exclude": ["node_modules"]
+}

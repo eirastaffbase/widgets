@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Upcoming Birthdays — Preview</title>
+<style>
+  body{margin:0;background:#eef1f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    padding:24px 16px;color:#111827}
+  .wrap{max-width:640px;margin:0 auto}
+  .cfg{background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:12px;padding:16px;margin-bottom:20px;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;align-items:end}
+  label{display:block;font-size:12px;font-weight:600;margin-bottom:4px}
+  input,textarea,select{width:100%;font:inherit;font-size:13px;padding:7px 9px;
+    border:1px solid rgba(0,0,0,.16);border-radius:8px;box-sizing:border-box}
+  textarea{resize:vertical;min-height:100px}
+  button{font:inherit;font-size:13px;font-weight:600;padding:8px 14px;border:0;border-radius:8px;
+    background:#0EA5E9;color:#fff;cursor:pointer}
+  .hint{font-size:12px;color:#6b7280;grid-column:1/-1;margin:0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="cfg">
+    <div><label for="baseurl">Base URL (for theme colors)</label>
+      <input id="baseurl" placeholder="https://acme.staffbase.com/api"></div>
+    <div><label for="apitoken">API Token (for theme colors)</label>
+      <input id="apitoken" type="password" placeholder="Basic token"></div>
+    <div style="grid-column:1/-1"><label for="people">People — one per line: Name, +N days</label>
+      <textarea id="people">Laura González, +0
+María Reyes, +3
+Carlos Mendez, +7
+Sofia Hernández, +14
+Javier Torres, +21</textarea></div>
+    <div><label for="widgettitle">Widget Title (optional)</label>
+      <input id="widgettitle" placeholder="Upcoming Birthdays"></div>
+    <div><label for="lang">Language</label>
+      <select id="lang">
+        <option value="en_US" selected>English (en_US)</option>
+        <option value="es_MX">Spanish MX (es_MX)</option>
+      </select></div>
+    <div><button id="go">Render</button></div>
+    <p class="hint">Run <code>npm run build</code> first. Leave Base URL + API Token blank to use default colors.</p>
+  </div>
+  <div id="stage"></div>
+</div>
+
+<script>
+window.defineBlock = function (def) {
+  const d = def.blockDefinition;
+  const Base = class extends HTMLElement {
+    connectedCallback() { this.renderBlock && this.renderBlock(this); }
+    attributeChangedCallback() { this.innerHTML = ""; this.renderBlock && this.renderBlock(this); }
+  };
+  const lang = document.getElementById("lang");
+  const widgetApi = { getContentLanguage: () => lang ? lang.value : "en_US" };
+  customElements.define(d.name, d.factory(Base, widgetApi));
+  window.__blockName = d.name;
+};
+</script>
+<script src="./dist/birthday-widget.js"></script>
+<script>
+function render() {
+  const stage = document.getElementById("stage");
+  stage.innerHTML = "";
+  const el = document.createElement(window.__blockName);
+  [["baseurl","baseurl"],["apitoken","apitoken"],["people","people"],["widgettitle","widgettitle"]].forEach(function([id,attr]) {
+    const v = document.getElementById(id).value.trim();
+    if (v) el.setAttribute(attr, v);
+  });
+  stage.appendChild(el);
+}
+document.getElementById("go").addEventListener("click", render);
+render();
+</script>
+</body>
+</html>

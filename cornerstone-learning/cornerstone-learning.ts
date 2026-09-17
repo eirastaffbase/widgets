@@ -30,12 +30,13 @@ import {
   MAX_BRANDS, applyBrand, loadGroupNames, normalizeHex, readBrands, readViewer,
   resolveBrand, rgbTriplet, fitToSurface,
 } from "./branding";
-import { FILLER_POOL, buildField, metricValue, rank, syntheticPeople } from "./demo";
+import { FILLER_POOL, buildField, drawPodium, gapAhead, metricValue, rank, restOfPool, syntheticPeople } from "./demo";
 import {
-  P, drilldown, esc, footnote, header, keyOf, race, raceRow, podium, formatMetric, metricUnit,
+  P, CHART_KIND, caption, catchUp, drilldown, esc, footnote, gapText, header, isRowChart, keyOf,
+  lines, race, raceRow, rowBody, podium,
 } from "./charts";
 import { S } from "./strings";
-import { BrandMatch, Learner, MetricId, OptsFactory, Person } from "./types";
+import { BrandMatch, DrawMode, Learner, MetricId, OptsFactory, Person } from "./types";
 
 // ── Defaults ─────────────────────────────────────────────────────────────────
 
@@ -47,6 +48,9 @@ const DEFAULT_PRIMARY = "#7C5CFF";
 const DEFAULT_ACCENT = "#3DDC97";
 
 const MAX_FEATURED = 3;
+/** A ceiling on the pasted pool — not a design limit, just a guard against a
+ *  runaway paste turning into a hundred user lookups. */
+const MAX_POOL = 24;
 
 // ── Config schema ────────────────────────────────────────────────────────────
 
@@ -63,7 +67,13 @@ const configurationSchema: JSONSchema7 = {
     apitoken: { type: "string", title: "API Token", default: DEFAULT_API_TOKEN },
     baseurl: { type: "string", title: "Base URL (e.g. https://acme.staffbase.com/api)", default: DEFAULT_BASE_URL },
     authmode: { type: "string", title: "Authentication", enum: ["auto", "token", "session"], default: "auto" },
-    topuserids: { type: "string", title: "Top 3 User IDs (comma-separated, ranked)", default: "" },
+    topuserids: { type: "string", title: "User IDs (comma-separated — as many as you like)", default: "" },
+    podiumdraw: {
+      type: "string", title: "How the Top 3 Are Chosen",
+      enum: ["shuffle", "typed", "daily", "weekly"], default: "shuffle",
+    },
+    drawseed: { type: "string", title: "Draw Seed (change to re-roll)", default: "" },
+    showviewer: { type: "boolean", title: "Add the Logged-In Viewer to the Ranking", default: true },
     fillercount: { type: "number", title: "Demo Peers Below the Top 3", default: 5 },
     defaultmetric: { type: "string", title: "Starting Metric", enum: ["courses", "hours", "xp", "streak"], default: "courses" },
     showmetricswitcher: { type: "boolean", title: "Let Viewers Switch Metric", default: true },
@@ -72,6 +82,9 @@ const configurationSchema: JSONSchema7 = {
     showbadges: { type: "boolean", title: "Show Badges", default: true },
     showstreak: { type: "boolean", title: "Show Streaks", default: true },
     showdrilldown: { type: "boolean", title: "Let Viewers Open Completed Courses", default: true },
+    showcta: { type: "boolean", title: "Show the “Catch Up” Button", default: true },
+    ctalabel: { type: "string", title: "Catch-Up Button Label", default: S.ctaAction },
+    ctaurl: { type: "string", title: "Catch-Up Button Link (optional)", default: "" },
     colorscheme: { type: "string", title: "Color Scheme", enum: ["dark", "light", "auto"], default: "dark" },
     multibranding: { type: "boolean", title: "Multibranding (Color by the Viewer’s Group)", default: false },
     usethemecolors: { type: "boolean", title: "Use Theme Colors", default: true },
@@ -121,8 +134,18 @@ const configurationSchema: JSONSchema7 = {
 const uiSchema = {
   apitoken: { "ui:help": "Basic API token. Stored in the widget configuration, not in source." },
   baseurl: { "ui:help": "Must include /api, e.g. https://acme.staffbase.com/api" },
-  topuserids: { "ui:help": "Up to three Staffbase user IDs. The order you type them is the order they are ranked." },
+  topuserids: {
+    "ui:help": "Any number of Staffbase user IDs. Three of them are drawn for the podium; "
+      + "the rest still appear in the ranking.",
+  },
+  podiumdraw: {
+    "ui:help": "Shuffle picks three from anywhere in the list and keeps them fixed. "
+      + "Typed ranks them in the order you pasted. Daily/Weekly draw a new three each day or week.",
+  },
+  drawseed: { "ui:help": "Any text. Changing it re-rolls which three are drawn, without touching the IDs." },
+  showviewer: { "ui:help": "The person viewing the page joins the ranking as “Tú”, mid-field, so the XP chart and the catch-up button have a subject." },
   fillercount: { "ui:help": "Generated demo colleagues that fill the ranking below the three real users." },
+  ctaurl: { "ui:help": "Where the button goes — your course catalogue. Leave empty to only emit the “cornerstone-learning:catchup” event for the page to handle." },
   multibranding: { "ui:help": "Reads the viewer's groups and themes the widget with the first matching brand." },
   brandpreview: { "ui:help": "Force a brand slot while configuring, since you cannot join every group." },
   brandfallback: { "ui:help": "Theme uses your branch branding; Manual uses the Primary/Accent colors above." },
@@ -318,6 +341,114 @@ ${HOST_RESET}
   background:linear-gradient(90deg,rgba(var(--csl-primary-rgb),.95),var(--csl-accent));
   transition:width var(--dur) var(--ease)}
 .${P}-row:nth-child(1) .${P}-bar-fill{box-shadow:0 0 16px -2px rgba(var(--csl-accent-rgb),.6)}
+
+/* ── Stacked hours ──────────────────────────────────────────────────────── */
+/* The stack keeps the track of a normal bar (so lengths stay comparable across
+   people) and divides its own width into one segment per course. */
+.${P}-bar-stack{display:flex;gap:1.5px;width:var(--w);height:100%;
+  transition:width var(--dur) var(--ease);transform-origin:left center}
+.${P}-seg{flex:0 0 var(--s);height:100%;border-radius:2px;min-width:2px;
+  background:rgba(var(--csl-primary-rgb),.55);cursor:default;
+  transition:transform .18s var(--ease),filter .18s var(--ease)}
+.${P}-seg:first-child{border-top-left-radius:999px;border-bottom-left-radius:999px}
+.${P}-seg:last-child{border-top-right-radius:999px;border-bottom-right-radius:999px}
+.${P}-seg[data-type="event"]{background:rgba(var(--csl-primary-rgb),.85)}
+.${P}-seg[data-req="true"]{background:var(--csl-accent)}
+.${P}-seg:hover{transform:scaleY(1.7);filter:brightness(1.15)}
+
+/* ── Streak heatmap ─────────────────────────────────────────────────────── */
+.${P}-heat{display:flex;gap:4px;margin-top:6px}
+.${P}-heat-c{flex:1 1 0;height:14px;border-radius:3px;background:var(--panel-2);
+  cursor:default;transition:transform .18s var(--ease),background .25s var(--ease)}
+.${P}-heat-c[data-lvl="1"]{background:rgba(var(--csl-primary-rgb),.38)}
+.${P}-heat-c[data-lvl="2"]{background:rgba(var(--csl-primary-rgb),.7)}
+.${P}-heat-c[data-lvl="3"]{background:var(--csl-accent)}
+.${P}-heat-c:hover{transform:scaleY(1.25)}
+
+/* ── XP lines ───────────────────────────────────────────────────────────── */
+.${P}-lines{margin-top:2px}
+.${P}-lines-svg{width:100%;height:auto;overflow:visible}
+.${P}-grid{stroke:rgba(var(--tint),.13);stroke-width:1;stroke-dasharray:3 4}
+.${P}-ytick,.${P}-xtick{fill:var(--ink-2);font-size:10px;font-family:inherit;
+  font-variant-numeric:tabular-nums}
+.${P}-lngrp{cursor:pointer;transition:opacity .22s var(--ease)}
+.${P}-lngrp:focus{outline:none}
+.${P}-lngrp:focus-visible .${P}-ln{stroke-width:3.4}
+/* A 14px transparent stroke under each line: a 2px path is not a hit target,
+   and "hover the line" is the entire interaction. */
+.${P}-ln-hit{fill:none;stroke:transparent;stroke-width:14;pointer-events:stroke}
+.${P}-ln{fill:none;stroke-linejoin:round;stroke-linecap:round;
+  stroke:rgba(var(--tint),.28);stroke-width:1.6;pointer-events:none;
+  transition:stroke-width .2s var(--ease)}
+.${P}-ln-dot{fill:var(--bg-2);stroke:currentColor;stroke-width:2;pointer-events:none}
+.${P}-ln-lbl{fill:var(--ink-2);font-size:10.5px;font-weight:650;font-family:inherit;
+  pointer-events:none}
+.${P}-lngrp[data-role="top"]{color:var(--csl-primary)}
+.${P}-lngrp[data-role="top"] .${P}-ln{stroke:var(--csl-primary);stroke-width:2.2;opacity:.85}
+.${P}-lngrp[data-role="you"]{color:var(--csl-accent)}
+.${P}-lngrp[data-role="you"] .${P}-ln{stroke:var(--csl-accent);stroke-width:3.2;
+  filter:drop-shadow(0 2px 10px rgba(var(--csl-accent-rgb),.55))}
+.${P}-lngrp[data-role="you"] .${P}-ln-lbl{fill:var(--csl-accent);font-weight:800}
+/* One line raised, the rest pushed back — the comparison only reads if the
+   others recede. */
+.${P}-lines[data-on="1"] .${P}-lngrp{opacity:.14}
+.${P}-lines[data-on="1"] .${P}-lngrp.${P}-ln-on{opacity:1}
+.${P}-lines[data-on="1"] .${P}-lngrp.${P}-ln-on .${P}-ln{stroke-width:3.4}
+.${P}-lgd{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:8px;
+  padding-left:2px;font-size:11px;color:var(--ink-2)}
+.${P}-lgd-i{display:inline-flex;align-items:center;gap:6px;font-weight:620}
+.${P}-lgd-i::before{content:"";width:16px;height:3px;border-radius:2px;
+  background:rgba(var(--tint),.3)}
+.${P}-lgd-i[data-role="top"]::before{background:var(--csl-primary)}
+.${P}-lgd-i[data-role="you"]::before{background:var(--csl-accent);height:4px}
+.${P}-lgd-i[data-role="you"]{color:var(--csl-accent)}
+.${P}-lgd-hint{margin-left:auto;opacity:.7}
+.${P}-lines-dd{margin-top:6px;border-top:1px solid var(--line)}
+.${P}-lines-dd .${P}-dd-in{padding:12px 2px 4px}
+
+/* ── You ────────────────────────────────────────────────────────────────── */
+.${P}-you{flex:0 0 auto;padding:1px 6px;border-radius:999px;font-size:9.5px;
+  font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#0B0D12;
+  background:var(--csl-accent)}
+.${P}-row[data-you="1"]{background:rgba(var(--csl-accent-rgb),.07);
+  box-shadow:inset 0 0 0 1px rgba(var(--csl-accent-rgb),.22)}
+.${P}-pod[data-you="1"]{box-shadow:0 0 0 1px rgba(var(--csl-accent-rgb),.45)}
+
+/* ── Catch up ───────────────────────────────────────────────────────────── */
+.${P}-cta{display:flex;align-items:center;gap:13px;margin-top:14px;padding:13px 15px;
+  border-radius:var(--r-sm);
+  background:linear-gradient(120deg,rgba(var(--csl-primary-rgb),.20),rgba(var(--csl-accent-rgb),.10));
+  border:1px solid rgba(var(--csl-primary-rgb),.3)}
+.${P}-cta-ico{display:inline-flex;flex:0 0 auto;width:38px;height:38px;border-radius:50%;
+  align-items:center;justify-content:center;color:var(--csl-accent);
+  background:rgba(var(--csl-accent-rgb),.14)}
+.${P}-cta-txt{flex:1;min-width:0}
+.${P}-cta-title{display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:750}
+.${P}-cta-rank{padding:1px 7px;border-radius:999px;font-size:10px;font-weight:700;
+  color:var(--ink-2);background:var(--panel-2)}
+.${P}-cta-gap{margin-top:2px;font-size:12px;color:var(--ink-2);line-height:1.35}
+.${P}-cta-btn{flex:0 0 auto;gap:7px;padding:9px 15px!important;border-radius:999px!important;
+  font-size:12.5px;font-weight:700;color:#0B0D12!important;
+  background:linear-gradient(120deg,var(--csl-accent),var(--csl-primary))!important;
+  box-shadow:0 10px 24px -12px rgba(var(--csl-accent-rgb),.9);
+  transition:transform .18s var(--ease),box-shadow .18s var(--ease)}
+.${P}-cta-btn:hover{transform:translateY(-1px);
+  box-shadow:0 14px 28px -12px rgba(var(--csl-accent-rgb),1)}
+.${P}-cta-btn:active{transform:translateY(0)}
+.${P}-cta-btn:focus-visible{outline:2px solid var(--csl-accent);outline-offset:3px}
+/* Pressing the button with no URL configured has nothing visible to do — the
+   page is listening for the event instead — so the press acknowledges itself. */
+.${P}-cta-btn[data-pulse="1"]{animation:${P}-pulse .6s var(--ease)}
+@keyframes ${P}-pulse{
+  0%{transform:scale(1)}
+  35%{transform:scale(1.06)}
+  100%{transform:scale(1)}}
+.${P}-cta[data-done="1"] .${P}-cta-gap{color:var(--csl-accent)}
+
+/* ── Caption ────────────────────────────────────────────────────────────── */
+.${P}-cap{display:flex;align-items:center;gap:6px;margin:0 0 9px 2px;font-size:11px;
+  font-weight:600;letter-spacing:.01em;color:var(--ink-2)}
+.${P}-cap svg{opacity:.8}
 .${P}-row-sub{display:flex;align-items:center;gap:6px;margin-top:5px;min-height:0}
 .${P}-row-sub:empty{display:none}
 .${P}-streak{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;
@@ -387,10 +518,30 @@ ${HOST_RESET}
 .${P}-root[data-anim="1"] .${P}-reveal .${P}-bar-fill{
   animation:${P}-grow .7s var(--ease) both;
   animation-delay:calc(var(--i,0) * 55ms + 90ms)}
+.${P}-root[data-anim="1"] .${P}-reveal .${P}-bar-stack{
+  animation:${P}-grow .7s var(--ease) both;
+  animation-delay:calc(var(--i,0) * 55ms + 90ms)}
+.${P}-root[data-anim="1"] .${P}-reveal .${P}-heat-c{
+  opacity:0;animation:${P}-pop .4s var(--ease) forwards;
+  animation-delay:calc(var(--i,0) * 45ms + 120ms)}
+/* The line draws itself: dasharray is set to the path length in JS (SVG cannot
+   express "my own length" in CSS), then the offset is animated to zero. A path
+   that simply appeared would lose the sense of accumulation the chart is for. */
+.${P}-root[data-anim="1"] .${P}-reveal .${P}-ln[data-len]{
+  stroke-dasharray:var(--len);stroke-dashoffset:var(--len);
+  animation:${P}-draw 1.05s var(--ease) forwards;
+  animation-delay:calc(var(--i,0) * 70ms)}
+.${P}-root[data-anim="1"] .${P}-reveal .${P}-ln-dot,
+.${P}-root[data-anim="1"] .${P}-reveal .${P}-ln-lbl{
+  opacity:0;animation:${P}-in .4s var(--ease) forwards;animation-delay:.75s}
+.${P}-root[data-anim="1"] .${P}-reveal .${P}-cta{
+  opacity:0;animation:${P}-in .5s var(--ease) forwards;animation-delay:.42s}
 .${P}-root[data-anim="1"] .${P}-cc{
   opacity:0;animation:${P}-in .34s var(--ease) forwards;
   animation-delay:calc(var(--i,0) * 40ms)}
 @keyframes ${P}-in{to{opacity:1;transform:none}}
+@keyframes ${P}-pop{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:none}}
+@keyframes ${P}-draw{to{stroke-dashoffset:0}}
 @keyframes ${P}-grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 /* FLIP: the row is put back at its old offset with no transition, then released
    on the next frame with one. */
@@ -414,6 +565,13 @@ ${HOST_RESET}
   .${P}-dd-in,.${P}-dd-empty{padding-left:12px}
   .${P}-tabs{width:100%;justify-content:space-between}
   .${P}-tab{flex:1;padding:7px 8px!important}
+  .${P}-cta{flex-wrap:wrap;gap:10px;padding:12px}
+  .${P}-cta-btn{width:100%!important;justify-content:center}
+  .${P}-lgd-hint{display:none}
+  /* The SVG scales down with the container, so text inside it has to scale up
+     to stay legible — these are viewBox units, not CSS pixels. */
+  .${P}-ln-lbl{font-size:13px}
+  .${P}-ytick,.${P}-xtick{font-size:12px}
 }
 `;
 
@@ -504,11 +662,14 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
       let match: BrandMatch = await baseTheme();
 
+      // Read once, up front: the same identity answers two questions — which
+      // brand to paint, and who "Tú" is in the ranking.
+      const viewer = await readViewer(widgetApi, log);
+
       if (bool("multibranding", false)) {
         const brands = readBrands(attr);
         const fallbackKind = attr("brandfallback") || "theme";
         const fallback: BrandMatch = fallbackKind === "manual" ? manual : match;
-        const viewer = await readViewer(widgetApi, log);
         const groupNames = await loadGroupNames(http, baseUrl, tokenFirst, brands, log);
         match = resolveBrand({
           brands, viewer, groupNames,
@@ -519,40 +680,92 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       applyBrand(root, match);
 
       // ── People ──
-      const ids = attr("topuserids").split(",").map(s => s.trim()).filter(Boolean).slice(0, MAX_FEATURED);
-      const featured: Person[] = [];
+      //
+      // The admin pastes a pool, not a podium. Everyone in it is resolved and
+      // everyone in it appears; the draw decides which three are on top (see
+      // `drawPodium`), so the same configuration can show a different three
+      // without anyone editing it.
+      const ids = attr("topuserids").split(",").map(s => s.trim()).filter(Boolean).slice(0, MAX_POOL);
+      const canFetch = !!baseUrl && (!!apiToken || authMode !== "token");
+      const pool: Person[] = [];
 
-      if (baseUrl && ids.length && (apiToken || authMode !== "token")) {
+      if (canFetch && ids.length) {
         const found = await Promise.all(ids.map(id => fetchUserById(http, baseUrl, id, tokenFirst)));
         for (let i = 0; i < found.length; i++) {
-          const p = found[i];
-          if (!p) { log(`user ${ids[i]} could not be resolved — using a demo peer`); continue; }
-          // Podium portraits are 92px; /users gives a 48px icon, so the public
-          // profile is worth one extra request for these three only.
-          const prof = await fetchPublicProfile(http, baseUrl, p.id, sessionFirst);
-          if (prof?.avatar) p.avatar = prof.avatar;
-          if (!p.position && prof?.position) p.position = prof.position;
-          if (!p.department && prof?.department) p.department = prof.department;
-          p.avatar = hiResAvatar(p.avatar, 200);
-          featured.push(p);
+          if (!found[i]) { log(`user ${ids[i]} could not be resolved — skipped`); continue; }
+          pool.push(found[i] as Person);
         }
       } else if (ids.length) {
         log("no base URL or token — falling back to demo people");
       }
 
-      // Any unresolved slot becomes a demo peer, so the podium is never short.
+      const drawMode = (attr("podiumdraw") || "shuffle") as DrawMode;
+      const drawSeed = `${attr("drawseed")}|${ids.join(",")}`;
+      const drawn = drawPodium(pool.length, drawMode, drawSeed, MAX_FEATURED);
+      const featured: Person[] = drawn.map(i => pool[i]).filter(Boolean);
+      const others: Person[] = restOfPool(pool, drawn);
+      log("draw", drawMode, `— pool ${pool.length}, podium`,
+        featured.map(p => p.name).join(" / ") || "(none)");
+
+      // Podium portraits are 92px and /users only returns a 48px icon, so the
+      // public profile is worth one extra request — but only for the three who
+      // are actually shown at that size.
+      for (const p of featured) {
+        if (!canFetch) break;
+        const prof = await fetchPublicProfile(http, baseUrl, p.id, sessionFirst);
+        if (prof?.avatar) p.avatar = prof.avatar;
+        if (!p.position && prof?.position) p.position = prof.position;
+        if (!p.department && prof?.department) p.department = prof.department;
+        p.avatar = hiResAvatar(p.avatar, 200);
+      }
+
+      // Any unfilled slot becomes a demo peer, so the podium is never short.
       // These take names from the front of the pool and `buildField` fills from
       // `featured.length` onward, so no two rows can show the same name.
-      if (featured.length < Math.max(1, ids.length || MAX_FEATURED)) {
-        const want = Math.max(1, ids.length || MAX_FEATURED) - featured.length;
-        for (const p of syntheticPeople(want, 0)) featured.push(p);
+      if (featured.length < MAX_FEATURED) {
+        for (const p of syntheticPeople(MAX_FEATURED - featured.length, featured.length)) {
+          featured.push(p);
+        }
+      }
+
+      // ── The viewer ──
+      //
+      // Adding the logged-in person to the field is what makes the XP chart a
+      // comparison and the catch-up button a request. If they are already in
+      // the configured pool they are simply flagged; otherwise they join as an
+      // extra participant, mid-field by construction (see `buildField`).
+      if (bool("showviewer", true)) {
+        const already = featured.concat(others).filter(p => p.id && p.id === viewer.id)[0];
+        if (already) {
+          already.isViewer = true;
+          log("viewer is in the configured pool —", already.name);
+        } else {
+          let me: Person | null = null;
+          if (canFetch && viewer.id) me = await fetchUserById(http, baseUrl, viewer.id, sessionFirst);
+          if (me) {
+            me.avatar = hiResAvatar(me.avatar, 120);
+            me.isViewer = true;
+            others.push(me);
+            log("viewer joined the field —", me.name);
+          } else {
+            // No session (editor preview, logged-out render, failed lookup) —
+            // a generic "Tú" row still demonstrates the comparison, and is
+            // clearly not claiming to be a real person.
+            others.push({
+              id: "", name: S.you, avatar: "", position: "", department: "",
+              synthetic: true, isViewer: true,
+            });
+            log("viewer could not be resolved — showing a generic “Tú” row");
+          }
+        }
       }
 
       // Capped so the peer names never wrap the pool and start repeating.
       const fillerCount = Math.max(0, Math.min(
         FILLER_POOL - featured.length, Math.round(num("fillercount", 5))));
-      const learners = buildField(featured, fillerCount);
-      log("field", learners.length, "learners;", featured.filter(p => !p.synthetic).length, "real");
+      const learners = buildField(featured, others, fillerCount);
+      const realCount = featured.concat(others).filter(p => !p.synthetic).length;
+      log("field", learners.length, "learners;", realCount, "real");
 
       // ── Render ──
       const opts = {
@@ -569,18 +782,63 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const startMetric = attr("defaultmetric");
       let metric: MetricId = validMetric(startMetric) ? startMetric : "courses";
 
+      const showCta = bool("showcta", true);
+      const ctaLabel = attr("ctalabel") || S.ctaAction;
+      const ctaUrl = attr("ctaurl");
+      const viewerKey = (learners.filter(l => l.person.isViewer)[0] || { key: "" }).key;
+
       let ranked = rank(learners, metric);
+
+      /** The chart itself. Which shape appears is a property of the metric, not
+       *  of the render call — see `CHART_KIND`. */
+      const area = (m: MetricId): string => {
+        if (CHART_KIND[m] === "lines") {
+          // Lines are a comparison, so they plot the whole field including the
+          // podium — leaving the leaders out would remove the thing the viewer
+          // is measuring themselves against.
+          return lines(ranked, viewerKey);
+        }
+        return race(showPodium ? ranked.slice(3) : ranked, m, opts);
+      };
+
+      const gapNow = () => gapAhead(learners, metric);
 
       const paint = () => {
         body.innerHTML = `
           ${header(match.label, metric, showSwitcher)}
           <div class="${P}-charts">
             ${showPodium ? podium(ranked.slice(0, 3), metric, showTier, opts.badges) : ""}
-            ${race(showPodium ? ranked.slice(3) : ranked, metric, opts)}
+            ${caption(metric)}
+            <div class="${P}-area" data-kind="${CHART_KIND[metric]}">${area(metric)}</div>
+            ${showCta ? catchUp(gapNow(), metric, ctaLabel, ctaUrl) : ""}
           </div>
           ${bool("showdemonote", true) ? footnote() : ""}
           ${debug ? `<pre class="${P}-dbg">${esc(logs.join("\n"))}</pre>` : ""}`;
+        measureLines();
       };
+
+      /**
+       * SVG cannot express "dash me by my own length" in CSS, so the draw-on
+       * animation needs the measured path length written back as a custom
+       * property. Guarded because `getTotalLength` does not exist in every
+       * rendering context (jsdom, for one), and a missing measurement must
+       * leave a fully drawn line rather than an invisible one.
+       */
+      function measureLines() {
+        const paths = Array.prototype.slice.call(
+          body.querySelectorAll(`.${P}-ln`)) as any[];
+        paths.forEach((p, i) => {
+          if (typeof p.getTotalLength !== "function") return;
+          let len = 0;
+          try { len = p.getTotalLength(); } catch (_) { return; }
+          if (!len) return;
+          p.style.setProperty("--len", `${Math.ceil(len)}`);
+          p.setAttribute("data-len", "1");
+          const grp = p.parentElement as HTMLElement | null;
+          if (grp) grp.style.setProperty("--i", String(i));
+        });
+      }
+
       paint();
 
       // ── Reveal ──
@@ -638,16 +896,27 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         rafId = requestAnimationFrame(step);
       }
 
-      // ── Metric switch, with FLIP ──
+      // ── Metric switch ──
       //
-      // Rows are *moved*, not re-rendered: the DOM node for a person keeps its
-      // identity so it can be measured before and after, then transformed back
-      // to where it was and released. Re-rendering the list would make the
-      // ranking change instantly and invisibly — the reorder is the whole point
-      // of an interactive bar race.
+      // Two different transitions, because there are two different kinds of
+      // change.
+      //
+      // Between the three row charts (cursos / horas / racha) the *people* stay
+      // and only their order and their middles change, so rows are moved rather
+      // than re-rendered: each node keeps its identity, gets measured before and
+      // after, is put back where it was and released (FLIP). That is what makes
+      // the ranking visibly race instead of silently snapping — and it is why an
+      // open drilldown travels with its person instead of closing.
+      //
+      // To or from the XP lines there are no rows to move, so that one
+      // transition rebuilds the chart area behind a fade. Pretending otherwise
+      // would mean animating nodes into nodes they have nothing to do with.
       function switchMetric(next: MetricId) {
         if (next === metric) return;
+        const prev = metric;
         metric = next;
+
+        const wrap = body.querySelector(`.${P}-area`) as HTMLElement | null;
         const list = body.querySelector(`.${P}-race`) as HTMLElement | null;
         const before = new Map<string, number>();
         const rows = list
@@ -657,25 +926,46 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
         ranked = rank(learners, metric);
 
-        // The podium is a different shape per rank, so it is rebuilt; the race
+        // The podium is a different shape per rank, so it is rebuilt; the row
         // list is the part that animates.
         const podWrap = body.querySelector(`.${P}-podium`) as HTMLElement | null;
         if (podWrap && showPodium) {
           podWrap.outerHTML = podium(ranked.slice(0, 3), metric, showTier, opts.badges);
         }
 
-        const tail = showPodium ? ranked.slice(3) : ranked;
-        if (list) {
+        const capEl = body.querySelector(`.${P}-cap`) as HTMLElement | null;
+        if (capEl) capEl.outerHTML = caption(metric);
+
+        const sameShape = isRowChart(prev) && isRowChart(metric) && !!list;
+        if (wrap) wrap.setAttribute("data-kind", CHART_KIND[metric]);
+
+        if (!sameShape) {
+          if (wrap) {
+            wrap.innerHTML = area(metric);
+            measureLines();
+            // Re-arm the entry animation for the chart that just appeared: the
+            // reveal class lives on the container, so it has to be taken off
+            // and put back for the new children to run it.
+            const c = charts();
+            if (animate && c) {
+              c.classList.remove(`${P}-reveal`);
+              void c.offsetWidth; // force reflow, or the class never left
+              c.classList.add(`${P}-reveal`);
+            }
+          }
+        } else if (list) {
           const byKey = new Map<string, HTMLElement>();
           for (const r of rows) byKey.set(r.getAttribute("data-key") || "", r);
+          const tail = showPodium ? ranked.slice(3) : ranked;
           const max = Math.max(...tail.map(l => metricValue(l, metric)), 0);
           const wanted = new Set(tail.map(l => keyOf(l)));
+          list.setAttribute("data-kind", CHART_KIND[metric]);
 
           // Membership changes, not just order: switching metric can promote a
-          // race row onto the podium and drop a podium person into the list. A
-          // row whose person is now on the podium has to go, and a newcomer has
-          // to be built — reusing whatever happened to be there would leave a
-          // row showing another person's numbers.
+          // row onto the podium and drop a podium person into the list. A row
+          // whose person is now on the podium has to go, and a newcomer has to
+          // be built — reusing whatever happened to be there would leave a row
+          // showing another person's numbers.
           for (const r of rows) {
             if (!wanted.has(r.getAttribute("data-key") || "")) r.remove();
           }
@@ -693,19 +983,12 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
             row.style.setProperty("--i", String(i));
             const rankEl = row.querySelector(`.${P}-rank`);
             if (rankEl) rankEl.textContent = String(i + 1);
-            const fill = row.querySelector(`.${P}-bar-fill`) as HTMLElement | null;
-            const v = metricValue(l, metric);
-            if (fill) fill.style.setProperty("--w", `${Math.max(6, max > 0 ? (v / max) * 100 : 0).toFixed(2)}%`);
-            const numEl = row.querySelector(`.${P}-num`) as HTMLElement | null;
-            if (numEl) {
-              numEl.setAttribute("data-count", String(v));
-              numEl.setAttribute("data-dec", metric === "hours" ? "1" : "0");
-              numEl.textContent = formatMetric(l, metric);
-            }
-            const unitEl = row.querySelector(`.${P}-unit`);
-            if (unitEl) unitEl.textContent = metricUnit(l, metric);
-            // An open drilldown belongs to a person, not a rank, so it stays
-            // open and simply travels with them.
+            // The whole middle is swapped, because the *shape* may have changed
+            // (a bar becomes a stack becomes a grid) and not merely its size.
+            // The drilldown panel and the open state live outside this node, so
+            // they survive untouched.
+            const bodyEl = row.querySelector(`.${P}-row-body`) as HTMLElement | null;
+            if (bodyEl) bodyEl.innerHTML = rowBody(l, metric, max, opts);
           });
 
           if (animate) {
@@ -732,6 +1015,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           }
         }
 
+        // The gap is in the units of whatever is on screen, so it is rewritten
+        // with the chart rather than left saying "2 cursos" under an XP view.
+        updateCta();
+
         // Tabs
         const tabs = Array.prototype.slice.call(
           body.querySelectorAll(`.${P}-tab`)) as HTMLElement[];
@@ -743,6 +1030,18 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         moveInk();
         if (rafId) cancelAnimationFrame(rafId);
         countUp();
+      }
+
+      /** Keeps the catch-up sentence true for the metric on screen. */
+      function updateCta() {
+        const cta = body.querySelector(`.${P}-cta`) as HTMLElement | null;
+        if (!cta) return;
+        const info = gapNow();
+        const gapEl = cta.querySelector(`.${P}-cta-gap`) as HTMLElement | null;
+        if (gapEl) gapEl.textContent = gapText(info, metric);
+        const rankEl = cta.querySelector(`.${P}-cta-rank`) as HTMLElement | null;
+        if (rankEl && info) rankEl.textContent = S.ctaRankOf(info.rank, info.total);
+        cta.setAttribute("data-done", info && info.rank === 1 ? "1" : "0");
       }
 
       /** The sliding pill behind the active tab. Measured rather than computed
@@ -782,14 +1081,88 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         main?.setAttribute("aria-expanded", "true");
       }
 
+      /** The XP chart's equivalent of a drilldown: one shared panel under the
+       *  lines, because the lines cross and a per-person panel would have
+       *  nowhere sensible to open. Clicking the same line again closes it. */
+      function toggleLine(key: string) {
+        const panel = body.querySelector(`.${P}-lines-dd`) as HTMLElement | null;
+        if (!panel || !opts.drilldown) return;
+        if (panel.getAttribute("data-key") === key) {
+          panel.hidden = true;
+          panel.innerHTML = "";
+          panel.removeAttribute("data-key");
+          return;
+        }
+        const learner = learners.filter(l => keyOf(l) === key)[0];
+        if (!learner) return;
+        panel.innerHTML = drilldown(learner);
+        panel.hidden = false;
+        panel.setAttribute("data-key", key);
+      }
+
+      /** Raise one line and push the rest back. Attribute-driven rather than
+       *  CSS `:has`, which is still too new to rely on inside a host page we do
+       *  not control. */
+      function emphasize(grp: Element | null) {
+        const wrap = body.querySelector(`.${P}-lines`) as HTMLElement | null;
+        if (!wrap) return;
+        const all = Array.prototype.slice.call(
+          wrap.querySelectorAll(`.${P}-lngrp`)) as Element[];
+        for (const g of all) g.classList.remove(`${P}-ln-on`);
+        if (grp) {
+          grp.classList.add(`${P}-ln-on`);
+          wrap.setAttribute("data-on", "1");
+        } else {
+          wrap.removeAttribute("data-on");
+        }
+      }
+
+      const onOver = (ev: Event) => {
+        const t = ev.target as Element;
+        if (!t || typeof t.closest !== "function") return;
+        const grp = t.closest(`.${P}-lngrp`);
+        if (grp) { emphasize(grp); return; }
+        // Leaving the chart entirely is the only thing that clears it — moving
+        // between two lines should hand off, not flicker through neutral.
+        if (!t.closest(`.${P}-lines-svg`)) emphasize(null);
+      };
+
+      const onCatchUp = (ev: Event) => {
+        const info = gapNow();
+        const detail = {
+          metric,
+          gap: info ? info.gap : 0,
+          rank: info ? info.rank : 0,
+          total: info ? info.total : learners.length,
+          target: info ? info.target.person.name : "",
+        };
+        // Dispatched whether or not a URL is configured, so a page that hosts
+        // the course grid can scroll to it (or open its own filter) instead of
+        // navigating away. When a URL *is* set the link's default is left
+        // alone, so the event and the navigation both happen.
+        host.dispatchEvent(new CustomEvent("cornerstone-learning:catchup", {
+          detail, bubbles: true, composed: true,
+        }));
+        log("catch-up pressed —", JSON.stringify(detail));
+        if (!ctaUrl) {
+          const btn = (ev.target as HTMLElement).closest(`.${P}-cta-btn`) as HTMLElement | null;
+          btn?.setAttribute("data-pulse", "1");
+          window.setTimeout(() => btn?.removeAttribute("data-pulse"), 600);
+        }
+      };
+
       const onClick = (ev: Event) => {
         const target = ev.target as HTMLElement;
+        if (!target || typeof target.closest !== "function") return;
         const tab = target.closest(`.${P}-tab`) as HTMLElement | null;
         if (tab) {
           const m = tab.getAttribute("data-metric") || "";
           if (validMetric(m)) switchMetric(m);
           return;
         }
+        if (target.closest(`[data-cta="1"]`)) { onCatchUp(ev); return; }
+        const grp = target.closest(`.${P}-lngrp`);
+        if (grp) { toggleLine(grp.getAttribute("data-key") || ""); return; }
         // Avatar and name are real profile links; opening the drilldown instead
         // would break the hovercard affordance Staffbase users expect.
         if (target.closest(`.${P}-avlink`) || target.closest("a[data-uid]")) return;
@@ -803,6 +1176,13 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       const onKey = (ev: KeyboardEvent) => {
         if (ev.key !== "Enter" && ev.key !== " ") return;
         const target = ev.target as HTMLElement;
+        if (!target || typeof target.closest !== "function") return;
+        const grp = target.closest(`.${P}-lngrp`);
+        if (grp) {
+          ev.preventDefault();
+          toggleLine(grp.getAttribute("data-key") || "");
+          return;
+        }
         const main = target.closest(`.${P}-row-main[role="button"]`) as HTMLElement | null;
         if (!main) return;
         ev.preventDefault();
@@ -810,13 +1190,25 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         if (row) toggleRow(row);
       };
 
+      // Keyboard focus moves the emphasis too, so tabbing through the lines
+      // tells the same story as hovering them.
+      const onFocusIn = (ev: Event) => {
+        const t = ev.target as Element;
+        if (!t || typeof t.closest !== "function") return;
+        emphasize(t.closest(`.${P}-lngrp`));
+      };
+
       body.addEventListener("click", onClick);
       body.addEventListener("keydown", onKey);
+      body.addEventListener("mouseover", onOver);
+      body.addEventListener("focusin", onFocusIn);
       window.addEventListener("resize", moveInk);
 
       (this as any)._cslCleanup = () => {
         body.removeEventListener("click", onClick);
         body.removeEventListener("keydown", onKey);
+        body.removeEventListener("mouseover", onOver);
+        body.removeEventListener("focusin", onFocusIn);
         window.removeEventListener("resize", moveInk);
         if (rafId) cancelAnimationFrame(rafId);
         observer?.disconnect();
@@ -836,9 +1228,11 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 };
 
 const ATTRS = [
-  "apitoken", "baseurl", "authmode", "topuserids", "fillercount", "defaultmetric",
+  "apitoken", "baseurl", "authmode", "topuserids", "podiumdraw", "drawseed",
+  "showviewer", "fillercount", "defaultmetric",
   "showmetricswitcher", "showpodium", "showtierbar", "showbadges", "showstreak",
-  "showdrilldown", "colorscheme", "multibranding", "brandfallback", "brandpreview",
+  "showdrilldown", "showcta", "ctalabel", "ctaurl",
+  "colorscheme", "multibranding", "brandfallback", "brandpreview",
   "usethemecolors", "primarycolor", "accentcolor", "animate", "showdemonote", "debugmode",
 ].concat((() => {
   const out: string[] = [];

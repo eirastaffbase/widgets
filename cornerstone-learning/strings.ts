@@ -30,6 +30,40 @@ export const S = {
   streakWeeks: "Últimas 6 semanas",
   streakNone: "Sin racha activa",
 
+  // ── Per-metric chart captions ──
+  capCourses: "Cursos completados por persona",
+  capHours: "Cómo se reparten las horas entre cursos",
+  capXp: "XP acumulado en las últimas 6 semanas",
+  capStreak: "Actividad semana a semana",
+
+  // ── Line chart ──
+  you: "Tú",
+  youLong: "Tú",
+  lineYou: "Tu progreso",
+  lineOthers: "Compañeros",
+  lineLeader: "Líder",
+  lineHint: "Pasa el cursor por una persona para resaltar su línea",
+  weekLabel: (n: number) => (n === 0 ? "Esta sem." : `-${n} sem.`),
+  xpAt: (xp: number, week: string) => `${xp} XP · ${week}`,
+
+  // ── Heatmap ──
+  heatHint: "Cada cuadro es una semana",
+  heatNone: "Sin actividad",
+  heatWeek: (n: number, week: string) => `${n} · ${week}`,
+
+  // ── Catch-up ──
+  ctaTitle: "¡Ponte al día!",
+  ctaAction: "Haz más cursos",
+  ctaGapCourses: (n: number, name: string) =>
+    `Te ${n === 1 ? "falta" : "faltan"} ${n} ${n === 1 ? "curso" : "cursos"} para alcanzar a ${name}`,
+  ctaGapHours: (n: string, name: string) => `Te faltan ${n} h para alcanzar a ${name}`,
+  ctaGapXp: (n: number, name: string) => `Te faltan ${n} XP para alcanzar a ${name}`,
+  ctaGapStreak: (n: number, name: string) =>
+    `Te ${n === 1 ? "falta" : "faltan"} ${n} ${n === 1 ? "semana" : "semanas"} para alcanzar a ${name}`,
+  ctaLeading: "Vas en cabeza. Mantén la racha con un curso más.",
+  ctaGeneric: "Suma cursos y escala posiciones en la clasificación.",
+  ctaRankOf: (rank: number, total: number) => `Puesto ${rank} de ${total}`,
+
   badgesTitle: "Insignias",
   noBadges: "Aún sin insignias",
 

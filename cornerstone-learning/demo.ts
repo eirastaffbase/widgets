@@ -19,9 +19,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { BADGES, COURSES, REQUIRED_COUNT, SPARK_WEEKS, TIERS, courseXp } from "./catalogue";
-import { Badge, Completion, Course, Learner, MetricId, Person, TierProgress } from "./types";
+import { Badge, Completion, Course, DrawMode, Learner, MetricId, Person, TierProgress } from "./types";
 
 const WEEK = 7 * 24 * 60 * 60 * 1000;
+const DAY = 24 * 60 * 60 * 1000;
 
 // ── Seeded randomness ────────────────────────────────────────────────────────
 
@@ -81,6 +82,59 @@ export function syntheticPeople(count: number, offset = 0): Person[] {
     });
   }
   return out;
+}
+
+// ── Drawing the podium out of the pool ───────────────────────────────────────
+
+/**
+ * Choose which `count` of the configured people stand on the podium.
+ *
+ * The admin pastes as many user IDs as they like; only three fit on a podium.
+ * Taking the first three would make the configuration order the answer, and the
+ * same three faces would be on the demo forever. Taking them with `Math.random`
+ * would reshuffle on every reload, which looks broken — the podium would change
+ * while the viewer watched, and two people looking at the same screen would
+ * disagree.
+ *
+ * So the draw is *seeded*: random-looking, picked from anywhere in the array,
+ * and identical for every viewer until something deliberately changes it. What
+ * counts as "deliberately" is the mode:
+ *
+ *   shuffle — fixed. Re-roll by editing the seed field.
+ *   typed   — no draw at all; the order pasted is the order ranked.
+ *   daily   — the period is folded into the seed, so a new three appear each day.
+ *   weekly  — same, per week.
+ *
+ * Returns indices into `ids`, in the order drawn — which becomes the rank
+ * order, so who wins varies too, not just who appears.
+ */
+export function drawPodium(
+  poolSize: number, mode: DrawMode, seed: string, count: number, now = Date.now(),
+): number[] {
+  const idx: number[] = [];
+  for (let i = 0; i < poolSize; i++) idx.push(i);
+  if (mode === "typed" || poolSize <= count) return idx.slice(0, count);
+
+  const period = mode === "daily" ? Math.floor(now / DAY)
+    : mode === "weekly" ? Math.floor(now / WEEK)
+      : 0;
+  const rand = prng(hashSeed(`${seed}|${poolSize}|${period}`));
+
+  // Fisher–Yates over the whole array, so slot 1 can come from the end of the
+  // list just as easily as the start.
+  for (let i = idx.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    const t = idx[i]; idx[i] = idx[j]; idx[j] = t;
+  }
+  return idx.slice(0, count);
+}
+
+/** The complement of a draw, in the original order — the configured people who
+ *  did not make the podium. They are still real users and still appear; being
+ *  left out of the draw must not delete someone from the leaderboard. */
+export function restOfPool<T>(pool: T[], drawn: number[]): T[] {
+  const taken = new Set(drawn);
+  return pool.filter((_, i) => !taken.has(i));
 }
 
 // ── History generation ───────────────────────────────────────────────────────
@@ -167,6 +221,31 @@ function sparkOf(completions: Completion[], now: number): number[] {
   return bins;
 }
 
+/**
+ * Cumulative XP at the end of each week in the window, oldest first.
+ *
+ * Derived from the same completions as the XP total, so the last point of a
+ * line is always exactly the number shown next to that person's name — a chart
+ * that ended somewhere else would undermine every other figure on the widget.
+ * Cumulative rather than per-week because the story the XP view tells is "who
+ * is pulling ahead", which is about the slope, not the spikes.
+ */
+function seriesOf(completions: Completion[], now: number): number[] {
+  const perWeek = new Array(SPARK_WEEKS).fill(0);
+  for (const c of completions) {
+    const w = weekIndex(c.at, now);
+    const bin = SPARK_WEEKS - 1 - w;
+    // Anything older than the window still counts, folded into the first bucket,
+    // so the line starts from where the person already was.
+    const at = w >= SPARK_WEEKS ? 0 : Math.max(0, bin);
+    perWeek[at] += courseXp(c.course.required, c.course.type, c.onTime);
+  }
+  const out: number[] = [];
+  let run = 0;
+  for (let i = 0; i < SPARK_WEEKS; i++) { run += perWeek[i]; out.push(run); }
+  return out;
+}
+
 export function tierOf(xp: number): TierProgress {
   let i = 0;
   while (i < TIERS.length - 1 && xp >= TIERS[i].to) i++;
@@ -233,6 +312,7 @@ function fromCompletions(person: Person, index: number, completions: Completion[
     xp,
     streak,
     spark: sparkOf(completions, now),
+    series: seriesOf(completions, now),
     tier: tierOf(xp),
     badges: badgesOf(completions, streak, now),
   };
@@ -291,17 +371,24 @@ function enforceAbove(hi: Completion[], lo: Completion[]): void {
 /**
  * Build the whole field.
  *
- * `featured` are the real, configured people, and the order they were typed in
+ * `featured` are the people drawn for the podium, and the order they were drawn
  * is the order they are ranked — on **cursos** and **XP**. That is guaranteed
  * rather than hoped for: course counts descend by slot by construction, and the
  * XP ladder is enforced afterwards.
+ *
+ * `others` are real people who exist but were not drawn — the rest of the
+ * configured pool, plus the viewer. They are capped below the podium band so
+ * the draw means something, but they are otherwise ordinary participants with
+ * real names, avatars and profile links.
  *
  * *Horas* and *racha* deliberately do not inherit the pinning. They are
  * genuinely derived from the same histories, so switching metric reorders even
  * the podium — a leaderboard whose switch changes nothing is a picture, not a
  * chart.
  */
-export function buildField(featured: Person[], fillerCount: number, now = Date.now()): Learner[] {
+export function buildField(
+  featured: Person[], others: Person[], fillerCount: number, now = Date.now(),
+): Learner[] {
   // Generate every featured history first, then rank the *histories* and pair
   // them with people by slot. Determinism survives: the same people in the same
   // order always produce the same pairing.
@@ -311,26 +398,66 @@ export function buildField(featured: Person[], fillerCount: number, now = Date.n
   histories.sort((a, b) => b.length - a.length || xpOf(b) - xpOf(a));
   for (let i = 1; i < histories.length; i++) enforceAbove(histories[i - 1], histories[i]);
 
-  // Demo peers are hard-capped one course below the weakest featured slot.
-  // Without the cap a generated peer occasionally ties the third real person and
-  // takes the podium spot the admin explicitly configured.
-  const people = syntheticPeople(fillerCount, featured.length);
+  // Everyone below the podium is hard-capped one course under the weakest
+  // featured slot. Without the cap a generated peer occasionally ties the third
+  // real person and takes the podium spot the draw explicitly assigned.
   const cap = Math.max(1, featuredCount(Math.max(0, featured.length - 1)) - 1);
-  const fillerHistories = people.map((p, i) => {
-    const strength = Math.max(0.12, 0.62 - i * 0.07);
-    const count = Math.max(1, Math.min(cap, Math.round(cap * strength) + (i % 2)));
-    return makeCompletions(hashSeed(p.id || `${p.name}#${featured.length + i}`), strength, now, count);
+
+  const chasers = others.slice();
+  // The filler offset counts only the slots that actually consumed a name from
+  // the pool — the featured band. Chasers are real users (or the viewer, who is
+  // called "Tú"), so they take no filler name and must not push the offset far
+  // enough to wrap it back onto the names already in use.
+  const peers = syntheticPeople(fillerCount, featured.length);
+  const below = chasers.concat(peers);
+
+  const belowHistories = below.map((p, i) => {
+    // The viewer is placed mid-pack on purpose. Top of the field and the
+    // catch-up button has nothing to ask for; bottom and the gap is dispiriting
+    // rather than motivating. Mid-pack is where "one more course" is true.
+    const strength = p.isViewer ? 0.5 : Math.max(0.12, 0.62 - i * 0.07);
+    const count = p.isViewer
+      ? Math.max(1, Math.min(cap, Math.round(cap * 0.6)))
+      : Math.max(1, Math.min(cap, Math.round(cap * strength) + (i % 2)));
+    return makeCompletions(
+      hashSeed(p.id || `${p.name}#${featured.length + i}`), strength, now, count);
   });
 
   // A short-but-compliance-heavy peer can still out-XP the third real person, so
   // the same ladder is applied across the boundary.
   const weakest = histories[histories.length - 1];
-  if (weakest) for (const h of fillerHistories) enforceAbove(weakest, h);
+  if (weakest) for (const h of belowHistories) enforceAbove(weakest, h);
 
   const learners: Learner[] = [];
   featured.forEach((p, i) => learners.push(fromCompletions(p, i, histories[i], now)));
-  people.forEach((p, i) => learners.push(fromCompletions(p, featured.length + i, fillerHistories[i], now)));
+  below.forEach((p, i) => learners.push(
+    fromCompletions(p, featured.length + i, belowHistories[i], now)));
   return learners;
+}
+
+/**
+ * The person immediately ahead of the viewer on the current metric, and by how
+ * much. This is what turns a generic "do more courses" button into a specific
+ * one — "te faltan 2 cursos para alcanzar a Lucía" is a target; "¡sigue así!"
+ * is wallpaper.
+ */
+export function gapAhead(
+  learners: Learner[], metric: MetricId,
+): { target: Learner; gap: number; rank: number; total: number } | null {
+  const ordered = rank(learners, metric);
+  const i = ordered.findIndex(l => l.person.isViewer);
+  if (i < 0) return null;
+  if (i === 0) {
+    return { target: ordered[0], gap: 0, rank: 1, total: ordered.length };
+  }
+  const me = ordered[i];
+  const target = ordered[i - 1];
+  return {
+    target,
+    gap: Math.max(0, metricValue(target, metric) - metricValue(me, metric)),
+    rank: i + 1,
+    total: ordered.length,
+  };
 }
 
 /** Rank for one metric. Ties break on XP, then course count, then name, so the

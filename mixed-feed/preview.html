@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mixed Feed — Preview</title>
+<style>
+  body{margin:0;background:#eef1f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    padding:24px 16px;color:#111827}
+  .wrap{max-width:1140px;margin:0 auto}
+  .cfg{background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:12px;padding:16px;margin-bottom:20px;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;align-items:end}
+  label{display:block;font-size:12px;font-weight:600;margin-bottom:4px}
+  input,select,textarea{width:100%;font:inherit;font-size:13px;padding:7px 9px;border:1px solid rgba(0,0,0,.16);
+    border-radius:8px;box-sizing:border-box}
+  textarea{min-height:64px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px}
+  button{font:inherit;font-size:13px;font-weight:600;padding:8px 14px;border:0;border-radius:8px;
+    background:#8B374A;color:#fff;cursor:pointer}
+  .wide{grid-column:1/-1}
+  .hint{font-size:12px;color:#6b7280;grid-column:1/-1;margin:0}
+  /* Stands in for the padded card the widget renders inside on a real page, so
+     the mobile full-bleed breakout can actually be seen doing something. */
+  .stage{background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:14px;padding:20px;overflow-x:hidden}
+  .frame{margin:0 auto;transition:max-width .2s}
+  .frame.phone{max-width:390px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="cfg">
+    <div><label for="baseurl">Base URL</label><input id="baseurl" value="https://bimbo.staffbase.rocks/api"></div>
+    <div><label for="apitoken">API Token</label><input id="apitoken" type="password" placeholder="Basic token"></div>
+    <div><label for="language">Language</label>
+      <select id="language">
+        <option value="es_MX" selected>es_MX (default)</option>
+        <option value="auto">auto</option>
+        <option value="es_ES">es_ES</option>
+        <option value="en_US">en_US</option>
+        <option value="de_DE">de_DE</option>
+      </select></div>
+    <div><label for="pinnedpostid">Pinned Post ID</label><input id="pinnedpostid" value="6a8ca3f089ac527b38d85714"></div>
+    <div><label for="postlimit">Posts / channel</label><input id="postlimit" type="number" value="12"></div>
+    <div><label for="totallimit">Total posts</label><input id="totallimit" type="number" value="30"></div>
+    <div><label for="defaultradius">Default radius</label><input id="defaultradius" value="14px"></div>
+    <div><label for="usethemecolors">Use theme color</label>
+      <select id="usethemecolors"><option value="true" selected>On</option><option value="false">Off</option></select></div>
+    <div><label for="showsocialactions">Likes &amp; comments</label>
+      <select id="showsocialactions"><option value="true" selected>On</option><option value="false">Off</option></select></div>
+    <div><label for="showcomposer">Composer</label>
+      <select id="showcomposer"><option value="true" selected>On</option><option value="false">Off</option></select></div>
+    <div><label for="composechannelid">Composer channel</label><input id="composechannelid" value="6a42ef86e5bbcf5cb7b3bde8"></div>
+    <div><label for="debug">Debug</label>
+      <select id="debug"><option value="true" selected>On</option><option value="false">Off</option></select></div>
+
+    <div class="wide"><label for="channelids">Channel IDs</label><textarea id="channelids">6a42ef7417470228967ce39d
+6a42ef7419053625a91b4fc8
+6a42ef7417470228967ce39a
+6a42ef74e5bbcf5cb7b3b6e3
+6a42ef7b17470228967ce629
+6a42ef86e5bbcf5cb7b3bde8
+6a42efade5bbcf5cb7b3c75f
+6a42efa517470228967cf2e2</textarea></div>
+
+    <div class="wide"><label for="brandoverrides">Brand overrides (JSON)</label><textarea id="brandoverrides">[{"groupId":"6a42ed4319053625a91b37c2","label":"El Globo","color":"#8B374A","radius":"5px","pinnedPostId":"6a42efaf17470228967cf4e6"}]</textarea></div>
+
+    <div><label for="fakegroups">Simulate viewer groups</label>
+      <select id="fakegroups">
+        <option value="">None (theme color)</option>
+        <option value="6a42ed4319053625a91b37c2">El Globo</option>
+      </select></div>
+    <div><label for="viewport">Viewport</label>
+      <select id="viewport"><option value="desktop" selected>Desktop</option><option value="phone">Phone (390px)</option></select></div>
+    <div><button id="go">Render</button></div>
+
+    <p class="hint">
+      Run <code>npm run build</code> first. Likes, comments and posting all require a
+      logged-in Staffbase session, so outside the app they degrade to read-only —
+      that is the intended fallback, not a failure. Switch “Simulate viewer groups”
+      to El Globo to see the maroon / 5px brand override take over.
+    </p>
+  </div>
+
+  <div class="frame" id="frame"><div class="stage" id="stage"></div></div>
+</div>
+
+<script>
+// Minimal stand-in for the Staffbase widget host: enough of the SDK contract to
+// instantiate the block as a custom element.
+var fakeGroups = [];
+window.defineBlock = function (def) {
+  const d = def.blockDefinition;
+  const Base = class extends HTMLElement {
+    connectedCallback() { this.renderBlock && this.renderBlock(this); }
+    attributeChangedCallback() { this.innerHTML = ""; this.renderBlock && this.renderBlock(this); }
+  };
+  const widgetApi = {
+    getContentLanguage: () => "es_MX",
+    getUserInformation: () => Promise.resolve({
+      id: "", firstName: "", lastName: "", language: "", groupIDs: fakeGroups,
+    }),
+  };
+  customElements.define(d.name, d.factory(Base, widgetApi));
+  window.__blockName = d.name;
+};
+</script>
+<script src="./dist/mixed-feed.js"></script>
+<script>
+var KEYS = ["baseurl","apitoken","channelids","language","pinnedpostid","postlimit","totallimit",
+            "defaultradius","usethemecolors","showsocialactions","showcomposer","composechannelid",
+            "brandoverrides","debug"];
+
+document.getElementById("go").addEventListener("click", function () {
+  var g = document.getElementById("fakegroups").value;
+  fakeGroups = g ? [g] : [];
+
+  document.getElementById("frame").className =
+    "frame" + (document.getElementById("viewport").value === "phone" ? " phone" : "");
+
+  var stage = document.getElementById("stage");
+  stage.innerHTML = "";
+  var el = document.createElement(window.__blockName);
+  KEYS.forEach(function (k) {
+    var v = document.getElementById(k).value;
+    if (v) el.setAttribute(k, v);
+  });
+  stage.appendChild(el);
+});
+document.getElementById("go").click();
+</script>
+</body>
+</html>

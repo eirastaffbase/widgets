@@ -885,6 +885,7 @@ const REQUIRED_COUNT = COURSES.filter(c => c.required).length;
 // ─────────────────────────────────────────────────────────────────────────────
 
 const WEEK = 7 * 24 * 60 * 60 * 1000;
+const DAY = 24 * 60 * 60 * 1000;
 // ── Seeded randomness ────────────────────────────────────────────────────────
 /** FNV-1a. Cheap, and spreads short similar strings (`user-1`, `user-2`) well
  *  enough that neighbouring IDs don't produce near-identical histories. */
@@ -936,6 +937,56 @@ function syntheticPeople(count, offset = 0) {
         });
     }
     return out;
+}
+// ── Drawing the podium out of the pool ───────────────────────────────────────
+/**
+ * Choose which `count` of the configured people stand on the podium.
+ *
+ * The admin pastes as many user IDs as they like; only three fit on a podium.
+ * Taking the first three would make the configuration order the answer, and the
+ * same three faces would be on the demo forever. Taking them with `Math.random`
+ * would reshuffle on every reload, which looks broken — the podium would change
+ * while the viewer watched, and two people looking at the same screen would
+ * disagree.
+ *
+ * So the draw is *seeded*: random-looking, picked from anywhere in the array,
+ * and identical for every viewer until something deliberately changes it. What
+ * counts as "deliberately" is the mode:
+ *
+ *   shuffle — fixed. Re-roll by editing the seed field.
+ *   typed   — no draw at all; the order pasted is the order ranked.
+ *   daily   — the period is folded into the seed, so a new three appear each day.
+ *   weekly  — same, per week.
+ *
+ * Returns indices into `ids`, in the order drawn — which becomes the rank
+ * order, so who wins varies too, not just who appears.
+ */
+function drawPodium(poolSize, mode, seed, count, now = Date.now()) {
+    const idx = [];
+    for (let i = 0; i < poolSize; i++)
+        idx.push(i);
+    if (mode === "typed" || poolSize <= count)
+        return idx.slice(0, count);
+    const period = mode === "daily" ? Math.floor(now / DAY)
+        : mode === "weekly" ? Math.floor(now / WEEK)
+            : 0;
+    const rand = prng(hashSeed(`${seed}|${poolSize}|${period}`));
+    // Fisher–Yates over the whole array, so slot 1 can come from the end of the
+    // list just as easily as the start.
+    for (let i = idx.length - 1; i > 0; i--) {
+        const j = Math.floor(rand() * (i + 1));
+        const t = idx[i];
+        idx[i] = idx[j];
+        idx[j] = t;
+    }
+    return idx.slice(0, count);
+}
+/** The complement of a draw, in the original order — the configured people who
+ *  did not make the podium. They are still real users and still appear; being
+ *  left out of the draw must not delete someone from the leaderboard. */
+function restOfPool(pool, drawn) {
+    const taken = new Set(drawn);
+    return pool.filter((_, i) => !taken.has(i));
 }
 // ── History generation ───────────────────────────────────────────────────────
 /**
@@ -1017,6 +1068,33 @@ function sparkOf(completions, now) {
     }
     return bins;
 }
+/**
+ * Cumulative XP at the end of each week in the window, oldest first.
+ *
+ * Derived from the same completions as the XP total, so the last point of a
+ * line is always exactly the number shown next to that person's name — a chart
+ * that ended somewhere else would undermine every other figure on the widget.
+ * Cumulative rather than per-week because the story the XP view tells is "who
+ * is pulling ahead", which is about the slope, not the spikes.
+ */
+function seriesOf(completions, now) {
+    const perWeek = new Array((/* inlined export .SPARK_WEEKS */6)).fill(0);
+    for (const c of completions) {
+        const w = weekIndex(c.at, now);
+        const bin = (/* inlined export .SPARK_WEEKS */6) - 1 - w;
+        // Anything older than the window still counts, folded into the first bucket,
+        // so the line starts from where the person already was.
+        const at = w >= (/* inlined export .SPARK_WEEKS */6) ? 0 : Math.max(0, bin);
+        perWeek[at] += courseXp(c.course.required, c.course.type, c.onTime);
+    }
+    const out = [];
+    let run = 0;
+    for (let i = 0; i < (/* inlined export .SPARK_WEEKS */6); i++) {
+        run += perWeek[i];
+        out.push(run);
+    }
+    return out;
+}
 function tierOf(xp) {
     let i = 0;
     while (i < TIERS.length - 1 && xp >= TIERS[i].to)
@@ -1079,6 +1157,7 @@ function fromCompletions(person, index, completions, now) {
         xp,
         streak,
         spark: sparkOf(completions, now),
+        series: seriesOf(completions, now),
         tier: tierOf(xp),
         badges: badgesOf(completions, streak, now),
     };
@@ -1136,17 +1215,22 @@ function enforceAbove(hi, lo) {
 /**
  * Build the whole field.
  *
- * `featured` are the real, configured people, and the order they were typed in
+ * `featured` are the people drawn for the podium, and the order they were drawn
  * is the order they are ranked — on **cursos** and **XP**. That is guaranteed
  * rather than hoped for: course counts descend by slot by construction, and the
  * XP ladder is enforced afterwards.
+ *
+ * `others` are real people who exist but were not drawn — the rest of the
+ * configured pool, plus the viewer. They are capped below the podium band so
+ * the draw means something, but they are otherwise ordinary participants with
+ * real names, avatars and profile links.
  *
  * *Horas* and *racha* deliberately do not inherit the pinning. They are
  * genuinely derived from the same histories, so switching metric reorders even
  * the podium — a leaderboard whose switch changes nothing is a picture, not a
  * chart.
  */
-function buildField(featured, fillerCount, now = Date.now()) {
+function buildField(featured, others, fillerCount, now = Date.now()) {
     // Generate every featured history first, then rank the *histories* and pair
     // them with people by slot. Determinism survives: the same people in the same
     // order always produce the same pairing.
@@ -1154,26 +1238,60 @@ function buildField(featured, fillerCount, now = Date.now()) {
     histories.sort((a, b) => b.length - a.length || xpOf(b) - xpOf(a));
     for (let i = 1; i < histories.length; i++)
         enforceAbove(histories[i - 1], histories[i]);
-    // Demo peers are hard-capped one course below the weakest featured slot.
-    // Without the cap a generated peer occasionally ties the third real person and
-    // takes the podium spot the admin explicitly configured.
-    const people = syntheticPeople(fillerCount, featured.length);
+    // Everyone below the podium is hard-capped one course under the weakest
+    // featured slot. Without the cap a generated peer occasionally ties the third
+    // real person and takes the podium spot the draw explicitly assigned.
     const cap = Math.max(1, featuredCount(Math.max(0, featured.length - 1)) - 1);
-    const fillerHistories = people.map((p, i) => {
-        const strength = Math.max(0.12, 0.62 - i * 0.07);
-        const count = Math.max(1, Math.min(cap, Math.round(cap * strength) + (i % 2)));
+    const chasers = others.slice();
+    // The filler offset counts only the slots that actually consumed a name from
+    // the pool — the featured band. Chasers are real users (or the viewer, who is
+    // called "Tú"), so they take no filler name and must not push the offset far
+    // enough to wrap it back onto the names already in use.
+    const peers = syntheticPeople(fillerCount, featured.length);
+    const below = chasers.concat(peers);
+    const belowHistories = below.map((p, i) => {
+        // The viewer is placed mid-pack on purpose. Top of the field and the
+        // catch-up button has nothing to ask for; bottom and the gap is dispiriting
+        // rather than motivating. Mid-pack is where "one more course" is true.
+        const strength = p.isViewer ? 0.5 : Math.max(0.12, 0.62 - i * 0.07);
+        const count = p.isViewer
+            ? Math.max(1, Math.min(cap, Math.round(cap * 0.6)))
+            : Math.max(1, Math.min(cap, Math.round(cap * strength) + (i % 2)));
         return makeCompletions(hashSeed(p.id || `${p.name}#${featured.length + i}`), strength, now, count);
     });
     // A short-but-compliance-heavy peer can still out-XP the third real person, so
     // the same ladder is applied across the boundary.
     const weakest = histories[histories.length - 1];
     if (weakest)
-        for (const h of fillerHistories)
+        for (const h of belowHistories)
             enforceAbove(weakest, h);
     const learners = [];
     featured.forEach((p, i) => learners.push(fromCompletions(p, i, histories[i], now)));
-    people.forEach((p, i) => learners.push(fromCompletions(p, featured.length + i, fillerHistories[i], now)));
+    below.forEach((p, i) => learners.push(fromCompletions(p, featured.length + i, belowHistories[i], now)));
     return learners;
+}
+/**
+ * The person immediately ahead of the viewer on the current metric, and by how
+ * much. This is what turns a generic "do more courses" button into a specific
+ * one — "te faltan 2 cursos para alcanzar a Lucía" is a target; "¡sigue así!"
+ * is wallpaper.
+ */
+function gapAhead(learners, metric) {
+    const ordered = rank(learners, metric);
+    const i = ordered.findIndex(l => l.person.isViewer);
+    if (i < 0)
+        return null;
+    if (i === 0) {
+        return { target: ordered[0], gap: 0, rank: 1, total: ordered.length };
+    }
+    const me = ordered[i];
+    const target = ordered[i - 1];
+    return {
+        target,
+        gap: Math.max(0, metricValue(target, metric) - metricValue(me, metric)),
+        rank: i + 1,
+        total: ordered.length,
+    };
 }
 /** Rank for one metric. Ties break on XP, then course count, then name, so the
  *  order is stable across switches instead of jittering. */
@@ -1207,6 +1325,12 @@ const PATHS = {
     compass: '<circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5Z"/>',
     sunrise: '<path d="M12 3v5"/><path d="m5 10 1.5 1.5"/><path d="M2 17h20"/><path d="m19 10-1.5 1.5"/><path d="M8.5 17a3.5 3.5 0 0 1 7 0"/><path d="M4 21h16"/>',
     users: '<circle cx="9" cy="8" r="3.5"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M16 5.2a3.5 3.5 0 0 1 0 5.6"/><path d="M17.5 14.4A6 6 0 0 1 21 20"/>',
+    rocket: '<path d="M13.5 4.5C16 2 20 3 20 3s1 4-1.5 6.5L14 14l-4-4Z"/><path d="m10 10-4 1.5L4 14l3 .5L7.5 18l2.5-2 1.5-4"/><path d="M6.5 17.5 4 20"/>',
+    target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".8" fill="currentColor"/>',
+    arrow: '<path d="M4 12h15"/><path d="m13 6 6 6-6 6"/>',
+    grid: '<rect x="3" y="4" width="7" height="7" rx="1.6"/><rect x="14" y="4" width="7" height="7" rx="1.6"/><rect x="3" y="15" width="7" height="5" rx="1.6"/><rect x="14" y="15" width="7" height="5" rx="1.6"/>',
+    layers: '<path d="m12 3 8 4.5-8 4.5-8-4.5Z"/><path d="m4 12 8 4.5 8-4.5"/><path d="m4 16.5 8 4.5 8-4.5"/>',
+    trend: '<path d="M3 17.5 9.5 11l4 4L21 7"/><path d="M15.5 7H21v5.5"/>',
 };
 function icon(name, size = 16, stroke = 1.9) {
     const d = PATHS[name] || PATHS.star;
@@ -1256,6 +1380,34 @@ const S = {
     tierLabel: "Nivel",
     streakWeeks: "Últimas 6 semanas",
     streakNone: "Sin racha activa",
+    // ── Per-metric chart captions ──
+    capCourses: "Cursos completados por persona",
+    capHours: "Cómo se reparten las horas entre cursos",
+    capXp: "XP acumulado en las últimas 6 semanas",
+    capStreak: "Actividad semana a semana",
+    // ── Line chart ──
+    you: "Tú",
+    youLong: "Tú",
+    lineYou: "Tu progreso",
+    lineOthers: "Compañeros",
+    lineLeader: "Líder",
+    lineHint: "Pasa el cursor por una persona para resaltar su línea",
+    weekLabel: (n) => (n === 0 ? "Esta sem." : `-${n} sem.`),
+    xpAt: (xp, week) => `${xp} XP · ${week}`,
+    // ── Heatmap ──
+    heatHint: "Cada cuadro es una semana",
+    heatNone: "Sin actividad",
+    heatWeek: (n, week) => `${n} · ${week}`,
+    // ── Catch-up ──
+    ctaTitle: "¡Ponte al día!",
+    ctaAction: "Haz más cursos",
+    ctaGapCourses: (n, name) => `Te ${n === 1 ? "falta" : "faltan"} ${n} ${n === 1 ? "curso" : "cursos"} para alcanzar a ${name}`,
+    ctaGapHours: (n, name) => `Te faltan ${n} h para alcanzar a ${name}`,
+    ctaGapXp: (n, name) => `Te faltan ${n} XP para alcanzar a ${name}`,
+    ctaGapStreak: (n, name) => `Te ${n === 1 ? "falta" : "faltan"} ${n} ${n === 1 ? "semana" : "semanas"} para alcanzar a ${name}`,
+    ctaLeading: "Vas en cabeza. Mantén la racha con un curso más.",
+    ctaGeneric: "Suma cursos y escala posiciones en la clasificación.",
+    ctaRankOf: (rank, total) => `Puesto ${rank} de ${total}`,
     badgesTitle: "Insignias",
     noBadges: "Aún sin insignias",
     drilldownOpen: "Ver cursos completados",
@@ -1297,6 +1449,7 @@ const plural = (n, one, many) => (Math.abs(n) === 1 ? one : many);
 
 
 
+
 const P = "csl"; // class prefix
 function esc(s) {
     return String(s == null ? "" : s)
@@ -1324,6 +1477,32 @@ const METRIC_LABEL = {
     xp: S.metricXp,
     streak: S.metricStreak,
 };
+/**
+ * Each metric is drawn as the thing it actually is.
+ *
+ * Four bar charts with different numbers in them would make the switcher a
+ * relabelling exercise. A count is a ranking (bars); hours are a composition
+ * (one segment per course, so you can see *what* the time went into); XP is an
+ * accumulation over time, and the only metric where the interesting question is
+ * "how do I compare" rather than "who won" (lines, with the viewer's own line
+ * picked out); a streak is a calendar (a grid of weeks).
+ */
+const CHART_KIND = {
+    courses: "race",
+    hours: "stack",
+    xp: "lines",
+    streak: "heat",
+};
+const CAPTION = {
+    courses: S.capCourses,
+    hours: S.capHours,
+    xp: S.capXp,
+    streak: S.capStreak,
+};
+/** `race`, `stack` and `heat` are the same `<li data-key>` rows with different
+ *  middles, so switching between them can move nodes instead of replacing them.
+ *  `lines` has no rows, so it is the one transition that rebuilds. */
+const isRowChart = (m) => CHART_KIND[m] !== "lines";
 /** Hours are the only fractional metric, so formatting is metric-dependent. */
 const formatMetric = (l, m) => m === "hours" ? fmt(l.minutes / 60, 1) : fmt(metricValue(l, m));
 const metricUnit = (l, m) => m === "courses" ? plural(l.courses, S.unitCoursesOne, S.unitCourses)
@@ -1421,12 +1600,12 @@ function podium(top, metric, showTier, showBadges) {
         const rank = i + 1;
         const av = rank === 1 ? 92 : 68;
         const meta = [l.person.position, l.person.department].filter(Boolean).join(" · ");
-        return `<div class="${P}-pod ${P}-pod-${rank}" data-key="${esc(keyOf(l))}" style="--i:${i}">
+        return `<div class="${P}-pod ${P}-pod-${rank}" data-key="${esc(keyOf(l))}" style="--i:${i}"${l.person.isViewer ? ` data-you="1"` : ""}>
       <div class="${P}-pod-avwrap">
         ${avatar(l.person, av, `${P}-av-hero`)}
         <span class="${P}-pod-rank">${rank === 1 ? icon("crown", 14) : rank}</span>
       </div>
-      <div class="${P}-pod-nm">${personName(l.person, `${P}-pod-nmlink`)}</div>
+      <div class="${P}-pod-nm">${personName(l.person, `${P}-pod-nmlink`)}${l.person.isViewer ? ` <span class="${P}-you">${esc(S.you)}</span>` : ""}</div>
       ${meta ? `<div class="${P}-pod-meta">${esc(meta)}</div>` : ""}
       <div class="${P}-pod-num">
         <span class="${P}-num" data-count="${metricValue(l, metric)}" data-dec="${metric === "hours" ? 1 : 0}">${formatMetric(l, metric)}</span>
@@ -1438,40 +1617,105 @@ function podium(top, metric, showTier, showBadges) {
     }).join("");
     return `<div class="${P}-podium">${cards}</div>`;
 }
-// ── Bar race ─────────────────────────────────────────────────────────────────
+// ── Row charts: race, stack, heat ────────────────────────────────────────────
+/** A week's label, counting back from this one. Used by both the stacked bar
+ *  tooltips and the heatmap cells. */
+const weekTitle = (i) => S.weekLabel((/* inlined export .SPARK_WEEKS */6) - 1 - i);
+/** Bars are scaled against the leader with a floor, so a runaway winner does not
+ *  flatten everyone else into invisible slivers. */
+const barWidth = (v, max) => Math.max(6, max > 0 ? (v / max) * 100 : 0);
+/** Courses view: one solid bar per person, length = rank position. */
+function plainBar(l, metric, max) {
+    const w = barWidth(metricValue(l, metric), max);
+    return `<div class="${P}-bar"><span class="${P}-bar-fill" style="--w:${w.toFixed(2)}%"></span></div>`;
+}
 /**
- * One row. Bars are scaled against the leader with a floor, so a runaway winner
- * does not flatten everyone else into invisible slivers.
+ * Hours view: the same bar, cut into one segment per course.
  *
- * `data-key` and `data-w` are what the shell's FLIP + bar update read; the row
- * renders its final width and value inline so a dead script still shows a
- * correct, static chart.
+ * The total length still ranks people, so nothing is lost — but the segments
+ * answer the question a raw hour count cannot, which is where the time went.
+ * Segments are ordered longest-first so the bar reads as a composition rather
+ * than as a jagged history, and required courses get the accent so compliance
+ * is visible at a glance.
+ */
+function stackedBar(l, max) {
+    const totalHours = l.minutes / 60;
+    const w = barWidth(totalHours, max);
+    const segs = l.completions
+        .slice()
+        .sort((a, b) => b.course.minutes - a.course.minutes)
+        .map((c, i) => {
+        const share = l.minutes > 0 ? (c.course.minutes / l.minutes) * 100 : 0;
+        const dur = c.course.minutes >= 60
+            ? `${fmt(c.course.minutes / 60, c.course.minutes % 60 ? 1 : 0)} ${S.unitHours}`
+            : `${c.course.minutes} min`;
+        return `<span class="${P}-seg" style="--s:${share.toFixed(2)}%;--i:${i}"`
+            + ` data-req="${c.course.required}" data-type="${esc(c.course.type)}"`
+            + ` title="${esc(c.course.title)} · ${esc(dur)}"></span>`;
+    }).join("");
+    return `<div class="${P}-bar"><div class="${P}-bar-stack" style="--w:${w.toFixed(2)}%">${segs}</div></div>`;
+}
+/**
+ * Streak view: six weekly cells per person.
+ *
+ * A streak is a statement about a calendar, and the number alone ("4 semanas")
+ * hides whether those weeks were recent. The grid shows the run itself — and
+ * shows the gaps, which is what makes a broken streak legible.
+ *
+ * Levels are absolute (1 / 2 / 3+ courses), not scaled to each person's own
+ * busiest week. Per-row normalisation would make the darkest cell mean "two
+ * courses" on one line and "five" on the next, which is exactly the comparison
+ * a grid of identical squares invites you to make.
+ */
+function heatCells(l) {
+    const cells = l.spark.map((v, i) => {
+        const lvl = v === 0 ? 0 : v === 1 ? 1 : v === 2 ? 2 : 3;
+        return `<span class="${P}-heat-c" data-lvl="${lvl}" style="--i:${i}"`
+            + ` title="${esc(weekTitle(i))} · ${v} ${esc(plural(v, S.unitCoursesOne, S.unitCourses))}"></span>`;
+    }).join("");
+    return `<div class="${P}-heat">${cells}</div>`;
+}
+/** The middle of a row — the only part that differs between the three row
+ *  charts. Kept separate so a metric switch can swap it in place and leave the
+ *  row node (and any open drilldown) exactly where it is. */
+function rowBody(l, metric, max, opts) {
+    const kind = CHART_KIND[metric];
+    const v = metricValue(l, metric);
+    const middle = kind === "stack" ? stackedBar(l, max)
+        : kind === "heat" ? heatCells(l)
+            : plainBar(l, metric, max);
+    return `<div class="${P}-row-top">
+      ${personName(l.person, `${P}-row-nm`)}
+      ${l.person.isViewer ? `<span class="${P}-you">${esc(S.you)}</span>` : ""}
+      <span class="${P}-row-val">
+        <span class="${P}-num" data-count="${v}" data-dec="${metric === "hours" ? 1 : 0}">${formatMetric(l, metric)}</span>
+        <span class="${P}-unit">${esc(metricUnit(l, metric))}</span>
+      </span>
+    </div>
+    ${middle}
+    <div class="${P}-row-sub">
+      ${opts.streak && l.streak > 0 ? `<span class="${P}-streak">${icon("flame", 12)}${l.streak}</span>` : ""}
+      ${opts.badges ? badgeChips(l, true) : ""}
+    </div>`;
+}
+/**
+ * One row.
+ *
+ * `data-key` is what the shell's FLIP and drilldown read; the row renders its
+ * final width and value inline so a dead script still shows a correct, static
+ * chart.
  */
 function raceRow(l, rank, max, metric, opts) {
-    const v = metricValue(l, metric);
-    const w = Math.max(6, max > 0 ? (v / max) * 100 : 0);
     const key = esc(keyOf(l));
-    return `<li class="${P}-row" data-key="${key}" style="--i:${rank - 1}">
-    <div class="${P}-row-main"${opts.drilldown ? ` role="button" tabindex="0" aria-expanded="false" aria-controls="${P}-dd-${key.replace(/[^\w-]/g, "_")}"` : ""}>
+    const ddId = `${P}-dd-${key.replace(/[^\w-]/g, "_")}`;
+    return `<li class="${P}-row" data-key="${key}" style="--i:${rank - 1}"${l.person.isViewer ? ` data-you="1"` : ""}>
+    <div class="${P}-row-main"${opts.drilldown ? ` role="button" tabindex="0" aria-expanded="false" aria-controls="${ddId}"` : ""}>
       <span class="${P}-rank">${rank}</span>
       ${avatar(l.person, 34)}
-      <div class="${P}-row-body">
-        <div class="${P}-row-top">
-          ${personName(l.person, `${P}-row-nm`)}
-          <span class="${P}-row-val">
-            <span class="${P}-num" data-count="${v}" data-dec="${metric === "hours" ? 1 : 0}">${formatMetric(l, metric)}</span>
-            <span class="${P}-unit">${esc(metricUnit(l, metric))}</span>
-          </span>
-        </div>
-        <div class="${P}-bar"><span class="${P}-bar-fill" style="--w:${w.toFixed(2)}%"></span></div>
-        <div class="${P}-row-sub">
-          ${opts.streak && l.streak > 0 ? `<span class="${P}-streak">${icon("flame", 12)}${l.streak}</span>` : ""}
-          ${opts.badges ? badgeChips(l, true) : ""}
-        </div>
-      </div>
+      <div class="${P}-row-body">${rowBody(l, metric, max, opts)}</div>
       ${opts.drilldown ? `<span class="${P}-row-chev" aria-hidden="true">${icon("chevron", 16)}</span>` : ""}
     </div>
-    ${opts.drilldown ? `<div class="${P}-dd" id="${P}-dd-${key.replace(/[^\w-]/g, "_")}" hidden></div>` : ""}
+    ${opts.drilldown ? `<div class="${P}-dd" id="${ddId}" hidden></div>` : ""}
   </li>`;
 }
 function race(learners, metric, opts) {
@@ -1479,7 +1723,134 @@ function race(learners, metric, opts) {
         return "";
     const max = Math.max(...learners.map(l => metricValue(l, metric)), 0);
     const rows = learners.map((l, i) => raceRow(l, i + 1, max, metric, opts)).join("");
-    return `<ol class="${P}-race" aria-label="${esc(S.field)}">${rows}</ol>`;
+    return `<ol class="${P}-race" data-kind="${CHART_KIND[metric]}" aria-label="${esc(S.field)}">${rows}</ol>`;
+}
+// ── XP: cumulative lines, you against the field ──────────────────────────────
+const LW = 640, LH = 210; // viewBox; scaled to the container by CSS
+const PAD = { l: 38, r: 74, t: 16, b: 26 };
+/** Round a maximum up to something a person would choose for an axis, so the
+ *  top gridline reads 400 rather than 387. */
+function niceMax(v) {
+    if (v <= 0)
+        return 10;
+    const mag = Math.pow(10, Math.floor(Math.log10(v)));
+    const n = v / mag;
+    const step = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10;
+    return step * mag;
+}
+/**
+ * The XP view: every learner's cumulative XP over the last six weeks, drawn as
+ * lines on shared axes.
+ *
+ * This is the one view that is not about the podium. Bars answer "who is
+ * winning"; the question people actually have about their own XP is "where am
+ * I against everyone else, and am I gaining or falling behind" — which is a
+ * slope, and needs a shared time axis to be visible at all.
+ *
+ * So the viewer's line is the subject: drawn last (on top), thicker, in the
+ * accent colour, with points and an end label. The leaders are drawn in the
+ * primary colour so there is something to measure against, and everyone else is
+ * deliberately faint — context, not clutter. Hovering any line brings it
+ * forward; clicking opens that person's courses underneath.
+ */
+function lines(learners, viewerKey) {
+    if (!learners.length)
+        return "";
+    const weeks = Math.max(2, learners[0].series.length);
+    const top = niceMax(Math.max(...learners.map(l => l.series[l.series.length - 1] || 0), 1));
+    const x = (i) => PAD.l + (i / (weeks - 1)) * (LW - PAD.l - PAD.r);
+    const y = (v) => LH - PAD.b - (Math.min(v, top) / top) * (LH - PAD.t - PAD.b);
+    const grid = [0, 0.5, 1].map(f => {
+        const gy = y(top * f).toFixed(1);
+        return `<line class="${P}-grid" x1="${PAD.l}" y1="${gy}" x2="${LW - PAD.r}" y2="${gy}"/>`
+            + `<text class="${P}-ytick" x="${PAD.l - 8}" y="${gy}" text-anchor="end" dominant-baseline="middle">${fmt(Math.round(top * f))}</text>`;
+    }).join("");
+    const xticks = learners[0].series.map((_, i) => `<text class="${P}-xtick" x="${x(i).toFixed(1)}" y="${LH - PAD.b + 15}" text-anchor="middle">${esc(weekTitle(i))}</text>`).join("");
+    // Leaders by final XP, so "the lines you are chasing" are the ones drawn
+    // solidly rather than an arbitrary three.
+    const byXp = learners.slice().sort((a, b) => (b.series[b.series.length - 1] || 0) - (a.series[a.series.length - 1] || 0));
+    const leaders = new Set(byXp.slice(0, 3).map(l => keyOf(l)));
+    const draw = (l) => {
+        const key = keyOf(l);
+        const you = key === viewerKey;
+        const role = you ? "you" : leaders.has(key) ? "top" : "peer";
+        const pts = l.series.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`);
+        const d = `M${pts.join("L")}`;
+        const last = l.series[l.series.length - 1] || 0;
+        const dots = you || role === "top"
+            ? l.series.map((v, i) => `<circle class="${P}-ln-dot" cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="${you ? 3.4 : 2.6}"/>`).join("")
+            : "";
+        const label = you || role === "top"
+            ? `<text class="${P}-ln-lbl" x="${(LW - PAD.r + 8).toFixed(1)}" y="${y(last).toFixed(1)}" dominant-baseline="middle">`
+                + `${esc(you ? S.you : l.person.name.split(" ")[0])} · ${fmt(last)}</text>`
+            : "";
+        return `<g class="${P}-lngrp" data-key="${esc(key)}" data-role="${role}" tabindex="0"
+      role="button" aria-label="${esc(l.person.name)} · ${fmt(last)} ${esc(S.unitXp)}">
+      <title>${esc(l.person.name)} · ${fmt(last)} ${esc(S.unitXp)}</title>
+      <path class="${P}-ln-hit" d="${d}"/>
+      <path class="${P}-ln" d="${d}"/>
+      ${dots}${label}
+    </g>`;
+    };
+    // Painter's order: faint peers first, leaders over them, the viewer on top —
+    // SVG has no z-index, so the order *is* the stacking.
+    const ordered = learners.slice().sort((a, b) => {
+        const score = (l) => keyOf(l) === viewerKey ? 2 : leaders.has(keyOf(l)) ? 1 : 0;
+        return score(a) - score(b);
+    });
+    const legend = `<div class="${P}-lgd">
+    ${viewerKey ? `<span class="${P}-lgd-i" data-role="you">${esc(S.lineYou)}</span>` : ""}
+    <span class="${P}-lgd-i" data-role="top">${esc(S.lineLeader)}</span>
+    <span class="${P}-lgd-i" data-role="peer">${esc(S.lineOthers)}</span>
+    <span class="${P}-lgd-hint">${esc(S.lineHint)}</span>
+  </div>`;
+    return `<div class="${P}-lines">
+    <svg viewBox="0 0 ${LW} ${LH}" class="${P}-lines-svg" role="img"
+         aria-label="${esc(S.capXp)}" preserveAspectRatio="xMidYMid meet">
+      ${grid}${xticks}
+      ${ordered.map(draw).join("")}
+    </svg>
+    ${legend}
+    <div class="${P}-lines-dd" hidden></div>
+  </div>`;
+}
+/** The gap sentence, in the units of the metric being shown. Recomputed on
+ *  every metric switch, because "te faltan 2" means nothing without knowing two
+ *  of what. */
+function gapText(info, metric) {
+    if (!info)
+        return S.ctaGeneric;
+    if (info.gap <= 0 || info.rank === 1)
+        return S.ctaLeading;
+    const name = info.target.person.name.split(" ")[0];
+    return metric === "hours" ? S.ctaGapHours(fmt(info.gap, 1), name)
+        : metric === "xp" ? S.ctaGapXp(Math.ceil(info.gap), name)
+            : metric === "streak" ? S.ctaGapStreak(Math.ceil(info.gap), name)
+                : S.ctaGapCourses(Math.ceil(info.gap), name);
+}
+/**
+ * The call to action.
+ *
+ * A leaderboard that only ranks people is a scoreboard; the point of gamifying
+ * learning is the next action, so the widget ends on one. The sentence above
+ * the button is specific — it names the person directly ahead of the viewer and
+ * the exact gap in the current metric — because "haz más cursos" is advice,
+ * while "te faltan 2 cursos para alcanzar a Lucía" is a target.
+ */
+function catchUp(info, metric, label, href) {
+    const rankChip = info ? `<span class="${P}-cta-rank">${esc(S.ctaRankOf(info.rank, info.total))}</span>` : "";
+    const btn = href
+        ? `<a class="${P}-cta-btn" href="${esc(href)}" data-cta="1">`
+        : `<button type="button" class="${P}-cta-btn" data-cta="1">`;
+    const btnEnd = href ? `</a>` : `</button>`;
+    return `<div class="${P}-cta" data-done="${info && info.rank === 1 ? "1" : "0"}">
+    <span class="${P}-cta-ico">${icon("rocket", 20)}</span>
+    <div class="${P}-cta-txt">
+      <div class="${P}-cta-title">${esc(S.ctaTitle)} ${rankChip}</div>
+      <div class="${P}-cta-gap">${esc(gapText(info, metric))}</div>
+    </div>
+    ${btn}<span>${esc(label || S.ctaAction)}</span>${icon("arrow", 15)}${btnEnd}
+  </div>`;
 }
 // ── Drilldown ────────────────────────────────────────────────────────────────
 /** Built on demand rather than up front: seven course cards per person across a
@@ -1536,6 +1907,15 @@ function header(brandLabel, metric, showSwitcher) {
 function footnote() {
     return `<div class="${P}-note">${icon("star", 11)} ${esc(S.demoNote)}</div>`;
 }
+/** A one-line label above each chart. The shapes change between metrics, so the
+ *  view says what it is showing rather than leaving the viewer to infer it from
+ *  a switch they may not have noticed pressing. */
+function caption(metric) {
+    const glyph = CHART_KIND[metric] === "lines" ? "trend"
+        : CHART_KIND[metric] === "heat" ? "grid"
+            : CHART_KIND[metric] === "stack" ? "layers" : "book";
+    return `<div class="${P}-cap">${icon(glyph, 12)} ${esc(CAPTION[metric])}</div>`;
+}
 
 ;// ./cornerstone-learning.ts
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1579,6 +1959,9 @@ const DEFAULT_BASE_URL = "";
 const DEFAULT_PRIMARY = "#7C5CFF";
 const DEFAULT_ACCENT = "#3DDC97";
 const MAX_FEATURED = 3;
+/** A ceiling on the pasted pool — not a design limit, just a guard against a
+ *  runaway paste turning into a hundred user lookups. */
+const MAX_POOL = 24;
 // ── Config schema ────────────────────────────────────────────────────────────
 const brandProps = {};
 for (let i = 1; i <= (/* inlined export .MAX_BRANDS */4); i++) {
@@ -1592,7 +1975,13 @@ const configurationSchema = {
         apitoken: { type: "string", title: "API Token", default: DEFAULT_API_TOKEN },
         baseurl: { type: "string", title: "Base URL (e.g. https://acme.staffbase.com/api)", default: DEFAULT_BASE_URL },
         authmode: { type: "string", title: "Authentication", enum: ["auto", "token", "session"], default: "auto" },
-        topuserids: { type: "string", title: "Top 3 User IDs (comma-separated, ranked)", default: "" },
+        topuserids: { type: "string", title: "User IDs (comma-separated — as many as you like)", default: "" },
+        podiumdraw: {
+            type: "string", title: "How the Top 3 Are Chosen",
+            enum: ["shuffle", "typed", "daily", "weekly"], default: "shuffle",
+        },
+        drawseed: { type: "string", title: "Draw Seed (change to re-roll)", default: "" },
+        showviewer: { type: "boolean", title: "Add the Logged-In Viewer to the Ranking", default: true },
         fillercount: { type: "number", title: "Demo Peers Below the Top 3", default: 5 },
         defaultmetric: { type: "string", title: "Starting Metric", enum: ["courses", "hours", "xp", "streak"], default: "courses" },
         showmetricswitcher: { type: "boolean", title: "Let Viewers Switch Metric", default: true },
@@ -1601,6 +1990,9 @@ const configurationSchema = {
         showbadges: { type: "boolean", title: "Show Badges", default: true },
         showstreak: { type: "boolean", title: "Show Streaks", default: true },
         showdrilldown: { type: "boolean", title: "Let Viewers Open Completed Courses", default: true },
+        showcta: { type: "boolean", title: "Show the “Catch Up” Button", default: true },
+        ctalabel: { type: "string", title: "Catch-Up Button Label", default: S.ctaAction },
+        ctaurl: { type: "string", title: "Catch-Up Button Link (optional)", default: "" },
         colorscheme: { type: "string", title: "Color Scheme", enum: ["dark", "light", "auto"], default: "dark" },
         multibranding: { type: "boolean", title: "Multibranding (Color by the Viewer’s Group)", default: false },
         usethemecolors: { type: "boolean", title: "Use Theme Colors", default: true },
@@ -1644,8 +2036,18 @@ const configurationSchema = {
 const uiSchema = {
     apitoken: { "ui:help": "Basic API token. Stored in the widget configuration, not in source." },
     baseurl: { "ui:help": "Must include /api, e.g. https://acme.staffbase.com/api" },
-    topuserids: { "ui:help": "Up to three Staffbase user IDs. The order you type them is the order they are ranked." },
+    topuserids: {
+        "ui:help": "Any number of Staffbase user IDs. Three of them are drawn for the podium; "
+            + "the rest still appear in the ranking.",
+    },
+    podiumdraw: {
+        "ui:help": "Shuffle picks three from anywhere in the list and keeps them fixed. "
+            + "Typed ranks them in the order you pasted. Daily/Weekly draw a new three each day or week.",
+    },
+    drawseed: { "ui:help": "Any text. Changing it re-rolls which three are drawn, without touching the IDs." },
+    showviewer: { "ui:help": "The person viewing the page joins the ranking as “Tú”, mid-field, so the XP chart and the catch-up button have a subject." },
     fillercount: { "ui:help": "Generated demo colleagues that fill the ranking below the three real users." },
+    ctaurl: { "ui:help": "Where the button goes — your course catalogue. Leave empty to only emit the “cornerstone-learning:catchup” event for the page to handle." },
     multibranding: { "ui:help": "Reads the viewer's groups and themes the widget with the first matching brand." },
     brandpreview: { "ui:help": "Force a brand slot while configuring, since you cannot join every group." },
     brandfallback: { "ui:help": "Theme uses your branch branding; Manual uses the Primary/Accent colors above." },
@@ -1838,6 +2240,114 @@ ${HOST_RESET}
   background:linear-gradient(90deg,rgba(var(--csl-primary-rgb),.95),var(--csl-accent));
   transition:width var(--dur) var(--ease)}
 .${(/* inlined export .P */"csl")}-row:nth-child(1) .${(/* inlined export .P */"csl")}-bar-fill{box-shadow:0 0 16px -2px rgba(var(--csl-accent-rgb),.6)}
+
+/* ── Stacked hours ──────────────────────────────────────────────────────── */
+/* The stack keeps the track of a normal bar (so lengths stay comparable across
+   people) and divides its own width into one segment per course. */
+.${(/* inlined export .P */"csl")}-bar-stack{display:flex;gap:1.5px;width:var(--w);height:100%;
+  transition:width var(--dur) var(--ease);transform-origin:left center}
+.${(/* inlined export .P */"csl")}-seg{flex:0 0 var(--s);height:100%;border-radius:2px;min-width:2px;
+  background:rgba(var(--csl-primary-rgb),.55);cursor:default;
+  transition:transform .18s var(--ease),filter .18s var(--ease)}
+.${(/* inlined export .P */"csl")}-seg:first-child{border-top-left-radius:999px;border-bottom-left-radius:999px}
+.${(/* inlined export .P */"csl")}-seg:last-child{border-top-right-radius:999px;border-bottom-right-radius:999px}
+.${(/* inlined export .P */"csl")}-seg[data-type="event"]{background:rgba(var(--csl-primary-rgb),.85)}
+.${(/* inlined export .P */"csl")}-seg[data-req="true"]{background:var(--csl-accent)}
+.${(/* inlined export .P */"csl")}-seg:hover{transform:scaleY(1.7);filter:brightness(1.15)}
+
+/* ── Streak heatmap ─────────────────────────────────────────────────────── */
+.${(/* inlined export .P */"csl")}-heat{display:flex;gap:4px;margin-top:6px}
+.${(/* inlined export .P */"csl")}-heat-c{flex:1 1 0;height:14px;border-radius:3px;background:var(--panel-2);
+  cursor:default;transition:transform .18s var(--ease),background .25s var(--ease)}
+.${(/* inlined export .P */"csl")}-heat-c[data-lvl="1"]{background:rgba(var(--csl-primary-rgb),.38)}
+.${(/* inlined export .P */"csl")}-heat-c[data-lvl="2"]{background:rgba(var(--csl-primary-rgb),.7)}
+.${(/* inlined export .P */"csl")}-heat-c[data-lvl="3"]{background:var(--csl-accent)}
+.${(/* inlined export .P */"csl")}-heat-c:hover{transform:scaleY(1.25)}
+
+/* ── XP lines ───────────────────────────────────────────────────────────── */
+.${(/* inlined export .P */"csl")}-lines{margin-top:2px}
+.${(/* inlined export .P */"csl")}-lines-svg{width:100%;height:auto;overflow:visible}
+.${(/* inlined export .P */"csl")}-grid{stroke:rgba(var(--tint),.13);stroke-width:1;stroke-dasharray:3 4}
+.${(/* inlined export .P */"csl")}-ytick,.${(/* inlined export .P */"csl")}-xtick{fill:var(--ink-2);font-size:10px;font-family:inherit;
+  font-variant-numeric:tabular-nums}
+.${(/* inlined export .P */"csl")}-lngrp{cursor:pointer;transition:opacity .22s var(--ease)}
+.${(/* inlined export .P */"csl")}-lngrp:focus{outline:none}
+.${(/* inlined export .P */"csl")}-lngrp:focus-visible .${(/* inlined export .P */"csl")}-ln{stroke-width:3.4}
+/* A 14px transparent stroke under each line: a 2px path is not a hit target,
+   and "hover the line" is the entire interaction. */
+.${(/* inlined export .P */"csl")}-ln-hit{fill:none;stroke:transparent;stroke-width:14;pointer-events:stroke}
+.${(/* inlined export .P */"csl")}-ln{fill:none;stroke-linejoin:round;stroke-linecap:round;
+  stroke:rgba(var(--tint),.28);stroke-width:1.6;pointer-events:none;
+  transition:stroke-width .2s var(--ease)}
+.${(/* inlined export .P */"csl")}-ln-dot{fill:var(--bg-2);stroke:currentColor;stroke-width:2;pointer-events:none}
+.${(/* inlined export .P */"csl")}-ln-lbl{fill:var(--ink-2);font-size:10.5px;font-weight:650;font-family:inherit;
+  pointer-events:none}
+.${(/* inlined export .P */"csl")}-lngrp[data-role="top"]{color:var(--csl-primary)}
+.${(/* inlined export .P */"csl")}-lngrp[data-role="top"] .${(/* inlined export .P */"csl")}-ln{stroke:var(--csl-primary);stroke-width:2.2;opacity:.85}
+.${(/* inlined export .P */"csl")}-lngrp[data-role="you"]{color:var(--csl-accent)}
+.${(/* inlined export .P */"csl")}-lngrp[data-role="you"] .${(/* inlined export .P */"csl")}-ln{stroke:var(--csl-accent);stroke-width:3.2;
+  filter:drop-shadow(0 2px 10px rgba(var(--csl-accent-rgb),.55))}
+.${(/* inlined export .P */"csl")}-lngrp[data-role="you"] .${(/* inlined export .P */"csl")}-ln-lbl{fill:var(--csl-accent);font-weight:800}
+/* One line raised, the rest pushed back — the comparison only reads if the
+   others recede. */
+.${(/* inlined export .P */"csl")}-lines[data-on="1"] .${(/* inlined export .P */"csl")}-lngrp{opacity:.14}
+.${(/* inlined export .P */"csl")}-lines[data-on="1"] .${(/* inlined export .P */"csl")}-lngrp.${(/* inlined export .P */"csl")}-ln-on{opacity:1}
+.${(/* inlined export .P */"csl")}-lines[data-on="1"] .${(/* inlined export .P */"csl")}-lngrp.${(/* inlined export .P */"csl")}-ln-on .${(/* inlined export .P */"csl")}-ln{stroke-width:3.4}
+.${(/* inlined export .P */"csl")}-lgd{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:8px;
+  padding-left:2px;font-size:11px;color:var(--ink-2)}
+.${(/* inlined export .P */"csl")}-lgd-i{display:inline-flex;align-items:center;gap:6px;font-weight:620}
+.${(/* inlined export .P */"csl")}-lgd-i::before{content:"";width:16px;height:3px;border-radius:2px;
+  background:rgba(var(--tint),.3)}
+.${(/* inlined export .P */"csl")}-lgd-i[data-role="top"]::before{background:var(--csl-primary)}
+.${(/* inlined export .P */"csl")}-lgd-i[data-role="you"]::before{background:var(--csl-accent);height:4px}
+.${(/* inlined export .P */"csl")}-lgd-i[data-role="you"]{color:var(--csl-accent)}
+.${(/* inlined export .P */"csl")}-lgd-hint{margin-left:auto;opacity:.7}
+.${(/* inlined export .P */"csl")}-lines-dd{margin-top:6px;border-top:1px solid var(--line)}
+.${(/* inlined export .P */"csl")}-lines-dd .${(/* inlined export .P */"csl")}-dd-in{padding:12px 2px 4px}
+
+/* ── You ────────────────────────────────────────────────────────────────── */
+.${(/* inlined export .P */"csl")}-you{flex:0 0 auto;padding:1px 6px;border-radius:999px;font-size:9.5px;
+  font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#0B0D12;
+  background:var(--csl-accent)}
+.${(/* inlined export .P */"csl")}-row[data-you="1"]{background:rgba(var(--csl-accent-rgb),.07);
+  box-shadow:inset 0 0 0 1px rgba(var(--csl-accent-rgb),.22)}
+.${(/* inlined export .P */"csl")}-pod[data-you="1"]{box-shadow:0 0 0 1px rgba(var(--csl-accent-rgb),.45)}
+
+/* ── Catch up ───────────────────────────────────────────────────────────── */
+.${(/* inlined export .P */"csl")}-cta{display:flex;align-items:center;gap:13px;margin-top:14px;padding:13px 15px;
+  border-radius:var(--r-sm);
+  background:linear-gradient(120deg,rgba(var(--csl-primary-rgb),.20),rgba(var(--csl-accent-rgb),.10));
+  border:1px solid rgba(var(--csl-primary-rgb),.3)}
+.${(/* inlined export .P */"csl")}-cta-ico{display:inline-flex;flex:0 0 auto;width:38px;height:38px;border-radius:50%;
+  align-items:center;justify-content:center;color:var(--csl-accent);
+  background:rgba(var(--csl-accent-rgb),.14)}
+.${(/* inlined export .P */"csl")}-cta-txt{flex:1;min-width:0}
+.${(/* inlined export .P */"csl")}-cta-title{display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:750}
+.${(/* inlined export .P */"csl")}-cta-rank{padding:1px 7px;border-radius:999px;font-size:10px;font-weight:700;
+  color:var(--ink-2);background:var(--panel-2)}
+.${(/* inlined export .P */"csl")}-cta-gap{margin-top:2px;font-size:12px;color:var(--ink-2);line-height:1.35}
+.${(/* inlined export .P */"csl")}-cta-btn{flex:0 0 auto;gap:7px;padding:9px 15px!important;border-radius:999px!important;
+  font-size:12.5px;font-weight:700;color:#0B0D12!important;
+  background:linear-gradient(120deg,var(--csl-accent),var(--csl-primary))!important;
+  box-shadow:0 10px 24px -12px rgba(var(--csl-accent-rgb),.9);
+  transition:transform .18s var(--ease),box-shadow .18s var(--ease)}
+.${(/* inlined export .P */"csl")}-cta-btn:hover{transform:translateY(-1px);
+  box-shadow:0 14px 28px -12px rgba(var(--csl-accent-rgb),1)}
+.${(/* inlined export .P */"csl")}-cta-btn:active{transform:translateY(0)}
+.${(/* inlined export .P */"csl")}-cta-btn:focus-visible{outline:2px solid var(--csl-accent);outline-offset:3px}
+/* Pressing the button with no URL configured has nothing visible to do — the
+   page is listening for the event instead — so the press acknowledges itself. */
+.${(/* inlined export .P */"csl")}-cta-btn[data-pulse="1"]{animation:${(/* inlined export .P */"csl")}-pulse .6s var(--ease)}
+@keyframes ${(/* inlined export .P */"csl")}-pulse{
+  0%{transform:scale(1)}
+  35%{transform:scale(1.06)}
+  100%{transform:scale(1)}}
+.${(/* inlined export .P */"csl")}-cta[data-done="1"] .${(/* inlined export .P */"csl")}-cta-gap{color:var(--csl-accent)}
+
+/* ── Caption ────────────────────────────────────────────────────────────── */
+.${(/* inlined export .P */"csl")}-cap{display:flex;align-items:center;gap:6px;margin:0 0 9px 2px;font-size:11px;
+  font-weight:600;letter-spacing:.01em;color:var(--ink-2)}
+.${(/* inlined export .P */"csl")}-cap svg{opacity:.8}
 .${(/* inlined export .P */"csl")}-row-sub{display:flex;align-items:center;gap:6px;margin-top:5px;min-height:0}
 .${(/* inlined export .P */"csl")}-row-sub:empty{display:none}
 .${(/* inlined export .P */"csl")}-streak{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;
@@ -1907,10 +2417,30 @@ ${HOST_RESET}
 .${(/* inlined export .P */"csl")}-root[data-anim="1"] .${(/* inlined export .P */"csl")}-reveal .${(/* inlined export .P */"csl")}-bar-fill{
   animation:${(/* inlined export .P */"csl")}-grow .7s var(--ease) both;
   animation-delay:calc(var(--i,0) * 55ms + 90ms)}
+.${(/* inlined export .P */"csl")}-root[data-anim="1"] .${(/* inlined export .P */"csl")}-reveal .${(/* inlined export .P */"csl")}-bar-stack{
+  animation:${(/* inlined export .P */"csl")}-grow .7s var(--ease) both;
+  animation-delay:calc(var(--i,0) * 55ms + 90ms)}
+.${(/* inlined export .P */"csl")}-root[data-anim="1"] .${(/* inlined export .P */"csl")}-reveal .${(/* inlined export .P */"csl")}-heat-c{
+  opacity:0;animation:${(/* inlined export .P */"csl")}-pop .4s var(--ease) forwards;
+  animation-delay:calc(var(--i,0) * 45ms + 120ms)}
+/* The line draws itself: dasharray is set to the path length in JS (SVG cannot
+   express "my own length" in CSS), then the offset is animated to zero. A path
+   that simply appeared would lose the sense of accumulation the chart is for. */
+.${(/* inlined export .P */"csl")}-root[data-anim="1"] .${(/* inlined export .P */"csl")}-reveal .${(/* inlined export .P */"csl")}-ln[data-len]{
+  stroke-dasharray:var(--len);stroke-dashoffset:var(--len);
+  animation:${(/* inlined export .P */"csl")}-draw 1.05s var(--ease) forwards;
+  animation-delay:calc(var(--i,0) * 70ms)}
+.${(/* inlined export .P */"csl")}-root[data-anim="1"] .${(/* inlined export .P */"csl")}-reveal .${(/* inlined export .P */"csl")}-ln-dot,
+.${(/* inlined export .P */"csl")}-root[data-anim="1"] .${(/* inlined export .P */"csl")}-reveal .${(/* inlined export .P */"csl")}-ln-lbl{
+  opacity:0;animation:${(/* inlined export .P */"csl")}-in .4s var(--ease) forwards;animation-delay:.75s}
+.${(/* inlined export .P */"csl")}-root[data-anim="1"] .${(/* inlined export .P */"csl")}-reveal .${(/* inlined export .P */"csl")}-cta{
+  opacity:0;animation:${(/* inlined export .P */"csl")}-in .5s var(--ease) forwards;animation-delay:.42s}
 .${(/* inlined export .P */"csl")}-root[data-anim="1"] .${(/* inlined export .P */"csl")}-cc{
   opacity:0;animation:${(/* inlined export .P */"csl")}-in .34s var(--ease) forwards;
   animation-delay:calc(var(--i,0) * 40ms)}
 @keyframes ${(/* inlined export .P */"csl")}-in{to{opacity:1;transform:none}}
+@keyframes ${(/* inlined export .P */"csl")}-pop{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:none}}
+@keyframes ${(/* inlined export .P */"csl")}-draw{to{stroke-dashoffset:0}}
 @keyframes ${(/* inlined export .P */"csl")}-grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 /* FLIP: the row is put back at its old offset with no transition, then released
    on the next frame with one. */
@@ -1934,6 +2464,13 @@ ${HOST_RESET}
   .${(/* inlined export .P */"csl")}-dd-in,.${(/* inlined export .P */"csl")}-dd-empty{padding-left:12px}
   .${(/* inlined export .P */"csl")}-tabs{width:100%;justify-content:space-between}
   .${(/* inlined export .P */"csl")}-tab{flex:1;padding:7px 8px!important}
+  .${(/* inlined export .P */"csl")}-cta{flex-wrap:wrap;gap:10px;padding:12px}
+  .${(/* inlined export .P */"csl")}-cta-btn{width:100%!important;justify-content:center}
+  .${(/* inlined export .P */"csl")}-lgd-hint{display:none}
+  /* The SVG scales down with the container, so text inside it has to scale up
+     to stay legible — these are viewBox units, not CSS pixels. */
+  .${(/* inlined export .P */"csl")}-ln-lbl{font-size:13px}
+  .${(/* inlined export .P */"csl")}-ytick,.${(/* inlined export .P */"csl")}-xtick{font-size:12px}
 }
 `;
 // ── Factory ──────────────────────────────────────────────────────────────────
@@ -2014,11 +2551,13 @@ const factory = (BaseBlockClass, widgetApi) => {
                     return manual;
                 });
                 let match = yield baseTheme();
+                // Read once, up front: the same identity answers two questions — which
+                // brand to paint, and who "Tú" is in the ranking.
+                const viewer = yield readViewer(widgetApi, log);
                 if (bool("multibranding", false)) {
                     const brands = readBrands(attr);
                     const fallbackKind = attr("brandfallback") || "theme";
                     const fallback = fallbackKind === "manual" ? manual : match;
-                    const viewer = yield readViewer(widgetApi, log);
                     const groupNames = yield loadGroupNames(http, baseUrl, tokenFirst, brands, log);
                     match = resolveBrand({
                         brands, viewer, groupNames,
@@ -2028,44 +2567,95 @@ const factory = (BaseBlockClass, widgetApi) => {
                 }
                 applyBrand(root, match);
                 // ── People ──
-                const ids = attr("topuserids").split(",").map(s => s.trim()).filter(Boolean).slice(0, MAX_FEATURED);
-                const featured = [];
-                if (baseUrl && ids.length && (apiToken || authMode !== "token")) {
+                //
+                // The admin pastes a pool, not a podium. Everyone in it is resolved and
+                // everyone in it appears; the draw decides which three are on top (see
+                // `drawPodium`), so the same configuration can show a different three
+                // without anyone editing it.
+                const ids = attr("topuserids").split(",").map(s => s.trim()).filter(Boolean).slice(0, MAX_POOL);
+                const canFetch = !!baseUrl && (!!apiToken || authMode !== "token");
+                const pool = [];
+                if (canFetch && ids.length) {
                     const found = yield Promise.all(ids.map(id => fetchUserById(http, baseUrl, id, tokenFirst)));
                     for (let i = 0; i < found.length; i++) {
-                        const p = found[i];
-                        if (!p) {
-                            log(`user ${ids[i]} could not be resolved — using a demo peer`);
+                        if (!found[i]) {
+                            log(`user ${ids[i]} could not be resolved — skipped`);
                             continue;
                         }
-                        // Podium portraits are 92px; /users gives a 48px icon, so the public
-                        // profile is worth one extra request for these three only.
-                        const prof = yield fetchPublicProfile(http, baseUrl, p.id, sessionFirst);
-                        if (prof === null || prof === void 0 ? void 0 : prof.avatar)
-                            p.avatar = prof.avatar;
-                        if (!p.position && (prof === null || prof === void 0 ? void 0 : prof.position))
-                            p.position = prof.position;
-                        if (!p.department && (prof === null || prof === void 0 ? void 0 : prof.department))
-                            p.department = prof.department;
-                        p.avatar = hiResAvatar(p.avatar, 200);
-                        featured.push(p);
+                        pool.push(found[i]);
                     }
                 }
                 else if (ids.length) {
                     log("no base URL or token — falling back to demo people");
                 }
-                // Any unresolved slot becomes a demo peer, so the podium is never short.
+                const drawMode = (attr("podiumdraw") || "shuffle");
+                const drawSeed = `${attr("drawseed")}|${ids.join(",")}`;
+                const drawn = drawPodium(pool.length, drawMode, drawSeed, MAX_FEATURED);
+                const featured = drawn.map(i => pool[i]).filter(Boolean);
+                const others = restOfPool(pool, drawn);
+                log("draw", drawMode, `— pool ${pool.length}, podium`, featured.map(p => p.name).join(" / ") || "(none)");
+                // Podium portraits are 92px and /users only returns a 48px icon, so the
+                // public profile is worth one extra request — but only for the three who
+                // are actually shown at that size.
+                for (const p of featured) {
+                    if (!canFetch)
+                        break;
+                    const prof = yield fetchPublicProfile(http, baseUrl, p.id, sessionFirst);
+                    if (prof === null || prof === void 0 ? void 0 : prof.avatar)
+                        p.avatar = prof.avatar;
+                    if (!p.position && (prof === null || prof === void 0 ? void 0 : prof.position))
+                        p.position = prof.position;
+                    if (!p.department && (prof === null || prof === void 0 ? void 0 : prof.department))
+                        p.department = prof.department;
+                    p.avatar = hiResAvatar(p.avatar, 200);
+                }
+                // Any unfilled slot becomes a demo peer, so the podium is never short.
                 // These take names from the front of the pool and `buildField` fills from
                 // `featured.length` onward, so no two rows can show the same name.
-                if (featured.length < Math.max(1, ids.length || MAX_FEATURED)) {
-                    const want = Math.max(1, ids.length || MAX_FEATURED) - featured.length;
-                    for (const p of syntheticPeople(want, 0))
+                if (featured.length < MAX_FEATURED) {
+                    for (const p of syntheticPeople(MAX_FEATURED - featured.length, featured.length)) {
                         featured.push(p);
+                    }
+                }
+                // ── The viewer ──
+                //
+                // Adding the logged-in person to the field is what makes the XP chart a
+                // comparison and the catch-up button a request. If they are already in
+                // the configured pool they are simply flagged; otherwise they join as an
+                // extra participant, mid-field by construction (see `buildField`).
+                if (bool("showviewer", true)) {
+                    const already = featured.concat(others).filter(p => p.id && p.id === viewer.id)[0];
+                    if (already) {
+                        already.isViewer = true;
+                        log("viewer is in the configured pool —", already.name);
+                    }
+                    else {
+                        let me = null;
+                        if (canFetch && viewer.id)
+                            me = yield fetchUserById(http, baseUrl, viewer.id, sessionFirst);
+                        if (me) {
+                            me.avatar = hiResAvatar(me.avatar, 120);
+                            me.isViewer = true;
+                            others.push(me);
+                            log("viewer joined the field —", me.name);
+                        }
+                        else {
+                            // No session (editor preview, logged-out render, failed lookup) —
+                            // a generic "Tú" row still demonstrates the comparison, and is
+                            // clearly not claiming to be a real person.
+                            others.push({
+                                id: "", name: S.you, avatar: "", position: "", department: "",
+                                synthetic: true, isViewer: true,
+                            });
+                            log("viewer could not be resolved — showing a generic “Tú” row");
+                        }
+                    }
                 }
                 // Capped so the peer names never wrap the pool and start repeating.
                 const fillerCount = Math.max(0, Math.min(FILLER_POOL - featured.length, Math.round(num("fillercount", 5))));
-                const learners = buildField(featured, fillerCount);
-                log("field", learners.length, "learners;", featured.filter(p => !p.synthetic).length, "real");
+                const learners = buildField(featured, others, fillerCount);
+                const realCount = featured.concat(others).filter(p => !p.synthetic).length;
+                log("field", learners.length, "learners;", realCount, "real");
                 // ── Render ──
                 const opts = {
                     drilldown: bool("showdrilldown", true),
@@ -2078,17 +2668,64 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const validMetric = (v) => v === "courses" || v === "hours" || v === "xp" || v === "streak";
                 const startMetric = attr("defaultmetric");
                 let metric = validMetric(startMetric) ? startMetric : "courses";
+                const showCta = bool("showcta", true);
+                const ctaLabel = attr("ctalabel") || S.ctaAction;
+                const ctaUrl = attr("ctaurl");
+                const viewerKey = (learners.filter(l => l.person.isViewer)[0] || { key: "" }).key;
                 let ranked = rank(learners, metric);
+                /** The chart itself. Which shape appears is a property of the metric, not
+                 *  of the render call — see `CHART_KIND`. */
+                const area = (m) => {
+                    if (CHART_KIND[m] === "lines") {
+                        // Lines are a comparison, so they plot the whole field including the
+                        // podium — leaving the leaders out would remove the thing the viewer
+                        // is measuring themselves against.
+                        return lines(ranked, viewerKey);
+                    }
+                    return race(showPodium ? ranked.slice(3) : ranked, m, opts);
+                };
+                const gapNow = () => gapAhead(learners, metric);
                 const paint = () => {
                     body.innerHTML = `
           ${header(match.label, metric, showSwitcher)}
           <div class="${(/* inlined export .P */"csl")}-charts">
             ${showPodium ? podium(ranked.slice(0, 3), metric, showTier, opts.badges) : ""}
-            ${race(showPodium ? ranked.slice(3) : ranked, metric, opts)}
+            ${caption(metric)}
+            <div class="${(/* inlined export .P */"csl")}-area" data-kind="${CHART_KIND[metric]}">${area(metric)}</div>
+            ${showCta ? catchUp(gapNow(), metric, ctaLabel, ctaUrl) : ""}
           </div>
           ${bool("showdemonote", true) ? footnote() : ""}
           ${debug ? `<pre class="${(/* inlined export .P */"csl")}-dbg">${esc(logs.join("\n"))}</pre>` : ""}`;
+                    measureLines();
                 };
+                /**
+                 * SVG cannot express "dash me by my own length" in CSS, so the draw-on
+                 * animation needs the measured path length written back as a custom
+                 * property. Guarded because `getTotalLength` does not exist in every
+                 * rendering context (jsdom, for one), and a missing measurement must
+                 * leave a fully drawn line rather than an invisible one.
+                 */
+                function measureLines() {
+                    const paths = Array.prototype.slice.call(body.querySelectorAll(`.${(/* inlined export .P */"csl")}-ln`));
+                    paths.forEach((p, i) => {
+                        if (typeof p.getTotalLength !== "function")
+                            return;
+                        let len = 0;
+                        try {
+                            len = p.getTotalLength();
+                        }
+                        catch (_) {
+                            return;
+                        }
+                        if (!len)
+                            return;
+                        p.style.setProperty("--len", `${Math.ceil(len)}`);
+                        p.setAttribute("data-len", "1");
+                        const grp = p.parentElement;
+                        if (grp)
+                            grp.style.setProperty("--i", String(i));
+                    });
+                }
                 paint();
                 // ── Reveal ──
                 // Staggered entry fires when the widget is actually on screen; a
@@ -2150,17 +2787,27 @@ const factory = (BaseBlockClass, widgetApi) => {
                     };
                     rafId = requestAnimationFrame(step);
                 }
-                // ── Metric switch, with FLIP ──
+                // ── Metric switch ──
                 //
-                // Rows are *moved*, not re-rendered: the DOM node for a person keeps its
-                // identity so it can be measured before and after, then transformed back
-                // to where it was and released. Re-rendering the list would make the
-                // ranking change instantly and invisibly — the reorder is the whole point
-                // of an interactive bar race.
+                // Two different transitions, because there are two different kinds of
+                // change.
+                //
+                // Between the three row charts (cursos / horas / racha) the *people* stay
+                // and only their order and their middles change, so rows are moved rather
+                // than re-rendered: each node keeps its identity, gets measured before and
+                // after, is put back where it was and released (FLIP). That is what makes
+                // the ranking visibly race instead of silently snapping — and it is why an
+                // open drilldown travels with its person instead of closing.
+                //
+                // To or from the XP lines there are no rows to move, so that one
+                // transition rebuilds the chart area behind a fade. Pretending otherwise
+                // would mean animating nodes into nodes they have nothing to do with.
                 function switchMetric(next) {
                     if (next === metric)
                         return;
+                    const prev = metric;
                     metric = next;
+                    const wrap = body.querySelector(`.${(/* inlined export .P */"csl")}-area`);
                     const list = body.querySelector(`.${(/* inlined export .P */"csl")}-race`);
                     const before = new Map();
                     const rows = list
@@ -2169,24 +2816,46 @@ const factory = (BaseBlockClass, widgetApi) => {
                     for (const r of rows)
                         before.set(r.getAttribute("data-key") || "", r.getBoundingClientRect().top);
                     ranked = rank(learners, metric);
-                    // The podium is a different shape per rank, so it is rebuilt; the race
+                    // The podium is a different shape per rank, so it is rebuilt; the row
                     // list is the part that animates.
                     const podWrap = body.querySelector(`.${(/* inlined export .P */"csl")}-podium`);
                     if (podWrap && showPodium) {
                         podWrap.outerHTML = podium(ranked.slice(0, 3), metric, showTier, opts.badges);
                     }
-                    const tail = showPodium ? ranked.slice(3) : ranked;
-                    if (list) {
+                    const capEl = body.querySelector(`.${(/* inlined export .P */"csl")}-cap`);
+                    if (capEl)
+                        capEl.outerHTML = caption(metric);
+                    const sameShape = isRowChart(prev) && isRowChart(metric) && !!list;
+                    if (wrap)
+                        wrap.setAttribute("data-kind", CHART_KIND[metric]);
+                    if (!sameShape) {
+                        if (wrap) {
+                            wrap.innerHTML = area(metric);
+                            measureLines();
+                            // Re-arm the entry animation for the chart that just appeared: the
+                            // reveal class lives on the container, so it has to be taken off
+                            // and put back for the new children to run it.
+                            const c = charts();
+                            if (animate && c) {
+                                c.classList.remove(`${(/* inlined export .P */"csl")}-reveal`);
+                                void c.offsetWidth; // force reflow, or the class never left
+                                c.classList.add(`${(/* inlined export .P */"csl")}-reveal`);
+                            }
+                        }
+                    }
+                    else if (list) {
                         const byKey = new Map();
                         for (const r of rows)
                             byKey.set(r.getAttribute("data-key") || "", r);
+                        const tail = showPodium ? ranked.slice(3) : ranked;
                         const max = Math.max(...tail.map(l => metricValue(l, metric)), 0);
                         const wanted = new Set(tail.map(l => keyOf(l)));
+                        list.setAttribute("data-kind", CHART_KIND[metric]);
                         // Membership changes, not just order: switching metric can promote a
-                        // race row onto the podium and drop a podium person into the list. A
-                        // row whose person is now on the podium has to go, and a newcomer has
-                        // to be built — reusing whatever happened to be there would leave a
-                        // row showing another person's numbers.
+                        // row onto the podium and drop a podium person into the list. A row
+                        // whose person is now on the podium has to go, and a newcomer has to
+                        // be built — reusing whatever happened to be there would leave a row
+                        // showing another person's numbers.
                         for (const r of rows) {
                             if (!wanted.has(r.getAttribute("data-key") || ""))
                                 r.remove();
@@ -2206,21 +2875,13 @@ const factory = (BaseBlockClass, widgetApi) => {
                             const rankEl = row.querySelector(`.${(/* inlined export .P */"csl")}-rank`);
                             if (rankEl)
                                 rankEl.textContent = String(i + 1);
-                            const fill = row.querySelector(`.${(/* inlined export .P */"csl")}-bar-fill`);
-                            const v = metricValue(l, metric);
-                            if (fill)
-                                fill.style.setProperty("--w", `${Math.max(6, max > 0 ? (v / max) * 100 : 0).toFixed(2)}%`);
-                            const numEl = row.querySelector(`.${(/* inlined export .P */"csl")}-num`);
-                            if (numEl) {
-                                numEl.setAttribute("data-count", String(v));
-                                numEl.setAttribute("data-dec", metric === "hours" ? "1" : "0");
-                                numEl.textContent = formatMetric(l, metric);
-                            }
-                            const unitEl = row.querySelector(`.${(/* inlined export .P */"csl")}-unit`);
-                            if (unitEl)
-                                unitEl.textContent = metricUnit(l, metric);
-                            // An open drilldown belongs to a person, not a rank, so it stays
-                            // open and simply travels with them.
+                            // The whole middle is swapped, because the *shape* may have changed
+                            // (a bar becomes a stack becomes a grid) and not merely its size.
+                            // The drilldown panel and the open state live outside this node, so
+                            // they survive untouched.
+                            const bodyEl = row.querySelector(`.${(/* inlined export .P */"csl")}-row-body`);
+                            if (bodyEl)
+                                bodyEl.innerHTML = rowBody(l, metric, max, opts);
                         });
                         if (animate) {
                             const moved = Array.prototype.slice.call(list.children);
@@ -2249,6 +2910,9 @@ const factory = (BaseBlockClass, widgetApi) => {
                             });
                         }
                     }
+                    // The gap is in the units of whatever is on screen, so it is rewritten
+                    // with the chart rather than left saying "2 cursos" under an XP view.
+                    updateCta();
                     // Tabs
                     const tabs = Array.prototype.slice.call(body.querySelectorAll(`.${(/* inlined export .P */"csl")}-tab`));
                     for (const t of tabs) {
@@ -2260,6 +2924,20 @@ const factory = (BaseBlockClass, widgetApi) => {
                     if (rafId)
                         cancelAnimationFrame(rafId);
                     countUp();
+                }
+                /** Keeps the catch-up sentence true for the metric on screen. */
+                function updateCta() {
+                    const cta = body.querySelector(`.${(/* inlined export .P */"csl")}-cta`);
+                    if (!cta)
+                        return;
+                    const info = gapNow();
+                    const gapEl = cta.querySelector(`.${(/* inlined export .P */"csl")}-cta-gap`);
+                    if (gapEl)
+                        gapEl.textContent = gapText(info, metric);
+                    const rankEl = cta.querySelector(`.${(/* inlined export .P */"csl")}-cta-rank`);
+                    if (rankEl && info)
+                        rankEl.textContent = S.ctaRankOf(info.rank, info.total);
+                    cta.setAttribute("data-done", info && info.rank === 1 ? "1" : "0");
                 }
                 /** The sliding pill behind the active tab. Measured rather than computed
                  *  from an index, because the tab labels are different widths. */
@@ -2297,13 +2975,99 @@ const factory = (BaseBlockClass, widgetApi) => {
                     row.setAttribute("data-open", "1");
                     main === null || main === void 0 ? void 0 : main.setAttribute("aria-expanded", "true");
                 }
+                /** The XP chart's equivalent of a drilldown: one shared panel under the
+                 *  lines, because the lines cross and a per-person panel would have
+                 *  nowhere sensible to open. Clicking the same line again closes it. */
+                function toggleLine(key) {
+                    const panel = body.querySelector(`.${(/* inlined export .P */"csl")}-lines-dd`);
+                    if (!panel || !opts.drilldown)
+                        return;
+                    if (panel.getAttribute("data-key") === key) {
+                        panel.hidden = true;
+                        panel.innerHTML = "";
+                        panel.removeAttribute("data-key");
+                        return;
+                    }
+                    const learner = learners.filter(l => keyOf(l) === key)[0];
+                    if (!learner)
+                        return;
+                    panel.innerHTML = drilldown(learner);
+                    panel.hidden = false;
+                    panel.setAttribute("data-key", key);
+                }
+                /** Raise one line and push the rest back. Attribute-driven rather than
+                 *  CSS `:has`, which is still too new to rely on inside a host page we do
+                 *  not control. */
+                function emphasize(grp) {
+                    const wrap = body.querySelector(`.${(/* inlined export .P */"csl")}-lines`);
+                    if (!wrap)
+                        return;
+                    const all = Array.prototype.slice.call(wrap.querySelectorAll(`.${(/* inlined export .P */"csl")}-lngrp`));
+                    for (const g of all)
+                        g.classList.remove(`${(/* inlined export .P */"csl")}-ln-on`);
+                    if (grp) {
+                        grp.classList.add(`${(/* inlined export .P */"csl")}-ln-on`);
+                        wrap.setAttribute("data-on", "1");
+                    }
+                    else {
+                        wrap.removeAttribute("data-on");
+                    }
+                }
+                const onOver = (ev) => {
+                    const t = ev.target;
+                    if (!t || typeof t.closest !== "function")
+                        return;
+                    const grp = t.closest(`.${(/* inlined export .P */"csl")}-lngrp`);
+                    if (grp) {
+                        emphasize(grp);
+                        return;
+                    }
+                    // Leaving the chart entirely is the only thing that clears it — moving
+                    // between two lines should hand off, not flicker through neutral.
+                    if (!t.closest(`.${(/* inlined export .P */"csl")}-lines-svg`))
+                        emphasize(null);
+                };
+                const onCatchUp = (ev) => {
+                    const info = gapNow();
+                    const detail = {
+                        metric,
+                        gap: info ? info.gap : 0,
+                        rank: info ? info.rank : 0,
+                        total: info ? info.total : learners.length,
+                        target: info ? info.target.person.name : "",
+                    };
+                    // Dispatched whether or not a URL is configured, so a page that hosts
+                    // the course grid can scroll to it (or open its own filter) instead of
+                    // navigating away. When a URL *is* set the link's default is left
+                    // alone, so the event and the navigation both happen.
+                    host.dispatchEvent(new CustomEvent("cornerstone-learning:catchup", {
+                        detail, bubbles: true, composed: true,
+                    }));
+                    log("catch-up pressed —", JSON.stringify(detail));
+                    if (!ctaUrl) {
+                        const btn = ev.target.closest(`.${(/* inlined export .P */"csl")}-cta-btn`);
+                        btn === null || btn === void 0 ? void 0 : btn.setAttribute("data-pulse", "1");
+                        window.setTimeout(() => btn === null || btn === void 0 ? void 0 : btn.removeAttribute("data-pulse"), 600);
+                    }
+                };
                 const onClick = (ev) => {
                     const target = ev.target;
+                    if (!target || typeof target.closest !== "function")
+                        return;
                     const tab = target.closest(`.${(/* inlined export .P */"csl")}-tab`);
                     if (tab) {
                         const m = tab.getAttribute("data-metric") || "";
                         if (validMetric(m))
                             switchMetric(m);
+                        return;
+                    }
+                    if (target.closest(`[data-cta="1"]`)) {
+                        onCatchUp(ev);
+                        return;
+                    }
+                    const grp = target.closest(`.${(/* inlined export .P */"csl")}-lngrp`);
+                    if (grp) {
+                        toggleLine(grp.getAttribute("data-key") || "");
                         return;
                     }
                     // Avatar and name are real profile links; opening the drilldown instead
@@ -2323,6 +3087,14 @@ const factory = (BaseBlockClass, widgetApi) => {
                     if (ev.key !== "Enter" && ev.key !== " ")
                         return;
                     const target = ev.target;
+                    if (!target || typeof target.closest !== "function")
+                        return;
+                    const grp = target.closest(`.${(/* inlined export .P */"csl")}-lngrp`);
+                    if (grp) {
+                        ev.preventDefault();
+                        toggleLine(grp.getAttribute("data-key") || "");
+                        return;
+                    }
                     const main = target.closest(`.${(/* inlined export .P */"csl")}-row-main[role="button"]`);
                     if (!main)
                         return;
@@ -2331,12 +3103,24 @@ const factory = (BaseBlockClass, widgetApi) => {
                     if (row)
                         toggleRow(row);
                 };
+                // Keyboard focus moves the emphasis too, so tabbing through the lines
+                // tells the same story as hovering them.
+                const onFocusIn = (ev) => {
+                    const t = ev.target;
+                    if (!t || typeof t.closest !== "function")
+                        return;
+                    emphasize(t.closest(`.${(/* inlined export .P */"csl")}-lngrp`));
+                };
                 body.addEventListener("click", onClick);
                 body.addEventListener("keydown", onKey);
+                body.addEventListener("mouseover", onOver);
+                body.addEventListener("focusin", onFocusIn);
                 window.addEventListener("resize", moveInk);
                 this._cslCleanup = () => {
                     body.removeEventListener("click", onClick);
                     body.removeEventListener("keydown", onKey);
+                    body.removeEventListener("mouseover", onOver);
+                    body.removeEventListener("focusin", onFocusIn);
                     window.removeEventListener("resize", moveInk);
                     if (rafId)
                         cancelAnimationFrame(rafId);
@@ -2360,9 +3144,11 @@ const factory = (BaseBlockClass, widgetApi) => {
     };
 };
 const ATTRS = [
-    "apitoken", "baseurl", "authmode", "topuserids", "fillercount", "defaultmetric",
+    "apitoken", "baseurl", "authmode", "topuserids", "podiumdraw", "drawseed",
+    "showviewer", "fillercount", "defaultmetric",
     "showmetricswitcher", "showpodium", "showtierbar", "showbadges", "showstreak",
-    "showdrilldown", "colorscheme", "multibranding", "brandfallback", "brandpreview",
+    "showdrilldown", "showcta", "ctalabel", "ctaurl",
+    "colorscheme", "multibranding", "brandfallback", "brandpreview",
     "usethemecolors", "primarycolor", "accentcolor", "animate", "showdemonote", "debugmode",
 ].concat((() => {
     const out = [];

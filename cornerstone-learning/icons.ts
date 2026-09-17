@@ -23,6 +23,12 @@ const PATHS: { [k: string]: Path } = {
   compass: '<circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5Z"/>',
   sunrise: '<path d="M12 3v5"/><path d="m5 10 1.5 1.5"/><path d="M2 17h20"/><path d="m19 10-1.5 1.5"/><path d="M8.5 17a3.5 3.5 0 0 1 7 0"/><path d="M4 21h16"/>',
   users: '<circle cx="9" cy="8" r="3.5"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M16 5.2a3.5 3.5 0 0 1 0 5.6"/><path d="M17.5 14.4A6 6 0 0 1 21 20"/>',
+  rocket: '<path d="M13.5 4.5C16 2 20 3 20 3s1 4-1.5 6.5L14 14l-4-4Z"/><path d="m10 10-4 1.5L4 14l3 .5L7.5 18l2.5-2 1.5-4"/><path d="M6.5 17.5 4 20"/>',
+  target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".8" fill="currentColor"/>',
+  arrow: '<path d="M4 12h15"/><path d="m13 6 6 6-6 6"/>',
+  grid: '<rect x="3" y="4" width="7" height="7" rx="1.6"/><rect x="14" y="4" width="7" height="7" rx="1.6"/><rect x="3" y="15" width="7" height="5" rx="1.6"/><rect x="14" y="15" width="7" height="5" rx="1.6"/>',
+  layers: '<path d="m12 3 8 4.5-8 4.5-8-4.5Z"/><path d="m4 12 8 4.5 8-4.5"/><path d="m4 16.5 8 4.5 8-4.5"/>',
+  trend: '<path d="M3 17.5 9.5 11l4 4L21 7"/><path d="M15.5 7H21v5.5"/>',
 };
 
 export function icon(name: string, size = 16, stroke = 1.9): string {
