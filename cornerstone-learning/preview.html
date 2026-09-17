@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cornerstone Learning Leaderboard — Preview</title>
+<style>
+  body{margin:0;background:#eef1f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    padding:24px 16px;color:#111827}
+  .wrap{max-width:1000px;margin:0 auto}
+  .cfg{background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:12px;padding:16px;margin-bottom:20px;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;align-items:end}
+  fieldset{grid-column:1/-1;border:1px solid rgba(0,0,0,.1);border-radius:10px;padding:12px 14px 14px;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;align-items:end}
+  legend{font-size:12px;font-weight:700;padding:0 6px;color:#374151}
+  label{display:block;font-size:12px;font-weight:600;margin-bottom:4px}
+  input,select{width:100%;font:inherit;font-size:13px;padding:7px 9px;border:1px solid rgba(0,0,0,.16);
+    border-radius:8px;box-sizing:border-box}
+  button{font:inherit;font-size:13px;font-weight:600;padding:8px 14px;border:0;border-radius:8px;
+    background:#7C5CFF;color:#fff;cursor:pointer}
+  .stage{background:none;border:0;padding:0}
+  .hint{font-size:12px;color:#6b7280;grid-column:1/-1;margin:0;line-height:1.5}
+  code{background:rgba(0,0,0,.06);padding:1px 4px;border-radius:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="cfg">
+    <div><label for="baseurl">Base URL</label><input id="baseurl" placeholder="https://acme.staffbase.com/api"></div>
+    <div><label for="apitoken">API Token</label><input id="apitoken" type="password" placeholder="Basic token"></div>
+    <div><label for="topuserids">Top 3 user IDs</label><input id="topuserids" placeholder="id1, id2, id3"></div>
+    <div><label for="fillercount">Demo peers</label><input id="fillercount" type="number" value="5" min="0" max="12"></div>
+    <div><label for="defaultmetric">Starting metric</label>
+      <select id="defaultmetric">
+        <option value="courses" selected>Cursos</option>
+        <option value="hours">Horas</option>
+        <option value="xp">XP</option>
+        <option value="streak">Racha</option>
+      </select></div>
+    <div><label for="colorscheme">Color scheme</label>
+      <select id="colorscheme"><option value="dark" selected>Dark</option><option value="light">Light</option><option value="auto">Auto</option></select></div>
+    <div><label for="showpodium">Podium</label>
+      <select id="showpodium"><option value="true" selected>On</option><option value="false">Off</option></select></div>
+    <div><label for="animate">Animate</label>
+      <select id="animate"><option value="true" selected>On</option><option value="false">Off</option></select></div>
+    <div><label for="debugmode">Debug mode</label>
+      <select id="debugmode"><option value="true" selected>On</option><option value="false">Off</option></select></div>
+
+    <fieldset>
+      <legend>Multibranding</legend>
+      <div><label for="multibranding">Enabled</label>
+        <select id="multibranding"><option value="true" selected>On</option><option value="false">Off</option></select></div>
+      <div><label for="viewergroups">Viewer's groups (stubbed)</label>
+        <input id="viewergroups" value="Retail" placeholder="Retail, HQ"></div>
+      <div><label for="brand1group">Brand 1 — group</label><input id="brand1group" value="Retail"></div>
+      <div><label for="brand1primary">Brand 1 — primary</label><input id="brand1primary" value="#E4572E"></div>
+      <div><label for="brand1accent">Brand 1 — accent</label><input id="brand1accent" value="#FFC914"></div>
+      <div><label for="brand1label">Brand 1 — label</label><input id="brand1label" value="Retail"></div>
+      <div><label for="brand2group">Brand 2 — group</label><input id="brand2group" value="HQ"></div>
+      <div><label for="brand2primary">Brand 2 — primary</label><input id="brand2primary" value="#2D7DD2"></div>
+      <div><label for="brand2accent">Brand 2 — accent</label><input id="brand2accent" value="#45E5C2"></div>
+      <div><label for="brand2label">Brand 2 — label</label><input id="brand2label" value="Corporativo"></div>
+      <div><label for="brandpreview">Force slot (0 = off)</label><input id="brandpreview" type="number" value="0" min="0" max="4"></div>
+      <p class="hint">
+        Change <strong>Viewer's groups</strong> and re-render to watch the whole widget
+        re-brand — that field stands in for <code>getUserInformation().groupIDs</code>,
+        which only the real Staffbase host can answer. Names are matched
+        case- and accent-insensitively, so typing group names here works without
+        the <code>/groups</code> lookup.
+      </p>
+    </fieldset>
+
+    <div><button id="go">Render</button></div>
+    <p class="hint">
+      With no Base URL or token the top three fall back to demo people, which is the
+      intended degraded state. Avatars and profile hovercards only resolve inside the
+      Staffbase app. Run <code>npm run build</code> first.
+    </p>
+  </div>
+  <div class="stage" id="stage"></div>
+</div>
+
+<script>
+// Minimal stand-in for the Staffbase widget host: enough of the SDK contract to
+// instantiate the block as a custom element, plus a fake getUserInformation so
+// multibranding can be exercised without a real session.
+window.__viewerGroups = [];
+window.defineBlock = function (def) {
+  const d = def.blockDefinition;
+  const Base = class extends HTMLElement {
+    connectedCallback() { this.renderBlock && this.renderBlock(this); }
+    attributeChangedCallback() { this.innerHTML = ""; this.renderBlock && this.renderBlock(this); }
+  };
+  const widgetApi = {
+    getContentLanguage: () => "es_ES",
+    getUserInformation: () => Promise.resolve({
+      id: "preview-viewer",
+      // The real API returns IDs; the preview passes names straight through so
+      // the group-name match path is what gets exercised here.
+      groupIDs: window.__viewerGroups,
+    }),
+  };
+  customElements.define(d.name, d.factory(Base, widgetApi));
+  window.__blockName = d.name;
+};
+</script>
+<script src="./dist/cornerstone-learning.js"></script>
+<script>
+var KEYS = [
+  "baseurl", "apitoken", "topuserids", "fillercount", "defaultmetric", "colorscheme",
+  "showpodium", "animate", "debugmode", "multibranding", "brandpreview",
+  "brand1group", "brand1primary", "brand1accent", "brand1label",
+  "brand2group", "brand2primary", "brand2accent", "brand2label"
+];
+document.getElementById("go").addEventListener("click", function () {
+  window.__viewerGroups = document.getElementById("viewergroups").value
+    .split(",").map(function (s) { return s.trim(); }).filter(Boolean);
+  var stage = document.getElementById("stage");
+  stage.innerHTML = "";
+  var el = document.createElement(window.__blockName);
+  KEYS.forEach(function (k) {
+    var v = document.getElementById(k).value;
+    if (v !== "") el.setAttribute(k, v);
+  });
+  stage.appendChild(el);
+});
+document.getElementById("go").click();
+</script>
+</body>
+</html>
