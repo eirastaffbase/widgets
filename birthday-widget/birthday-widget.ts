@@ -145,15 +145,17 @@ ${HOST_RESET}
   background:#f3f4f6;color:#6b7280;
 }
 
-.${P}-list{display:flex;flex-direction:column;gap:10px}
+.${P}-list{display:flex;flex-direction:column}
 
 .${P}-card{
-  display:flex;align-items:center;gap:14px;padding:12px 14px;
+  display:flex;align-items:center;gap:14px;padding:14px 14px;
   border-radius:12px;background:transparent;
   transition:background .18s ease,transform .18s ease;
   animation:${P}-rise .45s cubic-bezier(.16,1,.3,1) both;
   animation-delay:calc(var(--i,0)*60ms);
+  margin-bottom:8px;
 }
+.${P}-card:last-child{margin-bottom:0}
 .${P}-card:hover{background:#f9fafb;transform:translateX(3px)}
 
 /* Avatar circle — neutral gray gradient, white initials */
@@ -221,10 +223,11 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
         ? await fetchUserAvatars(baseUrl, apiToken)
         : new Map<string, string>();
 
-      const locale = detectLocale({
-        configLocale: (widgetApi as any)?.getContentLanguage?.() || null,
-        available: AVAILABLE_LOCALES,
-      });
+      const viewerLang: string | null =
+        (widgetApi as any)?.getUserInformation?.()?.language
+        || (widgetApi as any)?.getContentLanguage?.()
+        || null;
+      const locale = detectLocale({ configLocale: viewerLang, available: AVAILABLE_LOCALES }) || "es_MX";
       const t   = makeT(BUNDLES, locale);
       const rtl = isRtl(locale);
 

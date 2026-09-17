@@ -178,7 +178,7 @@ function makeT(bundles, locale) {
 }
 
 ;// ./strings.ts
-const AVAILABLE_LOCALES = ["en_US", "es_MX"];
+const AVAILABLE_LOCALES = ["es_MX", "es_ES", "en_US", "de_DE", "fr_FR", "pt_BR"];
 const BUNDLES = {
     en_US: {
         "widget.title": "Upcoming Birthdays",
@@ -194,7 +194,30 @@ const BUNDLES = {
         "countdown.tomorrow": "Mañana",
         "countdown.days": "En {n} días",
     },
+    de_DE: {
+        "widget.title": "Bevorstehende Geburtstage",
+        "state.empty": "Füge Namen in den Widget-Einstellungen hinzu.",
+        "countdown.today": "Heute!",
+        "countdown.tomorrow": "Morgen",
+        "countdown.days": "In {n} Tagen",
+    },
+    fr_FR: {
+        "widget.title": "Anniversaires à venir",
+        "state.empty": "Ajoutez des noms dans les paramètres du widget.",
+        "countdown.today": "Aujourd'hui !",
+        "countdown.tomorrow": "Demain",
+        "countdown.days": "Dans {n} jours",
+    },
+    pt_BR: {
+        "widget.title": "Aniversários próximos",
+        "state.empty": "Adicione nomes nas configurações do widget.",
+        "countdown.today": "Hoje!",
+        "countdown.tomorrow": "Amanhã",
+        "countdown.days": "Em {n} dias",
+    },
 };
+// es_ES is close enough to es_MX for these short strings
+BUNDLES.es_ES = Object.assign({}, BUNDLES.es_MX);
 
 ;// ./birthday-widget.ts
 var birthday_widget_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
@@ -343,15 +366,17 @@ ${HOST_RESET}
   background:#f3f4f6;color:#6b7280;
 }
 
-.${P}-list{display:flex;flex-direction:column;gap:10px}
+.${P}-list{display:flex;flex-direction:column}
 
 .${P}-card{
-  display:flex;align-items:center;gap:14px;padding:12px 14px;
+  display:flex;align-items:center;gap:14px;padding:14px 14px;
   border-radius:12px;background:transparent;
   transition:background .18s ease,transform .18s ease;
   animation:${P}-rise .45s cubic-bezier(.16,1,.3,1) both;
   animation-delay:calc(var(--i,0)*60ms);
+  margin-bottom:8px;
 }
+.${P}-card:last-child{margin-bottom:0}
 .${P}-card:hover{background:#f9fafb;transform:translateX(3px)}
 
 /* Avatar circle — neutral gray gradient, white initials */
@@ -408,17 +433,17 @@ const factory = (BaseBlockClass, widgetApi) => {
         constructor() { super(); }
         renderBlock(container) {
             return birthday_widget_awaiter(this, void 0, void 0, function* () {
-                var _a;
+                var _a, _b, _c;
                 const attr = (k) => this.getAttribute(k) || "";
                 const apiToken = attr("apitoken");
                 const baseUrl = attr("baseurl").replace(/\/+$/, "");
                 const avatarMap = (apiToken && baseUrl)
                     ? yield fetchUserAvatars(baseUrl, apiToken)
                     : new Map();
-                const locale = detectLocale({
-                    configLocale: ((_a = widgetApi === null || widgetApi === void 0 ? void 0 : widgetApi.getContentLanguage) === null || _a === void 0 ? void 0 : _a.call(widgetApi)) || null,
-                    available: AVAILABLE_LOCALES,
-                });
+                const viewerLang = ((_b = (_a = widgetApi === null || widgetApi === void 0 ? void 0 : widgetApi.getUserInformation) === null || _a === void 0 ? void 0 : _a.call(widgetApi)) === null || _b === void 0 ? void 0 : _b.language)
+                    || ((_c = widgetApi === null || widgetApi === void 0 ? void 0 : widgetApi.getContentLanguage) === null || _c === void 0 ? void 0 : _c.call(widgetApi))
+                    || null;
+                const locale = detectLocale({ configLocale: viewerLang, available: AVAILABLE_LOCALES }) || "es_MX";
                 const t = makeT(BUNDLES, locale);
                 const rtl = isRtl(locale);
                 const people = parsePeople(attr("people"));
