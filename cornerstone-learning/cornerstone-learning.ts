@@ -218,6 +218,7 @@ ${HOST_RESET}
   --r:20px;--r-sm:12px;--r-xs:8px;
   --dur:.42s;
   --ease:cubic-bezier(.22,.86,.28,1);
+  --back:cubic-bezier(.34,1.56,.64,1);
   position:relative;
   font-family:inherit;
   color:var(--ink);
@@ -365,42 +366,55 @@ ${HOST_RESET}
 .${P}-heat-c[data-lvl="3"]{background:var(--csl-accent)}
 .${P}-heat-c:hover{transform:scaleY(1.25)}
 
-/* ── XP lines ───────────────────────────────────────────────────────────── */
+/* ── XP curves ──────────────────────────────────────────────────────────── */
 .${P}-lines{margin-top:2px}
 .${P}-lines-svg{width:100%;height:auto;overflow:visible}
-.${P}-grid{stroke:rgba(var(--tint),.13);stroke-width:1;stroke-dasharray:3 4}
-.${P}-ytick,.${P}-xtick{fill:var(--ink-2);font-size:10px;font-family:inherit;
-  font-variant-numeric:tabular-nums}
+.${P}-xtick{fill:var(--ink-2);font-size:10.5px;font-family:inherit;font-weight:600;
+  opacity:.75;letter-spacing:.01em}
 .${P}-lngrp{cursor:pointer;transition:opacity .22s var(--ease)}
 .${P}-lngrp:focus{outline:none}
-.${P}-lngrp:focus-visible .${P}-ln{stroke-width:3.4}
-/* A 14px transparent stroke under each line: a 2px path is not a hit target,
+.${P}-lngrp:focus-visible .${P}-ln{stroke-width:5}
+/* A 16px transparent stroke under each curve: a 3px path is not a hit target,
    and "hover the line" is the entire interaction. */
-.${P}-ln-hit{fill:none;stroke:transparent;stroke-width:14;pointer-events:stroke}
-.${P}-ln{fill:none;stroke-linejoin:round;stroke-linecap:round;
-  stroke:rgba(var(--tint),.28);stroke-width:1.6;pointer-events:none;
-  transition:stroke-width .2s var(--ease)}
-.${P}-ln-dot{fill:var(--bg-2);stroke:currentColor;stroke-width:2;pointer-events:none}
-.${P}-ln-lbl{fill:var(--ink-2);font-size:10.5px;font-weight:650;font-family:inherit;
+.${P}-ln-hit{fill:none;stroke:transparent;stroke-width:16;pointer-events:stroke}
+.${P}-ln{fill:none;stroke-linejoin:round;stroke-linecap:round;stroke-width:3;
+  pointer-events:none;transition:stroke-width .2s var(--ease)}
+.${P}-ln-area{pointer-events:none}
+.${P}-ln-head{fill:var(--c);stroke:var(--bg-2);stroke-width:2;pointer-events:none;
+  transform-box:fill-box;transform-origin:center}
+.${P}-ln-leader{fill:none;stroke:var(--c);stroke-width:1.4;opacity:.45;
+  stroke-dasharray:2 3;pointer-events:none}
+.${P}-ln-med{fill:var(--c);stroke:var(--bg-2);stroke-width:2;pointer-events:none;
+  filter:drop-shadow(0 3px 8px rgba(0,0,0,.35))}
+.${P}-ln-ini{fill:#0B0D12;font-size:10.5px;font-weight:800;font-family:inherit;
   pointer-events:none}
-.${P}-lngrp[data-role="top"]{color:var(--csl-primary)}
-.${P}-lngrp[data-role="top"] .${P}-ln{stroke:var(--csl-primary);stroke-width:2.2;opacity:.85}
-.${P}-lngrp[data-role="you"]{color:var(--csl-accent)}
-.${P}-lngrp[data-role="you"] .${P}-ln{stroke:var(--csl-accent);stroke-width:3.2;
-  filter:drop-shadow(0 2px 10px rgba(var(--csl-accent-rgb),.55))}
-.${P}-lngrp[data-role="you"] .${P}-ln-lbl{fill:var(--csl-accent);font-weight:800}
-/* One line raised, the rest pushed back — the comparison only reads if the
+.${P}-ln-val{fill:var(--ink);font-size:12px;font-weight:800;font-family:inherit;
+  font-variant-numeric:tabular-nums;pointer-events:none}
+.${P}-lngrp[data-role="peer"] .${P}-ln{stroke-width:2.2;opacity:.42}
+.${P}-lngrp[data-role="peer"] .${P}-ln-head{opacity:.5}
+.${P}-lngrp[data-role="top"] .${P}-ln{opacity:.95}
+/* The subject of the chart: gradient stroke, a glow, and a ring that keeps
+   pulsing at the tip so your own progress is the thing your eye lands on. */
+.${P}-lngrp[data-role="you"]{--c:var(--csl-accent)}
+.${P}-lngrp[data-role="you"] .${P}-ln{stroke-width:4.4;
+  filter:drop-shadow(0 3px 12px rgba(var(--csl-accent-rgb),.65))}
+.${P}-lngrp[data-role="you"] .${P}-ln-val{fill:var(--csl-accent)}
+.${P}-ln-ping{fill:none;stroke:var(--csl-accent);stroke-width:2;pointer-events:none;
+  transform-box:fill-box;transform-origin:center;opacity:0}
+.${P}-root[data-anim="1"] .${P}-ln-ping{animation:${P}-ping 2.4s var(--ease) 1.7s infinite}
+/* One curve raised, the rest pushed back — the comparison only reads if the
    others recede. */
-.${P}-lines[data-on="1"] .${P}-lngrp{opacity:.14}
+.${P}-lines[data-on="1"] .${P}-lngrp{opacity:.12}
 .${P}-lines[data-on="1"] .${P}-lngrp.${P}-ln-on{opacity:1}
-.${P}-lines[data-on="1"] .${P}-lngrp.${P}-ln-on .${P}-ln{stroke-width:3.4}
+.${P}-lines[data-on="1"] .${P}-lngrp.${P}-ln-on .${P}-ln{stroke-width:5}
 .${P}-lgd{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:8px;
   padding-left:2px;font-size:11px;color:var(--ink-2)}
 .${P}-lgd-i{display:inline-flex;align-items:center;gap:6px;font-weight:620}
 .${P}-lgd-i::before{content:"";width:16px;height:3px;border-radius:2px;
-  background:rgba(var(--tint),.3)}
-.${P}-lgd-i[data-role="top"]::before{background:var(--csl-primary)}
-.${P}-lgd-i[data-role="you"]::before{background:var(--csl-accent);height:4px}
+  background:linear-gradient(90deg,hsl(268 78% 62%),hsl(160 78% 62%))}
+.${P}-lgd-i[data-role="top"]::before{background:hsl(42 85% 60%)}
+.${P}-lgd-i[data-role="you"]::before{height:4px;
+  background:linear-gradient(90deg,var(--csl-primary),var(--csl-accent))}
 .${P}-lgd-i[data-role="you"]{color:var(--csl-accent)}
 .${P}-lgd-hint{margin-left:auto;opacity:.7}
 .${P}-lines-dd{margin-top:6px;border-top:1px solid var(--line)}
@@ -524,16 +538,28 @@ ${HOST_RESET}
 .${P}-root[data-anim="1"] .${P}-reveal .${P}-heat-c{
   opacity:0;animation:${P}-pop .4s var(--ease) forwards;
   animation-delay:calc(var(--i,0) * 45ms + 120ms)}
-/* The line draws itself: dasharray is set to the path length in JS (SVG cannot
+/* The curve draws itself: dasharray is set to the path length in JS (SVG cannot
    express "my own length" in CSS), then the offset is animated to zero. A path
-   that simply appeared would lose the sense of accumulation the chart is for. */
+   that simply appeared would lose the sense of accumulation the chart is for.
+   Peers go first and the viewer's curve lands last, so the animation ends on
+   the line the viewer came to see. */
 .${P}-root[data-anim="1"] .${P}-reveal .${P}-ln[data-len]{
   stroke-dasharray:var(--len);stroke-dashoffset:var(--len);
-  animation:${P}-draw 1.05s var(--ease) forwards;
-  animation-delay:calc(var(--i,0) * 70ms)}
-.${P}-root[data-anim="1"] .${P}-reveal .${P}-ln-dot,
-.${P}-root[data-anim="1"] .${P}-reveal .${P}-ln-lbl{
-  opacity:0;animation:${P}-in .4s var(--ease) forwards;animation-delay:.75s}
+  animation:${P}-draw 1.15s cubic-bezier(.33,.9,.3,1) forwards;
+  animation-delay:calc(var(--i,0) * 220ms)}
+.${P}-root[data-anim="1"] .${P}-reveal .${P}-ln-area{
+  opacity:0;animation:${P}-in .6s var(--ease) forwards;animation-delay:1.5s}
+/* The head arrives at the end of its own curve, then the medallion pops in —
+   the dot landing before the label is what makes it feel like a finish line. */
+.${P}-root[data-anim="1"] .${P}-reveal .${P}-ln-head{
+  opacity:0;animation:${P}-pop .45s var(--back) forwards;
+  animation-delay:calc(var(--i,0) * 220ms + .95s)}
+.${P}-root[data-anim="1"] .${P}-reveal .${P}-ln-cap{
+  opacity:0;animation:${P}-cap .5s var(--back) forwards;
+  animation-delay:calc(var(--i,0) * 220ms + 1.1s)}
+.${P}-root[data-anim="1"] .${P}-reveal .${P}-xtick{
+  opacity:0;animation:${P}-in .4s var(--ease) forwards;
+  animation-delay:calc(var(--i,0) * 60ms + .15s)}
 .${P}-root[data-anim="1"] .${P}-reveal .${P}-cta{
   opacity:0;animation:${P}-in .5s var(--ease) forwards;animation-delay:.42s}
 .${P}-root[data-anim="1"] .${P}-cc{
@@ -541,6 +567,13 @@ ${HOST_RESET}
   animation-delay:calc(var(--i,0) * 40ms)}
 @keyframes ${P}-in{to{opacity:1;transform:none}}
 @keyframes ${P}-pop{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:none}}
+/* translate only, no scale: a scaled <g> needs transform-box:fill-box, which
+   older engines ignore on group elements and then fly the medallion in from the
+   SVG origin. */
+@keyframes ${P}-cap{from{opacity:0;transform:translateX(10px)}
+  to{opacity:1;transform:none}}
+@keyframes ${P}-ping{0%{opacity:.85;transform:scale(1)}
+  70%{opacity:0;transform:scale(2.6)}100%{opacity:0;transform:scale(2.6)}}
 @keyframes ${P}-draw{to{stroke-dashoffset:0}}
 @keyframes ${P}-grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 /* FLIP: the row is put back at its old offset with no transition, then released
@@ -555,23 +588,55 @@ ${HOST_RESET}
 @media (max-width:560px){
   .${P}-root{padding:16px 14px 12px}
   .${P}-head{flex-direction:column;align-items:stretch}
-  .${P}-podium{grid-template-columns:1fr;align-items:stretch}
-  .${P}-pod,.${P}-pod-1,.${P}-pod-2,.${P}-pod-3{order:0;flex-direction:row;
-    text-align:left;align-items:center;padding:11px 12px;flex-wrap:wrap}
-  .${P}-pod-nm{flex:1}
-  .${P}-pod-num{margin-left:auto}
-  .${P}-pod-1 .${P}-num{font-size:24px}
-  .${P}-tier{flex:0 0 100%}
+  /* The podium stays three across on a phone. Stacked, the three cards ate the
+     whole screen and the ranking — the one thing a podium is for — stopped
+     being a shape you could read at a glance. So it shrinks instead: smaller
+     avatars, tighter type, and the secondary lines (role, badges) dropped,
+     since they are legible on the rows below anyway. */
+  .${P}-podium{grid-template-columns:repeat(3,1fr);gap:6px;align-items:end}
+  .${P}-pod{padding:12px 5px 10px;gap:5px;border-radius:var(--r-xs);min-width:0}
+  .${P}-pod-1{padding-top:16px}
+  .${P}-pod .${P}-av-hero{--av:46px!important}
+  .${P}-pod-1 .${P}-av-hero{--av:58px!important}
+  .${P}-pod-rank{width:20px;height:20px;font-size:10px;bottom:-2px;right:-2px}
+  .${P}-pod-nm{font-size:11px;line-height:1.2;width:100%;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+    overflow:hidden;overflow-wrap:anywhere}
+  .${P}-pod-meta,.${P}-pod .${P}-badges,.${P}-pod .${P}-nobadge{display:none}
+  .${P}-pod-num{gap:2px;flex-wrap:wrap;justify-content:center}
+  .${P}-pod-num .${P}-num{font-size:17px}
+  .${P}-pod-1 .${P}-num{font-size:21px}
+  .${P}-unit{font-size:9.5px}
+  .${P}-pod .${P}-tier-head{font-size:9px}
+  .${P}-pod .${P}-tier-cap{display:none}
+  .${P}-pod .${P}-you{font-size:8.5px;padding:1px 4px}
   .${P}-dd-in,.${P}-dd-empty{padding-left:12px}
   .${P}-tabs{width:100%;justify-content:space-between}
   .${P}-tab{flex:1;padding:7px 8px!important}
   .${P}-cta{flex-wrap:wrap;gap:10px;padding:12px}
   .${P}-cta-btn{width:100%!important;justify-content:center}
   .${P}-lgd-hint{display:none}
-  /* The SVG scales down with the container, so text inside it has to scale up
-     to stay legible — these are viewBox units, not CSS pixels. */
-  .${P}-ln-lbl{font-size:13px}
-  .${P}-ytick,.${P}-xtick{font-size:12px}
+  /* Text inside the SVG is in viewBox units, and the viewBox is scaled *down*
+     to fit a phone — so these sizes have to go up just to hold their ground.
+     640 units across a ~360px screen is a 0.56 factor. */
+  .${P}-ln-ini{font-size:14px}
+  .${P}-ln-val{font-size:17px}
+  .${P}-xtick{font-size:16px}
+}
+@media (max-width:420px){
+  /* Six week labels will not fit; every other one still carries the axis. */
+  .${P}-xtick[data-i="1"],.${P}-xtick[data-i="3"]{display:none}
+  .${P}-ln-ini{font-size:17px}
+  .${P}-ln-val{font-size:20px}
+  .${P}-xtick{font-size:19px}
+}
+@media (max-width:380px){
+  .${P}-pod .${P}-av-hero{--av:38px!important}
+  .${P}-pod-1 .${P}-av-hero{--av:48px!important}
+  .${P}-pod-nm{font-size:10px}
+  .${P}-pod-num .${P}-num{font-size:15px}
+  .${P}-pod-1 .${P}-num{font-size:18px}
+  .${P}-pod .${P}-tier{display:none}
 }
 `;
 

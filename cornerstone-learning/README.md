@@ -23,7 +23,7 @@ different numbers in them would make the switcher a relabelling exercise.
 |---|---|---|
 | **Cursos** | Courses completed | Bar race — a ranking |
 | **Horas** | Σ course duration | Stacked bar — one segment per course, so you can see *what* the time went into |
-| **XP** | `50` required · `25` live event · `10` e-learning, `+15` finished before the deadline | Cumulative lines over six weeks, **the viewer's own line picked out** |
+| **XP** | `50` required · `25` live event · `10` e-learning, `+15` finished before the deadline | Cumulative colour curves over six weeks, **the viewer's own curve picked out** |
 | **Racha** | Consecutive weeks with at least one completion | Week-by-week heatmap — a streak is a statement about a calendar |
 
 Plus, per person:
@@ -42,9 +42,18 @@ With `showviewer` on (the default), the logged-in person joins the field as
 construction: on the podium the catch-up button would have nothing to ask for,
 and at the bottom the gap is dispiriting rather than motivating.
 
-That is what makes the XP view a comparison rather than a scoreboard — your line
-is the thick accent one, the leaders are solid, everyone else is deliberately
-faint context.
+That is what makes the XP view a comparison rather than a scoreboard — your
+curve is the thick gradient one with the glow, the area fill and the pulsing tip;
+the leaders carry name medallions; everyone else is a friendly colour in the
+background.
+
+The XP view deliberately has **no gridlines and no value axis**. A gridline
+exists so you can read an exact number off a line, and nobody needs their XP to
+three significant figures — the number they want is their own, so it rides at
+the end of their own curve on a coloured medallion instead. The curves are
+splines rather than polylines (clamped so cumulative XP can never appear to go
+down), and they draw themselves in one at a time, peers first, finishing on the
+viewer's.
 
 If there is no session (editor preview, logged-out render, failed lookup) a
 generic "Tú" row stands in, so the comparison still demonstrates itself without
@@ -72,13 +81,18 @@ if it should simply navigate.
   travels with its person instead of closing.
 - **Click any row** to expand that person's completed courses, with thumbnails,
   type/duration chips and an on-time marker. Keyboard-operable (Enter / Space).
-- **Hover or focus any line** in the XP view to raise it and push the rest back;
+- **Hover or focus any curve** in the XP view to raise it and push the rest back;
   click it to open that person's courses underneath.
 - **Hover a segment** of a stacked hours bar to see which course it is.
 - **Reveal on scroll** — staggered bars, drawing lines and counting numbers fire
   when the widget actually enters the viewport.
 - Avatars and names are real Staffbase profile links, so the native hovercard
   attaches; clicking them opens the profile instead of the drill-down.
+- **On a phone the podium stays three across.** Stacked, the three cards ate the
+  whole screen and the ranking — the one thing a podium is for — stopped being a
+  shape you could read at a glance, so the cards shrink instead: smaller
+  avatars, tighter type, and the role and badge lines dropped, since both are
+  still there on the rows below.
 
 All motion respects the `animate` setting **and** `prefers-reduced-motion`.
 Numbers render at their final value in the HTML and are only then animated, so
@@ -195,7 +209,7 @@ seeded PRNG → a set of completions → cursos / horas / XP / racha / nivel / i
 Everything is derived from that one completion set, so the metrics can never
 contradict each other — the person leading on hours really did sit through
 longer courses, their drill-down lists exactly the courses their bar counts, and
-their XP line ends exactly at the XP shown beside their name. The seed is the
+their XP curve ends exactly at the XP shown beside their name. The seed is the
 user's ID, so the same person gets the same history on every reload, in every
 browser.
 
@@ -220,7 +234,7 @@ degraded state.
 | File | Purpose |
 |---|---|
 | `cornerstone-learning.ts` | CSS, config schema, custom element, interactions |
-| `charts.ts` | Podium, bar race, stacked hours, XP lines, heatmap, CTA, drill-down markup |
+| `charts.ts` | Podium, bar race, stacked hours, XP curves, heatmap, CTA, drill-down markup |
 | `demo.ts` | Seeded PRNG, the podium draw, completion histories, every metric derivation |
 | `catalogue.ts` | Course catalogue, XP weights, tier thresholds, badge rules |
 | `branding.ts` | Viewer + groups, brand matching, contrast fitting, colour application |

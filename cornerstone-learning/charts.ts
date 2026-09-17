@@ -337,90 +337,186 @@ export function race(
   return `<ol class="${P}-race" data-kind="${CHART_KIND[metric]}" aria-label="${esc(S.field)}">${rows}</ol>`;
 }
 
-// ── XP: cumulative lines, you against the field ──────────────────────────────
+// ── XP: cumulative curves, you against the field ─────────────────────────────
 
 const LW = 640, LH = 210;           // viewBox; scaled to the container by CSS
-const PAD = { l: 38, r: 74, t: 16, b: 26 };
+const PAD = { l: 14, r: 92, t: 22, b: 30 };
 
-/** Round a maximum up to something a person would choose for an axis, so the
- *  top gridline reads 400 rather than 387. */
-function niceMax(v: number): number {
-  if (v <= 0) return 10;
-  const mag = Math.pow(10, Math.floor(Math.log10(v)));
-  const n = v / mag;
-  const step = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10;
-  return step * mag;
+/**
+ * A playful palette for the field.
+ *
+ * Every line being one of two brand colours made the chart read as a report.
+ * Giving each person their own hue turns it into a race you can follow with
+ * your eyes. Hues are dealt out by position rather than hashed per person, so
+ * no two people in a field of ten share a colour — a hash collision would put
+ * two identical curves on the chart, which is exactly the confusion the colour
+ * was added to prevent.
+ */
+const LINE_HUES = [268, 200, 330, 42, 160, 15, 288, 96, 220, 350];
+
+/** Where in the palette the field starts. Hashing the leader's key means two
+ *  different fields don't both open on purple, while the same field opens the
+ *  same way every time. */
+function hueStart(key: string): number {
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  return h % LINE_HUES.length;
 }
 
 /**
- * The XP view: every learner's cumulative XP over the last six weeks, drawn as
- * lines on shared axes.
+ * Catmull-Rom through the points, converted to cubic béziers.
+ *
+ * Straight segments made six weeks of XP look like a stock ticker. A curve
+ * reads as a journey, which is the feeling the metric is supposed to have.
+ *
+ * The control points are clamped to each segment's own vertical range *and*
+ * ordered within it: the series is cumulative and therefore never decreases, so
+ * the drawn curve must never decrease either. An unclamped spline will happily
+ * dip below a flat stretch and draw someone losing XP, and clamping the two
+ * control points independently can still leave them out of order, which puts a
+ * small wobble in an otherwise flat week.
+ */
+function curve(pts: Array<[number, number]>): string {
+  if (pts.length < 2) return "";
+  const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+  let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i], p1 = pts[i];
+    const p2 = pts[i + 1], p3 = pts[i + 2] || pts[i + 1];
+    // y decreases as XP rises, so p2[1] is the floor and p1[1] the ceiling.
+    const lo = Math.min(p1[1], p2[1]), hi = Math.max(p1[1], p2[1]);
+    const c1x = p1[0] + (p2[0] - p0[0]) / 6;
+    const c1y = clamp(p1[1] + (p2[1] - p0[1]) / 6, lo, hi);
+    const c2x = p2[0] - (p3[0] - p1[0]) / 6;
+    const c2y = clamp(clamp(p2[1] - (p3[1] - p1[1]) / 6, lo, hi), lo, c1y);
+    d += `C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)}`
+      + ` ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+  }
+  return d;
+}
+
+/** Keep end medallions from stacking on top of each other when two people
+ *  finish the six weeks a few XP apart. */
+function spread(ys: number[], gap: number, lo: number, hi: number): number[] {
+  const order = ys.map((y, i) => ({ y, i })).sort((a, b) => a.y - b.y);
+  let prev = -Infinity;
+  for (const o of order) {
+    o.y = Math.max(o.y, prev + gap);
+    prev = o.y;
+  }
+  const over = order.length ? order[order.length - 1].y - hi : 0;
+  if (over > 0) for (const o of order) o.y -= over;
+  const out = ys.slice();
+  for (const o of order) out[o.i] = Math.max(lo, o.y);
+  return out;
+}
+
+let uidSeq = 0;
+
+/**
+ * The XP view: every learner's cumulative XP over the last six weeks.
  *
  * This is the one view that is not about the podium. Bars answer "who is
  * winning"; the question people actually have about their own XP is "where am
  * I against everyone else, and am I gaining or falling behind" — which is a
  * slope, and needs a shared time axis to be visible at all.
  *
- * So the viewer's line is the subject: drawn last (on top), thicker, in the
- * accent colour, with points and an end label. The leaders are drawn in the
- * primary colour so there is something to measure against, and everyone else is
- * deliberately faint — context, not clutter. Hovering any line brings it
- * forward; clicking opens that person's courses underneath.
+ * Everything that made it look like an analytics dashboard is gone: no
+ * gridlines, no value axis, no tick marks. A gridline exists so you can read an
+ * exact number off a line, and nobody needs their XP to three significant
+ * figures — the number they want is their own, so it rides at the end of their
+ * own curve on a coloured medallion instead.
+ *
+ * The viewer's curve is the subject: drawn last (on top), thickest, with a
+ * glowing gradient stroke, a soft area fill underneath and a pulsing ring on
+ * its leading dot. Everyone else is a friendly colour at lower weight.
+ * Hovering any curve brings it forward; clicking opens that person's courses.
  */
 export function lines(learners: Learner[], viewerKey: string): string {
   if (!learners.length) return "";
   const weeks = Math.max(2, learners[0].series.length);
-  const top = niceMax(Math.max(...learners.map(l => l.series[l.series.length - 1] || 0), 1));
+  const top = Math.max(...learners.map(l => l.series[l.series.length - 1] || 0), 1);
+  const uid = `${P}-x${++uidSeq}`;
+  const h0 = hueStart(keyOf(learners[0]));
+  const hue = new Map(learners.map((l, i) => [keyOf(l), LINE_HUES[(h0 + i) % LINE_HUES.length]]));
+  const hueOf = (k: string) => hue.get(k) || LINE_HUES[0];
 
   const x = (i: number) => PAD.l + (i / (weeks - 1)) * (LW - PAD.l - PAD.r);
-  const y = (v: number) => LH - PAD.b - (Math.min(v, top) / top) * (LH - PAD.t - PAD.b);
-
-  const grid = [0, 0.5, 1].map(f => {
-    const gy = y(top * f).toFixed(1);
-    return `<line class="${P}-grid" x1="${PAD.l}" y1="${gy}" x2="${LW - PAD.r}" y2="${gy}"/>`
-      + `<text class="${P}-ytick" x="${PAD.l - 8}" y="${gy}" text-anchor="end" dominant-baseline="middle">${fmt(Math.round(top * f))}</text>`;
-  }).join("");
+  // A little headroom above the leader so the top curve never grazes the edge.
+  const y = (v: number) => LH - PAD.b - (Math.min(v, top) / top) * (LH - PAD.t - PAD.b) * 0.92;
 
   const xticks = learners[0].series.map((_, i) =>
-    `<text class="${P}-xtick" x="${x(i).toFixed(1)}" y="${LH - PAD.b + 15}" text-anchor="middle">${esc(weekTitle(i))}</text>`
+    `<text class="${P}-xtick" x="${x(i).toFixed(1)}" y="${LH - PAD.b + 17}" text-anchor="middle"`
+    + ` data-i="${i}" style="--i:${i}">${esc(weekTitle(i))}</text>`
   ).join("");
 
-  // Leaders by final XP, so "the lines you are chasing" are the ones drawn
-  // solidly rather than an arbitrary three.
+  // Leaders by final XP, so "the curves you are chasing" are the ones that
+  // carry a name rather than an arbitrary three.
   const byXp = learners.slice().sort((a, b) =>
     (b.series[b.series.length - 1] || 0) - (a.series[a.series.length - 1] || 0));
   const leaders = new Set(byXp.slice(0, 3).map(l => keyOf(l)));
 
-  const draw = (l: Learner): string => {
-    const key = keyOf(l);
-    const you = key === viewerKey;
-    const role = you ? "you" : leaders.has(key) ? "top" : "peer";
-    const pts = l.series.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`);
-    const d = `M${pts.join("L")}`;
-    const last = l.series[l.series.length - 1] || 0;
-    const dots = you || role === "top"
-      ? l.series.map((v, i) =>
-        `<circle class="${P}-ln-dot" cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="${you ? 3.4 : 2.6}"/>`).join("")
-      : "";
-    const label = you || role === "top"
-      ? `<text class="${P}-ln-lbl" x="${(LW - PAD.r + 8).toFixed(1)}" y="${y(last).toFixed(1)}" dominant-baseline="middle">`
-        + `${esc(you ? S.you : l.person.name.split(" ")[0])} · ${fmt(last)}</text>`
-      : "";
-    return `<g class="${P}-lngrp" data-key="${esc(key)}" data-role="${role}" tabindex="0"
-      role="button" aria-label="${esc(l.person.name)} · ${fmt(last)} ${esc(S.unitXp)}">
-      <title>${esc(l.person.name)} · ${fmt(last)} ${esc(S.unitXp)}</title>
-      <path class="${P}-ln-hit" d="${d}"/>
-      <path class="${P}-ln" d="${d}"/>
-      ${dots}${label}
-    </g>`;
-  };
+  const roleOf = (l: Learner) =>
+    keyOf(l) === viewerKey ? "you" : leaders.has(keyOf(l)) ? "top" : "peer";
 
   // Painter's order: faint peers first, leaders over them, the viewer on top —
   // SVG has no z-index, so the order *is* the stacking.
-  const ordered = learners.slice().sort((a, b) => {
-    const score = (l: Learner) => keyOf(l) === viewerKey ? 2 : leaders.has(keyOf(l)) ? 1 : 0;
-    return score(a) - score(b);
-  });
+  const rank = { peer: 0, top: 1, you: 2 };
+  const ordered = learners.slice()
+    .sort((a, b) => rank[roleOf(a) as keyof typeof rank] - rank[roleOf(b) as keyof typeof rank]);
+
+  // Medallion positions are de-collided across the whole field at once, so they
+  // have to be solved before any single line is drawn.
+  const labelled = ordered.filter(l => roleOf(l) !== "peer");
+  const lastY = labelled.map(l => y(l.series[l.series.length - 1] || 0));
+  const slots = spread(lastY, 30, PAD.t + 2, LH - PAD.b - 2);
+  const slotOf = new Map(labelled.map((l, i) => [keyOf(l), slots[i]]));
+
+  const draw = (l: Learner): string => {
+    const key = keyOf(l);
+    const role = roleOf(l);
+    const you = role === "you";
+    const pts: Array<[number, number]> = l.series.map((v, i) => [x(i), y(v)]);
+    const d = curve(pts);
+    const last = l.series[l.series.length - 1] || 0;
+    const endX = pts[pts.length - 1][0], endY = pts[pts.length - 1][1];
+    const stroke = you ? `url(#${uid}-you)` : `hsl(${hueOf(key)} 78% 62%)`;
+
+    // Only the subject gets an area — two filled curves would muddy each other.
+    const area = you
+      ? `<path class="${P}-ln-area" d="${d}L${endX.toFixed(1)},${(LH - PAD.b).toFixed(1)}`
+        + `L${pts[0][0].toFixed(1)},${(LH - PAD.b).toFixed(1)}Z" fill="url(#${uid}-fill)"/>`
+      : "";
+
+    let cap = "";
+    if (role !== "peer") {
+      const ly = (slotOf.get(key) || endY);
+      const mx = LW - PAD.r + 26;
+      cap = `<g class="${P}-ln-cap" style="--ly:${ly.toFixed(1)}px">
+        <path class="${P}-ln-leader" d="M${endX.toFixed(1)},${endY.toFixed(1)}`
+        + `Q${(endX + 14).toFixed(1)},${endY.toFixed(1)} ${(mx - 15).toFixed(1)},${ly.toFixed(1)}"/>
+        <circle class="${P}-ln-med" cx="${mx.toFixed(1)}" cy="${ly.toFixed(1)}" r="13"/>
+        <text class="${P}-ln-ini" x="${mx.toFixed(1)}" y="${ly.toFixed(1)}"
+              text-anchor="middle" dominant-baseline="central">${esc(you ? S.you : initials(l.person.name))}</text>
+        <text class="${P}-ln-val" x="${(mx + 19).toFixed(1)}" y="${ly.toFixed(1)}"
+              dominant-baseline="central">${fmt(last)}</text>
+      </g>`;
+    }
+
+    const head = `<circle class="${P}-ln-head" cx="${endX.toFixed(1)}" cy="${endY.toFixed(1)}"
+      r="${you ? 5 : 3.6}"/>`
+      + (you ? `<circle class="${P}-ln-ping" cx="${endX.toFixed(1)}" cy="${endY.toFixed(1)}" r="5"/>` : "");
+
+    return `<g class="${P}-lngrp" data-key="${esc(key)}" data-role="${role}" tabindex="0"
+      role="button" style="--c:hsl(${hueOf(key)} 78% 62%);--i:${rank[role as keyof typeof rank]}"
+      aria-label="${esc(l.person.name)} · ${fmt(last)} ${esc(S.unitXp)}">
+      <title>${esc(l.person.name)} · ${fmt(last)} ${esc(S.unitXp)}</title>
+      ${area}
+      <path class="${P}-ln-hit" d="${d}"/>
+      <path class="${P}-ln" d="${d}" stroke="${stroke}"/>
+      ${head}${cap}
+    </g>`;
+  };
 
   const legend = `<div class="${P}-lgd">
     ${viewerKey ? `<span class="${P}-lgd-i" data-role="you">${esc(S.lineYou)}</span>` : ""}
@@ -432,7 +528,17 @@ export function lines(learners: Learner[], viewerKey: string): string {
   return `<div class="${P}-lines">
     <svg viewBox="0 0 ${LW} ${LH}" class="${P}-lines-svg" role="img"
          aria-label="${esc(S.capXp)}" preserveAspectRatio="xMidYMid meet">
-      ${grid}${xticks}
+      <defs>
+        <linearGradient id="${uid}-you" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="var(--csl-primary)"/>
+          <stop offset="100%" stop-color="var(--csl-accent)"/>
+        </linearGradient>
+        <linearGradient id="${uid}-fill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="var(--csl-accent)" stop-opacity=".34"/>
+          <stop offset="100%" stop-color="var(--csl-accent)" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      ${xticks}
       ${ordered.map(draw).join("")}
     </svg>
     ${legend}
