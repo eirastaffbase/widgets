@@ -40,9 +40,13 @@ export function hexToRgb(hex: string): string {
   return [0, 2, 4].map(i => parseInt(full.slice(i, i + 2), 16)).join(",");
 }
 
-/** Readable foreground for text placed on `hex`. Uses the WCAG relative
- *  luminance threshold rather than a naive average, so mid-tone brand colors
- *  (like El Globo's #8B374A) resolve correctly. */
+/** Readable foreground for text placed on `hex`.
+ *
+ *  Picks whichever of the two foregrounds has the higher WCAG contrast ratio
+ *  instead of comparing luminance against a fixed cut-off. A fixed threshold
+ *  gets mid-tone brands wrong: the real crossover sits near luminance 0.19, so
+ *  a 0.55 cut-off handed white text to colors like #FF8D19 (2.3:1 — fails AA)
+ *  where dark text scores 8.1:1. Dark brands such as #8B374A still get white. */
 export function contrastColor(hex: string): string {
   const [r, g, b] = hexToRgb(hex).split(",").map(Number);
   const lin = (c: number) => {
@@ -50,8 +54,13 @@ export function contrastColor(hex: string): string {
     return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
   };
   const luminance = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-  return luminance > 0.55 ? "#111418" : "#FFFFFF";
+  const ratio = (other: number) =>
+    (Math.max(luminance, other) + 0.05) / (Math.min(luminance, other) + 0.05);
+  return ratio(DARK_LUMINANCE) >= ratio(1) ? "#111418" : "#FFFFFF";
 }
+
+/** Relative luminance of #111418, the dark foreground contrastColor may pick. */
+const DARK_LUMINANCE = 0.00596;
 
 /** Normalize a radius value. Bare numbers are treated as px so admins can type
  *  `5` instead of `5px`. */
