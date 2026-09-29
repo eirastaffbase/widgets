@@ -4,7 +4,9 @@
   "description": "Staffbase recognition & kudos wall widget",
   "scripts": {
     "build": "webpack",
-    "start": "webpack --watch"
+    "start": "webpack --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build && node --test tests/widget.test.cjs"
   },
   "keywords": [],
   "author": "",
@@ -13,6 +15,8 @@
     "@staffbase/widget-sdk": "^3.15.6"
   },
   "devDependencies": {
+    "@tabler/icons-webfont": "3.19.0",
+    "playwright": "^1.58.0",
     "ts-loader": "^9.5.4",
     "typescript": "^5.9.3",
     "webpack": "^5.103.0",

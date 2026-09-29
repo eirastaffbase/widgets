@@ -1,5 +1,7 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	"use strict";
+
+;// ./session.ts
 var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -9,6 +11,149 @@ var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _argume
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+class RequestError extends Error {
+    constructor(message, status) {
+        super(message);
+        this.status = status;
+        this.name = "RequestError";
+    }
+}
+function checkResponse(response) {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (response.ok)
+            return response;
+        const messages = {
+            400: "Staffbase rejected this request. Check the recognition details.",
+            401: "Your session has expired. Sign in again before retrying.",
+            403: "Staffbase denied this request. Refresh your session and check channel permissions.",
+            404: "The configured channel or post could not be found.",
+            429: "Too many requests. Wait before trying again.",
+        };
+        throw new RequestError(messages[response.status] || "Staffbase could not complete this request.", response.status);
+    });
+}
+function reportError(operation, error) {
+    // Do not log response bodies, host errors, request headers, or user profiles.
+    console.error(`[recognition] ${operation}`, {
+        kind: error instanceof Error ? error.name : "UnknownError",
+        status: error instanceof RequestError ? error.status : undefined,
+    });
+}
+function errorMessage(error) {
+    return error instanceof RequestError
+        ? error.message
+        : "The request could not be confirmed. Check the wall before trying again.";
+}
+function tokenString(value) {
+    return typeof value === "string" && value.trim() ? value.trim() : "";
+}
+function withTimeout(operation) {
+    return __awaiter(this, void 0, void 0, function* () {
+        let timer;
+        try {
+            return yield Promise.race([
+                operation,
+                new Promise((_, reject) => {
+                    timer = setTimeout(() => reject(new RequestError("Your Staffbase session is not ready. Refresh the page and try again.")), 5000);
+                }),
+            ]);
+        }
+        finally {
+            if (timer)
+                clearTimeout(timer);
+        }
+    });
+}
+function createSessionRequest(baseUrl, signal) {
+    let pendingToken;
+    function resolveToken() {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a;
+            let host;
+            try {
+                host = (window.top || window);
+                // Access can throw even though window.top itself is readable.
+                const manager = (_a = host.we) === null || _a === void 0 ? void 0 : _a.authMgr;
+                if (typeof (manager === null || manager === void 0 ? void 0 : manager.getCsrfToken) === "function") {
+                    const token = tokenString(yield withTimeout(Promise.resolve(manager.getCsrfToken())));
+                    if (!token)
+                        throw new RequestError("Your Staffbase session is not ready. Refresh the page and try again.");
+                    return token;
+                }
+                const legacyToken = tokenString(manager === null || manager === void 0 ? void 0 : manager.csrfToken) || tokenString(host.csrfToken);
+                if (legacyToken)
+                    return legacyToken;
+            }
+            catch (error) {
+                const securityError = error !== null && typeof error === "object" &&
+                    "name" in error && error.name === "SecurityError";
+                if (!securityError) {
+                    if (error instanceof RequestError)
+                        throw error;
+                    reportError("Host authentication failed", error);
+                    throw new RequestError("Could not read your Staffbase session. Refresh the page before trying again.");
+                }
+                console.warn("[recognition] Host authentication is cross-origin; using same-origin branch discovery.");
+            }
+            // Compatibility path for embeds without access to the host auth manager.
+            // Share only the in-flight request, never persist a token across sessions.
+            const controller = new AbortController();
+            const abort = () => controller.abort();
+            signal.addEventListener("abort", abort, { once: true });
+            if (signal.aborted)
+                controller.abort();
+            const timer = setTimeout(abort, 5000);
+            try {
+                const response = yield checkResponse(yield fetch(`${baseUrl}/branch/discover`, {
+                    credentials: "include",
+                    headers: { Accept: "application/json" },
+                    signal: controller.signal,
+                }));
+                const data = yield response.json();
+                const token = data && typeof data === "object" && "csrfToken" in data
+                    ? tokenString(data.csrfToken) : "";
+                if (!token)
+                    throw new RequestError("Staffbase did not provide a session token. Refresh the page or contact your administrator.");
+                return token;
+            }
+            finally {
+                clearTimeout(timer);
+                signal.removeEventListener("abort", abort);
+            }
+        });
+    }
+    return function sessionRequest(path_1) {
+        return __awaiter(this, arguments, void 0, function* (path, options = {}) {
+            const url = new URL(`${baseUrl}${path}`, window.location.href);
+            const mutation = !["GET", "HEAD"].includes((options.method || "GET").toUpperCase());
+            const headers = new Headers(options.headers);
+            if (url.origin !== window.location.origin) {
+                throw new RequestError("The widget API URL must use the same Staffbase site as your session.");
+            }
+            if (mutation) {
+                if (!pendingToken) {
+                    pendingToken = resolveToken().finally(() => { pendingToken = undefined; });
+                }
+                headers.set("x-csrf-token", yield pendingToken);
+            }
+            if (signal.aborted)
+                throw new DOMException("Widget unmounted", "AbortError");
+            return checkResponse(yield fetch(url.href, Object.assign(Object.assign({}, options), { headers, credentials: "include", signal })));
+        });
+    };
+}
+
+;// ./recognition-widget.ts
+var recognition_widget_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+
 const DEFAULT_CHANNEL = "698f5d37a8522a33d4e1dac5";
 const DEFAULT_ADMIN_ID = "699dc05555c71158d37594e7";
 const DEFAULT_BASE_URL = "https://app.staffbase.com/api";
@@ -41,16 +186,47 @@ const ICONS = {
 // that font, so the widget loads it itself — otherwise the icons render blank in the
 // app (they only worked in preview.html because that file links the CDN directly).
 const TABLER_ICONS_HREF = "https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css";
-function ensureTablerIcons() {
-    if (typeof document === "undefined")
-        return;
-    if (document.getElementById("sb-tabler-icons"))
-        return;
-    const link = document.createElement("link");
-    link.id = "sb-tabler-icons";
-    link.rel = "stylesheet";
-    link.href = TABLER_ICONS_HREF;
-    document.head.appendChild(link);
+function ensureTablerIcons(container, onError) {
+    const doc = container.ownerDocument;
+    const root = container.getRootNode();
+    const scopes = root instanceof ShadowRoot ? [doc.head, root] : [doc.head];
+    const cleanups = [];
+    for (const scope of scopes) {
+        let link = scope.querySelector('link[data-recognition-icons]');
+        if (!link) {
+            link = doc.createElement("link");
+            link.dataset.recognitionIcons = "loading";
+            link.rel = "stylesheet";
+            link.href = TABLER_ICONS_HREF;
+            link.addEventListener("load", () => { link.dataset.recognitionIcons = "loaded"; }, { once: true });
+            link.addEventListener("error", () => { link.dataset.recognitionIcons = "failed"; }, { once: true });
+            scope.appendChild(link);
+        }
+        if (link.dataset.recognitionIcons === "failed")
+            onError();
+        else
+            link.addEventListener("error", onError, { once: true });
+        const checkFont = () => {
+            if (!scopes.every(scope => { var _a; return ((_a = scope.querySelector('link[data-recognition-icons]')) === null || _a === void 0 ? void 0 : _a.dataset.recognitionIcons) === "loaded"; }))
+                return;
+            doc.fonts.load('16px "tabler-icons"', "\ueb60")
+                .then(fonts => { if (!fonts.length)
+                onError(); })
+                .catch(onError);
+        };
+        if (link.dataset.recognitionIcons === "loaded")
+            checkFont();
+        else
+            link.addEventListener("load", checkFont, { once: true });
+        cleanups.push(() => {
+            link.removeEventListener("load", checkFont);
+            link.removeEventListener("error", onError);
+        });
+    }
+    return () => cleanups.forEach(cleanup => cleanup());
+}
+function escapeHtml(value) {
+    return value.replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
 }
 function buildCss(p) {
     return `
@@ -109,6 +285,7 @@ a.${p}-av{cursor:pointer}
 /* Actions, bottom-right: like is always visible (borderless icon); edit reveals on
    hover to its right, so the like nudges left to make room. */
 .${p}-actions{position:absolute;bottom:11px;right:14px;display:flex;align-items:center;gap:10px}
+.${p}-card.editing .${p}-actions{display:none}
 .${p}-like-btn{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--gray-lt);background:none;border:none;cursor:pointer;font-family:inherit;padding:0;line-height:1;transition:color .15s}
 .${p}-like-btn svg{width:17px;height:17px;transition:transform .12s}
 .${p}-like-btn:hover{color:var(--primary)}
@@ -180,6 +357,9 @@ textarea.${p}-in{resize:vertical;min-height:84px;line-height:1.55}
 .${p}-empty{text-align:center;padding:34px 16px;color:var(--gray-lt);font-size:13px;font-weight:500}
 .${p}-toast{position:absolute;bottom:18px;left:50%;transform:translate(-50%,8px);background:var(--dark);color:#fff;padding:11px 18px;border-radius:var(--r-md);font-size:13px;font-weight:700;opacity:0;transition:opacity .3s,transform .3s;pointer-events:none;white-space:nowrap;z-index:10;box-shadow:var(--shadow-md);display:flex;align-items:center;gap:8px}
 .${p}-toast.show{opacity:1;transform:translate(-50%,0)}
+.${p}-status{margin:12px 0;color:var(--error);font-size:13px;line-height:1.5}
+.${p}-status:empty{display:none}
+.${p}.${p} button:focus-visible,.${p}-opt:focus-visible{outline:2px solid var(--primary)!important;outline-offset:2px}
 .${p}-view-wrap{position:relative;min-height:130px}
 .${p}-spin{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;animation:${p}-spin .7s linear infinite;display:inline-block}
 @keyframes ${p}-spin{to{transform:rotate(360deg)}}
@@ -337,7 +517,7 @@ function pickVivid(cands, exclude = "") {
 }
 // Pull Primary/Accent from the Staffbase branding theme (token-auth GET).
 function fetchThemeColors(baseUrl, apiToken) {
-    return __awaiter(this, void 0, void 0, function* () {
+    return recognition_widget_awaiter(this, void 0, void 0, function* () {
         var _a, _b, _c, _d, _e, _f, _g, _h, _j;
         const isHex = (s) => /^#[0-9a-fA-F]{3,8}$/.test(s);
         const isNeutralExtreme = (s) => {
@@ -389,40 +569,24 @@ function fetchThemeColors(baseUrl, apiToken) {
         }
     });
 }
-// ── Session auth (for posting / liking AS the logged-in user) ─────────────────
-// Same approach the my-tasks widget uses for comments: ride the browser session
-// (credentials:include) but supply the CSRF token from the page's auth manager.
-// This is required for posts to carry a real `author` (id + avatar) and for likes.
-function readCsrf() {
-    var _a, _b;
-    const w = window;
-    try {
-        const t = (_b = (_a = w.we) === null || _a === void 0 ? void 0 : _a.authMgr) === null || _b === void 0 ? void 0 : _b.csrfToken;
-        if (t)
-            return String(t);
-    }
-    catch (_) { }
-    if (w.csrfToken)
-        return String(w.csrfToken);
-    const m = document.cookie.match(/(?:^|;\s*)(?:csrf|XSRF-TOKEN|csrftoken)=([^;]+)/i);
-    if (m)
-        return decodeURIComponent(m[1]);
-    const meta = document.querySelector('meta[name="csrf-token"]');
-    return (meta === null || meta === void 0 ? void 0 : meta.content) || "";
-}
-function sessionOpts(extra) {
-    const csrf = readCsrf();
-    return Object.assign(Object.assign({}, extra), { credentials: "include", headers: Object.assign(Object.assign({}, (csrf ? { "x-csrf-token": csrf } : {})), ((extra === null || extra === void 0 ? void 0 : extra.headers) || {})) });
-}
 const factory = (BaseBlockClass, widgetApi) => {
     return class RecognitionWidget extends BaseBlockClass {
         constructor() {
             super();
+            this.renderGeneration = 0;
         }
         renderBlock(container) {
-            return __awaiter(this, void 0, void 0, function* () {
-                var _a, _b, _c, _d, _e, _f;
-                ensureTablerIcons(); // load the icon font so reward-type icons render inside Staffbase
+            return recognition_widget_awaiter(this, void 0, void 0, function* () {
+                var _a, _b, _c, _d, _e, _f, _g;
+                (_a = this.cleanup) === null || _a === void 0 ? void 0 : _a.call(this);
+                const generation = ++this.renderGeneration;
+                const active = () => generation === this.renderGeneration;
+                const controller = new AbortController();
+                const cleanups = [];
+                this.cleanup = () => {
+                    controller.abort();
+                    cleanups.forEach(cleanup => cleanup());
+                };
                 const baseUrl = (this.getAttribute("baseurl") || DEFAULT_BASE_URL).replace(/\/+$/, "");
                 const channelId = this.getAttribute("channelid") || DEFAULT_CHANNEL;
                 const token = this.getAttribute("apitoken") || "";
@@ -430,7 +594,8 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const pointsEnabled = this.getAttribute("enablepoints") !== "false";
                 const adminId = this.getAttribute("adminuserid") || DEFAULT_ADMIN_ID;
                 const notificationLink = this.getAttribute("notificationlink") || "";
-                const apiOpts = (extra) => makeApiOpts(token, extra);
+                const apiOpts = (extra) => makeApiOpts(token, Object.assign({ signal: controller.signal }, extra));
+                const sessionRequest = createSessionRequest(baseUrl, controller.signal);
                 // Staffbase binds its native profile hovercard to author links of the form
                 // <a class="internal-link clickable" href="/profile/<id>">. Matching that markup
                 // exactly (relative href + those classes) makes the hovercard pop on our links too.
@@ -441,6 +606,8 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const bgColor = this.getAttribute("backgroundcolor") || "";
                 if (this.getAttribute("usethemecolors") === "true" && token) {
                     const themed = yield fetchThemeColors(baseUrl, token);
+                    if (!active())
+                        return;
                     if (themed.primary)
                         primaryColor = themed.primary;
                     if (themed.accent)
@@ -456,24 +623,43 @@ const factory = (BaseBlockClass, widgetApi) => {
                     if (raw)
                         rewardTypes = JSON.parse(raw);
                 }
-                catch (_g) { }
+                catch (_h) { }
                 let currentUser = null;
+                let identityError = "";
                 try {
                     const prof = yield widgetApi.getUserInformation();
+                    if (!active())
+                        return;
                     const id = prof.id || "";
                     if (id) {
-                        // Fetch full profile for name (getUserInformation may omit fields on some versions)
-                        const r = yield fetch(`${baseUrl}/users/${id}`, apiOpts());
-                        const data = yield r.json();
                         currentUser = {
                             id,
-                            firstName: data.firstName || prof.firstName || "",
-                            lastName: data.lastName || prof.lastName || "",
-                            avatar: ((_b = (_a = data.avatar) === null || _a === void 0 ? void 0 : _a.icon) === null || _b === void 0 ? void 0 : _b.url) || ((_d = (_c = data.avatar) === null || _c === void 0 ? void 0 : _c.thumb) === null || _d === void 0 ? void 0 : _d.url) || ((_f = (_e = data.avatar) === null || _e === void 0 ? void 0 : _e.original) === null || _f === void 0 ? void 0 : _f.url) || "",
+                            firstName: prof.firstName || "",
+                            lastName: prof.lastName || "",
+                            avatar: ((_c = (_b = prof.avatar) === null || _b === void 0 ? void 0 : _b.icon) === null || _c === void 0 ? void 0 : _c.url) || "",
                         };
+                        try {
+                            const r = yield checkResponse(yield fetch(`${baseUrl}/users/${encodeURIComponent(id)}`, apiOpts()));
+                            const data = yield r.json();
+                            if (!active())
+                                return;
+                            currentUser.firstName = data.firstName || currentUser.firstName;
+                            currentUser.lastName = data.lastName || currentUser.lastName;
+                            currentUser.avatar = ((_e = (_d = data.avatar) === null || _d === void 0 ? void 0 : _d.icon) === null || _e === void 0 ? void 0 : _e.url) || ((_g = (_f = data.avatar) === null || _f === void 0 ? void 0 : _f.thumb) === null || _g === void 0 ? void 0 : _g.url) || currentUser.avatar;
+                        }
+                        catch (error) {
+                            reportError("Profile enrichment failed", error);
+                        }
                     }
                 }
-                catch (_h) { }
+                catch (error) {
+                    reportError("Current user lookup failed", error);
+                }
+                if (!active())
+                    return;
+                if (!currentUser || !`${currentUser.firstName} ${currentUser.lastName}`.trim()) {
+                    identityError = "Could not identify your Staffbase account. Refresh the page before sending recognition.";
+                }
                 // --- Build HTML ---
                 container.innerHTML = `<style>${buildCss(p)}</style>
 <div class="${p}" style="--primary:${primaryColor};--primary-rgb:${primaryRgb};--accent:${accentColor};--accent-rgb:${accentRgb};--primary-text:${primaryText};background:${bgColor || "transparent"}">
@@ -507,7 +693,7 @@ const factory = (BaseBlockClass, widgetApi) => {
           <label class="${p}-label" id="recipLabel">Recognize a colleague</label>
           <div class="${p}-search-wrap" id="searchWrap">
             <span class="${p}-search-ic">${ICONS.search}</span>
-            <input class="${p}-in" id="recipSearch" type="text" placeholder="Search for a colleague by name…" autocomplete="off">
+            <input class="${p}-in" id="recipSearch" type="text" placeholder="Search for a colleague by name…" autocomplete="off" aria-labelledby="recipLabel" aria-expanded="false" aria-controls="userDropdown">
           </div>
           <div class="${p}-dropdown" id="userDropdown"></div>
           <div class="${p}-recipient" id="recipCard" style="display:none">
@@ -542,13 +728,18 @@ const factory = (BaseBlockClass, widgetApi) => {
       </div>
     </div>
 
-    <div class="${p}-toast" id="toast"></div>
+    <div class="${p}-status" id="iconStatus" role="status"></div>
+    <div class="${p}-status" id="requestStatus" role="status" aria-live="polite"></div>
+    <div class="${p}-toast" id="toast" role="status"></div>
   </div>
 </div>`;
                 // --- State ---
                 let wallFilter = "all";
                 let selectedType = null;
                 let searchTimeout = null;
+                let toastTimeout = null;
+                let pickerOpen = false;
+                let submitting = false;
                 const feed = container.querySelector("#kudosFeed");
                 const recipSearch = container.querySelector("#recipSearch");
                 const recipId = container.querySelector("#recipId");
@@ -563,6 +754,20 @@ const factory = (BaseBlockClass, widgetApi) => {
                 const kudosMsg = container.querySelector("#kudosMsg");
                 const submitBtn = container.querySelector("#submitBtn");
                 const toast = container.querySelector("#toast");
+                const requestStatus = container.querySelector("#requestStatus");
+                requestStatus.textContent = identityError;
+                cleanups.push(ensureTablerIcons(container, () => {
+                    if (!active())
+                        return;
+                    container.querySelector("#iconStatus").textContent = "Recognition icons could not load. Check access to the Tabler stylesheet and font.";
+                    console.error("[recognition] Tabler stylesheet or font could not load.");
+                }));
+                cleanups.push(() => {
+                    if (searchTimeout)
+                        clearTimeout(searchTimeout);
+                    if (toastTimeout)
+                        clearTimeout(toastTimeout);
+                });
                 const SEND_DEFAULT = `${ICONS.send}Send recognition`;
                 // Swap the search field for a prominent "Recognizing <name>" card.
                 function selectRecipient(id, name, avatar) {
@@ -572,15 +777,15 @@ const factory = (BaseBlockClass, widgetApi) => {
                         ? `<img src="${avatar}" alt="" onerror="this.parentElement.textContent='${getInitials(name)}'">`
                         : getInitials(name);
                     recipCardName.textContent = name;
-                    userDropdown.style.display = "none";
+                    closeUserDropdown();
                     searchWrap.style.display = "none";
                     recipCard.style.display = "flex";
                     recipLabel.textContent = "Recipient";
                     const first = name.split(" ")[0] || name;
-                    submitBtn.innerHTML = `${ICONS.send}Recognize ${first}`;
+                    submitBtn.innerHTML = `${ICONS.send}Recognize ${escapeHtml(first)}`;
                     updateSubmitState();
                 }
-                function clearRecipient() {
+                function clearRecipient(focus = true) {
                     recipId.value = "";
                     recipName.value = "";
                     recipSearch.value = "";
@@ -589,28 +794,35 @@ const factory = (BaseBlockClass, widgetApi) => {
                     recipLabel.textContent = "Recognize a colleague";
                     submitBtn.innerHTML = SEND_DEFAULT;
                     updateSubmitState();
-                    recipSearch.focus();
+                    closeUserDropdown();
+                    if (focus)
+                        recipSearch.focus();
                 }
-                recipChange.addEventListener("click", clearRecipient);
+                recipChange.addEventListener("click", () => clearRecipient());
                 function showToast(msg, ok = true) {
-                    toast.innerHTML = (ok ? ICONS.sparkle : "") + msg;
+                    if (!active())
+                        return;
+                    toast.textContent = msg;
                     toast.style.background = ok ? "var(--dark)" : "var(--error)";
                     toast.classList.add("show");
-                    setTimeout(() => toast.classList.remove("show"), 2800);
+                    if (toastTimeout)
+                        clearTimeout(toastTimeout);
+                    toastTimeout = setTimeout(() => toast.classList.remove("show"), 2800);
                 }
                 function updateSubmitState() {
-                    submitBtn.disabled = !recipId.value || !selectedType || !kudosMsg.value.trim();
+                    submitBtn.disabled = submitting || !!identityError || !recipId.value || !selectedType || !kudosMsg.value.trim();
                 }
                 // --- Tabs ---
                 container.querySelectorAll(`.${p}-tab`).forEach(btn => {
                     btn.addEventListener("click", () => {
                         const t = btn.dataset.tab;
+                        closeUserDropdown();
                         container.querySelectorAll(`.${p}-tab`).forEach(b => b.classList.remove("active"));
                         btn.classList.add("active");
                         container.querySelector("#view-wall").style.display = t === "wall" ? "" : "none";
                         container.querySelector("#view-give").style.display = t === "give" ? "" : "none";
                         if (t === "give")
-                            loadUsers(); // warm the directory cache so search is instant
+                            void loadUsers().catch(error => reportError("Directory preload failed", error));
                     });
                 });
                 // --- Wall filters ---
@@ -641,7 +853,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                         return Promise.resolve();
                     if (usersLoading)
                         return usersLoading;
-                    usersLoading = (() => __awaiter(this, void 0, void 0, function* () {
+                    usersLoading = (() => recognition_widget_awaiter(this, void 0, void 0, function* () {
                         let list = [];
                         const mapUser = (u) => {
                             var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
@@ -657,37 +869,46 @@ const factory = (BaseBlockClass, widgetApi) => {
                             });
                         };
                         try {
-                            const r = yield fetch(`${baseUrl}/users?limit=200`, apiOpts());
-                            if (r.ok) {
-                                const d = yield r.json();
-                                list = (d.data || d || []).map(mapUser);
-                            }
+                            const r = yield checkResponse(yield fetch(`${baseUrl}/users?limit=200`, apiOpts()));
+                            const d = yield r.json();
+                            list = (d.data || d || []).map(mapUser);
                         }
-                        catch (_a) { }
+                        catch (error) {
+                            reportError("Directory API read failed; trying widget SDK", error);
+                        }
+                        if (!active())
+                            return;
                         // Fallback to the SDK only if REST returned nothing.
                         if (list.length === 0) {
                             try {
                                 const res = yield widgetApi.getUserList({ limit: 100 });
                                 list = (res.data || []).map(mapUser);
                             }
-                            catch (_b) { }
+                            catch (error) {
+                                reportError("Directory SDK read failed", error);
+                                throw new RequestError("Could not load colleagues. Focus the search field to try again.");
+                            }
                         }
+                        if (!active())
+                            return;
                         allUsers = list.filter(u => u.id && u.name && u.id !== ((currentUser === null || currentUser === void 0 ? void 0 : currentUser.id) || ""));
                         for (const u of list)
                             if (u.id)
                                 userById.set(u.id, u);
                         usersLoaded = true;
-                    }))();
+                    }))().finally(() => { usersLoading = null; });
                     return usersLoading;
                 }
                 function renderUserOptions(q) {
+                    if (!active() || !pickerOpen || recipId.value)
+                        return;
                     const ql = q.trim().toLowerCase();
                     const matches = ql ? allUsers.filter(u => u.name.toLowerCase().includes(ql)) : allUsers.slice(0, 8);
                     if (allUsers.length === 0) {
                         userDropdown.innerHTML = `<div class="${p}-opt-empty">No colleagues found</div>`;
                     }
                     else if (matches.length === 0) {
-                        userDropdown.innerHTML = `<div class="${p}-opt-empty">No matches for “${q.trim()}”</div>`;
+                        userDropdown.innerHTML = `<div class="${p}-opt-empty">No matches for “${escapeHtml(q.trim())}”</div>`;
                     }
                     else {
                         userDropdown.innerHTML = (ql ? "" : `<div class="${p}-opt-head">Suggested</div>`) + matches
@@ -696,7 +917,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                             const av = u.avatar
                                 ? `<span class="${p}-opt-av"><img src="${u.avatar}" alt="" onerror="this.parentElement.textContent='${getInitials(u.name)}'"></span>`
                                 : `<span class="${p}-opt-av">${getInitials(u.name)}</span>`;
-                            return `<div class="${p}-opt" data-id="${u.id}" data-name="${u.name}" data-avatar="${u.avatar}">${av}${u.name}</div>`;
+                            return `<div class="${p}-opt" role="button" tabindex="0" data-id="${escapeHtml(u.id)}" data-name="${escapeHtml(u.name)}" data-avatar="${escapeHtml(u.avatar)}">${av}${escapeHtml(u.name)}</div>`;
                         })
                             .join("");
                         userDropdown.querySelectorAll(`.${p}-opt[data-id]`).forEach(opt => {
@@ -704,60 +925,105 @@ const factory = (BaseBlockClass, widgetApi) => {
                                 const el = opt;
                                 selectRecipient(el.dataset.id, el.dataset.name, el.dataset.avatar || "");
                             });
+                            opt.addEventListener("keydown", event => {
+                                if (event instanceof KeyboardEvent && (event.key === "Enter" || event.key === " ")) {
+                                    event.preventDefault();
+                                    opt.click();
+                                }
+                            });
                         });
                     }
                     userDropdown.style.display = "block";
                 }
                 function openUserDropdown() {
-                    return __awaiter(this, void 0, void 0, function* () {
-                        if (recipId.value)
-                            return; // a recipient is already chosen
+                    return recognition_widget_awaiter(this, void 0, void 0, function* () {
+                        if (recipId.value || submitting || !active())
+                            return;
+                        pickerOpen = true;
+                        recipSearch.setAttribute("aria-expanded", "true");
                         if (!usersLoaded) {
                             userDropdown.innerHTML = `<div class="${p}-opt-empty">Loading colleagues…</div>`;
                             userDropdown.style.display = "block";
                         }
-                        yield loadUsers();
-                        renderUserOptions(recipSearch.value);
+                        try {
+                            yield loadUsers();
+                            renderUserOptions(recipSearch.value);
+                        }
+                        catch (error) {
+                            if (!active() || !pickerOpen)
+                                return;
+                            reportError("Opening colleague picker failed", error);
+                            userDropdown.textContent = "Could not load colleagues. Click the search field to retry.";
+                            userDropdown.style.display = "block";
+                        }
                     });
                 }
+                function closeUserDropdown() {
+                    pickerOpen = false;
+                    if (searchTimeout)
+                        clearTimeout(searchTimeout);
+                    userDropdown.style.display = "none";
+                    recipSearch.setAttribute("aria-expanded", "false");
+                }
                 recipSearch.addEventListener("focus", openUserDropdown);
+                recipSearch.addEventListener("click", openUserDropdown);
                 recipSearch.addEventListener("input", () => {
                     if (searchTimeout)
                         clearTimeout(searchTimeout);
-                    searchTimeout = setTimeout(() => __awaiter(this, void 0, void 0, function* () {
-                        yield loadUsers();
-                        renderUserOptions(recipSearch.value);
-                    }), 150);
+                    searchTimeout = setTimeout(openUserDropdown, 150);
                 });
-                document.addEventListener("click", (e) => {
-                    if (!userDropdown.contains(e.target) && e.target !== recipSearch) {
-                        userDropdown.style.display = "none";
+                const recipientField = searchWrap.parentElement;
+                const outsideClick = (event) => {
+                    if (!event.composedPath().includes(recipientField))
+                        closeUserDropdown();
+                };
+                document.addEventListener("click", outsideClick);
+                cleanups.push(() => document.removeEventListener("click", outsideClick));
+                recipientField.addEventListener("keydown", event => {
+                    var _a;
+                    if (event.key === "Escape") {
+                        recipSearch.focus();
+                        closeUserDropdown();
                     }
+                    if (event.key === "ArrowDown" && event.target === recipSearch) {
+                        event.preventDefault();
+                        (_a = userDropdown.querySelector('[role="button"]')) === null || _a === void 0 ? void 0 : _a.focus();
+                    }
+                });
+                recipientField.addEventListener("focusout", event => {
+                    if (!(event.relatedTarget instanceof Node) || !recipientField.contains(event.relatedTarget))
+                        closeUserDropdown();
                 });
                 kudosMsg.addEventListener("input", updateSubmitState);
                 // --- Submit ---
-                submitBtn.addEventListener("click", () => __awaiter(this, void 0, void 0, function* () {
+                submitBtn.addEventListener("click", () => recognition_widget_awaiter(this, void 0, void 0, function* () {
                     var _a;
-                    if (!selectedType || !recipId.value || !kudosMsg.value.trim())
+                    if (submitting || identityError || !currentUser || !selectedType || !recipId.value || !kudosMsg.value.trim())
                         return;
-                    submitBtn.disabled = true;
+                    submitting = true;
+                    closeUserDropdown();
+                    updateSubmitState();
                     submitBtn.innerHTML = `<span class="${p}-spin"></span>Sending…`;
-                    const fromName = currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : "A colleague";
+                    requestStatus.textContent = "";
+                    const draftControls = container.querySelectorAll("#view-give input, #view-give textarea, #view-give button");
+                    draftControls.forEach(control => { control.disabled = true; });
+                    const fromName = `${currentUser.firstName} ${currentUser.lastName}`.trim();
                     const toId = recipId.value;
                     const toName = recipName.value;
                     const type = selectedType;
                     const message = kudosMsg.value.trim();
+                    let published = false;
                     try {
                         // 1. Post to social wall
                         // Title embeds structured metadata parseable via RECOG_TITLE_RE — no hidden elements needed.
                         const postTitle = pointsEnabled
                             ? `${fromName} recognized ${toName} · ${type.name} · +${type.points}pts`
                             : `${fromName} recognized ${toName} · ${type.name}`;
-                        const postContent = `<p>${message}</p>`;
+                        const postContent = `<p>${escapeHtml(message)}</p>`;
                         // Create AS the logged-in user (session+CSRF) so the post carries a real
                         // author (id + avatar) and likes/ownership work. `published:true` publishes
                         // immediately. No comments, no push/email — but keep likes on.
-                        yield fetch(`${baseUrl}/channels/${channelId}/posts`, sessionOpts({
+                        const response = yield sessionRequest(`/channels/${channelId}/posts`, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({
@@ -767,63 +1033,103 @@ const factory = (BaseBlockClass, widgetApi) => {
                                 likingEnabled: true,
                                 notificationChannels: [],
                             }),
-                        }));
+                        });
+                        const created = yield response.json();
+                        if (!created || typeof created !== "object" || !("id" in created) || typeof created.id !== "string" || !created.id) {
+                            throw new RequestError("The server response did not confirm the post. Check the wall before trying again.");
+                        }
+                        published = true;
+                        if (!active())
+                            return;
+                        const warnings = [];
                         // 2. Update recipient points (only when the points capability is enabled)
                         if (pointsEnabled) {
                             try {
-                                const userResp = yield fetch(`${baseUrl}/users/${toId}`, apiOpts()).then(r => r.json());
+                                const userResponse = yield checkResponse(yield fetch(`${baseUrl}/users/${toId}`, apiOpts()));
+                                const userResp = yield userResponse.json();
+                                if (!active())
+                                    return;
                                 const currentPts = parseInt(((_a = userResp === null || userResp === void 0 ? void 0 : userResp.profile) === null || _a === void 0 ? void 0 : _a[pointsField]) || "0", 10);
+                                if (!Number.isFinite(currentPts) || !Number.isFinite(type.points))
+                                    throw new RequestError("The points value is invalid.");
                                 const newPts = currentPts + type.points;
-                                yield fetch(`${baseUrl}/users/${toId}`, Object.assign(Object.assign({}, apiOpts({
+                                yield checkResponse(yield fetch(`${baseUrl}/users/${toId}`, Object.assign(Object.assign({}, apiOpts({
                                     method: "PUT",
                                     body: JSON.stringify({ profile: { [pointsField]: String(newPts) } }),
-                                })), { headers: Object.assign(Object.assign({}, makeApiOpts(token).headers), { USERID: adminId }) }));
+                                })), { headers: Object.assign(Object.assign({}, makeApiOpts(token).headers), { USERID: adminId }) })));
                             }
-                            catch (_b) { }
+                            catch (error) {
+                                reportError("Points update failed after publication", error);
+                                warnings.push("Points could not be confirmed; do not resend the recognition.");
+                            }
                         }
+                        if (!active())
+                            return;
                         // 3. Send notification (best effort)
                         try {
-                            yield fetch(`${baseUrl}/branch/notifications`, Object.assign({}, apiOpts({
+                            yield checkResponse(yield fetch(`${baseUrl}/branch/notifications`, Object.assign({}, apiOpts({
                                 method: "POST",
                                 body: JSON.stringify(Object.assign({ accessorIds: [toId], channels: ["notificationCenter"], content: {
                                         en_US: {
                                             title: `You've been recognized!`,
-                                            text: pointsEnabled
+                                            text: pointsEnabled && warnings.length === 0
                                                 ? `${fromName} recognized you for ${type.name} and awarded you ${type.points} points.`
                                                 : `${fromName} recognized you for ${type.name}.`,
                                         },
                                     } }, (notificationLink ? { link: notificationLink } : {}))),
-                            })));
+                            }))));
                         }
-                        catch (_c) { }
-                        showToast(pointsEnabled ? `Recognition sent! +${type.points} pts awarded` : "Recognition sent!");
+                        catch (error) {
+                            reportError("Recipient notification failed after publication", error);
+                            warnings.push("The recipient notification could not be confirmed.");
+                        }
+                        if (!active())
+                            return;
+                        const successMessage = warnings.length
+                            ? `Recognition posted. ${warnings.join(" ")}`
+                            : pointsEnabled ? `Recognition sent! +${type.points} pts awarded` : "Recognition sent!";
+                        requestStatus.textContent = warnings.length ? successMessage : "";
+                        showToast(warnings.length ? "Recognition posted with a follow-up issue." : successMessage);
                         // Reset form
                         kudosMsg.value = "";
                         selectedType = null;
                         container.querySelectorAll(`.${p}-ktype`).forEach(b => b.classList.remove("selected"));
-                        clearRecipient(); // restores the search field + default submit label
+                        clearRecipient(false);
                         updateSubmitState();
                         // Refresh wall
-                        yield loadWallPosts();
+                        if (!(yield loadWallPosts()) && active()) {
+                            requestStatus.textContent = `${successMessage} The wall could not refresh; reload it without resending.`;
+                        }
                     }
                     catch (err) {
-                        showToast("Something went wrong. Please try again.", false);
-                        submitBtn.innerHTML = SEND_DEFAULT;
-                        updateSubmitState();
+                        reportError("Sending recognition failed", err);
+                        if (active())
+                            requestStatus.textContent = published
+                                ? "Recognition was posted, but follow-up work failed. Do not resend it."
+                                : errorMessage(err);
+                    }
+                    finally {
+                        if (active()) {
+                            submitting = false;
+                            draftControls.forEach(control => { control.disabled = false; });
+                            submitBtn.innerHTML = recipName.value
+                                ? `${ICONS.send}Recognize ${escapeHtml(recipName.value.split(" ")[0])}` : SEND_DEFAULT;
+                            updateSubmitState();
+                        }
                     }
                 }));
                 let cachedPosts = [];
                 let introUsed = false;
                 // ── Likes (session+CSRF reactions API) ──────────────────────────────
                 function fetchLikeData(postId) {
-                    return __awaiter(this, void 0, void 0, function* () {
+                    return recognition_widget_awaiter(this, void 0, void 0, function* () {
                         var _a;
                         try {
                             const reqs = [
-                                fetch(`${baseUrl}/reactions-count?parentId=${postId}&parentType=post`, sessionOpts()),
+                                sessionRequest(`/reactions-count?parentId=${postId}&parentType=post`),
                             ];
                             if (currentUser)
-                                reqs.push(fetch(`${baseUrl}/reactions?parentId=${postId}&parentType=post&userId=${currentUser.id}`, sessionOpts()));
+                                reqs.push(sessionRequest(`/reactions?parentId=${postId}&parentType=post&userId=${currentUser.id}`));
                             const res = yield Promise.all(reqs);
                             const countJson = yield res[0].json();
                             const count = ((_a = (countJson.data || []).find((x) => x.type === "LIKE")) === null || _a === void 0 ? void 0 : _a.count) || 0;
@@ -834,12 +1140,17 @@ const factory = (BaseBlockClass, widgetApi) => {
                             }
                             return { count, mine };
                         }
-                        catch (_b) {
+                        catch (error) {
+                            reportError("Reading likes failed", error);
+                            if (active())
+                                requestStatus.textContent = "Some likes could not be loaded. Refresh the wall to try again.";
                             return { count: 0, mine: false };
                         }
                     });
                 }
                 function updateLikeButton(post) {
+                    if (!active())
+                        return;
                     const btn = feed.querySelector(`.${p}-card[data-post-id="${post.id}"] .${p}-like-btn`);
                     if (!btn)
                         return;
@@ -849,34 +1160,42 @@ const factory = (BaseBlockClass, widgetApi) => {
                         c.textContent = post.likeCount ? String(post.likeCount) : "";
                 }
                 function toggleLike(post) {
-                    return __awaiter(this, void 0, void 0, function* () {
-                        if (!currentUser)
+                    return recognition_widget_awaiter(this, void 0, void 0, function* () {
+                        if (!currentUser || pendingLikes.has(post.id))
                             return;
+                        pendingLikes.add(post.id);
                         const liking = !post.likedByMe;
                         post.likedByMe = liking;
                         post.likeCount = Math.max(0, post.likeCount + (liking ? 1 : -1));
                         updateLikeButton(post);
                         try {
                             if (liking) {
-                                yield fetch(`${baseUrl}/reactions`, sessionOpts({
+                                yield sessionRequest(`/reactions`, {
                                     method: "POST", headers: { "Content-Type": "application/json" },
                                     body: JSON.stringify({ parentId: post.id, parentType: "post", type: "LIKE" }),
-                                }));
+                                });
                             }
                             else {
-                                yield fetch(`${baseUrl}/reactions?parentId=${post.id}&parentType=post`, sessionOpts({ method: "DELETE" }));
+                                yield sessionRequest(`/reactions?parentId=${post.id}&parentType=post`, { method: "DELETE" });
                             }
                         }
-                        catch (_a) {
+                        catch (error) {
+                            reportError("Updating like failed", error);
                             // revert on failure
                             post.likedByMe = !liking;
                             post.likeCount = Math.max(0, post.likeCount + (liking ? -1 : 1));
                             updateLikeButton(post);
                             showToast("Couldn't update your like.", false);
                         }
+                        finally {
+                            pendingLikes.delete(post.id);
+                        }
                     });
                 }
+                const pendingLikes = new Set();
                 function renderFeedFromCache() {
+                    if (!active())
+                        return;
                     const filtered = wallFilter === "all"
                         ? cachedPosts
                         : cachedPosts.filter(p => p.type === wallFilter);
@@ -928,7 +1247,7 @@ const factory = (BaseBlockClass, widgetApi) => {
     </div>
     ${post.type || (isRecipient && post.pts) ? `<div class="${p}-badges">${post.type ? `<span class="${p}-type-badge"><i class="ti ${iconCls}"></i>${post.type}</span>` : ""}${isRecipient && post.pts ? `<span class="${p}-pts-badge">+${post.pts} pts</span>` : ""}</div>` : ""}
   </div>
-  ${post.message ? `<div class="${p}-msg">${post.message}</div>` : ""}
+  ${post.message ? `<div class="${p}-msg">${escapeHtml(post.message)}</div>` : ""}
   <div class="${p}-actions">
     <button class="${p}-like-btn${post.likedByMe ? " liked" : ""}" data-post-id="${post.id}" aria-label="Like">${ICONS.heart}<span class="${p}-like-count">${post.likeCount || ""}</span></button>
     ${isOwn ? `<button class="${p}-edit-btn" title="Edit" aria-label="Edit">${ICONS.edit}</button>` : ""}
@@ -953,6 +1272,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                                 if (!post || card.querySelector(`.${p}-edit-area`))
                                     return;
                                 const currentMsg = post.message;
+                                card.classList.add("editing");
                                 if (msgDiv)
                                     msgDiv.style.display = "none";
                                 btn.style.opacity = "0";
@@ -969,25 +1289,30 @@ const factory = (BaseBlockClass, widgetApi) => {
                                 actionsDiv.querySelector(`.${p}-cancel-btn`).addEventListener("click", () => {
                                     editArea.remove();
                                     actionsDiv.remove();
+                                    card.classList.remove("editing");
                                     if (msgDiv)
                                         msgDiv.style.display = "";
                                     btn.style.opacity = "";
                                     btn.style.pointerEvents = "";
                                 });
-                                actionsDiv.querySelector(`.${p}-save-btn`).addEventListener("click", () => __awaiter(this, void 0, void 0, function* () {
+                                actionsDiv.querySelector(`.${p}-save-btn`).addEventListener("click", () => recognition_widget_awaiter(this, void 0, void 0, function* () {
                                     const newMsg = editArea.value.trim();
-                                    if (!newMsg)
+                                    const saveButton = actionsDiv.querySelector(`.${p}-save-btn`);
+                                    if (!newMsg || saveButton.disabled)
                                         return;
+                                    saveButton.disabled = true;
                                     try {
-                                        yield fetch(`${baseUrl}/posts/${postId}`, sessionOpts({
+                                        yield sessionRequest(`/posts/${postId}`, {
                                             method: "PUT",
                                             headers: { "Content-Type": "application/json" },
                                             body: JSON.stringify({
-                                                contents: { en_US: { title: post.title, content: `<p>${newMsg}</p>` } },
+                                                contents: { en_US: { title: post.title, content: `<p>${escapeHtml(newMsg)}</p>` } },
                                                 // Preserve the original publish timestamp so the edit doesn't unpublish or reorder it.
                                                 published: post.created,
                                             }),
-                                        }));
+                                        });
+                                        if (!active())
+                                            return;
                                         post.message = newMsg;
                                         if (msgDiv) {
                                             msgDiv.textContent = newMsg;
@@ -995,12 +1320,18 @@ const factory = (BaseBlockClass, widgetApi) => {
                                         }
                                         editArea.remove();
                                         actionsDiv.remove();
+                                        card.classList.remove("editing");
                                         btn.style.opacity = "";
                                         btn.style.pointerEvents = "";
                                         showToast("Recognition updated!");
                                     }
-                                    catch (_a) {
-                                        showToast("Could not save changes.", false);
+                                    catch (error) {
+                                        reportError("Editing recognition failed", error);
+                                        if (active())
+                                            requestStatus.textContent = errorMessage(error);
+                                    }
+                                    finally {
+                                        saveButton.disabled = false;
                                     }
                                 }));
                             });
@@ -1019,6 +1350,13 @@ const factory = (BaseBlockClass, widgetApi) => {
                 document.body.appendChild(hc);
                 let hcShowTimer = null;
                 let hcHideTimer = null;
+                cleanups.push(() => {
+                    hc.remove();
+                    if (hcShowTimer)
+                        clearTimeout(hcShowTimer);
+                    if (hcHideTimer)
+                        clearTimeout(hcHideTimer);
+                });
                 function positionHover(anchor) {
                     const r = anchor.getBoundingClientRect();
                     const w = 264, gap = 8;
@@ -1032,6 +1370,8 @@ const factory = (BaseBlockClass, widgetApi) => {
                     hc.style.top = `${top}px`;
                 }
                 function showHover(id, anchor) {
+                    if (!active())
+                        return;
                     const u = userById.get(id);
                     if (!u)
                         return;
@@ -1077,40 +1417,40 @@ const factory = (BaseBlockClass, widgetApi) => {
                 // ownership). If it fails (no session / permission), fall back to the API token —
                 // posts still load, but the sender avatar falls back to a directory name-match.
                 function fetchWallPosts() {
-                    return __awaiter(this, void 0, void 0, function* () {
+                    return recognition_widget_awaiter(this, void 0, void 0, function* () {
                         const url = `${baseUrl}/channels/${channelId}/posts?limit=30`;
                         try {
-                            const r = yield fetch(url, sessionOpts());
-                            if (r.ok) {
-                                const j = yield r.json();
-                                console.log(`[recognition] wall loaded via SESSION — ${(j.data || []).length} posts`);
-                                return j.data || [];
-                            }
-                            console.warn(`[recognition] session wall read failed (HTTP ${r.status}); falling back to API token`);
+                            const r = yield sessionRequest(`/channels/${channelId}/posts?limit=30`);
+                            const j = yield r.json();
+                            return j.data || [];
                         }
                         catch (e) {
-                            console.warn("[recognition] session wall read errored; falling back to API token", e);
+                            reportError("Session wall read failed; trying API token", e);
                         }
-                        try {
-                            const r2 = yield fetch(url, apiOpts());
-                            const j2 = yield r2.json();
-                            console.log(`[recognition] wall loaded via API TOKEN (fallback) — ${(j2.data || []).length} posts; sender avatars resolve by name, not author`);
-                            return j2.data || [];
-                        }
-                        catch (e) {
-                            console.error("[recognition] token wall read also failed", e);
+                        if (!active())
                             return [];
-                        }
+                        const r2 = yield checkResponse(yield fetch(url, apiOpts()));
+                        const j2 = yield r2.json();
+                        return j2.data || [];
                     });
                 }
                 function loadWallPosts() {
-                    return __awaiter(this, void 0, void 0, function* () {
+                    return recognition_widget_awaiter(this, void 0, void 0, function* () {
                         try {
                             // Read via session so each post carries its real `author` (id + avatar).
                             // The recipient (toName) isn't the author, so resolve their photo from the
                             // directory; for older app-authored posts (no author) we fall back to the
                             // directory for the sender too.
-                            yield loadUsers();
+                            try {
+                                yield loadUsers();
+                            }
+                            catch (error) {
+                                reportError("Wall directory lookup failed", error);
+                                if (active())
+                                    requestStatus.textContent = "Colleague details could not be loaded.";
+                            }
+                            if (!active())
+                                return false;
                             const avatarByName = new Map();
                             const idByName = new Map();
                             for (const u of allUsers) {
@@ -1127,6 +1467,8 @@ const factory = (BaseBlockClass, widgetApi) => {
                                 idByName.set(meKey, currentUser.id);
                             }
                             const posts = yield fetchWallPosts();
+                            if (!active())
+                                return false;
                             cachedPosts = posts.map((post) => {
                                 var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
                                 const title = ((_b = (_a = post.contents) === null || _a === void 0 ? void 0 : _a.en_US) === null || _b === void 0 ? void 0 : _b.title) || "";
@@ -1136,7 +1478,8 @@ const factory = (BaseBlockClass, widgetApi) => {
                                 const toName = (m === null || m === void 0 ? void 0 : m[2]) || "";
                                 const type = (m === null || m === void 0 ? void 0 : m[3]) || "";
                                 const pts = m && m[4] ? parseInt(m[4], 10) : 0;
-                                const message = content.replace(/<[^>]+>/g, "").trim();
+                                const parsedContent = new DOMParser().parseFromString(content, "text/html");
+                                const message = (parsedContent.body.textContent || "").trim();
                                 const author = post.author || null;
                                 const authorAvatar = ((_f = (_e = author === null || author === void 0 ? void 0 : author.avatar) === null || _e === void 0 ? void 0 : _e.icon) === null || _f === void 0 ? void 0 : _f.url) || ((_h = (_g = author === null || author === void 0 ? void 0 : author.avatar) === null || _g === void 0 ? void 0 : _g.thumb) === null || _h === void 0 ? void 0 : _h.url) || ((_k = (_j = author === null || author === void 0 ? void 0 : author.avatar) === null || _j === void 0 ? void 0 : _j.original) === null || _k === void 0 ? void 0 : _k.url) || "";
                                 const fromId = (author === null || author === void 0 ? void 0 : author.id) || idByName.get(fromName.trim().toLowerCase()) || "";
@@ -1147,21 +1490,35 @@ const factory = (BaseBlockClass, widgetApi) => {
                             });
                             renderFeedFromCache();
                             // Hydrate like counts + own-like state in parallel, then refresh each button.
-                            cachedPosts.forEach((cp) => __awaiter(this, void 0, void 0, function* () {
+                            cachedPosts.forEach((cp) => recognition_widget_awaiter(this, void 0, void 0, function* () {
                                 const { count, mine } = yield fetchLikeData(cp.id);
+                                if (!active())
+                                    return;
                                 cp.likeCount = count;
                                 cp.likedByMe = mine;
                                 updateLikeButton(cp);
                             }));
+                            return true;
                         }
-                        catch (_a) {
+                        catch (error) {
+                            reportError("Loading wall failed", error);
+                            if (!active())
+                                return false;
                             feed.classList.remove("intro");
                             feed.innerHTML = `<div class="${p}-empty">Could not load recognitions.</div>`;
+                            return false;
                         }
                     });
                 }
                 yield loadWallPosts();
             });
+        }
+        unmountBlock(container) {
+            var _a;
+            ++this.renderGeneration;
+            (_a = this.cleanup) === null || _a === void 0 ? void 0 : _a.call(this);
+            this.cleanup = undefined;
+            super.unmountBlock(container);
         }
         static get observedAttributes() {
             return ["apitoken", "baseurl", "channelid", "rewardtypes", "enablepoints", "pointsfield", "adminuserid", "notificationlink", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor"];
@@ -1246,7 +1603,6 @@ const externalBlockDefinition = {
     version: "1.0.0",
 };
 window.defineBlock(externalBlockDefinition);
-
 
 /******/ })()
 ;

@@ -5,6 +5,7 @@ import {
   BaseBlock,
   WidgetApi,
 } from "@staffbase/widget-sdk";
+import { checkResponse, createSessionRequest, errorMessage, reportError, RequestError } from "./session";
 
 interface RewardType {
   name: string;
@@ -47,14 +48,42 @@ const ICONS = {
 // that font, so the widget loads it itself — otherwise the icons render blank in the
 // app (they only worked in preview.html because that file links the CDN directly).
 const TABLER_ICONS_HREF = "https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css";
-function ensureTablerIcons(): void {
-  if (typeof document === "undefined") return;
-  if (document.getElementById("sb-tabler-icons")) return;
-  const link = document.createElement("link");
-  link.id = "sb-tabler-icons";
-  link.rel = "stylesheet";
-  link.href = TABLER_ICONS_HREF;
-  document.head.appendChild(link);
+function ensureTablerIcons(container: HTMLElement, onError: () => void): () => void {
+  const doc = container.ownerDocument;
+  const root = container.getRootNode();
+  const scopes = root instanceof ShadowRoot ? [doc.head, root] : [doc.head];
+  const cleanups: Array<() => void> = [];
+  for (const scope of scopes) {
+    let link = scope.querySelector<HTMLLinkElement>('link[data-recognition-icons]');
+    if (!link) {
+      link = doc.createElement("link");
+      link.dataset.recognitionIcons = "loading";
+      link.rel = "stylesheet";
+      link.href = TABLER_ICONS_HREF;
+      link.addEventListener("load", () => { link!.dataset.recognitionIcons = "loaded"; }, { once: true });
+      link.addEventListener("error", () => { link!.dataset.recognitionIcons = "failed"; }, { once: true });
+      scope.appendChild(link);
+    }
+    if (link.dataset.recognitionIcons === "failed") onError();
+    else link.addEventListener("error", onError, { once: true });
+    const checkFont = () => {
+      if (!scopes.every(scope => scope.querySelector<HTMLLinkElement>('link[data-recognition-icons]')?.dataset.recognitionIcons === "loaded")) return;
+      doc.fonts.load('16px "tabler-icons"', "\ueb60")
+        .then(fonts => { if (!fonts.length) onError(); })
+        .catch(onError);
+    };
+    if (link.dataset.recognitionIcons === "loaded") checkFont();
+    else link.addEventListener("load", checkFont, { once: true });
+    cleanups.push(() => {
+      link!.removeEventListener("load", checkFont);
+      link!.removeEventListener("error", onError);
+    });
+  }
+  return () => cleanups.forEach(cleanup => cleanup());
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]!));
 }
 
 function buildCss(p: string): string {
@@ -114,6 +143,7 @@ a.${p}-av{cursor:pointer}
 /* Actions, bottom-right: like is always visible (borderless icon); edit reveals on
    hover to its right, so the like nudges left to make room. */
 .${p}-actions{position:absolute;bottom:11px;right:14px;display:flex;align-items:center;gap:10px}
+.${p}-card.editing .${p}-actions{display:none}
 .${p}-like-btn{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--gray-lt);background:none;border:none;cursor:pointer;font-family:inherit;padding:0;line-height:1;transition:color .15s}
 .${p}-like-btn svg{width:17px;height:17px;transition:transform .12s}
 .${p}-like-btn:hover{color:var(--primary)}
@@ -185,6 +215,9 @@ textarea.${p}-in{resize:vertical;min-height:84px;line-height:1.55}
 .${p}-empty{text-align:center;padding:34px 16px;color:var(--gray-lt);font-size:13px;font-weight:500}
 .${p}-toast{position:absolute;bottom:18px;left:50%;transform:translate(-50%,8px);background:var(--dark);color:#fff;padding:11px 18px;border-radius:var(--r-md);font-size:13px;font-weight:700;opacity:0;transition:opacity .3s,transform .3s;pointer-events:none;white-space:nowrap;z-index:10;box-shadow:var(--shadow-md);display:flex;align-items:center;gap:8px}
 .${p}-toast.show{opacity:1;transform:translate(-50%,0)}
+.${p}-status{margin:12px 0;color:var(--error);font-size:13px;line-height:1.5}
+.${p}-status:empty{display:none}
+.${p}.${p} button:focus-visible,.${p}-opt:focus-visible{outline:2px solid var(--primary)!important;outline-offset:2px}
 .${p}-view-wrap{position:relative;min-height:130px}
 .${p}-spin{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;animation:${p}-spin .7s linear infinite;display:inline-block}
 @keyframes ${p}-spin{to{transform:rotate(360deg)}}
@@ -391,36 +424,25 @@ async function fetchThemeColors(baseUrl: string, apiToken: string): Promise<{ pr
   }
 }
 
-// ── Session auth (for posting / liking AS the logged-in user) ─────────────────
-// Same approach the my-tasks widget uses for comments: ride the browser session
-// (credentials:include) but supply the CSRF token from the page's auth manager.
-// This is required for posts to carry a real `author` (id + avatar) and for likes.
-function readCsrf(): string {
-  const w: any = window;
-  try { const t = w.we?.authMgr?.csrfToken; if (t) return String(t); } catch (_) {}
-  if (w.csrfToken) return String(w.csrfToken);
-  const m = document.cookie.match(/(?:^|;\s*)(?:csrf|XSRF-TOKEN|csrftoken)=([^;]+)/i);
-  if (m) return decodeURIComponent(m[1]);
-  const meta = document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null;
-  return meta?.content || "";
-}
-function sessionOpts(extra?: RequestInit): RequestInit {
-  const csrf = readCsrf();
-  return {
-    ...extra,
-    credentials: "include",
-    headers: { ...(csrf ? { "x-csrf-token": csrf } : {}), ...(extra?.headers || {}) },
-  };
-}
-
 const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
   return class RecognitionWidget extends BaseBlockClass implements BaseBlock {
+    private renderGeneration = 0;
+    private cleanup: (() => void) | undefined;
+
     constructor() {
       super();
     }
 
     async renderBlock(container: HTMLElement): Promise<void> {
-      ensureTablerIcons(); // load the icon font so reward-type icons render inside Staffbase
+      this.cleanup?.();
+      const generation = ++this.renderGeneration;
+      const active = () => generation === this.renderGeneration;
+      const controller = new AbortController();
+      const cleanups: Array<() => void> = [];
+      this.cleanup = () => {
+        controller.abort();
+        cleanups.forEach(cleanup => cleanup());
+      };
       const baseUrl = (this.getAttribute("baseurl") || DEFAULT_BASE_URL).replace(/\/+$/, "");
       const channelId = this.getAttribute("channelid") || DEFAULT_CHANNEL;
       const token = this.getAttribute("apitoken") || "";
@@ -428,7 +450,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
       const pointsEnabled = this.getAttribute("enablepoints") !== "false";
       const adminId = this.getAttribute("adminuserid") || DEFAULT_ADMIN_ID;
       const notificationLink = this.getAttribute("notificationlink") || "";
-      const apiOpts = (extra?: RequestInit) => makeApiOpts(token, extra);
+      const apiOpts = (extra?: RequestInit) => makeApiOpts(token, { signal: controller.signal, ...extra });
+      const sessionRequest = createSessionRequest(baseUrl, controller.signal);
       // Staffbase binds its native profile hovercard to author links of the form
       // <a class="internal-link clickable" href="/profile/<id>">. Matching that markup
       // exactly (relative href + those classes) makes the hovercard pop on our links too.
@@ -440,6 +463,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
       const bgColor = this.getAttribute("backgroundcolor") || "";
       if (this.getAttribute("usethemecolors") === "true" && token) {
         const themed = await fetchThemeColors(baseUrl, token);
+        if (!active()) return;
         if (themed.primary) primaryColor = themed.primary;
         if (themed.accent) accentColor = themed.accent;
       }
@@ -455,21 +479,32 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
       } catch {}
 
       let currentUser: { id: string; firstName: string; lastName: string; avatar: string } | null = null;
+      let identityError = "";
       try {
-        const prof: any = await widgetApi.getUserInformation();
+        const prof = await widgetApi.getUserInformation();
+        if (!active()) return;
         const id: string = prof.id || "";
         if (id) {
-          // Fetch full profile for name (getUserInformation may omit fields on some versions)
-          const r = await fetch(`${baseUrl}/users/${id}`, apiOpts());
-          const data = await r.json();
           currentUser = {
             id,
-            firstName: data.firstName || prof.firstName || "",
-            lastName: data.lastName || prof.lastName || "",
-            avatar: data.avatar?.icon?.url || data.avatar?.thumb?.url || data.avatar?.original?.url || "",
+            firstName: prof.firstName || "",
+            lastName: prof.lastName || "",
+            avatar: prof.avatar?.icon?.url || "",
           };
+          try {
+            const r = await checkResponse(await fetch(`${baseUrl}/users/${encodeURIComponent(id)}`, apiOpts()));
+            const data = await r.json();
+            if (!active()) return;
+            currentUser.firstName = data.firstName || currentUser.firstName;
+            currentUser.lastName = data.lastName || currentUser.lastName;
+            currentUser.avatar = data.avatar?.icon?.url || data.avatar?.thumb?.url || currentUser.avatar;
+          } catch (error) { reportError("Profile enrichment failed", error); }
         }
-      } catch {}
+      } catch (error) { reportError("Current user lookup failed", error); }
+      if (!active()) return;
+      if (!currentUser || !`${currentUser.firstName} ${currentUser.lastName}`.trim()) {
+        identityError = "Could not identify your Staffbase account. Refresh the page before sending recognition.";
+      }
 
       // --- Build HTML ---
       container.innerHTML = `<style>${buildCss(p)}</style>
@@ -504,7 +539,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
           <label class="${p}-label" id="recipLabel">Recognize a colleague</label>
           <div class="${p}-search-wrap" id="searchWrap">
             <span class="${p}-search-ic">${ICONS.search}</span>
-            <input class="${p}-in" id="recipSearch" type="text" placeholder="Search for a colleague by name…" autocomplete="off">
+            <input class="${p}-in" id="recipSearch" type="text" placeholder="Search for a colleague by name…" autocomplete="off" aria-labelledby="recipLabel" aria-expanded="false" aria-controls="userDropdown">
           </div>
           <div class="${p}-dropdown" id="userDropdown"></div>
           <div class="${p}-recipient" id="recipCard" style="display:none">
@@ -539,7 +574,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
       </div>
     </div>
 
-    <div class="${p}-toast" id="toast"></div>
+    <div class="${p}-status" id="iconStatus" role="status"></div>
+    <div class="${p}-status" id="requestStatus" role="status" aria-live="polite"></div>
+    <div class="${p}-toast" id="toast" role="status"></div>
   </div>
 </div>`;
 
@@ -547,6 +584,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
       let wallFilter = "all";
       let selectedType: RewardType | null = null;
       let searchTimeout: ReturnType<typeof setTimeout> | null = null;
+      let toastTimeout: ReturnType<typeof setTimeout> | null = null;
+      let pickerOpen = false;
+      let submitting = false;
 
       const feed = container.querySelector("#kudosFeed") as HTMLElement;
       const recipSearch = container.querySelector("#recipSearch") as HTMLInputElement;
@@ -562,6 +602,17 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
       const kudosMsg = container.querySelector("#kudosMsg") as HTMLTextAreaElement;
       const submitBtn = container.querySelector("#submitBtn") as HTMLButtonElement;
       const toast = container.querySelector("#toast") as HTMLElement;
+      const requestStatus = container.querySelector("#requestStatus") as HTMLElement;
+      requestStatus.textContent = identityError;
+      cleanups.push(ensureTablerIcons(container, () => {
+        if (!active()) return;
+        (container.querySelector("#iconStatus") as HTMLElement).textContent = "Recognition icons could not load. Check access to the Tabler stylesheet and font.";
+        console.error("[recognition] Tabler stylesheet or font could not load.");
+      }));
+      cleanups.push(() => {
+        if (searchTimeout) clearTimeout(searchTimeout);
+        if (toastTimeout) clearTimeout(toastTimeout);
+      });
 
       const SEND_DEFAULT = `${ICONS.send}Send recognition`;
 
@@ -573,16 +624,16 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
           ? `<img src="${avatar}" alt="" onerror="this.parentElement.textContent='${getInitials(name)}'">`
           : getInitials(name);
         recipCardName.textContent = name;
-        userDropdown.style.display = "none";
+        closeUserDropdown();
         searchWrap.style.display = "none";
         recipCard.style.display = "flex";
         recipLabel.textContent = "Recipient";
         const first = name.split(" ")[0] || name;
-        submitBtn.innerHTML = `${ICONS.send}Recognize ${first}`;
+        submitBtn.innerHTML = `${ICONS.send}Recognize ${escapeHtml(first)}`;
         updateSubmitState();
       }
 
-      function clearRecipient() {
+      function clearRecipient(focus = true) {
         recipId.value = "";
         recipName.value = "";
         recipSearch.value = "";
@@ -591,31 +642,35 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
         recipLabel.textContent = "Recognize a colleague";
         submitBtn.innerHTML = SEND_DEFAULT;
         updateSubmitState();
-        recipSearch.focus();
+        closeUserDropdown();
+        if (focus) recipSearch.focus();
       }
 
-      recipChange.addEventListener("click", clearRecipient);
+      recipChange.addEventListener("click", () => clearRecipient());
 
       function showToast(msg: string, ok = true) {
-        toast.innerHTML = (ok ? ICONS.sparkle : "") + msg;
+        if (!active()) return;
+        toast.textContent = msg;
         toast.style.background = ok ? "var(--dark)" : "var(--error)";
         toast.classList.add("show");
-        setTimeout(() => toast.classList.remove("show"), 2800);
+        if (toastTimeout) clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(() => toast.classList.remove("show"), 2800);
       }
 
       function updateSubmitState() {
-        submitBtn.disabled = !recipId.value || !selectedType || !kudosMsg.value.trim();
+        submitBtn.disabled = submitting || !!identityError || !recipId.value || !selectedType || !kudosMsg.value.trim();
       }
 
       // --- Tabs ---
       container.querySelectorAll(`.${p}-tab`).forEach(btn => {
         btn.addEventListener("click", () => {
           const t = (btn as HTMLElement).dataset.tab!;
+          closeUserDropdown();
           container.querySelectorAll(`.${p}-tab`).forEach(b => b.classList.remove("active"));
           btn.classList.add("active");
           (container.querySelector("#view-wall") as HTMLElement).style.display = t === "wall" ? "" : "none";
           (container.querySelector("#view-give") as HTMLElement).style.display = t === "give" ? "" : "none";
-          if (t === "give") loadUsers(); // warm the directory cache so search is instant
+          if (t === "give") void loadUsers().catch(error => reportError("Directory preload failed", error));
         });
       });
 
@@ -666,33 +721,37 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
             headline: u.profileHeadline || u.profile?.profileHeadline || "",
           });
           try {
-            const r = await fetch(`${baseUrl}/users?limit=200`, apiOpts());
-            if (r.ok) {
-              const d = await r.json();
-              list = (d.data || d || []).map(mapUser);
-            }
-          } catch {}
+            const r = await checkResponse(await fetch(`${baseUrl}/users?limit=200`, apiOpts()));
+            const d = await r.json();
+            list = (d.data || d || []).map(mapUser);
+          } catch (error) { reportError("Directory API read failed; trying widget SDK", error); }
+          if (!active()) return;
           // Fallback to the SDK only if REST returned nothing.
           if (list.length === 0) {
             try {
               const res = await widgetApi.getUserList({ limit: 100 });
               list = (res.data || []).map(mapUser);
-            } catch {}
+            } catch (error) {
+              reportError("Directory SDK read failed", error);
+              throw new RequestError("Could not load colleagues. Focus the search field to try again.");
+            }
           }
+          if (!active()) return;
           allUsers = list.filter(u => u.id && u.name && u.id !== (currentUser?.id || ""));
           for (const u of list) if (u.id) userById.set(u.id, u);
           usersLoaded = true;
-        })();
+        })().finally(() => { usersLoading = null; });
         return usersLoading;
       }
 
       function renderUserOptions(q: string) {
+        if (!active() || !pickerOpen || recipId.value) return;
         const ql = q.trim().toLowerCase();
         const matches = ql ? allUsers.filter(u => u.name.toLowerCase().includes(ql)) : allUsers.slice(0, 8);
         if (allUsers.length === 0) {
           userDropdown.innerHTML = `<div class="${p}-opt-empty">No colleagues found</div>`;
         } else if (matches.length === 0) {
-          userDropdown.innerHTML = `<div class="${p}-opt-empty">No matches for “${q.trim()}”</div>`;
+          userDropdown.innerHTML = `<div class="${p}-opt-empty">No matches for “${escapeHtml(q.trim())}”</div>`;
         } else {
           userDropdown.innerHTML = (ql ? "" : `<div class="${p}-opt-head">Suggested</div>`) + matches
             .map(u => {
@@ -700,7 +759,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
               const av = u.avatar
                 ? `<span class="${p}-opt-av"><img src="${u.avatar}" alt="" onerror="this.parentElement.textContent='${getInitials(u.name)}'"></span>`
                 : `<span class="${p}-opt-av">${getInitials(u.name)}</span>`;
-              return `<div class="${p}-opt" data-id="${u.id}" data-name="${u.name}" data-avatar="${u.avatar}">${av}${u.name}</div>`;
+              return `<div class="${p}-opt" role="button" tabindex="0" data-id="${escapeHtml(u.id)}" data-name="${escapeHtml(u.name)}" data-avatar="${escapeHtml(u.avatar)}">${av}${escapeHtml(u.name)}</div>`;
             })
             .join("");
           userDropdown.querySelectorAll(`.${p}-opt[data-id]`).forEach(opt => {
@@ -708,61 +767,101 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
               const el = opt as HTMLElement;
               selectRecipient(el.dataset.id!, el.dataset.name!, el.dataset.avatar || "");
             });
+            opt.addEventListener("keydown", event => {
+              if (event instanceof KeyboardEvent && (event.key === "Enter" || event.key === " ")) {
+                event.preventDefault();
+                (opt as HTMLElement).click();
+              }
+            });
           });
         }
         userDropdown.style.display = "block";
       }
 
       async function openUserDropdown() {
-        if (recipId.value) return; // a recipient is already chosen
+        if (recipId.value || submitting || !active()) return;
+        pickerOpen = true;
+        recipSearch.setAttribute("aria-expanded", "true");
         if (!usersLoaded) {
           userDropdown.innerHTML = `<div class="${p}-opt-empty">Loading colleagues…</div>`;
           userDropdown.style.display = "block";
         }
-        await loadUsers();
-        renderUserOptions(recipSearch.value);
+        try {
+          await loadUsers();
+          renderUserOptions(recipSearch.value);
+        } catch (error) {
+          if (!active() || !pickerOpen) return;
+          reportError("Opening colleague picker failed", error);
+          userDropdown.textContent = "Could not load colleagues. Click the search field to retry.";
+          userDropdown.style.display = "block";
+        }
+      }
+
+      function closeUserDropdown() {
+        pickerOpen = false;
+        if (searchTimeout) clearTimeout(searchTimeout);
+        userDropdown.style.display = "none";
+        recipSearch.setAttribute("aria-expanded", "false");
       }
 
       recipSearch.addEventListener("focus", openUserDropdown);
+      recipSearch.addEventListener("click", openUserDropdown);
       recipSearch.addEventListener("input", () => {
         if (searchTimeout) clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(async () => {
-          await loadUsers();
-          renderUserOptions(recipSearch.value);
-        }, 150);
+        searchTimeout = setTimeout(openUserDropdown, 150);
       });
 
-      document.addEventListener("click", (e) => {
-        if (!userDropdown.contains(e.target as Node) && e.target !== recipSearch) {
-          userDropdown.style.display = "none";
+      const recipientField = searchWrap.parentElement!;
+      const outsideClick = (event: MouseEvent) => {
+        if (!event.composedPath().includes(recipientField)) closeUserDropdown();
+      };
+      document.addEventListener("click", outsideClick);
+      cleanups.push(() => document.removeEventListener("click", outsideClick));
+      recipientField.addEventListener("keydown", event => {
+        if (event.key === "Escape") {
+          recipSearch.focus();
+          closeUserDropdown();
         }
+        if (event.key === "ArrowDown" && event.target === recipSearch) {
+          event.preventDefault();
+          userDropdown.querySelector<HTMLElement>('[role="button"]')?.focus();
+        }
+      });
+      recipientField.addEventListener("focusout", event => {
+        if (!(event.relatedTarget instanceof Node) || !recipientField.contains(event.relatedTarget)) closeUserDropdown();
       });
 
       kudosMsg.addEventListener("input", updateSubmitState);
 
       // --- Submit ---
       submitBtn.addEventListener("click", async () => {
-        if (!selectedType || !recipId.value || !kudosMsg.value.trim()) return;
-        submitBtn.disabled = true;
+        if (submitting || identityError || !currentUser || !selectedType || !recipId.value || !kudosMsg.value.trim()) return;
+        submitting = true;
+        closeUserDropdown();
+        updateSubmitState();
         submitBtn.innerHTML = `<span class="${p}-spin"></span>Sending…`;
+        requestStatus.textContent = "";
+        const draftControls = container.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLButtonElement>("#view-give input, #view-give textarea, #view-give button");
+        draftControls.forEach(control => { control.disabled = true; });
 
-        const fromName = currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : "A colleague";
+        const fromName = `${currentUser.firstName} ${currentUser.lastName}`.trim();
         const toId = recipId.value;
         const toName = recipName.value;
         const type = selectedType;
         const message = kudosMsg.value.trim();
 
+        let published = false;
         try {
           // 1. Post to social wall
           // Title embeds structured metadata parseable via RECOG_TITLE_RE — no hidden elements needed.
           const postTitle = pointsEnabled
             ? `${fromName} recognized ${toName} · ${type.name} · +${type.points}pts`
             : `${fromName} recognized ${toName} · ${type.name}`;
-          const postContent = `<p>${message}</p>`;
+          const postContent = `<p>${escapeHtml(message)}</p>`;
           // Create AS the logged-in user (session+CSRF) so the post carries a real
           // author (id + avatar) and likes/ownership work. `published:true` publishes
           // immediately. No comments, no push/email — but keep likes on.
-          await fetch(`${baseUrl}/channels/${channelId}/posts`, sessionOpts({
+          const response = await sessionRequest(`/channels/${channelId}/posts`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -772,15 +871,25 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
               likingEnabled: true,
               notificationChannels: [],
             }),
-          }));
+          });
+          const created: unknown = await response.json();
+          if (!created || typeof created !== "object" || !("id" in created) || typeof created.id !== "string" || !created.id) {
+            throw new RequestError("The server response did not confirm the post. Check the wall before trying again.");
+          }
+          published = true;
+          if (!active()) return;
+          const warnings: string[] = [];
 
           // 2. Update recipient points (only when the points capability is enabled)
           if (pointsEnabled) {
             try {
-              const userResp = await fetch(`${baseUrl}/users/${toId}`, apiOpts()).then(r => r.json());
+              const userResponse = await checkResponse(await fetch(`${baseUrl}/users/${toId}`, apiOpts()));
+              const userResp = await userResponse.json();
+              if (!active()) return;
               const currentPts = parseInt(userResp?.profile?.[pointsField] || "0", 10);
+              if (!Number.isFinite(currentPts) || !Number.isFinite(type.points)) throw new RequestError("The points value is invalid.");
               const newPts = currentPts + type.points;
-              await fetch(`${baseUrl}/users/${toId}`, {
+              await checkResponse(await fetch(`${baseUrl}/users/${toId}`, {
                 ...apiOpts({
                   method: "PUT",
                   body: JSON.stringify({ profile: { [pointsField]: String(newPts) } }),
@@ -789,13 +898,17 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
                   ...makeApiOpts(token).headers as Record<string, string>,
                   USERID: adminId,
                 },
-              });
-            } catch {}
+              }));
+            } catch (error) {
+              reportError("Points update failed after publication", error);
+              warnings.push("Points could not be confirmed; do not resend the recognition.");
+            }
           }
+          if (!active()) return;
 
           // 3. Send notification (best effort)
           try {
-            await fetch(`${baseUrl}/branch/notifications`, {
+            await checkResponse(await fetch(`${baseUrl}/branch/notifications`, {
               ...apiOpts({
                 method: "POST",
                 body: JSON.stringify({
@@ -804,7 +917,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
                   content: {
                     en_US: {
                       title: `You've been recognized!`,
-                      text: pointsEnabled
+                      text: pointsEnabled && warnings.length === 0
                         ? `${fromName} recognized you for ${type.name} and awarded you ${type.points} points.`
                         : `${fromName} recognized you for ${type.name}.`,
                     },
@@ -812,25 +925,44 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
                   ...(notificationLink ? { link: notificationLink } : {}),
                 }),
               }),
-            });
-          } catch {}
+            }));
+          } catch (error) {
+            reportError("Recipient notification failed after publication", error);
+            warnings.push("The recipient notification could not be confirmed.");
+          }
+          if (!active()) return;
 
-          showToast(pointsEnabled ? `Recognition sent! +${type.points} pts awarded` : "Recognition sent!");
+          const successMessage = warnings.length
+            ? `Recognition posted. ${warnings.join(" ")}`
+            : pointsEnabled ? `Recognition sent! +${type.points} pts awarded` : "Recognition sent!";
+          requestStatus.textContent = warnings.length ? successMessage : "";
+          showToast(warnings.length ? "Recognition posted with a follow-up issue." : successMessage);
 
           // Reset form
           kudosMsg.value = "";
           selectedType = null;
           container.querySelectorAll(`.${p}-ktype`).forEach(b => b.classList.remove("selected"));
-          clearRecipient(); // restores the search field + default submit label
+          clearRecipient(false);
           updateSubmitState();
 
           // Refresh wall
-          await loadWallPosts();
+          if (!await loadWallPosts() && active()) {
+            requestStatus.textContent = `${successMessage} The wall could not refresh; reload it without resending.`;
+          }
 
         } catch (err) {
-          showToast("Something went wrong. Please try again.", false);
-          submitBtn.innerHTML = SEND_DEFAULT;
-          updateSubmitState();
+          reportError("Sending recognition failed", err);
+          if (active()) requestStatus.textContent = published
+            ? "Recognition was posted, but follow-up work failed. Do not resend it."
+            : errorMessage(err);
+        } finally {
+          if (active()) {
+            submitting = false;
+            draftControls.forEach(control => { control.disabled = false; });
+            submitBtn.innerHTML = recipName.value
+              ? `${ICONS.send}Recognize ${escapeHtml(recipName.value.split(" ")[0])}` : SEND_DEFAULT;
+            updateSubmitState();
+          }
         }
       });
 
@@ -859,19 +991,24 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
       async function fetchLikeData(postId: string): Promise<{ count: number; mine: boolean }> {
         try {
           const reqs: Promise<Response>[] = [
-            fetch(`${baseUrl}/reactions-count?parentId=${postId}&parentType=post`, sessionOpts()),
+            sessionRequest(`/reactions-count?parentId=${postId}&parentType=post`),
           ];
-          if (currentUser) reqs.push(fetch(`${baseUrl}/reactions?parentId=${postId}&parentType=post&userId=${currentUser.id}`, sessionOpts()));
+          if (currentUser) reqs.push(sessionRequest(`/reactions?parentId=${postId}&parentType=post&userId=${currentUser.id}`));
           const res = await Promise.all(reqs);
           const countJson = await res[0].json();
           const count = (countJson.data || []).find((x: any) => x.type === "LIKE")?.count || 0;
           let mine = false;
           if (res[1]) { const mineJson = await res[1].json(); mine = (mineJson.data || []).some((x: any) => x.type === "LIKE"); }
           return { count, mine };
-        } catch { return { count: 0, mine: false }; }
+        } catch (error) {
+          reportError("Reading likes failed", error);
+          if (active()) requestStatus.textContent = "Some likes could not be loaded. Refresh the wall to try again.";
+          return { count: 0, mine: false };
+        }
       }
 
       function updateLikeButton(post: WallPost) {
+        if (!active()) return;
         const btn = feed.querySelector(`.${p}-card[data-post-id="${post.id}"] .${p}-like-btn`) as HTMLElement | null;
         if (!btn) return;
         btn.classList.toggle("liked", post.likedByMe);
@@ -880,30 +1017,37 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
       }
 
       async function toggleLike(post: WallPost) {
-        if (!currentUser) return;
+        if (!currentUser || pendingLikes.has(post.id)) return;
+        pendingLikes.add(post.id);
         const liking = !post.likedByMe;
         post.likedByMe = liking;
         post.likeCount = Math.max(0, post.likeCount + (liking ? 1 : -1));
         updateLikeButton(post);
         try {
           if (liking) {
-            await fetch(`${baseUrl}/reactions`, sessionOpts({
+            await sessionRequest(`/reactions`, {
               method: "POST", headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ parentId: post.id, parentType: "post", type: "LIKE" }),
-            }));
+            });
           } else {
-            await fetch(`${baseUrl}/reactions?parentId=${post.id}&parentType=post`, sessionOpts({ method: "DELETE" }));
+            await sessionRequest(`/reactions?parentId=${post.id}&parentType=post`, { method: "DELETE" });
           }
-        } catch {
+        } catch (error) {
+          reportError("Updating like failed", error);
           // revert on failure
           post.likedByMe = !liking;
           post.likeCount = Math.max(0, post.likeCount + (liking ? -1 : 1));
           updateLikeButton(post);
           showToast("Couldn't update your like.", false);
+        } finally {
+          pendingLikes.delete(post.id);
         }
       }
 
+      const pendingLikes = new Set<string>();
+
       function renderFeedFromCache() {
+        if (!active()) return;
         const filtered = wallFilter === "all"
           ? cachedPosts
           : cachedPosts.filter(p => p.type === wallFilter);
@@ -956,7 +1100,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
     </div>
     ${post.type || (isRecipient && post.pts) ? `<div class="${p}-badges">${post.type ? `<span class="${p}-type-badge"><i class="ti ${iconCls}"></i>${post.type}</span>` : ""}${isRecipient && post.pts ? `<span class="${p}-pts-badge">+${post.pts} pts</span>` : ""}</div>` : ""}
   </div>
-  ${post.message ? `<div class="${p}-msg">${post.message}</div>` : ""}
+  ${post.message ? `<div class="${p}-msg">${escapeHtml(post.message)}</div>` : ""}
   <div class="${p}-actions">
     <button class="${p}-like-btn${post.likedByMe ? " liked" : ""}" data-post-id="${post.id}" aria-label="Like">${ICONS.heart}<span class="${p}-like-count">${post.likeCount || ""}</span></button>
     ${isOwn ? `<button class="${p}-edit-btn" title="Edit" aria-label="Edit">${ICONS.edit}</button>` : ""}
@@ -982,6 +1126,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
               if (!post || card.querySelector(`.${p}-edit-area`)) return;
 
               const currentMsg = post.message;
+              card.classList.add("editing");
               if (msgDiv) msgDiv.style.display = "none";
               (btn as HTMLButtonElement).style.opacity = "0";
               (btn as HTMLButtonElement).style.pointerEvents = "none";
@@ -1001,6 +1146,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
               actionsDiv.querySelector(`.${p}-cancel-btn`)!.addEventListener("click", () => {
                 editArea.remove();
                 actionsDiv.remove();
+                card.classList.remove("editing");
                 if (msgDiv) msgDiv.style.display = "";
                 (btn as HTMLButtonElement).style.opacity = "";
                 (btn as HTMLButtonElement).style.pointerEvents = "";
@@ -1008,26 +1154,33 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
 
               actionsDiv.querySelector(`.${p}-save-btn`)!.addEventListener("click", async () => {
                 const newMsg = editArea.value.trim();
-                if (!newMsg) return;
+                const saveButton = actionsDiv.querySelector<HTMLButtonElement>(`.${p}-save-btn`)!;
+                if (!newMsg || saveButton.disabled) return;
+                saveButton.disabled = true;
                 try {
-                  await fetch(`${baseUrl}/posts/${postId}`, sessionOpts({
+                  await sessionRequest(`/posts/${postId}`, {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                      contents: { en_US: { title: post.title, content: `<p>${newMsg}</p>` } },
+                      contents: { en_US: { title: post.title, content: `<p>${escapeHtml(newMsg)}</p>` } },
                       // Preserve the original publish timestamp so the edit doesn't unpublish or reorder it.
                       published: post.created,
                     }),
-                  }));
+                  });
+                  if (!active()) return;
                   post.message = newMsg;
                   if (msgDiv) { msgDiv.textContent = newMsg; msgDiv.style.display = ""; }
                   editArea.remove();
                   actionsDiv.remove();
+                  card.classList.remove("editing");
                   (btn as HTMLButtonElement).style.opacity = "";
                   (btn as HTMLButtonElement).style.pointerEvents = "";
                   showToast("Recognition updated!");
-                } catch {
-                  showToast("Could not save changes.", false);
+                } catch (error) {
+                  reportError("Editing recognition failed", error);
+                  if (active()) requestStatus.textContent = errorMessage(error);
+                } finally {
+                  saveButton.disabled = false;
                 }
               });
             });
@@ -1047,6 +1200,11 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
       document.body.appendChild(hc);
       let hcShowTimer: ReturnType<typeof setTimeout> | null = null;
       let hcHideTimer: ReturnType<typeof setTimeout> | null = null;
+      cleanups.push(() => {
+        hc.remove();
+        if (hcShowTimer) clearTimeout(hcShowTimer);
+        if (hcHideTimer) clearTimeout(hcHideTimer);
+      });
 
       function positionHover(anchor: HTMLElement) {
         const r = anchor.getBoundingClientRect();
@@ -1061,6 +1219,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
       }
 
       function showHover(id: string, anchor: HTMLElement) {
+        if (!active()) return;
         const u = userById.get(id);
         if (!u) return;
         const initials = getInitials(u.name);
@@ -1103,34 +1262,30 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
       async function fetchWallPosts(): Promise<any[]> {
         const url = `${baseUrl}/channels/${channelId}/posts?limit=30`;
         try {
-          const r = await fetch(url, sessionOpts());
-          if (r.ok) {
-            const j = await r.json();
-            console.log(`[recognition] wall loaded via SESSION — ${(j.data || []).length} posts`);
-            return j.data || [];
-          }
-          console.warn(`[recognition] session wall read failed (HTTP ${r.status}); falling back to API token`);
+          const r = await sessionRequest(`/channels/${channelId}/posts?limit=30`);
+          const j = await r.json();
+          return j.data || [];
         } catch (e) {
-          console.warn("[recognition] session wall read errored; falling back to API token", e);
+          reportError("Session wall read failed; trying API token", e);
         }
-        try {
-          const r2 = await fetch(url, apiOpts());
-          const j2 = await r2.json();
-          console.log(`[recognition] wall loaded via API TOKEN (fallback) — ${(j2.data || []).length} posts; sender avatars resolve by name, not author`);
-          return j2.data || [];
-        } catch (e) {
-          console.error("[recognition] token wall read also failed", e);
-          return [];
-        }
+        if (!active()) return [];
+        const r2 = await checkResponse(await fetch(url, apiOpts()));
+        const j2 = await r2.json();
+        return j2.data || [];
       }
 
-      async function loadWallPosts() {
+      async function loadWallPosts(): Promise<boolean> {
         try {
           // Read via session so each post carries its real `author` (id + avatar).
           // The recipient (toName) isn't the author, so resolve their photo from the
           // directory; for older app-authored posts (no author) we fall back to the
           // directory for the sender too.
-          await loadUsers();
+          try { await loadUsers(); }
+          catch (error) {
+            reportError("Wall directory lookup failed", error);
+            if (active()) requestStatus.textContent = "Colleague details could not be loaded.";
+          }
+          if (!active()) return false;
           const avatarByName = new Map<string, string>();
           const idByName = new Map<string, string>();
           for (const u of allUsers) {
@@ -1145,6 +1300,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
           }
 
           const posts = await fetchWallPosts();
+          if (!active()) return false;
           cachedPosts = posts.map((post: any) => {
             const title = post.contents?.en_US?.title || "";
             const content = post.contents?.en_US?.content || "";
@@ -1153,7 +1309,8 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
             const toName   = m?.[2] || "";
             const type     = m?.[3] || "";
             const pts      = m && m[4] ? parseInt(m[4], 10) : 0;
-            const message = content.replace(/<[^>]+>/g, "").trim();
+            const parsedContent = new DOMParser().parseFromString(content, "text/html");
+            const message = (parsedContent.body.textContent || "").trim();
             const author = post.author || null;
             const authorAvatar = author?.avatar?.icon?.url || author?.avatar?.thumb?.url || author?.avatar?.original?.url || "";
             const fromId = author?.id || idByName.get(fromName.trim().toLowerCase()) || "";
@@ -1166,16 +1323,28 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
           // Hydrate like counts + own-like state in parallel, then refresh each button.
           cachedPosts.forEach(async cp => {
             const { count, mine } = await fetchLikeData(cp.id);
+            if (!active()) return;
             cp.likeCount = count; cp.likedByMe = mine;
             updateLikeButton(cp);
           });
-        } catch {
+          return true;
+        } catch (error) {
+          reportError("Loading wall failed", error);
+          if (!active()) return false;
           feed.classList.remove("intro");
           feed.innerHTML = `<div class="${p}-empty">Could not load recognitions.</div>`;
+          return false;
         }
       }
 
       await loadWallPosts();
+    }
+
+    unmountBlock(container: HTMLElement): void {
+      ++this.renderGeneration;
+      this.cleanup?.();
+      this.cleanup = undefined;
+      super.unmountBlock(container);
     }
 
     static get observedAttributes() {
