@@ -5,7 +5,7 @@ import {
   BaseBlock,
   WidgetApi,
 } from "@staffbase/widget-sdk";
-import { checkResponse, createSessionRequest, errorMessage, reportError, RequestError } from "./session";
+import { checkResponse, createSessionRequest, errorMessage, getSessionUser, reportError, RequestError, SessionUser } from "./session";
 
 interface RewardType {
   name: string;
@@ -478,7 +478,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
         if (raw) rewardTypes = JSON.parse(raw);
       } catch {}
 
-      let currentUser: { id: string; firstName: string; lastName: string; avatar: string } | null = null;
+      let currentUser: SessionUser | null = null;
       let identityError = "";
       try {
         const prof = await widgetApi.getUserInformation();
@@ -500,7 +500,17 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
             currentUser.avatar = data.avatar?.icon?.url || data.avatar?.thumb?.url || currentUser.avatar;
           } catch (error) { reportError("Profile enrichment failed", error); }
         }
-      } catch (error) { reportError("Current user lookup failed", error); }
+      } catch (error) { reportError("SDK current user lookup failed; trying session discovery", error); }
+      if (!active()) return;
+      if (!currentUser || !`${currentUser.firstName} ${currentUser.lastName}`.trim()) {
+        try {
+          currentUser = await getSessionUser(baseUrl, controller.signal);
+          if (!active()) return;
+          console.info("[recognition] Current user resolved through session discovery.");
+        } catch (error) {
+          reportError("Session current user lookup failed", error);
+        }
+      }
       if (!active()) return;
       if (!currentUser || !`${currentUser.firstName} ${currentUser.lastName}`.trim()) {
         identityError = "Could not identify your Staffbase account. Refresh the page before sending recognition.";

@@ -37,7 +37,10 @@
     if (init.signal?.aborted) throw new DOMException("Aborted", "AbortError");
     if (url.pathname === "/api/branch/discover") {
       if (options.discoveryDelay) await pause(options.discoveryDelay);
-      return json(options.discoveryEmpty ? {} : { csrfToken: "synthetic-discovery-token" }, options.discoveryStatus || 200);
+      return json(options.discoveryEmpty ? {} : {
+        csrfToken: "synthetic-discovery-token",
+        user: options.discoveryUser === undefined ? users[0] : options.discoveryUser,
+      }, options.discoveryStatus || 200);
     }
     if (url.pathname === "/api/users") {
       if (options.usersDelay) await pause(options.usersDelay);
@@ -81,6 +84,7 @@
     const Widget = blockDefinition.factory(PreviewBase, {
       getUserInformation: async () => {
         if (options.identityFailure) throw new Error("Synthetic identity failure");
+        if (options.identityEmpty) return {};
         return users[0];
       },
       getUserList: async () => {

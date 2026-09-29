@@ -47,6 +47,62 @@ function errorMessage(error) {
 function tokenString(value) {
     return typeof value === "string" && value.trim() ? value.trim() : "";
 }
+function record(value) {
+    return value !== null && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+function sessionUrl(baseUrl, path) {
+    const url = new URL(`${baseUrl}${path}`, window.location.href);
+    if (url.origin !== window.location.origin) {
+        throw new RequestError("The widget API URL must use the same Staffbase site as your session.");
+    }
+    return url;
+}
+function discoverSession(baseUrl, signal) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const url = sessionUrl(baseUrl, "/branch/discover");
+        const controller = new AbortController();
+        const abort = () => controller.abort();
+        signal.addEventListener("abort", abort, { once: true });
+        if (signal.aborted)
+            controller.abort();
+        const timer = setTimeout(abort, 5000);
+        try {
+            const response = yield checkResponse(yield fetch(url.href, {
+                credentials: "include",
+                headers: { Accept: "application/json" },
+                signal: controller.signal,
+            }));
+            const data = record(yield response.json());
+            if (controller.signal.aborted)
+                throw new DOMException("Session discovery cancelled", "AbortError");
+            const user = record(data.user);
+            const id = tokenString(user.id);
+            const firstName = tokenString(user.firstName);
+            const lastName = tokenString(user.lastName);
+            const avatar = record(user.avatar);
+            return {
+                csrfToken: tokenString(data.csrfToken),
+                user: id && (firstName || lastName) ? {
+                    id, firstName, lastName,
+                    avatar: tokenString(record(avatar.icon).url) ||
+                        tokenString(record(avatar.thumb).url) || tokenString(record(avatar.original).url),
+                } : null,
+            };
+        }
+        finally {
+            clearTimeout(timer);
+            signal.removeEventListener("abort", abort);
+        }
+    });
+}
+function getSessionUser(baseUrl, signal) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const { user } = yield discoverSession(baseUrl, signal);
+        if (!user)
+            throw new RequestError("Staffbase session discovery did not identify a signed-in user.");
+        return user;
+    });
+}
 function withTimeout(operation) {
     return __awaiter(this, void 0, void 0, function* () {
         let timer;
@@ -97,39 +153,17 @@ function createSessionRequest(baseUrl, signal) {
             }
             // Compatibility path for embeds without access to the host auth manager.
             // Share only the in-flight request, never persist a token across sessions.
-            const controller = new AbortController();
-            const abort = () => controller.abort();
-            signal.addEventListener("abort", abort, { once: true });
-            if (signal.aborted)
-                controller.abort();
-            const timer = setTimeout(abort, 5000);
-            try {
-                const response = yield checkResponse(yield fetch(`${baseUrl}/branch/discover`, {
-                    credentials: "include",
-                    headers: { Accept: "application/json" },
-                    signal: controller.signal,
-                }));
-                const data = yield response.json();
-                const token = data && typeof data === "object" && "csrfToken" in data
-                    ? tokenString(data.csrfToken) : "";
-                if (!token)
-                    throw new RequestError("Staffbase did not provide a session token. Refresh the page or contact your administrator.");
-                return token;
-            }
-            finally {
-                clearTimeout(timer);
-                signal.removeEventListener("abort", abort);
-            }
+            const { csrfToken } = yield discoverSession(baseUrl, signal);
+            if (!csrfToken)
+                throw new RequestError("Staffbase did not provide a session token. Refresh the page or contact your administrator.");
+            return csrfToken;
         });
     }
     return function sessionRequest(path_1) {
         return __awaiter(this, arguments, void 0, function* (path, options = {}) {
-            const url = new URL(`${baseUrl}${path}`, window.location.href);
+            const url = sessionUrl(baseUrl, path);
             const mutation = !["GET", "HEAD"].includes((options.method || "GET").toUpperCase());
             const headers = new Headers(options.headers);
-            if (url.origin !== window.location.origin) {
-                throw new RequestError("The widget API URL must use the same Staffbase site as your session.");
-            }
             if (mutation) {
                 if (!pendingToken) {
                     pendingToken = resolveToken().finally(() => { pendingToken = undefined; });
@@ -653,7 +687,20 @@ const factory = (BaseBlockClass, widgetApi) => {
                     }
                 }
                 catch (error) {
-                    reportError("Current user lookup failed", error);
+                    reportError("SDK current user lookup failed; trying session discovery", error);
+                }
+                if (!active())
+                    return;
+                if (!currentUser || !`${currentUser.firstName} ${currentUser.lastName}`.trim()) {
+                    try {
+                        currentUser = yield getSessionUser(baseUrl, controller.signal);
+                        if (!active())
+                            return;
+                        console.info("[recognition] Current user resolved through session discovery.");
+                    }
+                    catch (error) {
+                        reportError("Session current user lookup failed", error);
+                    }
                 }
                 if (!active())
                     return;

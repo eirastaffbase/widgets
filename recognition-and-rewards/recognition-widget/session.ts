@@ -8,6 +8,13 @@ type HostWindow = Window & {
   csrfToken?: unknown;
 };
 
+export interface SessionUser {
+  id: string;
+  firstName: string;
+  lastName: string;
+  avatar: string;
+}
+
 export class RequestError extends Error {
   constructor(message: string, readonly status?: number) {
     super(message);
@@ -43,6 +50,58 @@ export function errorMessage(error: unknown): string {
 
 function tokenString(value: unknown): string {
   return typeof value === "string" && value.trim() ? value.trim() : "";
+}
+
+function record(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function sessionUrl(baseUrl: string, path: string): URL {
+  const url = new URL(`${baseUrl}${path}`, window.location.href);
+  if (url.origin !== window.location.origin) {
+    throw new RequestError("The widget API URL must use the same Staffbase site as your session.");
+  }
+  return url;
+}
+
+async function discoverSession(baseUrl: string, signal: AbortSignal): Promise<{ csrfToken: string; user: SessionUser | null }> {
+  const url = sessionUrl(baseUrl, "/branch/discover");
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  signal.addEventListener("abort", abort, { once: true });
+  if (signal.aborted) controller.abort();
+  const timer = setTimeout(abort, 5000);
+  try {
+    const response = await checkResponse(await fetch(url.href, {
+      credentials: "include",
+      headers: { Accept: "application/json" },
+      signal: controller.signal,
+    }));
+    const data = record(await response.json());
+    if (controller.signal.aborted) throw new DOMException("Session discovery cancelled", "AbortError");
+    const user = record(data.user);
+    const id = tokenString(user.id);
+    const firstName = tokenString(user.firstName);
+    const lastName = tokenString(user.lastName);
+    const avatar = record(user.avatar);
+    return {
+      csrfToken: tokenString(data.csrfToken),
+      user: id && (firstName || lastName) ? {
+        id, firstName, lastName,
+        avatar: tokenString(record(avatar.icon).url) ||
+          tokenString(record(avatar.thumb).url) || tokenString(record(avatar.original).url),
+      } : null,
+    };
+  } finally {
+    clearTimeout(timer);
+    signal.removeEventListener("abort", abort);
+  }
+}
+
+export async function getSessionUser(baseUrl: string, signal: AbortSignal): Promise<SessionUser> {
+  const { user } = await discoverSession(baseUrl, signal);
+  if (!user) throw new RequestError("Staffbase session discovery did not identify a signed-in user.");
+  return user;
 }
 
 async function withTimeout<T>(operation: Promise<T>): Promise<T> {
@@ -88,35 +147,15 @@ export function createSessionRequest(baseUrl: string, signal: AbortSignal) {
 
     // Compatibility path for embeds without access to the host auth manager.
     // Share only the in-flight request, never persist a token across sessions.
-    const controller = new AbortController();
-    const abort = () => controller.abort();
-    signal.addEventListener("abort", abort, { once: true });
-    if (signal.aborted) controller.abort();
-    const timer = setTimeout(abort, 5000);
-    try {
-      const response = await checkResponse(await fetch(`${baseUrl}/branch/discover`, {
-        credentials: "include",
-        headers: { Accept: "application/json" },
-        signal: controller.signal,
-      }));
-      const data: unknown = await response.json();
-      const token = data && typeof data === "object" && "csrfToken" in data
-        ? tokenString(data.csrfToken) : "";
-      if (!token) throw new RequestError("Staffbase did not provide a session token. Refresh the page or contact your administrator.");
-      return token;
-    } finally {
-      clearTimeout(timer);
-      signal.removeEventListener("abort", abort);
-    }
+    const { csrfToken } = await discoverSession(baseUrl, signal);
+    if (!csrfToken) throw new RequestError("Staffbase did not provide a session token. Refresh the page or contact your administrator.");
+    return csrfToken;
   }
 
   return async function sessionRequest(path: string, options: RequestInit = {}): Promise<Response> {
-    const url = new URL(`${baseUrl}${path}`, window.location.href);
+    const url = sessionUrl(baseUrl, path);
     const mutation = !["GET", "HEAD"].includes((options.method || "GET").toUpperCase());
     const headers = new Headers(options.headers);
-    if (url.origin !== window.location.origin) {
-      throw new RequestError("The widget API URL must use the same Staffbase site as your session.");
-    }
     if (mutation) {
       if (!pendingToken) {
         pendingToken = resolveToken().finally(() => { pendingToken = undefined; });

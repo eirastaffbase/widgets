@@ -266,12 +266,39 @@ test("SDK sender survives optional profile enrichment failure", async t => {
   assert.match((await mutations(page))[0].body.contents.en_US.title, /^Sam Example recognized/);
 });
 
-test("unresolved identity disables sending instead of inventing a sender", async t => {
-  const page = await fixture(t, { identityFailure: true });
-  await fill(page);
-  assert.equal(await page.locator("#submitBtn").isDisabled(), true);
-  assert.match(await page.locator("#requestStatus").textContent(), /identify your Staffbase account/);
-});
+for (const identity of [{ identityFailure: true }, { identityEmpty: true }]) {
+  test(`session discovery restores identity when SDK is unavailable: ${JSON.stringify(identity)}`, async t => {
+    const page = await fixture(t, { ...identity, authMode: "missing" });
+    await fill(page);
+    assert.equal(await page.locator("#submitBtn").isEnabled(), true);
+    await send(page);
+    const calls = await mutations(page);
+    assert.match(calls[0].body.contents.en_US.title, /^Sam Example recognized Alex Example/);
+    assert.equal(calls[0].headers["x-csrf-token"], "synthetic-discovery-token");
+    assert.equal(calls[0].headers.authorization, undefined);
+    const discoveries = await page.evaluate(() => window.preview.calls.filter(call => call.path.endsWith("/discover")));
+    assert.equal(discoveries.length, 2, "identity lookup and fresh token lookup before mutation");
+    assert.ok(discoveries.every(call => !call.headers.authorization));
+    await page.locator('[data-tab="wall"]').click();
+    assert.equal(await page.locator(".rcw-edit-btn").count(), 1);
+  });
+}
+
+for (const discovery of [
+  { discoveryStatus: 401 },
+  { discoveryUser: null },
+  { discoveryUser: { id: "sender" } },
+  { discoveryUser: { firstName: "Sam", lastName: "Example" } },
+  { discoveryUser: { id: 123, firstName: "Sam", lastName: "Example" } },
+]) {
+  test(`unresolved session identity keeps sending disabled: ${JSON.stringify(discovery)}`, async t => {
+    const page = await fixture(t, { identityFailure: true, ...discovery });
+    await fill(page);
+    assert.equal(await page.locator("#submitBtn").isDisabled(), true);
+    assert.match(await page.locator("#requestStatus").textContent(), /identify your Staffbase account/);
+    assert.equal((await mutations(page)).length, 0);
+  });
+}
 
 test("failed edits preserve editor; failed likes roll back", async t => {
   const page = await fixture(t, { editStatus: 403, likeStatus: 403 });

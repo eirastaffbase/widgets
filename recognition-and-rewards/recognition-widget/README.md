@@ -25,7 +25,8 @@ Messages are encoded as text inside HTML paragraphs. Comments remain disabled, l
 - Network failures or unconfirmed creation responses never auto-retry: check the wall before retrying.
 - Points/notification failures after creation report partial success; they do not claim the post failed or that unconfirmed points were awarded.
 - A wall-refresh failure after publication is separate from publication failure.
-- Missing SDK identity blocks sending rather than creating generic sender metadata. Optional profile enrichment can fail without discarding the SDK identity.
+- If SDK identity fails or remains incomplete after optional profile enrichment, the widget reads the signed-in `user` from same-origin `/api/branch/discover` using browser credentials, not the integration token. This supports newer embedded hosts without the legacy `we.authMgr` globals. Sending is blocked only if neither path supplies a usable user ID and name; directory entries are never guessed to be the current user.
+- Successful identity fallback logs `[recognition] Current user resolved through session discovery.` Optional profile enrichment can fail without discarding a valid SDK identity.
 - Session/API errors are logged with operation, error kind, and HTTP status only, not raw responses or credentials.
 
 ## Embedded UI and icons
