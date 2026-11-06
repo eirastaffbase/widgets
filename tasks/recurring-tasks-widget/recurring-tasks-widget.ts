@@ -10,6 +10,7 @@ import { UiSchema } from "@rjsf/utils";
 
 import { detectLocale, isRtl, makeT, DEFAULT_LOCALE } from "../shared/i18n";
 import { fetchThemeColors } from "../shared/theming";
+import { registerPortalHost, sweepStalePortals, hoistPortalStyles, safeFocus } from "../shared/portal";
 import { linkifyEscaped, shortenUrls, AUTOLINK_CSS, internalHost, installLinkHandler } from "../shared/linkify";
 import { STRINGS } from "./strings";
 
@@ -1508,16 +1509,17 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
       // on <body> every time), then sweep any portal node — from this or a
       // sibling task widget — whose owning host has left the DOM.
       if (self._rtwOverlay) { self._rtwOverlay.remove(); self._rtwOverlay = undefined; }
+      if (self._rtwStyle)    { self._rtwStyle.remove();    self._rtwStyle    = undefined; }
       if (self._rtwDetail)  { self._rtwDetail.remove();  self._rtwDetail  = undefined; }
       if (self._rtwDocKey)  { document.removeEventListener("keydown", self._rtwDocKey); self._rtwDocKey = undefined; }
 
       const rtwInstId = Math.random().toString(36).slice(2);
-      container.dataset.sbPortalHost = rtwInstId;
+      registerPortalHost(rtwInstId, container);
 
-      document.querySelectorAll<HTMLElement>("[data-sb-portal]").forEach(node => {
-        const owner = node.getAttribute("data-sb-portal");
-        if (!owner || !document.querySelector(`[data-sb-portal-host="${owner}"]`)) node.remove();
-      });
+      sweepStalePortals();
+      // Hoisted copy of our <style> so body-level portals are styled even when the
+      // container renders inside a shadow root (new Staffbase mobile client).
+      self._rtwStyle = hoistPortalStyles(container, rtwInstId) || undefined;
 
       const overlayEl = document.createElement("div");
       overlayEl.className = `${p}-overlay`;
@@ -1610,6 +1612,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
     disconnectedCallback() {
       const self: any = this;
       if (self._rtwOverlay) { self._rtwOverlay.remove(); self._rtwOverlay = undefined; }
+      if (self._rtwStyle)    { self._rtwStyle.remove();    self._rtwStyle    = undefined; }
       if (self._rtwDetail)  { self._rtwDetail.remove();  self._rtwDetail  = undefined; }
       if (self._rtwDocKey)  { document.removeEventListener("keydown", self._rtwDocKey); self._rtwDocKey = undefined; }
     }

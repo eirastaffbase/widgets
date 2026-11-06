@@ -10,6 +10,7 @@ import { UiSchema } from "@rjsf/utils";
 
 import { detectLocale, isRtl, makeT, translateMap, DEFAULT_LOCALE } from "../shared/i18n";
 import { fetchThemeColors } from "../shared/theming";
+import { registerPortalHost, sweepStalePortals, hoistPortalStyles, safeFocus } from "../shared/portal";
 import { linkifyEscaped, linkifyHtml, shortenUrls, AUTOLINK_CSS, internalHost, installLinkHandler, linkEnvReport, AUTOLINK_CLASS, AUTOLINK_TEXT_CLASS } from "../shared/linkify";
 import { STRINGS } from "./strings";
 
@@ -985,6 +986,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
       // Tear down artifacts from a previous render of this same host (re-renders)
       if (self._mtwOverlay)  { self._mtwOverlay.remove();  self._mtwOverlay  = undefined; }
+      if (self._mtwStyle)    { self._mtwStyle.remove();    self._mtwStyle    = undefined; }
       if (self._mtwDetail)   { self._mtwDetail.remove();   self._mtwDetail   = undefined; }
       if (self._mtwAModal)   { self._mtwAModal.remove();   self._mtwAModal   = undefined; }
       if (self._mtwProof)    { self._mtwProof.remove();    self._mtwProof    = undefined; }
@@ -994,16 +996,16 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
 
       const instId = Math.random().toString(36).slice(2);
       container.dataset.mtwInst = instId;
-      container.dataset.sbPortalHost = instId;
+      registerPortalHost(instId, container);
 
       // Defensive sweep: remove any body-appended portal node — from this or any
       // sibling task widget — whose owning host is no longer in the DOM.
       // disconnectedCallback is unreliable across Staffbase SPA navigation, so a
       // widget that *is* on the page clears stale portals left by pages that aren't.
-      document.querySelectorAll<HTMLElement>("[data-sb-portal]").forEach(node => {
-        const owner = node.getAttribute("data-sb-portal");
-        if (!owner || !document.querySelector(`[data-sb-portal-host="${owner}"]`)) node.remove();
-      });
+      sweepStalePortals();
+      // Hoisted copy of our <style> so body-level portals are styled even when the
+      // container renders inside a shadow root (new Staffbase mobile client).
+      self._mtwStyle = hoistPortalStyles(container, instId) || undefined;
 
       const overlayEl = document.createElement("div");
       overlayEl.className = `${p}-overlay`;
@@ -3338,7 +3340,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
           overlayEl.classList.add("open");
           void createEl.offsetWidth; // commit the closed (centered) state so the first open animates from it, not from the bottom
           requestAnimationFrame(()=>createEl!.classList.add("open"));
-          ($("c-title") as HTMLInputElement)?.focus();
+          safeFocus($("c-title") as HTMLInputElement);
         };
         newBtn?.addEventListener("click",openCreate);
         overlayEl.addEventListener("click",closeCreate);
@@ -3350,6 +3352,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi) => {
     disconnectedCallback() {
       const self: any = this;
       if (self._mtwOverlay)  { self._mtwOverlay.remove();  self._mtwOverlay  = undefined; }
+      if (self._mtwStyle)    { self._mtwStyle.remove();    self._mtwStyle    = undefined; }
       if (self._mtwDetail)   { self._mtwDetail.remove();   self._mtwDetail   = undefined; }
       if (self._mtwAModal)   { self._mtwAModal.remove();   self._mtwAModal   = undefined; }
       if (self._mtwProof)    { self._mtwProof.remove();    self._mtwProof    = undefined; }

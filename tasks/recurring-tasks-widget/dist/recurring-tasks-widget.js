@@ -207,6 +207,10 @@ function relLuminance(hex) {
 function contrastOnWhite(hex) {
     return 1.05 / (relLuminance(hex) + 0.05);
 }
+// Contrast ratio against the near-black stage the leaderboard renders on.
+function contrastOnDark(hex) {
+    return (relLuminance(hex) + 0.05) / (relLuminance("#0b0d12") + 0.05);
+}
 function hexToHsl(hex) {
     const x = (hex.replace("#", "") + "000000").slice(0, 6);
     const r = parseInt(x.slice(0, 2), 16) / 255, g = parseInt(x.slice(2, 4), 16) / 255, b = parseInt(x.slice(4, 6), 16) / 255;
@@ -257,6 +261,30 @@ function darkenToContrast(hex, target = 4.5) {
     }
     return out;
 }
+// Lighten a color (keep hue/saturation) until it reads on the dark stage.
+function lightenToContrast(hex, target = 4.5) {
+    let { h, s, l } = hexToHsl(hex);
+    let out = hex;
+    for (let i = 0; i < 60 && contrastOnDark(out) < target && l < 0.96; i++) {
+        l = Math.min(1, l + 0.02);
+        out = hslToHex(h, s, l);
+    }
+    return out;
+}
+// From a palette, pick the color to use ON A DARK STAGE (headlines, bars, glow):
+// the most saturated color, lightened only as far as legibility demands so the
+// brand hue survives. Returns "" if nothing usable.
+function pickOnDark(cands) {
+    const scored = cands.filter(isHex).map(hex => (Object.assign(Object.assign({ hex }, hexToHsl(hex)), { contrast: contrastOnDark(hex) })));
+    let pool = scored.filter(c => c.s >= 0.35 && c.l >= 0.15 && c.l <= 0.92);
+    if (!pool.length)
+        pool = scored.filter(c => c.s >= 0.2);
+    if (!pool.length)
+        return "";
+    // Most saturated first, then whichever already reads best on dark.
+    pool.sort((a, b) => (b.s - a.s) || (b.contrast - a.contrast));
+    return lightenToContrast(pool[0].hex, 4.5);
+}
 // From a palette, pick the color to use ON WHITE (names, active states, borders):
 // the darkest one that's still clearly saturated, then darken further if it's
 // still too light to read. Returns "" if nothing usable (caller falls back).
@@ -282,7 +310,7 @@ function pickVivid(cands, exclude = "") {
         return "";
     return (pool.find(c => c.hex.toLowerCase() !== exclude.toLowerCase()) || pool[0]).hex;
 }
-async function fetchThemeColors(baseUrl, apiToken, themeId = "primary") {
+async function fetchThemeColors(baseUrl, apiToken, themeId = "primary", surface = "light") {
     var _a, _b, _c, _d, _e, _f, _g, _h, _j;
     try {
         const res = await fetch(`${baseUrl}/theming/themes/${themeId}`, {
@@ -323,19 +351,24 @@ async function fetchThemeColors(baseUrl, apiToken, themeId = "primary") {
         ].filter(c => isHex(c) && !isNeutralExtreme(c));
         // Primary: best on-white color from the palette; fall back to the older
         // brand-color resolution (darkened for contrast) if nothing was saturated.
-        let primary = pickOnWhite(palette);
+        let primary = surface === "dark" ? pickOnDark(palette) : pickOnWhite(palette);
         if (!primary) {
             primary =
                 resolve("primary-brand-color") ||
                     customs["legacy-background-color"] ||
                     (typeof ((_f = data === null || data === void 0 ? void 0 : data.globalTheme) === null || _f === void 0 ? void 0 : _f.interfaceColor) === "string" ? data.globalTheme.interfaceColor : "");
-            if (isHex(primary))
-                primary = darkenToContrast(primary, 4.5);
+            if (isHex(primary)) {
+                primary = surface === "dark" ? lightenToContrast(primary, 4.5) : darkenToContrast(primary, 4.5);
+            }
         }
         // Accent: most vivid palette color, else nav accent, else fall back to primary.
         let accent = pickVivid(palette, primary) ||
             resolve((_j = (_h = (_g = data === null || data === void 0 ? void 0 : data.desktopTheme) === null || _g === void 0 ? void 0 : _g.components) === null || _h === void 0 ? void 0 : _h.navigation) === null || _j === void 0 ? void 0 : _j.accentColor) ||
             String(primary);
+        // On the dark stage the accent is a real text/graphic color too, not just a
+        // gradient stop, so it has to clear contrast the same way primary does.
+        if (surface === "dark" && isHex(String(accent)))
+            accent = lightenToContrast(String(accent), 3);
         return {
             primary: isHex(String(primary)) ? String(primary) : undefined,
             accent: isHex(String(accent)) ? String(accent) : undefined,
@@ -343,6 +376,109 @@ async function fetchThemeColors(baseUrl, apiToken, themeId = "primary") {
     }
     catch (_k) {
         return {};
+    }
+}
+/**
+ * A categorical ramp anchored to the tenant's own brand.
+ *
+ * Categorical palettes are usually picked off the shelf, which drops saturated
+ * web-safe hues (#0EA5E9, #EF4444) onto a brand-tinted surface and makes the
+ * chart read as a foreign object. This walks the hue wheel from the primary
+ * instead, holding saturation and lightness at the values that survive the
+ * given surface, so every slice is distinguishable *and* clearly related.
+ */
+function reactionRamp(primary, surface, n = 6) {
+    const { h, s, l } = hexToHsl(primary);
+    // hexToHsl/hslToHex work in 0-1 fractions, not percentages. Passing 0-100
+    // here silently produces malformed hex, which paints nothing at all.
+    const sat = Math.min(0.85, Math.max(0.52, s));
+    const lit = surface === "dark"
+        ? Math.min(0.68, Math.max(0.52, l))
+        : Math.min(0.50, Math.max(0.38, l));
+    const out = [];
+    for (let i = 0; i < n; i++) {
+        // 47 degrees is coprime enough with 360 to avoid repeats over a short ramp
+        // while keeping neighbouring slices clearly apart.
+        const hue = (h + i * 47) % 360;
+        // Alternate a small lightness step so adjacent slices differ even for
+        // viewers who cannot separate the hues.
+        const step = i % 2 === 0 ? 0 : (surface === "dark" ? 0.10 : -0.08);
+        out.push(hslToHex(hue, sat, Math.min(0.78, Math.max(0.30, lit + step))));
+    }
+    return out;
+}
+
+;// ../shared/portal.ts
+// Shared lifecycle helpers for body-appended "portal" nodes (detail panels,
+// sheets, modals, overlays) used by the task widgets.
+//
+// Why: the panels are appended to <body> so position:fixed escapes Staffbase's
+// transformed/overflow-clipped containers. But the widget's <style> lives inside
+// its own container — and in the new Staffbase client (notably mobile), page
+// content renders inside a *shadow root*. Styles there don't reach <body>, so the
+// portals render unstyled and permanently visible. Likewise
+// document.querySelector() can't see a host inside a shadow root, so the old
+// "is my owner still on the page?" sweep wrongly deleted live portals.
+//
+// Fix: (1) hoist a copy of the widget's <style> into <head>, tagged as a portal
+// so it's cleaned up with the rest; (2) track hosts in a window-level registry
+// (shared across separately bundled widgets) and check `isConnected`, which works
+// through shadow boundaries.
+const REGISTRY_KEY = "__sbPortalHosts";
+function registry() {
+    const w = window;
+    if (!(w[REGISTRY_KEY] instanceof Map))
+        w[REGISTRY_KEY] = new Map();
+    return w[REGISTRY_KEY];
+}
+/** Register `host` as the owner of portal nodes tagged data-sb-portal=`id`. */
+function registerPortalHost(id, host) {
+    host.dataset.sbPortalHost = id;
+    registry().set(id, host);
+}
+/** Remove every portal node whose owning host has left the DOM. Shadow-DOM safe. */
+function sweepStalePortals() {
+    const hosts = registry();
+    document.querySelectorAll("[data-sb-portal]").forEach(node => {
+        const owner = node.getAttribute("data-sb-portal");
+        let host = owner ? hosts.get(owner) : undefined;
+        // Fallback for hosts registered by an older bundle that only set the attribute.
+        if (!host && owner)
+            host = document.querySelector(`[data-sb-portal-host="${owner}"]`);
+        if (!host || !host.isConnected) {
+            node.remove();
+            if (owner)
+                hosts.delete(owner);
+        }
+    });
+}
+/** Copy the container's first <style> into <head> so body-appended portals are
+ *  styled even when the container lives in a shadow root. Returns the copy. */
+function hoistPortalStyles(container, id) {
+    const src = container.querySelector("style");
+    if (!src)
+        return null;
+    const copy = document.createElement("style");
+    copy.textContent = src.textContent;
+    copy.dataset.sbPortal = id;
+    document.head.appendChild(copy);
+    return copy;
+}
+/** Focus without letting the browser scroll the page to the element. On touch
+ *  devices we skip auto-focus entirely: iOS jumps the viewport when an input in a
+ *  fixed bottom sheet gains focus, and the keyboard covering the sheet is worse
+ *  than one extra tap. Pass force=true for focus the user explicitly asked for. */
+function safeFocus(el, force = false) {
+    if (!el)
+        return;
+    const coarse = typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches;
+    if (coarse && !force)
+        return;
+    try {
+        el.focus({ preventScroll: true });
+    }
+    catch (_a) {
+        el.focus();
     }
 }
 
@@ -2378,6 +2514,7 @@ const STRINGS = {
 
 
 
+
 // ── Defaults ──────────────────────────────────────────────────────────────────
 const DEFAULT_API_TOKEN = "";
 const DEFAULT_BASE_URL = "https://app.staffbase.com/api";
@@ -3979,6 +4116,10 @@ const factory = (BaseBlockClass, widgetApi) => {
                 self._rtwOverlay.remove();
                 self._rtwOverlay = undefined;
             }
+            if (self._rtwStyle) {
+                self._rtwStyle.remove();
+                self._rtwStyle = undefined;
+            }
             if (self._rtwDetail) {
                 self._rtwDetail.remove();
                 self._rtwDetail = undefined;
@@ -3988,12 +4129,11 @@ const factory = (BaseBlockClass, widgetApi) => {
                 self._rtwDocKey = undefined;
             }
             const rtwInstId = Math.random().toString(36).slice(2);
-            container.dataset.sbPortalHost = rtwInstId;
-            document.querySelectorAll("[data-sb-portal]").forEach(node => {
-                const owner = node.getAttribute("data-sb-portal");
-                if (!owner || !document.querySelector(`[data-sb-portal-host="${owner}"]`))
-                    node.remove();
-            });
+            registerPortalHost(rtwInstId, container);
+            sweepStalePortals();
+            // Hoisted copy of our <style> so body-level portals are styled even when the
+            // container renders inside a shadow root (new Staffbase mobile client).
+            self._rtwStyle = hoistPortalStyles(container, rtwInstId) || undefined;
             const overlayEl = document.createElement("div");
             overlayEl.className = `${p}-overlay`;
             overlayEl.dataset.sbPortal = rtwInstId;
@@ -4093,6 +4233,10 @@ const factory = (BaseBlockClass, widgetApi) => {
             if (self._rtwOverlay) {
                 self._rtwOverlay.remove();
                 self._rtwOverlay = undefined;
+            }
+            if (self._rtwStyle) {
+                self._rtwStyle.remove();
+                self._rtwStyle = undefined;
             }
             if (self._rtwDetail) {
                 self._rtwDetail.remove();
