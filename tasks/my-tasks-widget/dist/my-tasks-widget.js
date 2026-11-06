@@ -3232,9 +3232,10 @@ const factory = (BaseBlockClass, widgetApi) => {
           .${p}-cal-dow{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));background:#f9fafb;border-bottom:1px solid var(--border)}
           .${p}-cal-dow span{padding:7px 0;text-align:center;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--gray-lt)}
           .${p}-cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
-          .${p}-cal-cell{min-height:84px;min-width:0;overflow:hidden;border-inline-end:1px solid #f3f4f6;border-bottom:1px solid #f3f4f6;padding:5px 6px}
+          .${p}-cal-cell{cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;min-height:84px;min-width:0;overflow:hidden;border-inline-end:1px solid #f3f4f6;border-bottom:1px solid #f3f4f6;padding:5px 6px}
           .${p}-cal-cell:nth-child(7n){border-inline-end:none}
           .${p}-cal-cell.muted{background:#fafafa}
+          .${p}-cal-cell:hover,.${p}-cal-cell:active{background:rgba(var(--primary-rgb),.05)}
           .${p}-cal-cell.today .${p}-cal-num{background:var(--accent);color:#fff}
           .${p}-cal-num{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:12px;font-weight:600;color:var(--dark)}
           .${p}-cal-cell.muted .${p}-cal-num{color:var(--gray-lt)}
@@ -5164,7 +5165,7 @@ const factory = (BaseBlockClass, widgetApi) => {
                             const chips = arr.slice(0, 3).map(chipFor).join("");
                             const more = arr.length > 3 ? `<div class="${p}-cal-more">+${arr.length - 3} ${tr("cal_more")}</div>` : "";
                             const dots = arr.length ? `<div class="${p}-cal-dots">${dotsFor(arr)}</div>` : "";
-                            cells.push(`<div class="${p}-cal-cell ${muted ? "muted" : ""} ${k === todayK ? "today" : ""}"><span class="${p}-cal-num">${d.getDate()}</span>${chips}${more}${dots}</div>`);
+                            cells.push(`<div class="${p}-cal-cell ${muted ? "muted" : ""} ${k === todayK ? "today" : ""}" data-cal-off="${i}" role="button" tabindex="0"><span class="${p}-cal-num">${d.getDate()}</span>${chips}${more}${dots}</div>`);
                         }
                         bodyHtml = `<div class="${p}-cal-dow">${DOW.map(x => `<span>${x}</span>`).join("")}</div><div class="${p}-cal-grid">${cells.join("")}</div>`;
                     }
@@ -5207,11 +5208,26 @@ const factory = (BaseBlockClass, widgetApi) => {
                             calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth() + nav, 1);
                         renderCalendar();
                     }));
-                    calEl.querySelectorAll("[data-id]").forEach((el) => el.addEventListener("click", () => {
+                    calEl.querySelectorAll("[data-id]").forEach((el) => el.addEventListener("click", (e) => {
+                        e.stopPropagation(); // don't also trigger the day-cell drill-in below
                         const task = allTasks.find(t => t.id === el.dataset.id);
                         if (task)
                             openDetail(task);
                     }));
+                    // Tapping a day drills into the agenda starting on that day. Essential on
+                    // mobile, where compact mode hides the chips and only shows dots.
+                    if (calMode === "month") {
+                        const y = calCursor.getFullYear(), m = calCursor.getMonth(), startDow = new Date(y, m, 1).getDay();
+                        calEl.querySelectorAll("[data-cal-off]").forEach((c) => {
+                            const cell = c;
+                            const go = () => { calMode = "agenda"; calCursor = new Date(y, m, 1 - startDow + parseInt(cell.dataset.calOff, 10)); renderCalendar(); };
+                            cell.addEventListener("click", go);
+                            cell.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                go();
+                            } });
+                        });
+                    }
                 }
                 // Re-render the calendar when the narrow/wide threshold flips (chips ↔ dots,
                 // 2 ↔ 3 agenda columns). Cleaned up in disconnectedCallback.
