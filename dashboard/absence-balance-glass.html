@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Staffbase brand color via ?brand= URL param (sb-brand-url-param) -->
+<!-- Dashboard variant of gabriellebenak-arch/staffbase-dashboard-demo, ee43a892. -->
+<script src="widget-theme.js"></script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="widget-name" content="Absence Balance">
+<meta name="widget-description" content="View your time-off balances and absence requests at a glance">
+<meta name="widget-tags" content="HR Data">
+<title>Absence Balance</title>
+
+<style>
+    :root {
+        --primary: var(--sb-brand, #191970);
+        --success: #10b981;
+        --warning: #f59e0b;
+        --danger: #ef4444;
+        --text: #1f2937;
+        --text-light: #6b7280;
+        --bg: #ffffff;
+        --bg-gray: #f9fafb;
+        --border: #e5e7eb;
+        --icon-bg: #eef1f6;
+        --badge-bg: #dcf3e3;
+        --badge-text: #15803d;
+    }
+    @media (prefers-color-scheme: dark) {
+        :root {
+            /* Widget is designed to always sit on a white surface, so the
+               background and text stay in the light palette even in dark mode. */
+            --primary: var(--sb-brand, #191970);
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text: #1f2937;
+            --text-light: #6b7280;
+            --bg: #ffffff;
+            --bg-gray: #f9fafb;
+            --border: #e5e7eb;
+            --icon-bg: #eef1f6;
+            --badge-bg: #dcf3e3;
+            --badge-text: #15803d;
+        }
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        margin: 0;
+        padding: 0;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    .widget {
+        width: 100%;
+        max-width: 560px;
+        margin: 0 auto;
+        background: var(--bg);
+        border-radius: 14px;
+        padding: 24px;
+    }
+
+    .widget h2 {
+        margin: 0 0 20px 0;
+        font-size: 20px;
+        font-weight: 400;
+        letter-spacing: -0.01em;
+    }
+
+    /* --- Balance cards --- */
+    .balance-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+    }
+
+    .balance-card {
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        overflow: hidden;
+        background: var(--bg);
+    }
+
+    .balance-card__icon {
+        background: var(--icon-bg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 36px 0;
+    }
+
+    .balance-card__icon svg { width: 48px; height: 48px; color: var(--primary); }
+
+    .balance-card__body { padding: 16px 18px 20px; }
+
+    .balance-card__title {
+        font-size: 16px;
+        font-weight: 400;
+        margin: 0 0 10px;
+    }
+
+    .balance-card__label {
+        font-size: 14px;
+        color: var(--text-light);
+        margin: 0 0 4px;
+    }
+
+    .balance-card__value {
+        font-size: 16px;
+        font-weight: 400;
+        margin: 0;
+    }
+
+    /* --- Toggle link --- */
+    .cw-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin: 22px 0 26px;
+        color: var(--primary);
+        font-size: 14px;
+        font-weight: 400;
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-family: inherit;
+        width: 100%;
+    }
+    .cw-toggle svg { width: 18px; height: 18px; }
+    .cw-toggle:hover { text-decoration: underline; }
+
+    /* --- Absences section --- */
+    .absences-title {
+        font-size: 20px;
+        font-weight: 400;
+        margin: 0 0 4px;
+    }
+    .absences-year { color: var(--text-light); font-size: 14px; margin: 0 0 16px; }
+
+    .cw-tabs { display: flex; gap: 10px; margin-bottom: 16px; }
+    .cw-tab {
+        padding: 8px 18px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: var(--bg);
+        color: var(--text);
+        font-size: 14px;
+        font-weight: 400;
+        cursor: pointer;
+        font-family: inherit;
+    }
+    .cw-tab.is-active {
+        border-color: var(--primary);
+        color: var(--primary);
+        background: color-mix(in srgb, var(--primary) 8%, transparent);
+    }
+
+    .absence-list {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: var(--bg-gray);
+        max-height: 320px;
+        overflow-y: auto;
+    }
+
+    .absence-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--border);
+    }
+    .absence-row:last-child { border-bottom: none; }
+
+    .absence-row__icon {
+        flex: 0 0 auto;
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        background: var(--icon-bg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .absence-row__icon svg { width: 18px; height: 18px; color: var(--text-light); }
+
+    .absence-row__main { flex: 1 1 auto; min-width: 0; }
+    .absence-row__date { font-size: 17px; font-weight: 400; margin: 0 0 4px; }
+    .absence-row__meta { font-size: 14px; color: var(--text-light); margin: 0; }
+    .absence-row__meta span + span::before { content: " | "; color: var(--border); }
+
+    .cw-badge {
+        flex: 0 0 auto;
+        padding: 5px 12px;
+        border-radius: 8px;
+        background: var(--badge-bg);
+        color: var(--badge-text);
+        font-size: 13px;
+        font-weight: 500;
+    }
+
+    .absence-empty {
+        padding: 32px 18px;
+        text-align: center;
+        color: var(--text-light);
+        font-size: 14px;
+    }
+</style>
+<style>
+:root, html {
+  --primary: var(--sb-brand, #2f5d4a);
+
+  --success: var(--sb-brand, #2f5d4a);
+  --text: #2b2f33;
+  --text-light: #5c6660;
+  --bg: transparent;
+  --bg-gray: transparent;
+  --border: rgba(255,255,255,0.55);
+  --icon-bg: color-mix(in srgb, var(--sb-brand, #2f5d4a) 10%, transparent);
+  --badge-bg: color-mix(in srgb, var(--sb-brand, #2f5d4a) 14.000000000000002%, transparent);
+  --badge-text: var(--sb-brand-ink, #2f5d4a);
+  color-scheme: light;
+}
+html, body { background: transparent !important; }
+.widget {
+  background: transparent !important;
+  max-width: none !important;
+  padding: 0 !important;
+}
+.widget h2, .absences-title { color: #2b2f33 !important; font-weight: 600 !important; letter-spacing: -0.01em !important; }
+.widget h2 { font-size: 17px !important; }
+.absences-title { font-size: 16px !important; }
+.balance-grid { gap: 16px !important; }
+.balance-card {
+  background: rgba(255,255,255,0.42) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(170%);
+  backdrop-filter: blur(28px) saturate(170%);
+  border: 0 !important;
+  border-radius: 18px !important;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.55), 0 10px 26px rgba(28,40,50,0.08) !important;
+}
+.balance-card__icon { background: transparent !important; padding: 22px 0 6px !important; }
+.balance-card__icon svg { width: 34px !important; height: 34px !important; color: var(--sb-brand, #2f5d4a) !important; }
+.balance-card__body { padding: 8px 16px 16px !important; text-align: center !important; }
+.balance-card__title { font-size: 14px !important; font-weight: 600 !important; margin: 0 0 6px !important; }
+.balance-card__label { font-size: 12px !important; }
+.balance-card__value { font-size: 15px !important; font-weight: 600 !important; color: var(--sb-brand, #2f5d4a) !important; }
+.cw-toggle { margin: 16px 0 20px !important; font-size: 13px !important; color: var(--sb-brand, #2f5d4a) !important; }
+.absences-year { font-size: 12px !important; }
+.cw-tab {
+  background: rgba(255,255,255,0.38) !important;
+  border: 0 !important;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.5) !important;
+  font-size: 13px !important;
+  padding: 7px 16px !important;
+}
+.cw-tab.is-active {
+  background: var(--sb-brand, #2f5d4a) !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+.absence-list {
+  background: rgba(255,255,255,0.34) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(170%);
+  backdrop-filter: blur(28px) saturate(170%);
+  border: 0 !important;
+  border-radius: 18px !important;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.52), 0 10px 26px rgba(28,40,50,0.08) !important;
+}
+.absence-row { border-bottom: 1px solid rgba(96,112,124,0.14) !important; padding: 12px 16px !important; }
+.absence-row__icon { background: color-mix(in srgb, var(--sb-brand, #2f5d4a) 10%, transparent) !important; width: 34px !important; height: 34px !important; }
+.absence-row__date { font-size: 14px !important; font-weight: 600 !important; }
+.absence-row__meta { font-size: 12px !important; }
+.cw-badge { font-size: 12px !important; }
+</style>
+
+
+
+<style>
+html[data-theme="dark"] {
+  color-scheme: dark !important;
+  --primary: var(--sb-brand, #2f5d4a) !important;
+
+  --success: var(--sb-brand, #2f5d4a) !important;
+  --money: var(--sb-brand, #2f5d4a) !important;
+  --text: #e8ecea !important;
+  --text-light: #9aa5ab !important;
+  --bg: transparent !important;
+  --bg-gray: rgba(255,255,255,0.06) !important;
+  --border: rgba(255,255,255,0.12) !important;
+  --icon-bg: color-mix(in srgb, var(--sb-brand, #2f5d4a) 16%, transparent) !important;
+  --badge-bg: color-mix(in srgb, var(--sb-brand, #2f5d4a) 18%, transparent) !important;
+  --badge-text: var(--sb-brand-ink, #2f5d4a) !important;
+  --shadow: 0 18px 44px rgba(0,0,0,0.40) !important;
+}
+html[data-theme="dark"], html[data-theme="dark"] body { background: transparent !important; color: #e8ecea !important; }
+html[data-theme="dark"] h1, html[data-theme="dark"] h2, html[data-theme="dark"] h3 { color: #e8ecea !important; }
+</style>
+
+<style>
+html[data-theme="dark"] .balance-card,
+html[data-theme="dark"] .absence-list {
+  background: rgba(255,255,255,0.085) !important;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.10), 0 18px 44px rgba(0,0,0,0.40) !important;
+}
+html[data-theme="dark"] .absence-row { border-bottom-color: rgba(255,255,255,0.12) !important; }
+html[data-theme="dark"] .cw-tab {
+  background: rgba(255,255,255,0.07) !important;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.12) !important;
+  color: #e8ecea !important;
+}
+html[data-theme="dark"] .cw-tab.is-active { background: var(--sb-brand, #2f5d4a) !important; color: #fff !important; }
+</style>
+<link rel="stylesheet" href="widget-theme.css">
+</head>
+
+<body>
+
+<div class="widget">
+    <h2 data-i18n="title"></h2>
+
+    <div class="balance-grid" id="balanceGrid"></div>
+
+    <button class="cw-toggle" id="toggleUnit" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+        <span id="toggleLabel"></span>
+    </button>
+
+    <h3 class="absences-title" data-i18n="absences"></h3>
+    <p class="absences-year">2026</p>
+
+    <div class="cw-tabs">
+        <button class="cw-tab is-active" data-tab="requests" data-i18n="yourRequests"></button>
+        <button class="cw-tab" data-tab="history" data-i18n="history"></button>
+    </div>
+
+    <div class="absence-list" id="absenceList"></div>
+</div>
+
+<script>
+    // --- Language detection (per widgets/MULTILANGUAGE.md) ---
+    const LANG = (() => {
+        const l = navigator.language || '';
+        if (l.startsWith('de')) return 'de';
+        if (l.startsWith('fr')) return 'fr';
+        if (l.startsWith('es')) return 'es';
+        if (l.startsWith('ja')) return 'ja';
+        if (l === 'en-GB')      return 'en-GB';
+        return 'en-US';
+    })();
+    document.documentElement.lang = LANG;
+
+    const LOCALE = {
+        'de': 'de-DE', 'fr': 'fr-FR', 'es': 'es-ES',
+        'ja': 'ja-JP', 'en-GB': 'en-GB', 'en-US': 'en-US'
+    }[LANG];
+
+    // --- Translations ---
+    const T = {
+        de: {
+            title: 'Abwesenheitssaldo',
+            description: 'Zeigt Urlaubssalden und Abwesenheitsantraege an',
+            paidTimeOff: 'Bezahlter Urlaub',
+            floatingHoliday: 'Flexibler Feiertag',
+            balance: 'Saldo',
+            showInDays: 'Salden in Tagen anzeigen (8 Std./Tag)',
+            showInHours: 'Salden in Stunden anzeigen',
+            absences: 'Abwesenheiten',
+            yourRequests: 'Ihre Antraege',
+            history: 'Verlauf',
+            approved: 'Genehmigt',
+            vacationHours: 'Urlaub (Stunden)',
+            hoursUnit: 'Stunden',
+            daysUnit: 'Tage',
+            empty: 'Keine Eintraege',
+        },
+        fr: {
+            title: 'Solde d\'absences',
+            description: 'Consultez vos soldes de conges et vos demandes d\'absence',
+            paidTimeOff: 'Conges payes',
+            floatingHoliday: 'Jour ferie flottant',
+            balance: 'Solde',
+            showInDays: 'Afficher les soldes en jours (8 h/jour)',
+            showInHours: 'Afficher les soldes en heures',
+            absences: 'Absences',
+            yourRequests: 'Vos demandes',
+            history: 'Historique',
+            approved: 'Approuve',
+            vacationHours: 'Conges (heures)',
+            hoursUnit: 'heures',
+            daysUnit: 'jours',
+            empty: 'Aucune entree',
+        },
+        es: {
+            title: 'Saldo de ausencias',
+            description: 'Consulta tus saldos de ausencias y tus solicitudes',
+            paidTimeOff: 'Vacaciones pagadas',
+            floatingHoliday: 'Dia festivo flexible',
+            balance: 'Saldo',
+            showInDays: 'Mostrar saldos en dias (8 h/dia)',
+            showInHours: 'Mostrar saldos en horas',
+            absences: 'Ausencias',
+            yourRequests: 'Tus solicitudes',
+            history: 'Historial',
+            approved: 'Aprobado',
+            vacationHours: 'Vacaciones (horas)',
+            hoursUnit: 'horas',
+            daysUnit: 'dias',
+            empty: 'Sin registros',
+        },
+        ja: {
+            title: '休暇残高',
+            description: '休暇残高と申請状況を確認できます',
+            paidTimeOff: '有給休暇',
+            floatingHoliday: 'フローティングホリデー',
+            balance: '残高',
+            showInDays: '残高を日数で表示 (8時間/日)',
+            showInHours: '残高を時間で表示',
+            absences: '休暇',
+            yourRequests: '申請',
+            history: '履歴',
+            approved: '承認済み',
+            vacationHours: '休暇 (時間)',
+            hoursUnit: '時間',
+            daysUnit: '日',
+            empty: '記録なし',
+        },
+        'en-GB': {
+            title: 'Absence Balance',
+            description: 'View your time-off balances and absence requests',
+            paidTimeOff: 'Paid Time Off',
+            floatingHoliday: 'Floating Holiday',
+            balance: 'Balance',
+            showInDays: 'Show balances in days (8h/day)',
+            showInHours: 'Show balances in hours',
+            absences: 'Absences',
+            yourRequests: 'Your Requests',
+            history: 'History',
+            approved: 'Approved',
+            vacationHours: 'Vacation (Hours)',
+            hoursUnit: 'hours',
+            daysUnit: 'days',
+            empty: 'No entries',
+        },
+        'en-US': {
+            title: 'Absence Balance',
+            description: 'View your time-off balances and absence requests',
+            paidTimeOff: 'Paid Time Off',
+            floatingHoliday: 'Floating Holiday',
+            balance: 'Balance',
+            showInDays: 'Show balances in days (8h/day)',
+            showInHours: 'Show balances in hours',
+            absences: 'Absences',
+            yourRequests: 'Your Requests',
+            history: 'History',
+            approved: 'Approved',
+            vacationHours: 'Vacation (Hours)',
+            hoursUnit: 'hours',
+            daysUnit: 'days',
+            empty: 'No entries',
+        },
+    };
+    const t = T[LANG] ?? T['en-US'];
+
+    // --- Mock data (figures fixed per request) ---
+    const HOURS_PER_DAY = 8;
+
+    const balances = [
+        { key: 'paidTimeOff',    hours: 132.03 },
+        { key: 'floatingHoliday', hours: 16 },
+    ];
+
+    // Absence requests. Dates use real Date objects so they format per locale.
+    // Anchored to today (CLAUDE.md §6): requests = Mon–Thu of next week, history = recent past weekdays.
+    const now = new Date();
+    const thisMonday = (() => {
+        const d = new Date(now);
+        const day = d.getDay();
+        d.setDate(d.getDate() + ((day === 0 ? -6 : 1) - day));
+        d.setHours(0, 0, 0, 0);
+        return d;
+    })();
+    const fromMonday = n => { const d = new Date(thisMonday); d.setDate(d.getDate() + n); return d; };
+
+    const absences = {
+        requests: [
+            { date: fromMonday(7),  hours: 8, type: 'vacationHours', status: 'approved' },
+            { date: fromMonday(8),  hours: 8, type: 'vacationHours', status: 'approved' },
+            { date: fromMonday(9),  hours: 8, type: 'vacationHours', status: 'approved' },
+            { date: fromMonday(10), hours: 8, type: 'vacationHours', status: 'approved' },
+        ],
+        history: [
+            { date: fromMonday(-7),  hours: 8, type: 'vacationHours', status: 'approved' },
+            { date: fromMonday(-6),  hours: 8, type: 'vacationHours', status: 'approved' },
+            { date: fromMonday(-17), hours: 8, type: 'vacationHours', status: 'approved' },
+        ],
+    };
+
+    // --- Formatting helpers ---
+    let showDays = false;
+    const numFmt = new Intl.NumberFormat(LOCALE, { maximumFractionDigits: 2 });
+    const dateFmt = new Intl.DateTimeFormat(LOCALE, { month: 'short', day: '2-digit' });
+
+    function formatBalance(hours) {
+        if (showDays) {
+            const days = hours / HOURS_PER_DAY;
+            return numFmt.format(days) + ' ' + t.daysUnit;
+        }
+        return numFmt.format(hours) + ' ' + t.hoursUnit;
+    }
+
+    // --- Calendar-clock icon (matches screenshot) ---
+    const CAL_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h6"></path><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><circle cx="17.5" cy="17.5" r="4.5"></circle><path d="M17.5 15.5v2l1.5 1"></path></svg>';
+
+    // --- Renderers ---
+    function renderBalances() {
+        const grid = document.getElementById('balanceGrid');
+        grid.innerHTML = balances.map(b => `
+            <div class="balance-card">
+                <div class="balance-card__icon">${CAL_ICON}</div>
+                <div class="balance-card__body">
+                    <p class="balance-card__title">${t[b.key]}</p>
+                    <p class="balance-card__label">${t.balance}</p>
+                    <p class="balance-card__value">${formatBalance(b.hours)}</p>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function renderList(tab) {
+        const list = document.getElementById('absenceList');
+        const items = absences[tab] || [];
+        if (!items.length) {
+            list.innerHTML = `<div class="absence-empty">${t.empty}</div>`;
+            return;
+        }
+        list.innerHTML = items.map(a => `
+            <div class="absence-row">
+                <div class="absence-row__icon">${CAL_ICON}</div>
+                <div class="absence-row__main">
+                    <p class="absence-row__date">${dateFmt.format(a.date)}</p>
+                    <p class="absence-row__meta"><span>${a.hours} ${t.hoursUnit}</span><span>${t[a.type]}</span></p>
+                </div>
+                <span class="cw-badge">${t[a.status]}</span>
+            </div>
+        `).join('');
+    }
+
+    function updateToggleLabel() {
+        document.getElementById('toggleLabel').textContent = showDays ? t.showInHours : t.showInDays;
+    }
+
+    function applyTranslations() {
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.dataset.i18n;
+            if (t[key] !== undefined) el.textContent = t[key];
+        });
+    }
+
+    // --- Init ---
+    function init() {
+        applyTranslations();
+        document.querySelector('.absences-year').textContent = now.getFullYear();
+        renderBalances();
+        renderList('requests');
+        updateToggleLabel();
+
+        document.getElementById('toggleUnit').addEventListener('click', () => {
+            showDays = !showDays;
+            renderBalances();
+            updateToggleLabel();
+        });
+
+        document.querySelectorAll('.cw-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.cw-tab').forEach(x => x.classList.remove('is-active'));
+                tab.classList.add('is-active');
+                renderList(tab.dataset.tab);
+            });
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+</script>
+
+</body>
+</html>

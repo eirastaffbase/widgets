@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Staffbase brand color via ?brand= URL param (sb-brand-url-param) -->
+<!-- Dashboard variant of gabriellebenak-arch/staffbase-dashboard-demo, ee43a892. -->
+<script src="widget-theme.js"></script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="widget-name" content="My Payslips">
+<meta name="widget-description" content="View pay history, net pay, gross pay, and deductions for each pay period.">
+<meta name="widget-tags" content="Finance, HR Data">
+<title>My Payslips</title>
+
+<style>
+    :root {
+        --primary: var(--sb-brand, #191970);
+        --success: #10b981;
+        --warning: #f59e0b;
+        --danger: #ef4444;
+        --text: #1f2937;
+        --text-light: #6b7280;
+        --bg: #ffffff;
+        --bg-gray: #f9fafb;
+        --border: #e5e7eb;
+        /* Forest green for money figures — darker/less glare-y than --success */
+        --money: #166534;
+    }
+    @media (prefers-color-scheme: dark) {
+        :root {
+            /* Widget is designed to always sit on a white surface, so the
+               background and text stay in the light palette even in dark mode. */
+            --primary: var(--sb-brand, #191970);
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text: #1f2937;
+            --text-light: #6b7280;
+            --bg: #ffffff;
+            --bg-gray: #f9fafb;
+            --border: #e5e7eb;
+            --money: #166534;
+        }
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        margin: 0;
+        padding: 0;
+        -webkit-font-smoothing: antialiased;
+        overflow-x: hidden;
+    }
+
+    .widget {
+        position: relative;
+        width: 100%;
+        max-width: 480px;
+        margin: 0 auto;
+        background: var(--bg);
+        border-radius: 14px;
+        padding: 16px;
+        overflow-x: hidden;
+    }
+
+    .widget h2 {
+        margin: 0 0 10px 0;
+        font-size: clamp(17px, 5vw, 20px);
+        letter-spacing: -0.01em;
+    }
+
+    /* --- Privacy toggle --- */
+    .privacy-toggle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: none;
+        border: none;
+        padding: 0;
+        margin: 0 0 16px 0;
+        cursor: pointer;
+        font-family: inherit;
+    }
+    .privacy-icon-circle {
+        flex: 0 0 auto;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        border: 1.5px solid var(--primary);
+        color: var(--primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .privacy-icon-circle svg { width: 14px; height: 14px; }
+    .privacy-label {
+        color: var(--primary);
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    /* --- Full privacy screen (blur + centered "tap to view") --- */
+    .privacy-content { transition: filter 0.2s ease; }
+    .widget.private .privacy-content {
+        filter: blur(7px);
+        pointer-events: none;
+        user-select: none;
+    }
+
+    .privacy-overlay {
+        position: absolute;
+        inset: 0;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 22px;
+        text-align: center;
+        padding: 24px;
+        border: none;
+        border-radius: 14px;
+        background: transparent;
+        cursor: pointer;
+        font-family: inherit;
+        z-index: 5;
+    }
+    .widget.private .privacy-overlay { display: flex; }
+
+    .privacy-overlay-text {
+        font-size: clamp(20px, 6vw, 26px);
+        font-weight: 700;
+        color: var(--text);
+        line-height: 1.25;
+    }
+    .privacy-eye-btn {
+        flex: 0 0 auto;
+        width: 68px;
+        height: 68px;
+        border-radius: 50%;
+        border: 2px solid var(--primary);
+        background: var(--bg);
+        color: var(--primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .privacy-eye-btn svg { width: 28px; height: 28px; }
+    .privacy-overlay:hover .privacy-eye-btn { filter: brightness(0.97); }
+
+    .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+    }
+
+    /* --- Period tabs --- */
+    .cw-tabs {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding-bottom: 10px;
+        margin-bottom: 16px;
+        -webkit-overflow-scrolling: touch;
+    }
+    .cw-tabs::-webkit-scrollbar { height: 4px; }
+    .cw-tabs::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .cw-tab {
+        flex: 0 0 auto;
+        padding: 8px 16px;
+        border-radius: 20px;
+        border: 1px solid var(--border);
+        background: var(--bg);
+        color: var(--text);
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        font-family: inherit;
+    }
+    .cw-tab.active {
+        border-color: var(--primary);
+        color: var(--primary);
+        background: var(--bg-gray);
+    }
+
+    /* --- Summary card --- */
+    .summary-card {
+        background: var(--bg-gray);
+        border-radius: 12px;
+        padding: clamp(14px, 4vw, 20px);
+        margin-bottom: 20px;
+    }
+
+    .net-pay-block {
+        text-align: center;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 16px;
+    }
+
+    .cw-icon-circle {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--text-light);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 18px;
+        margin: 0 auto 8px;
+    }
+
+    .cw-stat-label {
+        font-size: 13px;
+        color: var(--text-light);
+        margin-bottom: 4px;
+    }
+
+    .net-pay-amount {
+        font-size: clamp(22px, 7vw, 28px);
+        font-weight: 700;
+        color: var(--money);
+    }
+
+    .summary-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
+    .summary-col { text-align: center; padding: 0 8px; min-width: 0; }
+    .summary-col:first-child { border-right: 1px solid var(--border); }
+    .summary-value {
+        font-size: clamp(14px, 4vw, 16px);
+        font-weight: 700;
+        color: var(--text);
+        overflow-wrap: break-word;
+    }
+
+    /* --- Payslip list --- */
+    .cw-section-title {
+        font-size: 15px;
+        font-weight: 700;
+        margin: 0 0 10px 2px;
+    }
+
+    .payslip-list { display: flex; flex-direction: column; gap: 8px; }
+
+    .payslip-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: var(--bg-gray);
+        border-radius: 10px;
+        padding: 12px 14px;
+        cursor: pointer;
+        border: none;
+        width: 100%;
+        text-align: left;
+        font-family: inherit;
+        color: inherit;
+    }
+    .payslip-row:hover { filter: brightness(0.97); }
+
+    .payslip-icon { flex: 0 0 auto; width: 26px; height: 26px; }
+    .payslip-date {
+        flex: 1;
+        min-width: 0;
+        font-size: 14px;
+        color: var(--text);
+        font-weight: 600;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .payslip-amount { flex: 0 0 auto; font-size: 15px; font-weight: 700; color: var(--money); }
+    .payslip-chevron { flex: 0 0 auto; width: 16px; height: 16px; color: var(--text-light); }
+
+    /* --- Modal --- */
+    .cw-modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.15s ease;
+    }
+    .cw-modal-overlay.open { opacity: 1; visibility: visible; }
+
+    .cw-modal {
+        background: var(--bg);
+        border-radius: 14px;
+        width: calc(100% - 32px);
+        max-width: 440px;
+        max-height: 85vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .cw-modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px;
+        border-bottom: 1px solid var(--border);
+        font-weight: 700;
+        font-size: clamp(15px, 4vw, 16px);
+    }
+
+    .cw-modal-close {
+        background: none;
+        border: none;
+        font-size: 22px;
+        line-height: 1;
+        color: var(--text-light);
+        cursor: pointer;
+        padding: 0 4px;
+    }
+
+    .cw-modal-body { padding: 16px; overflow-y: auto; flex: 1; }
+
+    .cw-banner {
+        border-radius: 8px;
+        padding: 10px 12px;
+        font-size: 13px;
+        margin-bottom: 10px;
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+    }
+    .cw-banner-info { background: #eff6ff; color: #1d4ed8; }
+    .cw-banner-warning { background: #fffbeb; color: #92400e; }
+
+    .modal-summary-row {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 6px 0 16px;
+    }
+    .modal-net-pay { font-size: clamp(19px, 6vw, 22px); font-weight: 700; color: var(--money); }
+    .modal-pay-period { font-size: clamp(13px, 4vw, 15px); font-weight: 700; color: var(--text); text-align: right; }
+
+    .cw-table-wrap { width: 100%; overflow-x: auto; margin-bottom: 16px; }
+    .cw-table { width: 100%; min-width: 320px; border-collapse: collapse; font-size: clamp(12.5px, 3.6vw, 14px); }
+    .cw-table th {
+        text-align: left;
+        background: var(--bg-gray);
+        padding: 8px 10px;
+        font-size: 12px;
+        color: var(--text-light);
+        font-weight: 600;
+        white-space: nowrap;
+    }
+    .cw-table th:last-child, .cw-table td:last-child { text-align: right; }
+    .cw-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+    .cw-table tr.total-row td { font-weight: 700; color: var(--money); border-bottom: none; }
+
+    .cw-modal-footer {
+        padding: 12px 16px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        justify-content: flex-end;
+    }
+    .cw-modal-footer .cw-btn { width: auto; padding: 10px 20px; }
+
+    .cw-btn {
+        padding: 12px 14px;
+        font-size: 15px;
+        border-radius: 8px;
+        background: var(--primary);
+        color: white;
+        border: none;
+        cursor: pointer;
+        font-weight: 600;
+        font-family: inherit;
+        width: 100%;
+    }
+    .cw-btn:hover { filter: brightness(0.93); }
+
+    /* --- Small-screen tightening --- */
+    @media (max-width: 360px) {
+        .widget { padding: 12px; }
+        .summary-col { padding: 0 4px; }
+        .cw-icon-circle { width: 34px; height: 34px; font-size: 16px; }
+        .cw-modal-header, .cw-modal-body, .cw-modal-footer { padding-left: 12px; padding-right: 12px; }
+    }
+</style>
+<style>
+:root, html {
+  --primary: var(--sb-brand, #2f5d4a) !important;
+
+  --money: var(--sb-brand, #2f5d4a) !important;
+  --success: var(--sb-brand, #2f5d4a) !important;
+  --text: #2b2f33 !important;
+  --text-light: #5c6660 !important;
+  --bg: transparent !important;
+  --bg-gray: rgba(255,255,255,0.40) !important;
+  --border: rgba(96,112,124,0.16) !important;
+  color-scheme: light !important;
+}
+html, body { background: transparent !important; }
+.widget {
+  background: transparent !important;
+  max-width: none !important;
+  padding: 0 !important;
+}
+.widget h2 { font-size: 17px !important; font-weight: 600 !important; color: #2b2f33 !important; }
+.privacy-overlay-text { font-size: 19px !important; font-weight: 600 !important; }
+.privacy-eye-btn {
+  width: 54px !important;
+  height: 54px !important;
+  border: 2px solid var(--sb-brand, #2f5d4a) !important;
+  background: rgba(255,255,255,0.55) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(170%);
+  backdrop-filter: blur(18px) saturate(170%);
+  color: var(--sb-brand, #2f5d4a) !important;
+}
+.privacy-eye-btn svg { width: 22px !important; height: 22px !important; }
+.summary-card {
+  background: rgba(255,255,255,0.42) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(170%);
+  backdrop-filter: blur(28px) saturate(170%);
+  border-radius: 18px !important;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.55), 0 10px 26px rgba(28,40,50,0.08) !important;
+  margin-bottom: 16px !important;
+}
+.payslip-row {
+  background: rgba(255,255,255,0.38) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(170%);
+  backdrop-filter: blur(22px) saturate(170%);
+  border-radius: 14px !important;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.50) !important;
+  padding: 10px 14px !important;
+}
+.cw-tab {
+  background: rgba(255,255,255,0.38) !important;
+  border: 0 !important;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.52) !important;
+  font-size: 13px !important;
+}
+.cw-tab.active { background: var(--sb-brand, #2f5d4a) !important; color: #ffffff !important; box-shadow: none !important; }
+.cw-section-title { font-size: 13px !important; }
+.net-pay-amount { color: var(--sb-brand, #2f5d4a) !important; }
+.payslip-amount { color: var(--sb-brand, #2f5d4a) !important; font-size: 14px !important; }
+.payslip-date { font-size: 13px !important; }
+.cw-modal {
+  background: rgba(248,250,250,0.97) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(170%);
+  backdrop-filter: blur(30px) saturate(170%);
+}
+.cw-btn { background: var(--sb-brand, #2f5d4a) !important; }
+</style>
+
+
+
+<style>
+html[data-theme="dark"] {
+  color-scheme: dark !important;
+  --primary: var(--sb-brand, #2f5d4a) !important;
+
+  --success: var(--sb-brand, #2f5d4a) !important;
+  --money: var(--sb-brand, #2f5d4a) !important;
+  --text: #e8ecea !important;
+  --text-light: #9aa5ab !important;
+  --bg: transparent !important;
+  --bg-gray: rgba(255,255,255,0.06) !important;
+  --border: rgba(255,255,255,0.12) !important;
+  --icon-bg: color-mix(in srgb, var(--sb-brand, #2f5d4a) 16%, transparent) !important;
+  --badge-bg: color-mix(in srgb, var(--sb-brand, #2f5d4a) 18%, transparent) !important;
+  --badge-text: var(--sb-brand-ink, #2f5d4a) !important;
+  --shadow: 0 18px 44px rgba(0,0,0,0.40) !important;
+}
+html[data-theme="dark"], html[data-theme="dark"] body { background: transparent !important; color: #e8ecea !important; }
+html[data-theme="dark"] h1, html[data-theme="dark"] h2, html[data-theme="dark"] h3 { color: #e8ecea !important; }
+</style>
+
+<style>
+html[data-theme="dark"] .summary-card,
+html[data-theme="dark"] .payslip-row {
+  background: rgba(255,255,255,0.085) !important;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.10) !important;
+}
+html[data-theme="dark"] .cw-tab {
+  background: rgba(255,255,255,0.07) !important;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.12) !important;
+  color: #e8ecea !important;
+}
+html[data-theme="dark"] .cw-tab.active { background: var(--sb-brand, #2f5d4a) !important; color: #fff !important; }
+html[data-theme="dark"] .privacy-eye-btn {
+  background: rgba(255,255,255,0.10) !important;
+  border-color: var(--sb-brand, #2f5d4a) !important;
+  color: var(--sb-brand, #2f5d4a) !important;
+}
+html[data-theme="dark"] .cw-modal { background: #1b2126 !important; }
+</style>
+<link rel="stylesheet" href="widget-theme.css">
+</head>
+
+<body>
+
+<div class="widget" id="widget">
+    <div class="privacy-content">
+        <h2 data-i18n="title"></h2>
+        <p class="sr-only" data-i18n="description"></p>
+
+        <button type="button" class="privacy-toggle" id="privacyToggle">
+            <span class="privacy-icon-circle" id="privacyIcon" aria-hidden="true"></span>
+            <span class="privacy-label" id="privacyLabel"></span>
+        </button>
+
+        <div class="cw-tabs" id="periodTabs"></div>
+
+        <div class="summary-card">
+            <div class="net-pay-block">
+                <div class="cw-icon-circle" aria-hidden="true">$</div>
+                <div class="cw-stat-label" data-i18n="netPay"></div>
+                <div class="net-pay-amount" id="netPayAmount"></div>
+            </div>
+            <div class="summary-grid">
+                <div class="summary-col">
+                    <div class="cw-stat-label" data-i18n="grossPay"></div>
+                    <div class="summary-value" id="grossPayAmount"></div>
+                </div>
+                <div class="summary-col">
+                    <div class="cw-stat-label" data-i18n="deductions"></div>
+                    <div class="summary-value" id="deductionsAmount"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="cw-section-title" data-i18n="payslips"></div>
+        <div class="payslip-list" id="payslipList"></div>
+    </div>
+
+    <button type="button" class="privacy-overlay" id="privacyOverlay">
+        <span class="privacy-overlay-text" data-i18n="tapToView"></span>
+        <span class="privacy-eye-btn" id="privacyEye" aria-hidden="true"></span>
+    </button>
+</div>
+
+<div class="cw-modal-overlay" id="modalOverlay">
+    <div class="cw-modal" role="dialog" aria-modal="true">
+        <div class="cw-modal-header">
+            <span data-i18n="yourPayslip"></span>
+            <button type="button" class="cw-modal-close" id="modalClose" aria-label="Close">&times;</button>
+        </div>
+        <div class="cw-modal-body">
+            <div class="cw-banner cw-banner-info">
+                <span aria-hidden="true">&#9432;</span>
+                <span data-i18n="privateNotice"></span>
+            </div>
+            <div class="cw-banner cw-banner-warning">
+                <span aria-hidden="true">&#9888;</span>
+                <span data-i18n="unofficialNotice"></span>
+            </div>
+            <div class="modal-summary-row">
+                <div>
+                    <div class="cw-stat-label" data-i18n="netPay"></div>
+                    <div class="modal-net-pay" id="modalNetPay"></div>
+                </div>
+                <div>
+                    <div class="cw-stat-label" data-i18n="payPeriod"></div>
+                    <div class="modal-pay-period" id="modalPayPeriod"></div>
+                </div>
+            </div>
+            <div class="cw-table-wrap">
+                <table class="cw-table">
+                    <thead>
+                        <tr><th data-i18n="earnings"></th><th data-i18n="amount"></th></tr>
+                    </thead>
+                    <tbody id="earningsBody"></tbody>
+                </table>
+            </div>
+            <div class="cw-table-wrap">
+                <table class="cw-table">
+                    <thead>
+                        <tr><th data-i18n="employeeDeductions"></th><th data-i18n="amount"></th></tr>
+                    </thead>
+                    <tbody id="deductionsBody"></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="cw-modal-footer">
+            <button type="button" class="cw-btn" id="modalCloseBtn" data-i18n="close"></button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- Language detection (per widgets/MULTILANGUAGE.md) ---
+    const LANG = (() => {
+        const l = navigator.language || '';
+        if (l.startsWith('de')) return 'de';
+        if (l.startsWith('fr')) return 'fr';
+        if (l.startsWith('es')) return 'es';
+        if (l.startsWith('ja')) return 'ja';
+        if (l === 'en-GB')      return 'en-GB';
+        return 'en-US';
+    })();
+    document.documentElement.lang = LANG;
+
+    const LOCALE = {
+        'de': 'de-DE', 'fr': 'fr-FR', 'es': 'es-ES',
+        'ja': 'ja-JP', 'en-GB': 'en-GB', 'en-US': 'en-US'
+    }[LANG];
+    const CURRENCY = {
+        'de': 'EUR', 'fr': 'EUR', 'es': 'EUR',
+        'ja': 'JPY', 'en-GB': 'GBP', 'en-US': 'USD'
+    }[LANG];
+
+    const currencyFormatter = new Intl.NumberFormat(LOCALE, { style: 'currency', currency: CURRENCY });
+    const monthYearFormatter = new Intl.DateTimeFormat(LOCALE, { month: 'long', year: 'numeric' });
+    const dateFormatter = new Intl.DateTimeFormat(LOCALE, { year: 'numeric', month: '2-digit', day: '2-digit' });
+
+    // --- Translations ---
+    const T = {
+        de: {
+            title: "Meine Gehaltsabrechnungen",
+            description: "Sehen Sie Ihre Gehaltsabrechnungen, Ihren Nettolohn und die Abzüge im Detail.",
+            tapToHide: "Zum Ausblenden tippen",
+            tapToView: "Tippen, um Ihre Gehaltsabrechnungen anzuzeigen",
+            netPay: "Nettolohn",
+            grossPay: "Bruttolohn",
+            deductions: "Abzüge",
+            payslips: "Abrechnungen",
+            yourPayslip: "Ihre Gehaltsabrechnung",
+            close: "Schließen",
+            privateNotice: "Diese Informationen sind nur für Sie sichtbar.",
+            unofficialNotice: "Dies ist nur eine Zusammenfassung Ihrer Abrechnung. Sie ist nicht offiziell.",
+            payPeriod: "Abrechnungszeitraum",
+            earnings: "Verdienst",
+            employeeDeductions: "Abzüge des Arbeitnehmers",
+            amount: "Betrag",
+            total: "Gesamt",
+            earn_base: "Grundgehalt",
+            ded_fedTax: "Bundessteuer",
+            ded_stateTax: "Landessteuer",
+            ded_socSec: "Sozialversicherung",
+            ded_medicare: "Medicare-Beitrag",
+            ded_401k: "Altersvorsorge (401k)",
+            ded_medical: "Krankenversicherung",
+            ded_dental: "Zahnversicherung",
+            ded_vision: "Sehversicherung",
+            ded_parking: "Parken",
+            ded_transit: "Nahverkehr",
+        },
+        fr: {
+            title: "Mes fiches de paie",
+            description: "Consultez l'historique de vos fiches de paie, votre salaire net et le détail des retenues.",
+            tapToHide: "Toucher pour masquer",
+            tapToView: "Touchez pour afficher vos fiches de paie",
+            netPay: "Salaire net",
+            grossPay: "Salaire brut",
+            deductions: "Retenues",
+            payslips: "Fiches de paie",
+            yourPayslip: "Votre fiche de paie",
+            close: "Fermer",
+            privateNotice: "Ces informations ne sont visibles que par vous.",
+            unofficialNotice: "Ceci n'est qu'un résumé de votre fiche de paie. Il n'a pas de valeur officielle.",
+            payPeriod: "Période de paie",
+            earnings: "Revenus",
+            employeeDeductions: "Retenues salariales",
+            amount: "Montant",
+            total: "Total",
+            earn_base: "Salaire de base",
+            ded_fedTax: "Impôt fédéral",
+            ded_stateTax: "Impôt d'État",
+            ded_socSec: "Sécurité sociale",
+            ded_medicare: "Cotisation Medicare",
+            ded_401k: "Plan de retraite (401k)",
+            ded_medical: "Assurance médicale",
+            ded_dental: "Assurance dentaire",
+            ded_vision: "Assurance optique",
+            ded_parking: "Stationnement",
+            ded_transit: "Transport en commun",
+        },
+        es: {
+            title: "Mis nóminas",
+            description: "Consulta tu historial de nóminas, tu salario neto y el detalle de las deducciones.",
+            tapToHide: "Toca para ocultar",
+            tapToView: "Toca para ver tus nóminas",
+            netPay: "Salario neto",
+            grossPay: "Salario bruto",
+            deductions: "Deducciones",
+            payslips: "Nóminas",
+            yourPayslip: "Tu nómina",
+            close: "Cerrar",
+            privateNotice: "Esta información solo es visible para ti.",
+            unofficialNotice: "Este es solo un resumen de tu nómina. No es oficial.",
+            payPeriod: "Periodo de pago",
+            earnings: "Ingresos",
+            employeeDeductions: "Deducciones del empleado",
+            amount: "Importe",
+            total: "Total",
+            earn_base: "Salario base",
+            ded_fedTax: "Impuesto federal",
+            ded_stateTax: "Impuesto estatal",
+            ded_socSec: "Seguridad social",
+            ded_medicare: "Contribución Medicare",
+            ded_401k: "Plan de jubilación (401k)",
+            ded_medical: "Seguro médico",
+            ded_dental: "Seguro dental",
+            ded_vision: "Seguro de visión",
+            ded_parking: "Aparcamiento",
+            ded_transit: "Transporte público",
+        },
+        ja: {
+            title: "マイ給与明細",
+            description: "給与明細の履歴、実支給額、控除の詳細を確認できます。",
+            tapToHide: "タップして非表示",
+            tapToView: "タップして給与明細を表示",
+            netPay: "実支給額",
+            grossPay: "総支給額",
+            deductions: "控除額",
+            payslips: "給与明細",
+            yourPayslip: "給与明細の詳細",
+            close: "閉じる",
+            privateNotice: "この情報はあなたのみに表示されています。",
+            unofficialNotice: "これは給与明細の概要です。公式な文書ではありません。",
+            payPeriod: "支給期間",
+            earnings: "支給項目",
+            employeeDeductions: "従業員控除",
+            amount: "金額",
+            total: "合計",
+            earn_base: "基本給",
+            ded_fedTax: "連邦税",
+            ded_stateTax: "州税",
+            ded_socSec: "社会保障",
+            ded_medicare: "メディケア",
+            ded_401k: "401kプラン",
+            ded_medical: "医療保険",
+            ded_dental: "歯科保険",
+            ded_vision: "視力保険",
+            ded_parking: "駐車場",
+            ded_transit: "通勤費",
+        },
+        'en-GB': {
+            title: "My Payslips",
+            description: "View your pay history, net pay, and deduction details.",
+            tapToHide: "Tap to hide",
+            tapToView: "Tap to view your payslips",
+            netPay: "Net Pay",
+            grossPay: "Gross Pay",
+            deductions: "Deductions",
+            payslips: "Payslips",
+            yourPayslip: "Your Payslip",
+            close: "Close",
+            privateNotice: "This information is only visible to you.",
+            unofficialNotice: "This is only a summary of your payslip. It's not official.",
+            payPeriod: "Pay Period",
+            earnings: "Earnings",
+            employeeDeductions: "Employee Deductions",
+            amount: "Amount",
+            total: "Total",
+            earn_base: "Base Salary",
+            ded_fedTax: "Federal Tax",
+            ded_stateTax: "State Tax",
+            ded_socSec: "Social Security",
+            ded_medicare: "Medicare",
+            ded_401k: "401(k)",
+            ded_medical: "Medical",
+            ded_dental: "Dental",
+            ded_vision: "Vision",
+            ded_parking: "Parking",
+            ded_transit: "Transit",
+        },
+        'en-US': {
+            title: "My Payslips",
+            description: "View your pay history, net pay, and deduction details.",
+            tapToHide: "Tap to hide",
+            tapToView: "Tap to view your payslips",
+            netPay: "Net Pay",
+            grossPay: "Gross Pay",
+            deductions: "Deductions",
+            payslips: "Payslips",
+            yourPayslip: "Your Payslip",
+            close: "Close",
+            privateNotice: "This information is only visible to you.",
+            unofficialNotice: "This is only a summary of your payslip. It's not official.",
+            payPeriod: "Pay Period",
+            earnings: "Earnings",
+            employeeDeductions: "Employee Deductions",
+            amount: "Amount",
+            total: "Total",
+            earn_base: "Base Salary",
+            ded_fedTax: "Federal Tax",
+            ded_stateTax: "State Tax",
+            ded_socSec: "Social Security",
+            ded_medicare: "Medicare",
+            ded_401k: "401(k)",
+            ded_medical: "Medical",
+            ded_dental: "Dental",
+            ded_vision: "Vision",
+            ded_parking: "Parking",
+            ded_transit: "Transit",
+        },
+    };
+    const t = T[LANG] ?? T['en-US'];
+
+    const DEDUCTION_LABEL_KEY = {
+        fedTax: 'ded_fedTax', stateTax: 'ded_stateTax', socSec: 'ded_socSec',
+        medicare: 'ded_medicare', k401: 'ded_401k', medical: 'ded_medical',
+        dental: 'ded_dental', vision: 'ded_vision', parking: 'ded_parking', transit: 'ded_transit'
+    };
+
+    // --- Privacy screen (blurs the whole widget; hidden by default) ---
+    const EYE_SVG =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+            '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/>' +
+        '</svg>';
+    const EYE_SLASH_SVG =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+            '<path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a18.6 18.6 0 0 1 4.22-5.94"/>' +
+            '<path d="M9.9 4.24A10.94 10.94 0 0 1 12 5c7 0 11 7 11 7a18.6 18.6 0 0 1-2.16 3.19"/>' +
+            '<path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>' +
+        '</svg>';
+
+    // Data is private by default; the whole widget is blurred behind the overlay.
+    let dataHidden = true;
+
+    // Amounts are always the real value — privacy is handled by the CSS blur, not by masking.
+    function money(amount) {
+        return currencyFormatter.format(amount);
+    }
+
+    function updatePrivacyState() {
+        document.getElementById('widget').classList.toggle('private', dataHidden);
+        // Top toggle only appears when data is visible — it always offers "hide".
+        document.getElementById('privacyIcon').innerHTML = EYE_SLASH_SVG;
+        document.getElementById('privacyLabel').textContent = t.tapToHide;
+        document.getElementById('privacyEye').innerHTML = EYE_SVG;
+    }
+
+    function applyTranslations() {
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.dataset.i18n;
+            if (t[key] !== undefined) el.textContent = t[key];
+        });
+    }
+
+    // --- Mock payslip data (never hardcode dates — anchor to "now") ---
+    function round2(n) { return Math.round(n * 100) / 100; }
+
+    const FIXED_BENEFITS = [
+        { code: 'medical', amount: 87.84 },
+        { code: 'dental', amount: 14.50 },
+        { code: 'vision', amount: 18.50 },
+        { code: 'parking', amount: 25.00 },
+        { code: 'transit', amount: 12.50 },
+    ];
+    const FIXED_TOTAL = round2(FIXED_BENEFITS.reduce((s, b) => s + b.amount, 0));
+
+    function buildDeductions(gross, net) {
+        const totalDed = round2(gross - net);
+        const socSec = round2(gross * 0.062);
+        const medicare = round2(gross * 0.0145);
+        const k401 = round2(gross * 0.06);
+        const stateTax = round2(gross * 0.05);
+        const nonFed = round2(socSec + medicare + k401 + stateTax + FIXED_TOTAL);
+        const fedTax = round2(totalDed - nonFed);
+        return [
+            { code: 'fedTax', amount: fedTax },
+            { code: 'stateTax', amount: stateTax },
+            { code: 'socSec', amount: socSec },
+            { code: 'medicare', amount: medicare },
+            { code: 'k401', amount: k401 },
+            ...FIXED_BENEFITS,
+        ];
+    }
+
+    const now = new Date();
+    function mostRecentPayDate(base) {
+        const d = new Date(base.getFullYear(), base.getMonth(), 15);
+        if (d > base) d.setMonth(d.getMonth() - 1);
+        return d;
+    }
+    const latestPayDate = mostRecentPayDate(now);
+
+    // Index 0 = most recent pay period; index 11 = 11 months earlier.
+    const PAY_DATA = [
+        { gross: 6225.63, net: 4162.72 },
+        { gross: 6142.85, net: 4103.50 },
+        { gross: 6301.20, net: 4213.90 },
+        { gross: 6058.40, net: 4046.60 },
+        { gross: 6020.15, net: 4020.85 },
+        { gross: 5985.40, net: 3998.10 },
+        { gross: 6110.75, net: 4083.20 },
+        { gross: 5950.30, net: 3975.05 },
+        { gross: 5920.60, net: 3954.90 },
+        { gross: 5890.25, net: 3934.15 },
+        { gross: 5875.80, net: 3924.30 },
+        { gross: 5850.00, net: 3907.50 },
+    ];
+
+    const periods = PAY_DATA.map((d, i) => {
+        const payDate = new Date(latestPayDate.getFullYear(), latestPayDate.getMonth() - i, 15);
+        const periodStart = new Date(payDate.getFullYear(), payDate.getMonth(), 1);
+        const periodEnd = new Date(payDate.getFullYear(), payDate.getMonth(), 15);
+        return {
+            payDate, periodStart, periodEnd,
+            gross: d.gross, net: d.net,
+            deductions: buildDeductions(d.gross, d.net),
+        };
+    });
+
+    let selectedIndex = 0;
+
+    // --- Rendering ---
+    function renderTabs() {
+        const el = document.getElementById('periodTabs');
+        el.innerHTML = '';
+        periods.forEach((p, i) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'cw-tab' + (i === selectedIndex ? ' active' : '');
+            btn.textContent = monthYearFormatter.format(p.payDate);
+            btn.addEventListener('click', () => {
+                selectedIndex = i;
+                renderTabs();
+                renderPeriod();
+            });
+            el.appendChild(btn);
+        });
+    }
+
+    function renderPeriod() {
+        const p = periods[selectedIndex];
+        document.getElementById('netPayAmount').innerHTML = money(p.net);
+        document.getElementById('grossPayAmount').innerHTML = money(p.gross);
+        document.getElementById('deductionsAmount').innerHTML = money(round2(p.gross - p.net));
+        renderPayslipList();
+    }
+
+    function renderPayslipList() {
+        const p = periods[selectedIndex];
+        const list = document.getElementById('payslipList');
+        list.innerHTML = '';
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'payslip-row';
+        row.innerHTML =
+            '<svg class="payslip-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">' +
+                '<path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#fdece7" stroke="#e2664e" stroke-width="1.3"/>' +
+                '<path d="M15 2v5h5" stroke="#e2664e" stroke-width="1.3" fill="none"/>' +
+            '</svg>' +
+            '<span class="payslip-date">' + dateFormatter.format(p.payDate) + '</span>' +
+            '<span class="payslip-amount">' + money(p.net) + '</span>' +
+            '<svg class="payslip-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"></polyline></svg>';
+        row.addEventListener('click', () => openModal(p));
+        list.appendChild(row);
+    }
+
+    let openPeriod = null;
+
+    function openModal(p) {
+        openPeriod = p;
+        document.getElementById('modalNetPay').innerHTML = money(p.net);
+        document.getElementById('modalPayPeriod').textContent =
+            dateFormatter.format(p.periodStart) + ' - ' + dateFormatter.format(p.periodEnd);
+
+        document.getElementById('earningsBody').innerHTML =
+            '<tr><td>' + t.earn_base + '</td><td>' + money(p.gross) + '</td></tr>' +
+            '<tr class="total-row"><td>' + t.total + '</td><td>' + money(p.gross) + '</td></tr>';
+
+        document.getElementById('deductionsBody').innerHTML =
+            p.deductions.map(d =>
+                '<tr><td>' + t[DEDUCTION_LABEL_KEY[d.code]] + '</td><td>' + money(d.amount) + '</td></tr>'
+            ).join('') +
+            '<tr class="total-row"><td>' + t.total + '</td><td>' + money(round2(p.gross - p.net)) + '</td></tr>';
+
+        document.getElementById('modalOverlay').classList.add('open');
+    }
+
+    function closeModal() {
+        document.getElementById('modalOverlay').classList.remove('open');
+    }
+
+    function setPrivacy(hidden) {
+        dataHidden = hidden;
+        // Re-hiding while the detail modal is open would leak figures — close it first.
+        if (hidden) closeModal();
+        updatePrivacyState();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        applyTranslations();
+        updatePrivacyState();
+        renderTabs();
+        renderPeriod();
+        document.getElementById('privacyOverlay').addEventListener('click', () => setPrivacy(false));
+        document.getElementById('privacyToggle').addEventListener('click', () => setPrivacy(true));
+        document.getElementById('modalClose').addEventListener('click', closeModal);
+        document.getElementById('modalCloseBtn').addEventListener('click', closeModal);
+        document.getElementById('modalOverlay').addEventListener('click', (e) => {
+            if (e.target.id === 'modalOverlay') closeModal();
+        });
+    });
+</script>
+
+</body>
+</html>

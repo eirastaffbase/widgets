@@ -1,0 +1,61 @@
+html {
+  --primary: var(--sb-brand, #2f5d4a) !important;
+  --money: var(--sb-brand-ink, #2f5d4a) !important;
+  --success: var(--sb-brand, #2f5d4a) !important;
+  --warning: #875400 !important;
+  --danger: #b42318 !important;
+}
+
+html[data-theme="dark"] {
+  --warning: #fbbf24 !important;
+  --danger: #fda29b !important;
+}
+
+::selection {
+  background: var(--sb-brand, #2f5d4a);
+  color: var(--sb-on-brand, #fff);
+}
+
+:focus-visible {
+  outline: 2px solid var(--sb-brand-ink, #2f5d4a);
+  outline-offset: 3px;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+.cw-btn,
+.cw-btn-submit,
+.cw-tab.active,
+.cw-tab.is-active {
+  color: var(--sb-on-brand, #fff) !important;
+}
+
+.balance-card__value,
+.balance-card__icon svg,
+.cw-toggle,
+.net-pay-amount,
+.payslip-amount,
+.t-footer .by-name,
+.cw-text-btn {
+  color: var(--sb-brand-ink, #2f5d4a) !important;
+}
+
+.balance-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
+}
+
+@media (max-width: 480px) {
+  .cw-tabs {
+    flex-wrap: wrap;
+  }
+
+  .cw-tab,
+  .cw-btn,
+  .cw-btn-submit {
+    min-height: 44px;
+  }
+}
