@@ -1,6 +1,21 @@
 // Maintained dashboard variants of gabriellebenak-arch/staffbase-dashboard-demo.
 (function () {
   var params = new URLSearchParams(location.search);
+  var requestedLocale = params.get("locale");
+  function supportedLocale(value) {
+    try {
+      var canonical = Intl.getCanonicalLocales(value.replace(/_/g, "-"))[0];
+      return canonical && /^(en|de|fr|es|nl|ja)(-|$)/.test(canonical) ? canonical : undefined;
+    } catch (error) {
+      if (!(error instanceof RangeError)) throw error;
+      return undefined;
+    }
+  }
+  var locale = requestedLocale ? supportedLocale(requestedLocale) : undefined;
+  if (requestedLocale && !locale) {
+    console.warn("[Dashboard] Invalid or unsupported page locale; using the browser language.");
+  }
+  document.documentElement.lang = locale || supportedLocale(navigator.language || "") || "en-US";
   var requested = params.get("brand");
   var brand = "#2f5d4a";
   if (requested && /^#(?:[a-f\d]{3}|[a-f\d]{6})$/i.test(requested)) {

@@ -543,27 +543,59 @@ html[data-theme="dark"] .cw-overlay { background: #1b2126 !important; }
     </div>
 
     <script>
-        // --- Language detection ---
-        const LANG = (() => {
-            const l = navigator.language || '';
-            if (l.startsWith('de')) return 'de';
-            if (l.startsWith('fr')) return 'fr';
-            if (l.startsWith('es')) return 'es';
-            if (l.startsWith('ja')) return 'ja';
-            if (l === 'en-GB')      return 'en-GB';
-            return 'en-US';
-        })();
-        document.documentElement.lang = LANG;
-
-        const LOCALE = {
-            'de': 'de-DE', 'fr': 'fr-FR', 'es': 'es-ES',
-            'ja': 'ja-JP', 'en-GB': 'en-GB', 'en-US': 'en-US'
-        }[LANG];
+        const LOCALE = document.documentElement.lang;
+        const LANG = LOCALE.startsWith('en') ? (LOCALE === 'en-GB' ? 'en-GB' : 'en-US') : LOCALE.split('-')[0];
         const HOUR12 = LANG === 'en-GB' || LANG === 'en-US';
-        const LANG_SUFFIX = { 'de': 'De', 'fr': 'Fr', 'es': 'Es', 'ja': 'Ja', 'en-GB': '', 'en-US': '' };
+        const LANG_SUFFIX = { 'de': 'De', 'fr': 'Fr', 'es': 'Es', 'nl': 'Nl', 'ja': 'Ja', 'en-GB': '', 'en-US': '' };
 
         // --- Translations ---
         const T = {
+            nl: {
+                inboxLabel: "ServiceNow",
+                myItems: "Mijn meldingen",
+                myTasks: "Mijn taken",
+                searchPlaceholder: "Zoeken ...",
+                filtersLabel: "Filters",
+                showClosed: "Gesloten meldingen tonen",
+                sortUpdateNew: "Bijgewerkt (nieuwste eerst)",
+                sortUpdateOld: "Bijgewerkt (oudste eerst)",
+                sortCreateNew: "Aangemaakt (nieuwste eerst)",
+                sortPrioHigh: "Prioriteit (hoogste eerst)",
+                sortPrioLow: "Prioriteit (laagste eerst)",
+                typesLabel: "Typen",
+                typeSearchPlaceholder: "Zoeken...",
+                typeIncident: "Incident",
+                typeProblem: "Probleem",
+                typeCatalogTask: "Catalogustaak",
+                typeChangeRequest: "Wijzigingsverzoek",
+                typeRequest: "Aanvraag",
+                clearAll: "Alles wissen",
+                apply: "Toepassen",
+                refresh: "Vernieuwen",
+                newTicket: "Nieuwe melding",
+                prioCritical: "1 - Kritiek",
+                prioHigh: "2 - Hoog",
+                prioModerate: "3 - Gemiddeld",
+                prioLow: "4 - Laag",
+                prioPlanning: "5 - Planning",
+                stateInProgress: "In behandeling",
+                stateOnHold: "In de wacht",
+                stateNew: "Nieuw",
+                stateOpen: "Open",
+                updatedLabel: "Bijgewerkt:",
+                openedByTpl: "Geopend: ${date} door ${name}",
+                noItems: "Geen meldingen gevonden",
+                refreshing: "Vernieuwen ...",
+                notifTitle: "Meldingen",
+                noNotifTitle: "Geen nieuwe meldingen",
+                noNotifDesc: "Nieuwe meldingen worden hier weergegeven.",
+                newTicketTitle: "Nieuwe melding",
+                shortDescription: "Korte omschrijving",
+                shortDescPlaceholder: "Bijv. de printer werkt niet",
+                priorityLabel: "Prioriteit",
+                typeLabel: "Type",
+                submit: "Verzenden"
+            },
             de: {
                 inboxLabel: "ServiceNow",
                 myItems: "Meine Vorgänge",
@@ -878,6 +910,7 @@ html[data-theme="dark"] .cw-overlay { background: #1b2126 !important; }
                 id: 'INC0000027', type: 'Incident', prio: 2, prioLabel: '2 - High', state: 'In Progress',
                 title: 'Please remove the latest hotfix from my PC',
                 titleDe: 'Bitte den letzten Hotfix von meinem PC entfernen',
+                titleNl: 'Verwijder de laatste hotfix van mijn pc',
                 titleFr: "Veuillez supprimer le dernier correctif de mon PC",
                 titleEs: 'Por favor, elimine la última actualización urgente de mi PC',
                 titleJa: '最新のホットフィックスを PC から削除してください',
@@ -887,6 +920,7 @@ html[data-theme="dark"] .cw-overlay { background: #1b2126 !important; }
                 id: 'INC0001990', type: 'Incident', prio: 5, prioLabel: '5 - Planning', state: 'On Hold',
                 title: 'Unable to access the personal details section in profile',
                 titleDe: 'Zugriff auf den Bereich „Persönliche Daten" im Profil nicht möglich',
+                titleNl: 'Geen toegang tot persoonlijke gegevens in mijn profiel',
                 titleFr: "Impossible d'accéder à la section informations personnelles du profil",
                 titleEs: 'No se puede acceder a la sección de datos personales del perfil',
                 titleJa: 'プロフィールの個人情報セクションにアクセスできません',
@@ -896,6 +930,7 @@ html[data-theme="dark"] .cw-overlay { background: #1b2126 !important; }
                 id: 'INC0000059', type: 'Incident', prio: 3, prioLabel: '3 - Moderate', state: 'In Progress',
                 title: 'Unable to access team file share',
                 titleDe: 'Kein Zugriff auf die Team-Dateifreigabe',
+                titleNl: 'Geen toegang tot de gedeelde teambestanden',
                 titleFr: "Impossible d'accéder au partage de fichiers de l'équipe",
                 titleEs: 'No se puede acceder al recurso compartido del equipo',
                 titleJa: 'チームのファイル共有にアクセスできません',
@@ -905,6 +940,7 @@ html[data-theme="dark"] .cw-overlay { background: #1b2126 !important; }
                 id: 'TASK0022395', type: 'Incident Task', prio: 2, prioLabel: '2 - High', state: 'Open',
                 title: 'Connect with caller to run through our performance diagnostics tool',
                 titleDe: 'Anrufer kontaktieren, um das Performance-Diagnosetool durchzugehen',
+                titleNl: 'Neem contact op met de melder om het prestatiehulpmiddel te doorlopen',
                 titleFr: "Contacter l'appelant pour exécuter notre outil de diagnostic des performances",
                 titleEs: 'Contactar con el solicitante para ejecutar la herramienta de diagnóstico de rendimiento',
                 titleJa: '依頼者と連絡し、パフォーマンス診断ツールを実行する',
@@ -915,6 +951,7 @@ html[data-theme="dark"] .cw-overlay { background: #1b2126 !important; }
                 id: 'INC0000088', type: 'Incident', prio: 4, prioLabel: '4 - Low', state: 'New',
                 title: 'Mouse scroll wheel behaving erratically',
                 titleDe: 'Maus-Scrollrad verhält sich unregelmäßig',
+                titleNl: 'Het scrollwiel van de muis werkt onregelmatig',
                 titleFr: "La molette de la souris se comporte de manière erratique",
                 titleEs: 'La rueda de desplazamiento del ratón funciona de forma errática',
                 titleJa: 'マウスのスクロールホイールの動作が不安定です',
@@ -924,6 +961,7 @@ html[data-theme="dark"] .cw-overlay { background: #1b2126 !important; }
                 id: 'INC0000092', type: 'Incident', prio: 3, prioLabel: '3 - Moderate', state: 'New',
                 title: 'VPN connection dropping intermittently',
                 titleDe: 'VPN-Verbindung bricht zeitweise ab',
+                titleNl: 'De VPN-verbinding valt af en toe weg',
                 titleFr: "La connexion VPN se coupe par intermittence",
                 titleEs: 'La conexión VPN se interrumpe de forma intermitente',
                 titleJa: 'VPN 接続が断続的に切断されます',

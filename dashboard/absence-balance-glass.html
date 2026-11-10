@@ -344,25 +344,28 @@ html[data-theme="dark"] .cw-tab.is-active { background: var(--sb-brand, #2f5d4a)
 </div>
 
 <script>
-    // --- Language detection (per widgets/MULTILANGUAGE.md) ---
-    const LANG = (() => {
-        const l = navigator.language || '';
-        if (l.startsWith('de')) return 'de';
-        if (l.startsWith('fr')) return 'fr';
-        if (l.startsWith('es')) return 'es';
-        if (l.startsWith('ja')) return 'ja';
-        if (l === 'en-GB')      return 'en-GB';
-        return 'en-US';
-    })();
-    document.documentElement.lang = LANG;
-
-    const LOCALE = {
-        'de': 'de-DE', 'fr': 'fr-FR', 'es': 'es-ES',
-        'ja': 'ja-JP', 'en-GB': 'en-GB', 'en-US': 'en-US'
-    }[LANG];
+    const LOCALE = document.documentElement.lang;
+    const LANG = LOCALE.startsWith('en') ? (LOCALE === 'en-GB' ? 'en-GB' : 'en-US') : LOCALE.split('-')[0];
 
     // --- Translations ---
     const T = {
+        nl: {
+            title: 'Verlofsaldo',
+            description: 'Bekijk je verlofsaldo en verlofaanvragen',
+            paidTimeOff: 'Betaald verlof',
+            floatingHoliday: 'Vrij opneembare feestdag',
+            balance: 'Saldo',
+            showInDays: 'Saldo in dagen weergeven (8 uur/dag)',
+            showInHours: 'Saldo in uren weergeven',
+            absences: 'Afwezigheid',
+            yourRequests: 'Je aanvragen',
+            history: 'Geschiedenis',
+            approved: 'Goedgekeurd',
+            vacationHours: 'Vakantie (uren)',
+            hoursUnit: 'uur',
+            daysUnit: 'dagen',
+            empty: 'Geen vermeldingen',
+        },
         de: {
             title: 'Abwesenheitssaldo',
             description: 'Zeigt Urlaubssalden und Abwesenheitsantraege an',

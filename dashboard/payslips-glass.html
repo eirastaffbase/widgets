@@ -603,24 +603,10 @@ html[data-theme="dark"] .cw-modal { background: #1b2126 !important; }
 </div>
 
 <script>
-    // --- Language detection (per widgets/MULTILANGUAGE.md) ---
-    const LANG = (() => {
-        const l = navigator.language || '';
-        if (l.startsWith('de')) return 'de';
-        if (l.startsWith('fr')) return 'fr';
-        if (l.startsWith('es')) return 'es';
-        if (l.startsWith('ja')) return 'ja';
-        if (l === 'en-GB')      return 'en-GB';
-        return 'en-US';
-    })();
-    document.documentElement.lang = LANG;
-
-    const LOCALE = {
-        'de': 'de-DE', 'fr': 'fr-FR', 'es': 'es-ES',
-        'ja': 'ja-JP', 'en-GB': 'en-GB', 'en-US': 'en-US'
-    }[LANG];
+    const LOCALE = document.documentElement.lang;
+    const LANG = LOCALE.startsWith('en') ? (LOCALE === 'en-GB' ? 'en-GB' : 'en-US') : LOCALE.split('-')[0];
     const CURRENCY = {
-        'de': 'EUR', 'fr': 'EUR', 'es': 'EUR',
+        'de': 'EUR', 'fr': 'EUR', 'es': 'EUR', 'nl': 'EUR',
         'ja': 'JPY', 'en-GB': 'GBP', 'en-US': 'USD'
     }[LANG];
 
@@ -630,6 +616,36 @@ html[data-theme="dark"] .cw-modal { background: #1b2126 !important; }
 
     // --- Translations ---
     const T = {
+        nl: {
+            title: "Mijn loonstroken",
+            description: "Bekijk je loonstroken, nettoloon en inhoudingen.",
+            tapToHide: "Tik om te verbergen",
+            tapToView: "Tik om je loonstroken te bekijken",
+            netPay: "Nettoloon",
+            grossPay: "Brutoloon",
+            deductions: "Inhoudingen",
+            payslips: "Loonstroken",
+            yourPayslip: "Je loonstrook",
+            close: "Sluiten",
+            privateNotice: "Deze informatie is alleen voor jou zichtbaar.",
+            unofficialNotice: "Dit is alleen een samenvatting van je loonstrook en geen officieel document.",
+            payPeriod: "Loonperiode",
+            earnings: "Inkomsten",
+            employeeDeductions: "Inhoudingen werknemer",
+            amount: "Bedrag",
+            total: "Totaal",
+            earn_base: "Basissalaris",
+            ded_fedTax: "Federale belasting",
+            ded_stateTax: "Staatsbelasting",
+            ded_socSec: "Sociale zekerheid",
+            ded_medicare: "Medicare-bijdrage",
+            ded_401k: "Pensioenbijdrage (401k)",
+            ded_medical: "Zorgverzekering",
+            ded_dental: "Tandartsverzekering",
+            ded_vision: "Oogzorgverzekering",
+            ded_parking: "Parkeren",
+            ded_transit: "Openbaar vervoer",
+        },
         de: {
             title: "Meine Gehaltsabrechnungen",
             description: "Sehen Sie Ihre Gehaltsabrechnungen, Ihren Nettolohn und die Abzüge im Detail.",

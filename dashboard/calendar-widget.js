@@ -68,6 +68,7 @@
   }
 
   var CSS = [
+    "." + P + "-wrap{container-type:inline-size;min-width:0}",
     "." + P + "-root{--rim:rgba(255,255,255,.62);--ink:var(--rp-dashboard-ink,#2b2f33);--mute:var(--rp-dashboard-muted,#5c6660);",
     "--accent:var(--rp-dashboard-accent,var(--sbcal-config-accent,#2f5d4a));",
     "--line:rgba(120,128,138,.18);font-family:inherit;color:var(--ink);",
@@ -116,7 +117,7 @@
     "." + P + "-empty{font-size:13px;color:var(--mute);margin:10px 0 0}",
     "." + P + "-root button:focus-visible{outline:2px solid var(--rp-dashboard-accent-ink,var(--accent));outline-offset:2px}",
     "." + P + "-root svg{width:16px;height:16px}",
-    "@media(max-width:720px){." + P + "-root{grid-template-columns:1fr;padding:16px}",
+    "@container(max-width:720px){." + P + "-root{grid-template-columns:1fr;padding:16px}",
     "." + P + "-nav button{min-width:44px;width:44px;min-height:44px;height:44px}",
     "." + P + "-side{border-left:0;border-top:1px solid var(--line);padding-left:0;padding-top:14px}}"
   ].join("");
@@ -214,6 +215,7 @@
         }).join("") : '<p class="' + P + '-empty">' + esc(this._copy[1]) + "</p>";
 
         this._container.innerHTML = "<style>" + CSS + "</style>" +
+          '<div class="' + P + '-wrap">' +
           '<div class="' + P + '-root" style="--sbcal-config-accent:' + this._accent + ";--sbcal-on-accent:" + this._onAccent + '">' +
             "<div>" +
               '<div class="' + P + '-hd"><div class="' + P + '-mo">' +
@@ -230,7 +232,7 @@
             "</div>" +
             '<div class="' + P + '-side"><div class="' + P + '-sh"><h3>' + esc(heading) + "</h3>" +
               back + "</div>" + items + "</div>" +
-          "</div>";
+          "</div></div>";
 
         this._container.querySelectorAll("[data-step]").forEach(function (b) {
           b.addEventListener("click", function () {

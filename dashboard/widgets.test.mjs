@@ -44,6 +44,8 @@ test("Files disables invalid links without blocking good entries and localizes t
 test("Calendar localizes date controls and supports a selected empty day", async () => {
   const { definition, instance, container } = await widget("calendar-widget.js", { locale: "de_DE", events: "+1 | Termin | 09:00" });
   assert.equal(definition.name, "replify-dashboard-calendar");
+  assert.match(container.innerHTML, /container-type:inline-size/);
+  assert.match(container.innerHTML, /@container\(max-width:720px\)/);
   assert.match(container.innerHTML, /aria-label="Vorheriger Monat"/);
   assert.match(container.innerHTML, /aria-current="date"/);
   instance._sel = "2000-01-01";
@@ -68,6 +70,7 @@ test("iframe brand handling validates inputs and provides readable accent/foregr
       const values = {};
       const dataset = {};
       runInNewContext(await source("widget-theme.js"), {
+        Intl, navigator: { language: "en-US" },
         URLSearchParams, location: { search: `?brand=${encodeURIComponent(brand)}&theme=${theme}` },
         document: { documentElement: { dataset, style: { setProperty: (key, value, priority) => {
           assert.equal(priority, "important");
@@ -85,12 +88,34 @@ test("iframe brand handling validates inputs and provides readable accent/foregr
   const warnings = [];
   const values = {};
   runInNewContext(await source("widget-theme.js"), {
+    Intl, navigator: { language: "en-US" },
     URLSearchParams, location: { search: "?brand=red%3Bbackground%3Ared" },
     document: { documentElement: { dataset: {}, style: { setProperty: (key, value) => { values[key] = value; } } } },
     console: { warn: value => warnings.push(value) },
   });
   assert.equal(warnings.length, 1);
   assert.equal(values["--sb-brand"], "#2f5d4a");
+});
+
+test("page locale overrides the browser language and preserves regional formatting", async () => {
+  for (const locale of ["en_US", "de_DE", "es_ES", "es_MX", "fr_FR", "fr_CA", "nl_NL"]) {
+    const root = { dataset: {}, style: { setProperty() {} } };
+    runInNewContext(await source("widget-theme.js"), {
+      URLSearchParams, Intl, navigator: { language: "en-US" },
+      location: { search: `?locale=${locale}` }, document: { documentElement: root }, console,
+    });
+    assert.equal(root.lang, locale.replace("_", "-"));
+  }
+  for (const locale of ["invalid[", "xx-YY", ""]) {
+    const warnings = [], root = { dataset: {}, style: { setProperty() {} } };
+    runInNewContext(await source("widget-theme.js"), {
+      URLSearchParams, Intl, RangeError, navigator: { language: "fr-CA" },
+      location: { search: `?locale=${locale}` }, document: { documentElement: root },
+      console: { warn: value => warnings.push(value) },
+    });
+    assert.equal(root.lang, "fr-CA");
+    assert.equal(warnings.length, locale ? 1 : 0);
+  }
 });
 
 test("glass embeds use the shared validated brand contract without inherited telemetry", async () => {
@@ -103,5 +128,20 @@ test("glass embeds use the shared validated brand contract without inherited tel
     for (const match of html.matchAll(/<script>([\s\S]*?)<\/script>/g)) {
       new Script(match[1], { filename: file });
     }
+  }
+});
+
+test("all three embeds have complete Dutch UI dictionaries and use the explicit regional page locale", async () => {
+  for (const file of ["servicenow-glass.html", "absence-balance-glass.html", "payslips-glass.html"]) {
+    const html = await source(file);
+    const script = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)][0][1];
+    const prefix = script.slice(0, script.indexOf("const t = T[LANG]"));
+    const result = runInNewContext(`${prefix}\n({current: T[LANG], reference: T['en-US'], locale: LOCALE});`, {
+      document: { documentElement: { lang: "nl-NL" } }, Intl,
+    });
+    assert.equal(result.locale, "nl-NL");
+    assert.deepEqual(Object.keys(result.current).sort(), Object.keys(result.reference).sort());
+    assert.ok(Object.values(result.current).every(value => typeof value === "string" && value.trim()));
+    assert.doesNotMatch(html, /navigator\.language/);
   }
 });
