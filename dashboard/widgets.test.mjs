@@ -145,3 +145,41 @@ test("all three embeds have complete Dutch UI dictionaries and use the explicit 
     assert.doesNotMatch(html, /navigator\.language/);
   }
 });
+
+test("Payslips privacy disables hidden controls and restores safe focus when revealing and re-hiding", async () => {
+  const html = await source("payslips-glass.html");
+  const script = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)][0][1];
+  const classes = new Set(), modalClasses = new Set();
+  const focused = [];
+  const elements = {
+    widget: { classList: { toggle: (name, enabled) => enabled ? classes.add(name) : classes.delete(name) } },
+    privacyContent: { inert: false },
+    privacyIcon: {}, privacyLabel: {}, privacyEye: {},
+    modalOverlay: { classList: { remove: name => modalClasses.delete(name) } },
+    privacyOverlay: { focus: options => focused.push(["reveal", options.preventScroll]) },
+    privacyToggle: { focus: options => focused.push(["hide", options.preventScroll]) },
+  };
+  const { updatePrivacyState, setPrivacy } = runInNewContext(`${script}\n({updatePrivacyState, setPrivacy});`, {
+    document: {
+      documentElement: { lang: "en-US" },
+      getElementById: id => elements[id],
+      addEventListener() {},
+    },
+    Intl,
+  });
+  updatePrivacyState();
+  assert.ok(classes.has("private"));
+  assert.equal(elements.privacyContent.inert, true);
+
+  setPrivacy(false);
+  assert.equal(classes.has("private"), false);
+  assert.equal(elements.privacyContent.inert, false);
+  assert.deepEqual(focused.at(-1), ["hide", true]);
+
+  modalClasses.add("open");
+  setPrivacy(true);
+  assert.ok(classes.has("private"));
+  assert.equal(elements.privacyContent.inert, true);
+  assert.equal(modalClasses.has("open"), false);
+  assert.deepEqual(focused.at(-1), ["reveal", true]);
+});

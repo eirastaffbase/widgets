@@ -110,7 +110,7 @@
     }
 
     .privacy-overlay {
-        position: absolute;
+        position: fixed;
         inset: 0;
         display: none;
         flex-direction: column;
@@ -127,6 +127,10 @@
         z-index: 5;
     }
     .widget.private .privacy-overlay { display: flex; }
+    .privacy-overlay:focus-visible {
+        outline: 2px solid var(--primary);
+        outline-offset: -3px;
+    }
 
     .privacy-overlay-text {
         font-size: clamp(20px, 6vw, 26px);
@@ -162,8 +166,9 @@
     }
 
     /* --- Period tabs --- */
-    .cw-tabs {
+    .widget .cw-tabs {
         display: flex;
+        flex-wrap: nowrap;
         gap: 8px;
         overflow-x: auto;
         padding-bottom: 10px;
@@ -514,8 +519,8 @@ html[data-theme="dark"] .cw-modal { background: #1b2126 !important; }
 
 <body>
 
-<div class="widget" id="widget">
-    <div class="privacy-content">
+<div class="widget private" id="widget">
+    <div class="privacy-content" id="privacyContent" inert>
         <h2 data-i18n="title"></h2>
         <p class="sr-only" data-i18n="description"></p>
 
@@ -857,6 +862,7 @@ html[data-theme="dark"] .cw-modal { background: #1b2126 !important; }
 
     function updatePrivacyState() {
         document.getElementById('widget').classList.toggle('private', dataHidden);
+        document.getElementById('privacyContent').inert = dataHidden;
         // Top toggle only appears when data is visible — it always offers "hide".
         document.getElementById('privacyIcon').innerHTML = EYE_SLASH_SVG;
         document.getElementById('privacyLabel').textContent = t.tapToHide;
@@ -1012,6 +1018,7 @@ html[data-theme="dark"] .cw-modal { background: #1b2126 !important; }
         // Re-hiding while the detail modal is open would leak figures — close it first.
         if (hidden) closeModal();
         updatePrivacyState();
+        document.getElementById(hidden ? 'privacyOverlay' : 'privacyToggle').focus({ preventScroll: true });
     }
 
     document.addEventListener('DOMContentLoaded', () => {
