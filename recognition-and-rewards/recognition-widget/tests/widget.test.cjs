@@ -295,7 +295,8 @@ for (const discovery of [
     const page = await fixture(t, { identityFailure: true, ...discovery });
     await fill(page);
     assert.equal(await page.locator("#submitBtn").isDisabled(), true);
-    assert.match(await page.locator("#requestStatus").textContent(), /identify your Staffbase account/);
+    // Demo widget: unresolved identity disables sending but shows no error banner.
+    assert.equal((await page.locator("#requestStatus").textContent()).trim(), "");
     assert.equal((await mutations(page)).length, 0);
   });
 }
@@ -342,10 +343,16 @@ for (const shadow of [true, false]) {
 }
 
 for (const failure of ["iconFailure", "fontFailure"]) {
-  test(`${failure} is explicitly reported`, async t => {
+  test(`${failure} is handled silently (demo widget shows no error)`, async t => {
     const page = await fixture(t, { [failure]: true });
-    await page.waitForFunction(() => window.preview.widget.shadowRoot.querySelector("#iconStatus").textContent.includes("could not load"));
-    assert.match(await page.locator("#iconStatus").textContent(), /icons could not load/);
+    // Wait until the icon load attempt has settled (failed, or loaded-but-font-
+    // missing), so the error path has definitely run…
+    await page.waitForFunction(() => {
+      const link = document.querySelector("link[data-recognition-icons]");
+      return link && link.getAttribute("data-recognition-icons") !== "loading";
+    });
+    // …and a demo widget never surfaces an error banner about it.
+    assert.equal((await page.locator("#iconStatus").textContent()).trim(), "");
   });
 }
 

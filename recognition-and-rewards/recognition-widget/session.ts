@@ -57,11 +57,11 @@ function record(value: unknown): Record<string, unknown> {
 }
 
 function sessionUrl(baseUrl: string, path: string): URL {
-  const url = new URL(`${baseUrl}${path}`, window.location.href);
-  if (url.origin !== window.location.origin) {
-    throw new RequestError("The widget API URL must use the same Staffbase site as your session.");
-  }
-  return url;
+  // baseUrl is resolved from the host SDK's branch webUrl, so it already points
+  // at the current session's Staffbase site. No origin check: on mobile the app
+  // runs under a capacitor:// origin that never matches the API host, so a
+  // same-origin guard here would always (and wrongly) reject.
+  return new URL(`${baseUrl}${path}`, window.location.href);
 }
 
 async function discoverSession(baseUrl: string, signal: AbortSignal): Promise<{ csrfToken: string; user: SessionUser | null }> {

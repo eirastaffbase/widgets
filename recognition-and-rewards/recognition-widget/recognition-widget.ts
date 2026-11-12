@@ -162,8 +162,8 @@ a.${p}-av{cursor:pointer}
 .${p}-cancel-btn{padding:7px 13px;border-radius:var(--r-sm);border:1.5px solid var(--border);background:#fff;color:var(--gray);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
 .${p}-who{flex:1;min-width:0}
 .${p}-from{font-size:13px;font-weight:700;color:var(--dark);display:flex;align-items:center;gap:5px;line-height:1.3;flex-wrap:nowrap;overflow:hidden;min-width:0}
-.${p}-from-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex-shrink:1}
-.${p}-from .${p}-to{font-weight:700;color:var(--primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex-shrink:1}
+.${p}-from-name{overflow:hidden;min-width:0;flex-shrink:1;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}
+.${p}-from .${p}-to{font-weight:700;color:var(--primary);overflow:hidden;min-width:0;flex-shrink:1;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}
 .${p}-from svg{color:var(--gray-lt);flex-shrink:0;display:block}
 .${p}-time{font-size:11px;color:var(--gray-lt);margin-top:1px}
 .${p}-badges{display:flex;align-items:center;gap:5px;flex-shrink:0;align-self:flex-start}
@@ -196,7 +196,7 @@ textarea.${p}-in{resize:vertical;min-height:84px;line-height:1.55}
 .${p}-recipient-info{flex:1;min-width:0}
 .${p}-recipient-eyebrow{font-size:10.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--primary);display:flex;align-items:center;gap:5px}
 .${p}-recipient-eyebrow svg{width:11px;height:11px}
-.${p}-recipient-name{font-size:16px;font-weight:800;letter-spacing:-.01em;color:var(--dark);line-height:1.25;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.${p}-recipient-name{font-size:16px;font-weight:800;letter-spacing:-.01em;color:var(--dark);line-height:1.25;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
 .${p}-recipient-change{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--gray);background:rgba(0,0,0,.04);cursor:pointer;transition:background .15s,color .15s}
 .${p}-recipient-change:hover{background:rgba(var(--primary-rgb),.12);color:var(--primary)}
 .${p}-ktypes{display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:9px}
@@ -443,7 +443,19 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
         controller.abort();
         cleanups.forEach(cleanup => cleanup());
       };
-      const baseUrl = (this.getAttribute("baseurl") || DEFAULT_BASE_URL).replace(/\/+$/, "");
+      // Resolve the Staffbase API base URL from the host SDK's branch info —
+      // webUrl is the current session's site on both web and mobile, so there's
+      // no config field to set and nothing to mismatch. The configured
+      // "baseurl" attribute stays as an optional override; DEFAULT_BASE_URL is
+      // the last resort if the SDK can't tell us (e.g. preview.html).
+      let resolvedBase = "";
+      try {
+        const webUrl = widgetApi.getBranchInformation()?.webUrl || "";
+        if (webUrl) resolvedBase = `${webUrl.replace(/\/+$/, "")}/api`;
+      } catch (error) {
+        reportError("Branch info lookup failed; falling back to configured base URL", error);
+      }
+      const baseUrl = (resolvedBase || this.getAttribute("baseurl") || DEFAULT_BASE_URL).replace(/\/+$/, "");
       const channelId = this.getAttribute("channelid") || DEFAULT_CHANNEL;
       const token = this.getAttribute("apitoken") || "";
       const pointsField = this.getAttribute("pointsfield") || "points";
@@ -471,6 +483,86 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
       const accentRgb = hexToRgb(accentColor);
       const primaryText = contrastColor(primaryColor);
       const p = "rcw";
+
+      // ── Debug mode ─────────────────────────────────────────────────────
+      // On-screen log panel for debugging inside the mobile app (no console
+      // there). Ported from the task widgets; styled inline because the panel is
+      // appended to document.body, outside the widget's own <style> scope. Gated
+      // on the debugmode config flag — off by default, so nothing renders normally.
+      const debugMode = this.getAttribute("debugmode") === "true";
+      const debugLog: string[] = [];
+      let debugBodyEl: HTMLElement | null = null;
+      const dlog = (...args: unknown[]): void => {
+        const ts = new Date().toISOString().slice(11, 23);
+        const line = ts + " " + args.map(a => {
+          if (typeof a === "string") return a;
+          try { return JSON.stringify(a); } catch { return String(a); }
+        }).join(" ");
+        debugLog.push(line);
+        if (debugLog.length > 500) debugLog.shift();
+        try { console.log("[recognition]", ...args); } catch {}
+        if (debugBodyEl) {
+          debugBodyEl.textContent = debugLog.join("\n");
+          debugBodyEl.scrollTop = debugBodyEl.scrollHeight;
+        }
+      };
+      if (debugMode) {
+        const panel = document.createElement("div");
+        panel.setAttribute("data-rcw-debug", "");
+        panel.style.cssText = "position:fixed;left:0;right:0;bottom:0;z-index:2147483647;background:#0d1117;color:#e6edf3;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;border-top:2px solid " + primaryColor + ";box-shadow:0 -4px 16px rgba(0,0,0,.3);max-height:45vh;display:flex;flex-direction:column";
+        const bar = document.createElement("div");
+        bar.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 10px;font-size:12px;font-weight:700;border-bottom:1px solid rgba(255,255,255,.1)";
+        const title = document.createElement("span");
+        title.textContent = "Recognition debug";
+        const actions = document.createElement("div");
+        actions.style.cssText = "display:flex;gap:6px;flex-shrink:0";
+        const mkBtn = (label: string): HTMLButtonElement => {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.textContent = label;
+          b.style.cssText = "background:#21262d;color:#e6edf3;border:1px solid rgba(255,255,255,.15);border-radius:5px;padding:3px 9px;font-size:11px;font-weight:600;cursor:pointer";
+          return b;
+        };
+        const copyBtn = mkBtn("Copy");
+        const clearBtn = mkBtn("Clear");
+        const toggleBtn = mkBtn("Hide");
+        actions.append(copyBtn, clearBtn, toggleBtn);
+        bar.append(title, actions);
+        const body = document.createElement("pre");
+        body.style.cssText = "margin:0;padding:8px 10px;overflow:auto;font-size:11px;line-height:1.5;white-space:pre-wrap;word-break:break-word;flex:1";
+        panel.append(bar, body);
+        document.body.appendChild(panel);
+        debugBodyEl = body;
+        clearBtn.addEventListener("click", () => { debugLog.length = 0; body.textContent = ""; });
+        toggleBtn.addEventListener("click", () => {
+          const hidden = body.style.display === "none";
+          body.style.display = hidden ? "" : "none";
+          toggleBtn.textContent = hidden ? "Hide" : "Show";
+        });
+        copyBtn.addEventListener("click", async () => {
+          const text = debugLog.join("\n");
+          let ok = false;
+          try { await navigator.clipboard.writeText(text); ok = true; }
+          catch {
+            // Fallback for webviews without the async clipboard API.
+            try {
+              const ta = document.createElement("textarea");
+              ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+              document.body.appendChild(ta); ta.focus(); ta.select();
+              ok = document.execCommand("copy"); document.body.removeChild(ta);
+            } catch { ok = false; }
+          }
+          copyBtn.textContent = ok ? "Copied" : "Copy failed";
+          setTimeout(() => { copyBtn.textContent = "Copy"; }, 1500);
+        });
+        cleanups.push(() => { panel.remove(); debugBodyEl = null; });
+        dlog("debug panel ready · origin", location.origin, "· href", location.href);
+        dlog("base url", baseUrl, "· from SDK branch webUrl:", resolvedBase ? "yes" : "no (fallback)");
+        try {
+          const bi = widgetApi.getBranchInformation();
+          dlog("branch · webUrl", bi?.webUrl || "(none)", "· slug", bi?.slug || "(none)", "· branchId", bi?.branchId || "(none)");
+        } catch (e) { dlog("branch · getBranchInformation threw", e instanceof Error ? e.message : String(e)); }
+      }
 
       let rewardTypes = DEFAULT_REWARD_TYPES;
       try {
@@ -515,6 +607,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
       if (!currentUser || !`${currentUser.firstName} ${currentUser.lastName}`.trim()) {
         identityError = "Could not identify your Staffbase account. Refresh the page before sending recognition.";
       }
+      dlog("identity", currentUser ? `${currentUser.firstName} ${currentUser.lastName}`.trim() + " · " + currentUser.id : "(unresolved)");
 
       // --- Build HTML ---
       container.innerHTML = `<style>${buildCss(p)}</style>
@@ -613,10 +706,13 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
       const submitBtn = container.querySelector("#submitBtn") as HTMLButtonElement;
       const toast = container.querySelector("#toast") as HTMLElement;
       const requestStatus = container.querySelector("#requestStatus") as HTMLElement;
-      requestStatus.textContent = identityError;
+      // Demo widget: don't surface a load-time identity error banner. The
+      // submit button stays disabled (updateSubmitState) if identity is missing,
+      // so a broken post is still prevented without a scary message.
+      requestStatus.textContent = "";
       cleanups.push(ensureTablerIcons(container, () => {
         if (!active()) return;
-        (container.querySelector("#iconStatus") as HTMLElement).textContent = "Recognition icons could not load. Check access to the Tabler stylesheet and font.";
+        // Icons failing is cosmetic — log it, don't show it.
         console.error("[recognition] Tabler stylesheet or font could not load.");
       }));
       cleanups.push(() => {
@@ -962,6 +1058,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
 
         } catch (err) {
           reportError("Sending recognition failed", err);
+          dlog("send failed", err instanceof Error ? err.message : String(err), "· published", String(published));
           if (active()) requestStatus.textContent = published
             ? "Recognition was posted, but follow-up work failed. Do not resend it."
             : errorMessage(err);
@@ -1341,8 +1438,10 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
         } catch (error) {
           reportError("Loading wall failed", error);
           if (!active()) return false;
+          // Demo widget: never show a load error — fall back to the neutral
+          // empty state (the failure is still logged via reportError above).
           feed.classList.remove("intro");
-          feed.innerHTML = `<div class="${p}-empty">Could not load recognitions.</div>`;
+          feed.innerHTML = `<div class="${p}-empty">No recognitions yet.</div>`;
           return false;
         }
       }
@@ -1358,7 +1457,7 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
     }
 
     static get observedAttributes() {
-      return ["apitoken", "baseurl", "channelid", "rewardtypes", "enablepoints", "pointsfield", "adminuserid", "notificationlink", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor"];
+      return ["apitoken", "baseurl", "channelid", "rewardtypes", "enablepoints", "pointsfield", "adminuserid", "notificationlink", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor", "debugmode"];
     }
   };
 };
@@ -1367,7 +1466,9 @@ const factory: BlockFactory = (BaseBlockClass, widgetApi: WidgetApi) => {
 const configurationSchema: any = {
   properties: {
     apitoken: { type: "string", title: "API Token" },
-    baseurl: { type: "string", title: "Base URL", default: DEFAULT_BASE_URL },
+    // baseurl intentionally omitted — the widget derives the API URL from the
+    // host SDK (branch webUrl) at runtime. Still readable as an attribute if an
+    // explicit override is ever needed.
     channelid: { type: "string", title: "Social Wall Channel ID" },
     rewardtypes: { type: "string", title: "Reward Types (JSON array)", default: JSON.stringify(DEFAULT_REWARD_TYPES, null, 2) },
     enablepoints: { type: "boolean", title: "Enable Points", default: true },
@@ -1375,6 +1476,7 @@ const configurationSchema: any = {
     notificationlink: { type: "string", title: "Notification Link (page path)" },
     usethemecolors: { type: "boolean", title: "Use Theme Colors", default: false },
     backgroundcolor: { type: "string", title: "Background Color", default: "" },
+    debugmode: { type: "boolean", title: "Debug Mode (on-screen logs)", default: false },
   },
   // When "Use Theme Colors" is off, expose the manual Primary/Accent pickers.
   dependencies: {
@@ -1411,7 +1513,6 @@ const configurationSchema: any = {
 
 const uiSchema = {
   apitoken: { "ui:widget": "password", "ui:help": "Base64-encoded API token (e.g. from *.staffbase.com or *.staffbase.rocks)" },
-  baseurl: { "ui:help": "API base URL e.g. https://yourorg.staffbase.com/api" },
   channelid: { "ui:help": "ID of the Social Wall channel where recognitions will be posted" },
   rewardtypes: {
     "ui:widget": "textarea",
@@ -1425,12 +1526,13 @@ const uiSchema = {
   primarycolor: { "ui:widget": "color", "ui:help": "Primary brand color" },
   accentcolor: { "ui:widget": "color", "ui:help": "Accent / secondary color (used for gradients & points)" },
   backgroundcolor: { "ui:widget": "color", "ui:help": "Widget background color — leave blank for transparent" },
+  debugmode: { "ui:help": "Show an on-screen log panel with a copy button — useful for debugging inside the mobile app" },
 };
 
 const blockDefinition: BlockDefinition = {
   name: "recognition-widget",
   label: "Recognition Widget",
-  attributes: ["apitoken", "baseurl", "channelid", "rewardtypes", "enablepoints", "pointsfield", "adminuserid", "notificationlink", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor"],
+  attributes: ["apitoken", "baseurl", "channelid", "rewardtypes", "enablepoints", "pointsfield", "adminuserid", "notificationlink", "usethemecolors", "primarycolor", "accentcolor", "backgroundcolor", "debugmode"],
   factory,
   configurationSchema,
   uiSchema,
