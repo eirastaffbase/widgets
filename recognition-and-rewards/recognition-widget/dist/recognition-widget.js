@@ -337,10 +337,13 @@ a.${p}-av{cursor:pointer}
 .${p}-save-btn{padding:7px 15px;border-radius:var(--r-sm);border:none;background:var(--primary);color:var(--primary-text);font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
 .${p}-cancel-btn{padding:7px 13px;border-radius:var(--r-sm);border:1.5px solid var(--border);background:#fff;color:var(--gray);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
 .${p}-who{flex:1;min-width:0}
-.${p}-from{font-size:13px;font-weight:700;color:var(--dark);display:flex;align-items:center;gap:5px;line-height:1.3;flex-wrap:nowrap;overflow:hidden;min-width:0}
-.${p}-from-name{overflow:hidden;min-width:0;flex-shrink:1;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical}
-.${p}-from .${p}-to{font-weight:700;color:var(--primary);overflow:hidden;min-width:0;flex-shrink:1;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical}
-.${p}-from svg{color:var(--gray-lt);flex-shrink:0;display:block}
+/* "FromName → ToName" flows as normal text: it wraps at word boundaries across
+   the available width (never mid-word, never ellipsized) and the arrow is just
+   an inline glyph between the names rather than a fixed-width flex column. */
+.${p}-from{font-size:13px;font-weight:700;color:var(--dark);line-height:1.35;min-width:0;overflow-wrap:break-word}
+.${p}-from-name{color:var(--dark)}
+.${p}-from .${p}-to{font-weight:700;color:var(--primary)}
+.${p}-from svg{color:var(--gray-lt);display:inline-block;vertical-align:-2px;margin:0 3px}
 .${p}-time{font-size:11px;color:var(--gray-lt);margin-top:1px}
 .${p}-badges{display:flex;align-items:center;gap:5px;flex-shrink:0;align-self:flex-start}
 .${p}-type-badge{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:5px;white-space:nowrap;background:rgba(0,0,0,.05);color:var(--gray)}
@@ -372,7 +375,7 @@ textarea.${p}-in{resize:vertical;min-height:84px;line-height:1.55}
 .${p}-recipient-info{flex:1;min-width:0}
 .${p}-recipient-eyebrow{font-size:10.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--primary);display:flex;align-items:center;gap:5px}
 .${p}-recipient-eyebrow svg{width:11px;height:11px}
-.${p}-recipient-name{font-size:16px;font-weight:800;letter-spacing:-.01em;color:var(--dark);line-height:1.25;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.${p}-recipient-name{font-size:16px;font-weight:800;letter-spacing:-.01em;color:var(--dark);line-height:1.25;margin-top:2px;overflow-wrap:break-word}
 .${p}-recipient-change{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--gray);background:rgba(0,0,0,.04);cursor:pointer;transition:background .15s,color .15s}
 .${p}-recipient-change:hover{background:rgba(var(--primary-rgb),.12);color:var(--primary)}
 .${p}-ktypes{display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:9px}
