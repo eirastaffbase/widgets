@@ -45,6 +45,32 @@ test("Files disables invalid links without blocking good entries and localizes t
   assert.match(container.innerHTML, />Tout voir<\/a>/);
 });
 
+test("Files chooses accessible file icons from types, filenames and links without overriding explicit types", async () => {
+  const { container, warnings } = await widget("files-widget.js", { files: [
+    "Report.PDF",
+    "Notes.docx",
+    "Budget | | Updated today | https://files.test/budget.XLSX?download=1#sheet",
+    "Slides.ppt",
+    "Archive.zip",
+    "Photo | | | https://files.test/photo.jpeg",
+    "Unknown",
+    "Override.pdf | DOCX",
+    "Unsafe | \"><script>alert(1)</script>",
+  ].join("\n") });
+  assert.deepEqual(warnings, []);
+  for (const [label, icon] of [["PDF", "pdf"], ["DOCX", "word"], ["XLSX", "excel"],
+    ["PPT", "powerpoint"], ["ZIP", "zipper"], ["IMG", "image"], ["FILE", "file"]]) {
+    assert.ok(container.innerHTML.includes(`data-file-icon="${icon}" role="img" aria-label="${label}"`));
+  }
+  const override = await widget("files-widget.js", { files: "Override.pdf | DOCX" });
+  assert.match(override.container.innerHTML, /data-file-icon="word" role="img" aria-label="DOCX"/);
+  const filename = await widget("files-widget.js", { files: "Report.pdf | | | https://files.test?file=report.docx#other.zip" });
+  assert.match(filename.container.innerHTML, /data-file-icon="pdf" role="img" aria-label="PDF"/);
+  const linked = await widget("files-widget.js", { files: "Report.pdf | | | https://files.test/report.docx" });
+  assert.match(linked.container.innerHTML, /data-file-icon="word" role="img" aria-label="DOCX"/);
+  assert.doesNotMatch(container.innerHTML, /<script\b|https?:\/\/[^"]*(?:fontawesome|fortawesome)/i);
+});
+
 test("Files demo dates roll across paydays, year boundaries and leap years", async () => {
   for (const [year, month, day, period, benefitsYear] of [
     [2030, 11, 31, "December 2030", 2031],
