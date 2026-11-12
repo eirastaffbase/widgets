@@ -5,12 +5,16 @@ import test from "node:test";
 
 const source = name => readFile(new URL(name, import.meta.url), "utf8");
 
-async function widget(name, attributes = {}) {
+async function widget(name, attributes = {}, now) {
   let definition;
   const warnings = [];
   runInNewContext(await source(name), {
     window: { defineBlock: value => { definition = value.blockDefinition; } },
     navigator: { language: "en-US" }, location: { href: "https://widgets.test/dashboard/" },
+    Date: now === undefined ? Date : class extends Date {
+      constructor(...args) { super(...(args.length ? args : [now])); }
+      static now() { return now; }
+    },
     URL, Intl, TypeError, console: { warn: value => warnings.push(value) },
   });
   class Base {
@@ -39,6 +43,46 @@ test("Files disables invalid links without blocking good entries and localizes t
   assert.doesNotMatch(container.innerHTML, /javascript:|https:\/\/\[/);
   assert.match(container.innerHTML, /href="https:\/\/files.test\/guide.pdf"/);
   assert.match(container.innerHTML, />Tout voir<\/a>/);
+});
+
+test("Files demo dates roll across paydays, year boundaries and leap years", async () => {
+  for (const [year, month, day, period, benefitsYear] of [
+    [2030, 11, 31, "December 2030", 2031],
+    [2031, 0, 1, "December 2030", 2032],
+    [2031, 0, 15, "January 2031", 2032],
+    [2032, 1, 29, "February 2032", 2033],
+  ]) {
+    const { container } = await widget("files-widget.js", {}, new Date(year, month, day, 12).getTime());
+    assert.ok(container.innerHTML.includes(`Payslip - ${period}`));
+    assert.ok(container.innerHTML.includes(`Benefits guide ${benefitsYear}`));
+    assert.doesNotMatch(container.innerHTML, /October 2026|Added 25 Oct|Updated 1 Nov/);
+  }
+});
+
+test("Files refreshes the translated pilot demo but preserves custom and linked file dates", async () => {
+  const files = [
+    "Bulletin de paie - octobre 2026 | PDF | Ajouté le 25 oct.",
+    "Contrat de travail | PDF | Ajouté le 12 mars",
+    "Guide des avantages sociaux 2027 | PDF | Mis à jour le 1 nov.",
+    "Politique de frais | DOCX | Mis à jour le 18 sept.",
+    "Organigramme | PDF | Mis à jour le 2 nov.",
+    "Politique de télétravail | PDF | Mis à jour le 14 août",
+  ].join("\n");
+  const now = new Date(2031, 0, 1, 12).getTime();
+  const demo = await widget("files-widget.js", { files }, now);
+  assert.match(demo.container.innerHTML, /Bulletin de paie - décembre 2030/);
+  assert.match(demo.container.innerHTML, /Guide des avantages sociaux 2032/);
+  assert.match(demo.container.innerHTML, /Ajouté le 15 déc\./);
+
+  for (const custom of [
+    files.replace("Contrat de travail", "Contrat de travail signé"),
+    files.replace("Ajouté le 25 oct.", "Ajouté le 25 oct. | https://files.test/payslip.pdf"),
+  ]) {
+    const { container } = await widget("files-widget.js", { files: custom }, now);
+    assert.match(container.innerHTML, /Bulletin de paie - octobre 2026/);
+    assert.match(container.innerHTML, /Ajouté le 25 oct\./);
+    assert.match(container.innerHTML, /Guide des avantages sociaux 2027/);
+  }
 });
 
 test("Calendar localizes date controls and supports a selected empty day", async () => {

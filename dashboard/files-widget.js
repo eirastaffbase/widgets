@@ -17,6 +17,34 @@
     "Remote work policy | PDF | Updated 14 Aug"
   ].join("\n");
 
+  var DEMO_LISTS = [
+    {
+      locale: "en-US", added: "Added ", updated: "Updated ",
+      names: ["Payslip - October 2026", "Employment contract", "Benefits guide 2027", "Expense policy", "Org chart", "Remote work policy"],
+      dates: ["Added 25 Oct", "Added 12 Mar", "Updated 1 Nov", "Updated 18 Sep", "Updated 2 Nov", "Updated 14 Aug"]
+    },
+    {
+      locale: "de-DE", added: "Hinzugefügt am ", updated: "Aktualisiert am ",
+      names: ["Gehaltsabrechnung - Oktober 2026", "Arbeitsvertrag", "Leitfaden zu Zusatzleistungen 2027", "Spesenrichtlinie", "Organigramm", "Richtlinie für mobiles Arbeiten"],
+      dates: ["Hinzugefügt am 25. Okt.", "Hinzugefügt am 12. März", "Aktualisiert am 1. Nov.", "Aktualisiert am 18. Sept.", "Aktualisiert am 2. Nov.", "Aktualisiert am 14. Aug."]
+    },
+    {
+      locale: "es-ES", added: "Añadido el ", updated: "Actualizado el ",
+      names: ["Nómina - octubre de 2026", "Contrato de trabajo", "Guía de prestaciones 2027", "Política de gastos", "Organigrama", "Política de trabajo a distancia"],
+      dates: ["Añadido el 25 oct.", "Añadido el 12 mar.", "Actualizado el 1 nov.", "Actualizado el 18 sept.", "Actualizado el 2 nov.", "Actualizado el 14 ago."]
+    },
+    {
+      locale: "fr-FR", added: "Ajouté le ", updated: "Mis à jour le ",
+      names: ["Bulletin de paie - octobre 2026", "Contrat de travail", "Guide des avantages sociaux 2027", "Politique de frais", "Organigramme", "Politique de télétravail"],
+      dates: ["Ajouté le 25 oct.", "Ajouté le 12 mars", "Mis à jour le 1 nov.", "Mis à jour le 18 sept.", "Mis à jour le 2 nov.", "Mis à jour le 14 août"]
+    },
+    {
+      locale: "nl-NL", added: "Toegevoegd op ", updated: "Bijgewerkt op ",
+      names: ["Loonstrook - oktober 2026", "Arbeidsovereenkomst", "Gids arbeidsvoorwaarden 2027", "Onkostenbeleid", "Organigram", "Thuiswerkbeleid"],
+      dates: ["Toegevoegd op 25 okt.", "Toegevoegd op 12 mrt.", "Bijgewerkt op 1 nov.", "Bijgewerkt op 18 sep.", "Bijgewerkt op 2 nov.", "Bijgewerkt op 14 aug."]
+    }
+  ];
+
   // Muted fills: enough to tell the types apart without fighting the glass.
   var TINTS = {
     PDF:  ["#fdeaea", "#c0392b"],
@@ -47,6 +75,34 @@
         url:  b[3] || ""
       };
     }).filter(Boolean);
+  }
+
+  function refreshDemoDates(files) {
+    // Only the complete, unchanged demo list is synthetic; never re-date real files.
+    var demo = DEMO_LISTS.find(function (copy) {
+      return files.length === copy.names.length && files.every(function (file, i) {
+        return file.name === copy.names[i] && file.meta === copy.dates[i] &&
+          file.kind === (i === 3 ? "DOCX" : "PDF") && !file.url;
+      });
+    });
+    if (!demo) return files;
+    var now = new Date();
+    var payDate = new Date(now.getFullYear(), now.getMonth(), 15);
+    if (payDate > now) payDate.setMonth(payDate.getMonth() - 1);
+    var month = new Intl.DateTimeFormat(demo.locale, { month: "long", year: "numeric" });
+    var date = new Intl.DateTimeFormat(demo.locale, { day: "numeric", month: "short" });
+    var offsets = [0, -210, -11, -55, -10, -90];
+    return files.map(function (file, i) {
+      var when = new Date(now);
+      when.setDate(when.getDate() + offsets[i]);
+      if (i === 0) {
+        when = payDate;
+        file.name = file.name.slice(0, file.name.indexOf(" - ") + 3) + month.format(payDate);
+      }
+      if (i === 2) file.name = file.name.replace("2027", String(now.getFullYear() + 1));
+      file.meta = (i < 2 ? demo.added : demo.updated) + date.format(when);
+      return file;
+    });
   }
 
   var CSS = [
@@ -106,14 +162,14 @@
   var uiSchema = {
     files: {
       "ui:widget": "textarea",
-      "ui:help": "One per line:  Name | TYPE | meta | url    (url optional). TYPE is PDF, DOCX, XLSX, PPTX, ZIP or IMG."
+      "ui:help": "One per line:  Name | TYPE | meta | url    (url optional). TYPE is PDF, DOCX, XLSX, PPTX, ZIP or IMG. Unchanged demo lists use rolling dates; custom entries stay as entered."
     }
   };
 
   var factory = function (BaseBlockClass) {
     return class FilesWidget extends BaseBlockClass {
       renderBlock(container) {
-        var files = parseFiles(this.getAttribute("files") || DEFAULT_FILES);
+        var files = refreshDemoDates(parseFiles(this.getAttribute("files") || DEFAULT_FILES));
         var title = this.getAttribute("widgettitle") || "My Files";
         var all = safeLink((this.getAttribute("alllink") || "").trim());
         var seeLabel = this.getAttribute("seelabel") || "See all";
