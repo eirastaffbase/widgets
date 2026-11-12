@@ -74,6 +74,15 @@ test("Files refreshes the translated pilot demo but preserves custom and linked 
   assert.match(demo.container.innerHTML, /Guide des avantages sociaux 2032/);
   assert.match(demo.container.innerHTML, /Ajouté le 15 déc\./);
 
+  const extended = await widget("files-widget.js", {
+    files: files + "\nPolitique de déplacements | PDF\nArchive | PDF | Ajouté le 1 janv. 2020 | https://files.test/archive.pdf",
+  }, now);
+  assert.match(extended.container.innerHTML, /Bulletin de paie - décembre 2030/);
+  assert.match(extended.container.innerHTML, /Guide des avantages sociaux 2032/);
+  assert.match(extended.container.innerHTML, /Politique de déplacements/);
+  assert.match(extended.container.innerHTML, /Ajouté le 1 janv\. 2020/);
+  assert.match(extended.container.innerHTML, /href="https:\/\/files.test\/archive.pdf"/);
+
   for (const custom of [
     files.replace("Contrat de travail", "Contrat de travail signé"),
     files.replace("Ajouté le 25 oct.", "Ajouté le 25 oct. | https://files.test/payslip.pdf"),

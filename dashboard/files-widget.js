@@ -78,9 +78,9 @@
   }
 
   function refreshDemoDates(files) {
-    // Only the complete, unchanged demo list is synthetic; never re-date real files.
+    // Keep the original demo dates rolling even when more files are appended.
     var demo = DEMO_LISTS.find(function (copy) {
-      return files.length === copy.names.length && files.every(function (file, i) {
+      return files.length >= copy.names.length && files.slice(0, copy.names.length).every(function (file, i) {
         return file.name === copy.names[i] && file.meta === copy.dates[i] &&
           file.kind === (i === 3 ? "DOCX" : "PDF") && !file.url;
       });
@@ -93,6 +93,7 @@
     var date = new Intl.DateTimeFormat(demo.locale, { day: "numeric", month: "short" });
     var offsets = [0, -210, -11, -55, -10, -90];
     return files.map(function (file, i) {
+      if (i >= demo.names.length) return file;
       var when = new Date(now);
       when.setDate(when.getDate() + offsets[i]);
       if (i === 0) {
